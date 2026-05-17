@@ -61,6 +61,14 @@ local TOKEN = {
   ASSIGN = "=",
   -- Unary
   NOT = "!",
+  NEQ = "!==",
+  LT = "<",
+  GT = ">",
+  LTE = "<=",
+  GTE = ">=",
+  AND = "&&",
+  OR = "||",
+  PERCENT = "%",
 
   -- Arrow function
   ARROW = "=>",
@@ -357,30 +365,58 @@ local function tokenize(source)
     elseif c == "/" then
       table.insert(tokens, make_token(TOKEN.SLASH))
       advance()
+    elseif c == "%" then
+      table.insert(tokens, make_token(TOKEN.PERCENT))
+      advance()
     elseif c == "=" then
       if lookahead(2) == "==" then
         if lookahead(3) == "===" then
           table.insert(tokens, make_token(TOKEN.EQ))
           advance(3)
         else
-          table.insert(tokens, make_token(TOKEN.ASSIGN))
-          advance(2)
+          return nil, string.format("Use === instead of == at line %d, col %d", line, col)
         end
       else
         table.insert(tokens, make_token(TOKEN.ASSIGN))
         advance()
       end
     elseif c == "!" then
-      if lookahead(2) == "==" then
-        if lookahead(3) == "===" then
-          table.insert(tokens, make_token(TOKEN.EQ))
-          advance(3)
-        else
-          return nil, string.format("Invalid operator '!==' at line %d, col %d (use ===)", line, col)
-        end
+      if source:sub(pos, pos + 2) == "!==" then
+        table.insert(tokens, make_token(TOKEN.NEQ))
+        advance(3)
       else
         table.insert(tokens, make_token(TOKEN.NOT))
         advance()
+      end
+    elseif c == "<" then
+      if lookahead(2) == "<=" then
+        table.insert(tokens, make_token(TOKEN.LTE))
+        advance(2)
+      else
+        table.insert(tokens, make_token(TOKEN.LT))
+        advance()
+      end
+    elseif c == ">" then
+      if lookahead(2) == ">=" then
+        table.insert(tokens, make_token(TOKEN.GTE))
+        advance(2)
+      else
+        table.insert(tokens, make_token(TOKEN.GT))
+        advance()
+      end
+    elseif c == "&" then
+      if lookahead(2) == "&&" then
+        table.insert(tokens, make_token(TOKEN.AND))
+        advance(2)
+      else
+        return nil, string.format("Unexpected character '%s' at line %d, col %d", c, line, col)
+      end
+    elseif c == "|" then
+      if lookahead(2) == "||" then
+        table.insert(tokens, make_token(TOKEN.OR))
+        advance(2)
+      else
+        return nil, string.format("Unexpected character '%s' at line %d, col %d", c, line, col)
       end
     elseif lookahead(2) == "=>" then
       table.insert(tokens, make_token(TOKEN.ARROW))
@@ -890,10 +926,18 @@ local PRECEDENCE = {
   [TOKEN.NOT] = 6,
   [TOKEN.STAR] = 5,
   [TOKEN.SLASH] = 5,
+  [TOKEN.PERCENT] = 5,
   [TOKEN.PLUS] = 4,
   [TOKEN.MINUS] = 4,
   [TOKEN.EQ] = 3,
-  [TOKEN.ASSIGN] = 2,
+  [TOKEN.NEQ] = 3,
+  [TOKEN.LT] = 3,
+  [TOKEN.GT] = 3,
+  [TOKEN.LTE] = 3,
+  [TOKEN.GTE] = 3,
+  [TOKEN.AND] = 2,
+  [TOKEN.OR] = 1,
+  [TOKEN.ASSIGN] = 0.5,
 }
 
 --- Parse an expression, handling operator precedence.
