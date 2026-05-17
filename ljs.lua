@@ -1,6 +1,13 @@
 -- ljs - JavaScript subset parser for Lua
 -- Parses a well-defined subset of JavaScript into a Lua table-based AST.
 --
+-- Supported: let/const/var, functions, arrow functions, objects, arrays,
+-- arithmetic/comparison/logical/assignment operators, if/else, while, for...of,
+-- throw/try/catch, console.log, member access, method calls, comments.
+--
+-- Excluded (errors): this, async/await, typeof, instanceof, == (use ===),
+-- regex literals, prototypal inheritance, Promises.
+--
 -- Usage:
 --   local ljs = require("ljs")
 --   local ast, err = ljs.parse("let x = 42; console.log(x);")
@@ -11,25 +18,22 @@ local ljs = {}
 -- ============================================================================
 -- TOKEN TYPES
 -- ============================================================================
+-- Each constant maps to a string used as token.type throughout the tokenizer
+-- and parser. String values match the JS source text for operators/keywords.
 
--- Token type constants
 local TOKEN = {
-  -- End of input
   EOF = "EOF",
-
-  -- Literals
   NUMBER = "Number",
   STRING = "String",
   BOOLEAN = "Boolean",
   NULL = "Null",
-
-  -- Identifiers and keywords
   IDENTIFIER = "Identifier",
 
-  -- Keywords
+  -- Declaration keywords
   LET = "let",
   CONST = "const",
   FUNCTION = "function",
+  -- Control flow keywords
   IF = "if",
   ELSE = "else",
   WHILE = "while",
@@ -52,28 +56,30 @@ local TOKEN = {
   COLON = ":",
   DOT = ".",
 
-  -- Operators
+  -- Arithmetic
   PLUS = "+",
   MINUS = "-",
   STAR = "*",
   SLASH = "/",
+  PERCENT = "%",
+  -- Comparison
   EQ = "===",
-  ASSIGN = "=",
-  -- Unary
-  NOT = "!",
   NEQ = "!==",
   LT = "<",
   GT = ">",
   LTE = "<=",
   GTE = ">=",
+  -- Logical
   AND = "&&",
   OR = "||",
-  PERCENT = "%",
-
+  -- Assignment
+  ASSIGN = "=",
+  -- Unary
+  NOT = "!",
   -- Arrow function
   ARROW = "=>",
 
-  -- Error-triggering keywords
+  -- Error-triggering keywords: tokenized normally but rejected by the parser
   THIS = "this",
   ASYNC = "async",
   AWAIT = "await",
@@ -81,7 +87,9 @@ local TOKEN = {
   INSTANCEOF = "instanceof",
 }
 
--- Keyword lookup - maps keyword strings to token types
+-- Maps keyword strings to their token type. Looked up during tokenization
+-- to distinguish keywords from plain identifiers. "var" maps to TOKEN.LET
+-- so it's treated identically to let in the parser.
 local KEYWORDS = {
   ["let"] = TOKEN.LET,
   ["const"] = TOKEN.CONST,
@@ -109,17 +117,17 @@ local KEYWORDS = {
 -- ============================================================================
 -- TOKENIZER
 -- ============================================================================
-
--- Token structure: {type, value, line, col}
--- For EOF: {type = "EOF", line, col}
--- For identifiers/keywords: {type, value (string), line, col}
--- For literals: {type, value (actual value), line, col}
--- For punctuation/operators: {type, line, col}
+-- Converts source string into an array of tokens.
+-- Each token is {type, value, line, col} where:
+--   - value is present for identifiers/keywords (string), numbers (number),
+--     booleans (true/false), strings (unescaped string). Absent for punctuation.
+--   - line/col are 1-based source positions.
+-- Returns: tokens array on success, nil + error string on failure.
 
 --- Tokenize JavaScript source code into a list of tokens.
 -- @param source (string) The JavaScript source code to tokenize
--- @return tokens (table) Array of token tables
--- @return err (string) Error message if tokenization failed
+-- @return tokens (table|nil) Array of token tables, or nil on error
+-- @return err (string|nil) Error message if tokenization failed
 local function tokenize(source)
   local tokens = {}
   local pos = 1
@@ -127,17 +135,16 @@ local function tokenize(source)
   local col = 1
   local len = #source
 
-  -- Helper: get current character
   local function current()
     return pos <= len and source:sub(pos, pos) or nil
   end
 
-  -- Helper: lookahead n characters
+  -- Returns n characters starting at current position, or nil if past end.
   local function lookahead(n)
     return pos + n - 1 <= len and source:sub(pos, pos + n - 1) or nil
   end
 
-  -- Helper: advance position
+  -- Moves position forward by n characters, tracking line/col.
   local function advance(n)
     n = n or 1
     for i = 1, n do
@@ -152,7 +159,6 @@ local function tokenize(source)
     end
   end
 
-  -- Helper: skip whitespace
   local function skip_whitespace()
     while current() do
       local c = current()
@@ -164,7 +170,7 @@ local function tokenize(source)
     end
   end
 
-  -- Helper: skip single-line comments
+  -- Returns true if a // comment was consumed.
   local function skip_single_line_comment()
     if lookahead(2) == "//" then
       advance(2)
@@ -176,7 +182,7 @@ local function tokenize(source)
     return false
   end
 
-  -- Helper: skip multi-line comments
+  -- Returns true if a /* */ comment was consumed, false + error if unterminated.
   local function skip_multi_line_comment()
     if lookahead(2) == "/*" then
       advance(2)
@@ -192,7 +198,8 @@ local function tokenize(source)
     return false
   end
 
-  -- Helper: skip all comments and whitespace
+  -- Skips all whitespace and comments, looping because comments can be
+  -- adjacent to each other or to whitespace.
   local function skip_trivia()
     skip_whitespace()
     while current() do
@@ -206,7 +213,6 @@ local function tokenize(source)
     end
   end
 
-  -- Helper: create a token
   local function make_token(type, value)
     return {
       type = type,
@@ -216,17 +222,15 @@ local function tokenize(source)
     }
   end
 
-  -- Helper: check if character is a digit
   local function is_digit(c)
     return c:match("%d")
   end
 
-  -- Helper: check if character is a letter or underscore
   local function is_alpha(c)
     return c:match("[%a_]")
   end
 
-  -- Helper: check if character is alphanumeric or underscore
+  -- %w matches [0-9a-zA-Z] but NOT underscore, so we add it explicitly.
   local function is_alnum(c)
     return c:match("[%w_]")
   end
@@ -237,13 +241,14 @@ local function tokenize(source)
 
     local c = current()
 
-    -- EOF
     if not c then
       table.insert(tokens, make_token(TOKEN.EOF))
       break
     end
 
-    -- Identifiers and keywords
+    -- Identifiers and keywords: start with letter/underscore, continue with
+    -- alnum+underscore. Look up the resulting text in KEYWORDS to distinguish
+    -- keywords from plain identifiers. true/false/null get literal values.
     if is_alpha(c) then
       local start_pos = pos
       local start_col = col
@@ -252,7 +257,6 @@ local function tokenize(source)
       end
       local text = source:sub(start_pos, pos - 1)
       local token_type = KEYWORDS[text] or TOKEN.IDENTIFIER
-      -- Convert boolean/null to their literal types
       if token_type == TOKEN.BOOLEAN then
         table.insert(tokens, make_token(TOKEN.BOOLEAN, text == "true"))
       elseif token_type == TOKEN.NULL then
@@ -261,15 +265,14 @@ local function tokenize(source)
         table.insert(tokens, make_token(token_type, text))
       end
 
-    -- Numbers
+    -- Numbers: integer and float. Dots only start fractional part if followed
+    -- by a digit (otherwise it's a member access like obj.length).
     elseif is_digit(c) then
       local start_pos = pos
       local start_col = col
-      -- Integer part
       while current() and is_digit(current()) do
         advance()
       end
-      -- Fractional part
       if current() == "." and is_digit(lookahead(2)) then
         advance()
         while current() and is_digit(current()) do
@@ -283,12 +286,14 @@ local function tokenize(source)
       end
       table.insert(tokens, make_token(TOKEN.NUMBER, num))
 
-    -- Strings
+    -- Strings: double or single quoted with escape sequences.
+    -- Newlines inside strings are errors (no template literals).
+    -- found_closing tracks whether we exited via closing quote vs end-of-input.
     elseif c == '"' or c == "'" then
       local quote = c
       local start_pos = pos
       local start_col = col
-      advance() -- skip opening quote
+      advance()
       local chars = {}
       local escaped = false
       local found_closing = false
@@ -329,7 +334,9 @@ local function tokenize(source)
       local str = table.concat(chars, "")
       table.insert(tokens, make_token(TOKEN.STRING, str))
 
-    -- Punctuation and operators
+    -- Punctuation and operators.
+    -- Order matters: multi-char tokens must be checked before single-char
+    -- prefixes (e.g. => before =, === before == before =).
     elseif c == "(" then
       table.insert(tokens, make_token(TOKEN.LPAREN))
       advance()
@@ -375,6 +382,8 @@ local function tokenize(source)
     elseif c == "%" then
       table.insert(tokens, make_token(TOKEN.PERCENT))
       advance()
+    -- = handler: must check => first (arrow), then ===, then reject ==,
+    -- then fall through to plain assignment =.
     elseif c == "=" then
       if lookahead(2) == "=>" then
         table.insert(tokens, make_token(TOKEN.ARROW))
@@ -390,6 +399,8 @@ local function tokenize(source)
         table.insert(tokens, make_token(TOKEN.ASSIGN))
         advance()
       end
+    -- ! handler: !== is the only multi-char form starting with !.
+    -- Use source:sub instead of lookahead to get exact 3-char match.
     elseif c == "!" then
       if source:sub(pos, pos + 2) == "!==" then
         table.insert(tokens, make_token(TOKEN.NEQ))
@@ -414,6 +425,7 @@ local function tokenize(source)
         table.insert(tokens, make_token(TOKEN.GT))
         advance()
       end
+    -- & and | only appear as && and || in this subset. Lone & or | is an error.
     elseif c == "&" then
       if lookahead(2) == "&&" then
         table.insert(tokens, make_token(TOKEN.AND))
@@ -434,7 +446,7 @@ local function tokenize(source)
     end
   end
 
-  -- Add EOF token if not already added
+  -- Guarantee the stream always ends with EOF.
   if #tokens == 0 or tokens[#tokens].type ~= TOKEN.EOF then
     table.insert(tokens, make_token(TOKEN.EOF))
   end
@@ -447,10 +459,12 @@ ljs.tokenize = tokenize
 -- ============================================================================
 -- TOKEN STREAM CONSUMER
 -- ============================================================================
+-- Wraps the token array with cursor-based read operations used by the parser.
+-- The stream never goes backwards — it's a forward-only cursor.
 
 --- Create a token stream from a list of tokens.
 -- @param tokens (table) Array of token tables from tokenize()
--- @return stream (table) Token stream with peek/advance/expect methods
+-- @return stream (table) Token stream with peek/advance/expect/consume/is/eof methods
 local function make_token_stream(tokens)
   local pos = 1
   local len = #tokens
@@ -458,14 +472,15 @@ local function make_token_stream(tokens)
   local stream = {}
 
   --- Peek at the current token without consuming it.
-  -- @return token (table) The current token, or EOF token if at end
+  -- Falls back to the last token (EOF) if past the end.
+  -- @return token (table) The current token
   function stream.peek()
     return tokens[pos] or tokens[len]
   end
 
-  --- Peek at the token n positions ahead.
-  -- @param n (number) Number of tokens to look ahead (default 1)
-  -- @return token (table) The token n positions ahead, or EOF
+  --- Peek at the token n positions ahead (1 = current, 2 = next, etc.)
+  -- @param n (number) Offset from current position (default 1)
+  -- @return token (table) The token at that offset, or EOF
   function stream.peek_n(n)
     n = n or 1
     local idx = pos + n - 1
@@ -480,8 +495,8 @@ local function make_token_stream(tokens)
   end
 
   --- Check if current token matches any of the expected types.
-  -- @param ... Expected token types
-  -- @return boolean True if current token type matches any expected
+  -- @param ... Expected token types (varargs)
+  -- @return boolean True if current token type matches any
   function stream.is_any(...)
     local expected = {...}
     local t = stream.peek().type
@@ -501,9 +516,9 @@ local function make_token_stream(tokens)
     return token
   end
 
-  --- Consume the current token if it matches the expected type.
+  --- Consume the current token if it matches the expected type (soft match).
   -- @param expected (string) Token type to expect
-  -- @return token (table) The consumed token, or nil if mismatch
+  -- @return token (table|nil) The consumed token, or nil if mismatch
   function stream.expect(expected)
     if stream.is(expected) then
       return stream.advance()
@@ -511,10 +526,10 @@ local function make_token_stream(tokens)
     return nil
   end
 
-  --- Consume the current token and assert it matches the expected type.
+  --- Consume the current token and assert it matches (hard match).
+  -- Throws a Lua error with position info on mismatch.
   -- @param expected (string) Token type to expect
   -- @return token (table) The consumed token
-  -- @raises error if token type doesn't match
   function stream.consume(expected)
     local token = stream.expect(expected)
     if not token then
@@ -537,109 +552,183 @@ end
 -- ============================================================================
 -- AST BUILDERS
 -- ============================================================================
+-- Factory functions for each AST node type. All return a table with a `type`
+-- field. See AGENTS.md for the full AST specification.
 
--- Helper functions to create AST nodes consistently
-
+--- @param name (string) Variable/parameter name
+--- @return table {type="Identifier", name=name}
 local function identifier(name, token)
   return { type = "Identifier", name = name }
 end
 
+--- @param value (number) Numeric value
+--- @return table {type="NumberLiteral", value=value}
 local function number_literal(value, token)
   return { type = "NumberLiteral", value = value }
 end
 
+--- @param value (string) Unescaped string content
+--- @return table {type="StringLiteral", value=value}
 local function string_literal(value, token)
   return { type = "StringLiteral", value = value }
 end
 
+--- @param value (boolean) true or false
+--- @return table {type="BooleanLiteral", value=value}
 local function boolean_literal(value, token)
   return { type = "BooleanLiteral", value = value }
 end
 
+--- @return table {type="NullLiteral"}
 local function null_literal(token)
   return { type = "NullLiteral" }
 end
 
+--- @param operator (string) One of: + - * / % === !== < > <= >= && || =
+--- @param left (table) Left-hand AST expression
+--- @param right (table) Right-hand AST expression
+--- @return table {type="BinaryExpression", operator, left, right}
 local function binary_expression(operator, left, right)
   return { type = "BinaryExpression", operator = operator, left = left, right = right }
 end
 
+--- @param operator (string) "!" or "-"
+--- @param argument (table) The operand AST expression
+--- @return table {type="UnaryExpression", operator, argument}
 local function unary_expression(operator, argument)
   return { type = "UnaryExpression", operator = operator, argument = argument }
 end
 
+--- @param callee (table) Expression being called
+--- @param arguments (table) Array of argument expressions
+--- @return table {type="CallExpression", callee, arguments}
 local function call_expression(callee, arguments)
   return { type = "CallExpression", callee = callee, arguments = arguments }
 end
 
+--- @param object (table) Object expression
+--- @param property (table) Property expression (Identifier or computed expression)
+--- @param computed (boolean) true for bracket notation obj[expr], false for dot notation obj.prop
+--- @return table {type="MemberExpression", object, property, computed}
 local function member_expression(object, property, computed)
   return { type = "MemberExpression", object = object, property = property, computed = computed }
 end
 
+--- @param kind (string) "let" or "const"
+--- @param declarations (table) Array of VariableDeclarator nodes
+--- @return table {type="VariableDeclaration", kind, declarations}
 local function variable_declaration(kind, declarations)
   return { type = "VariableDeclaration", kind = kind, declarations = declarations }
 end
 
+--- @param name (table) Identifier node
+--- @param init (table|nil) Initializer expression, or nil
+--- @return table {type="VariableDeclarator", name, init}
 local function variable_declarator(name, init)
   return { type = "VariableDeclarator", name = name, init = init }
 end
 
+--- @param name (string) Function name
+--- @param params (table) Array of Identifier nodes
+--- @param body (table) BlockStatement node
+--- @return table {type="FunctionDeclaration", name, params, body}
 local function function_declaration(name, params, body)
   return { type = "FunctionDeclaration", name = name, params = params, body = body }
 end
 
+--- @param params (table) Array of Identifier nodes
+--- @param body (table) BlockStatement node
+--- @return table {type="FunctionExpression", params, body}
 local function function_expression(params, body)
   return { type = "FunctionExpression", params = params, body = body }
 end
 
+--- Arrow functions are desugared: expression bodies become BlockStatement
+--- wrapping a single ExpressionStatement.
+--- @param params (table) Array of Identifier nodes
+--- @param body (table) BlockStatement (always, even for expression bodies)
+--- @return table {type="ArrowFunctionExpression", params, body}
 local function arrow_function_expression(params, body)
   return { type = "ArrowFunctionExpression", params = params, body = body }
 end
 
+--- @param test (table) Condition expression
+--- @param consequent (table) Statement to run if truthy
+--- @param alternate (table|nil) else branch, or nil
+--- @return table {type="IfStatement", test, consequent, alternate}
 local function if_statement(test, consequent, alternate)
   return { type = "IfStatement", test = test, consequent = consequent, alternate = alternate }
 end
 
+--- @param test (table) Condition expression
+--- @param body (table) Statement to repeat
+--- @return table {type="WhileStatement", test, body}
 local function while_statement(test, body)
   return { type = "WhileStatement", test = test, body = body }
 end
 
+--- @param left (table) VariableDeclaration or expression (the loop variable)
+--- @param right (table) Iterable expression
+--- @param body (table) Statement to repeat
+--- @return table {type="ForOfStatement", left, right, body}
 local function for_of_statement(left, right, body)
   return { type = "ForOfStatement", left = left, right = right, body = body }
 end
 
+--- @param body (table) Array of statement nodes
+--- @return table {type="BlockStatement", body}
 local function block_statement(body)
   return { type = "BlockStatement", body = body }
 end
 
+--- @param expression (table) The expression being evaluated for side effects
+--- @return table {type="ExpressionStatement", expression}
 local function expression_statement(expression)
   return { type = "ExpressionStatement", expression = expression }
 end
 
+--- @param argument (table) The value to throw
+--- @return table {type="ThrowStatement", argument}
 local function throw_statement(argument)
   return { type = "ThrowStatement", argument = argument }
 end
 
+--- @param block (table) BlockStatement (the try body)
+--- @param handler (table|nil) CatchClause node, or nil
+--- @return table {type="TryStatement", block, handler}
 local function try_statement(block, handler)
   return { type = "TryStatement", block = block, handler = handler }
 end
 
+--- @param param (table) Identifier node for the caught error
+--- @param body (table) BlockStatement for catch body
+--- @return table {type="CatchClause", param, body}
 local function catch_clause(param, body)
   return { type = "CatchClause", param = param, body = body }
 end
 
+--- @param argument (table|nil) Return value expression, or nil for bare return
+--- @return table {type="ReturnStatement", argument}
 local function return_statement(argument)
   return { type = "ReturnStatement", argument = argument }
 end
 
+--- @param properties (table) Array of Property nodes
+--- @return table {type="ObjectExpression", properties}
 local function object_expression(properties)
   return { type = "ObjectExpression", properties = properties }
 end
 
+--- @param key (table) Identifier or StringLiteral node
+--- @param value (table) Expression node
+--- @param computed (boolean) true if key is a computed [expr] property
+--- @return table {type="Property", key, value, computed}
 local function property(key, value, computed)
   return { type = "Property", key = key, value = value, computed = computed or false }
 end
 
+--- @param elements (table) Array of expression nodes
+--- @return table {type="ArrayExpression", elements}
 local function array_expression(elements)
   return { type = "ArrayExpression", elements = elements }
 end
@@ -647,6 +736,17 @@ end
 -- ============================================================================
 -- PARSER
 -- ============================================================================
+-- Top-down recursive descent parser with Pratt parsing for expressions.
+--
+-- Architecture:
+--   ljs.parse(source)
+--     -> tokenize(source) -> make_token_stream(tokens) -> parse_statement*
+--
+-- Statements are dispatched by the first token (let/const, if, while, etc).
+-- Expressions use precedence climbing (Pratt parsing) with a precedence table.
+--
+-- Forward declarations are required because Lua's local functions must be
+-- declared before use, and many parse functions are mutually recursive.
 
 local parse_statement
 local parse_block_statement
@@ -674,8 +774,8 @@ local parse_postfix
 
 --- Parse JavaScript source into an AST.
 -- @param source (string) JavaScript source code
--- @return ast (table) The AST root node (Program)
--- @return err (string) Error message if parsing failed
+-- @return (table|nil) AST root node {type="Program", body={...}}, or nil on error
+-- @return (string|nil) Error message if parsing failed
 function ljs.parse(source)
   local tokens, tokenize_err = tokenize(source)
   if not tokens then
@@ -684,7 +784,6 @@ function ljs.parse(source)
 
   local stream = make_token_stream(tokens)
 
-  -- Parse the entire program as a list of statements
   local statements = {}
   while not stream.eof() do
     local stmt, err = parse_statement(stream)
@@ -701,38 +800,32 @@ end
 -- STATEMENT PARSERS
 -- ============================================================================
 
---- Parse a single statement.
+--- Dispatch to the correct statement parser based on the current token.
+-- Falls through to expression statement for anything unrecognized.
+-- Semicolons are optional — consumed if present, no error if absent.
 -- @param stream Token stream
--- @return statement (table) AST node for the statement
--- @return err (string) Error message if parsing failed
+-- @return (table|nil) AST node, or nil on error
+-- @return (string|nil) Error message if parsing failed
 function parse_statement(stream)
-  -- let/const variable declaration
   if stream.is(TOKEN.LET) or stream.is(TOKEN.CONST) then
     return parse_variable_declaration(stream)
-  -- if statement
   elseif stream.is(TOKEN.IF) then
     return parse_if_statement(stream)
-  -- while statement
   elseif stream.is(TOKEN.WHILE) then
     return parse_while_statement(stream)
-  -- for...of statement
   elseif stream.is(TOKEN.FOR) then
     return parse_for_of_statement(stream)
-  -- throw statement
   elseif stream.is(TOKEN.THROW) then
     return parse_throw_statement(stream)
-  -- try statement
   elseif stream.is(TOKEN.TRY) then
     return parse_try_statement(stream)
-  -- function declaration
   elseif stream.is(TOKEN.FUNCTION) then
     return parse_function_declaration(stream)
-  -- return statement
   elseif stream.is(TOKEN.RETURN) then
     return parse_return_statement(stream)
-  -- Block statement (starts with {)
   elseif stream.is(TOKEN.LBRACE) then
     return parse_block_statement(stream)
+  -- Rejected keywords — produce clear error messages
   elseif stream.is(TOKEN.THIS) then
     return nil, string.format("'this' is not supported at line %d", stream.peek().line)
   elseif stream.is(TOKEN.ASYNC) then
@@ -744,11 +837,11 @@ function parse_statement(stream)
   elseif stream.is(TOKEN.INSTANCEOF) then
     return nil, string.format("'instanceof' is not supported at line %d", stream.peek().line)
   else
+    -- Expression statement: any expression followed by optional semicolon.
     local expr, err = parse_expression(stream)
     if not expr then
       return nil, err
     end
-    -- Check for semicolon
     if stream.is(TOKEN.SEMICOLON) then
       stream.advance()
     end
@@ -756,7 +849,8 @@ function parse_statement(stream)
   end
 end
 
---- Parse a block statement: { ... }
+--- Parse a block: { stmt1; stmt2; ... }
+-- Consumes the opening and closing braces.
 function parse_block_statement(stream)
   stream.consume(TOKEN.LBRACE)
   local body = {}
@@ -771,12 +865,16 @@ function parse_block_statement(stream)
   return block_statement(body)
 end
 
---- Parse variable declaration: let x = 1; const y = 2;
+--- Parse variable declaration: let/const/var x = expr, y = expr;
+-- "var" is treated as "let" (maps to TOKEN.LET in the tokenizer).
+-- Supports multiple declarators separated by commas.
+-- Semicolon is optional.
 function parse_variable_declaration(stream)
   local kind_token = stream.peek()
   local kind
   if kind_token.type == TOKEN.LET then
     stream.advance()
+    -- var and let both map to TOKEN.LET; normalize var -> "let"
     kind = kind_token.value == "var" and "let" or "let"
   elseif kind_token.type == TOKEN.CONST then
     stream.advance()
@@ -802,7 +900,7 @@ function parse_variable_declaration(stream)
   return variable_declaration(kind, declarations)
 end
 
---- Parse variable declarator: x = 1
+--- Parse a single variable declarator: name or name = init
 function parse_variable_declarator(stream)
   local token = stream.consume(TOKEN.IDENTIFIER)
   local name = identifier(token.value, token)
@@ -817,7 +915,8 @@ function parse_variable_declarator(stream)
   return variable_declarator(name, init)
 end
 
---- Parse if statement: if (test) consequent [else alternate]
+--- Parse if/else: if (test) consequent [else alternate]
+-- The consequent and alternate are single statements (can be blocks).
 function parse_if_statement(stream)
   stream.consume(TOKEN.IF)
   stream.consume(TOKEN.LPAREN)
@@ -836,7 +935,7 @@ function parse_if_statement(stream)
   return if_statement(test, consequent, alternate)
 end
 
---- Parse while statement: while (test) body
+--- Parse while: while (test) body
 function parse_while_statement(stream)
   stream.consume(TOKEN.WHILE)
   stream.consume(TOKEN.LPAREN)
@@ -847,7 +946,8 @@ function parse_while_statement(stream)
   return while_statement(test, body)
 end
 
---- Parse for...of statement: for (left of right) body
+--- Parse for...of: for (let x of iterable) body
+-- The left side can be a variable declaration or a bare expression.
 function parse_for_of_statement(stream)
   stream.consume(TOKEN.FOR)
   stream.consume(TOKEN.LPAREN)
@@ -868,7 +968,7 @@ function parse_for_of_statement(stream)
   return for_of_statement(left, right, body)
 end
 
---- Parse throw statement: throw expression;
+--- Parse throw: throw expression;
 function parse_throw_statement(stream)
   stream.consume(TOKEN.THROW)
   local argument = parse_expression(stream)
@@ -879,7 +979,8 @@ function parse_throw_statement(stream)
   return throw_statement(argument)
 end
 
---- Parse try statement: try block catch (param) body
+--- Parse try/catch: try { ... } catch (param) { ... }
+-- The catch clause is optional (though rare to omit in practice).
 function parse_try_statement(stream)
   stream.consume(TOKEN.TRY)
   local block = parse_block_statement(stream)
@@ -898,6 +999,7 @@ function parse_try_statement(stream)
 end
 
 --- Parse function declaration: function name(params) { body }
+-- Always has a name (unlike function expressions which can be anonymous).
 function parse_function_declaration(stream)
   stream.consume(TOKEN.FUNCTION)
   local name_token = stream.consume(TOKEN.IDENTIFIER)
@@ -911,7 +1013,9 @@ function parse_function_declaration(stream)
   return function_declaration(name, params, body)
 end
 
---- Parse return statement: return expression?;
+--- Parse return: return expression?;
+-- Bare return (no expression) is allowed — argument will be nil.
+-- Heuristic: if next token is ; or }, there's no expression.
 function parse_return_statement(stream)
   stream.consume(TOKEN.RETURN)
   local argument = nil
@@ -924,7 +1028,9 @@ function parse_return_statement(stream)
   return return_statement(argument)
 end
 
--- Helper to parse function parameters
+--- Parse a comma-separated list of identifier parameters.
+-- Used by both function declarations and function expressions.
+-- Assumes opening ( has been consumed; does NOT consume closing ).
 function parse_parameters(stream)
   local params = {}
   if not stream.is(TOKEN.RPAREN) then
@@ -941,8 +1047,22 @@ end
 -- ============================================================================
 -- EXPRESSION PARSERS
 -- ============================================================================
+-- Uses Pratt parsing (top-down operator precedence):
+--   parse_expression -> parse_binary_expression(min_prec=0)
+--     -> parse_unary_expression -> parse_primary_expression
+--     -> loops while next operator has sufficient precedence
+--
+-- Precedence levels (higher = binds tighter):
+--   6   unary ! -
+--   5   * / %
+--   4   + -
+--   3   === !== < > <= >=
+--   2   &&
+--   1   ||
+--   0.5 = (assignment, right-associative)
+--
+-- All binary operators except = are left-associative.
 
--- Operator precedence levels (higher = binds tighter)
 local PRECEDENCE = {
   [TOKEN.NOT] = 6,
   [TOKEN.STAR] = 5,
@@ -961,15 +1081,19 @@ local PRECEDENCE = {
   [TOKEN.ASSIGN] = 0.5,
 }
 
---- Parse an expression, handling operator precedence.
--- Uses Pratt parsing (top-down operator precedence parsing)
+--- Entry point for expression parsing. Starts at minimum precedence 0.
 function parse_expression(stream)
   return parse_binary_expression(stream, 0)
 end
 
---- Parse binary expressions with precedence climbing
+--- Pratt parser core: parse binary expressions with precedence climbing.
+-- 1. Parse a unary expression (the left operand).
+-- 2. Loop: while the next token is an operator with precedence >= min_precedence,
+--    consume it and parse the right operand at a higher precedence level.
+-- 3. Assignment is right-associative (right-recursive call to parse_expression
+--    instead of parse_binary_expression with +1).
 -- @param stream Token stream
--- @param min_precedence Minimum precedence level to parse at
+-- @param min_precedence (number) Minimum precedence to continue parsing
 function parse_binary_expression(stream, min_precedence)
   local left = parse_unary_expression(stream)
   if not left then return nil end
@@ -983,16 +1107,17 @@ function parse_binary_expression(stream, min_precedence)
       break
     end
 
-    -- Special case: assignment is right-associative, others are left
+    -- Assignment is right-associative: a = b = c parses as a = (b = c).
+    -- All other operators are left-associative: a + b + c parses as (a + b) + c.
     if op == TOKEN.ASSIGN then
       stream.advance()
       local right = parse_expression(stream)
       left = binary_expression("=", left, right)
     else
       stream.advance()
-      -- For right-associative operators, use precedence - 1
-      -- For left-associative, use precedence
-      local next_min = op == TOKEN.ASSIGN and precedence - 1 or precedence + 1
+      -- Left-associative: parse right at precedence+1 so same-level ops
+      -- bind to the left (they stop the inner parse, letting the outer loop consume them).
+      local next_min = precedence + 1
       local right = parse_binary_expression(stream, next_min)
       if not right then return nil end
       left = binary_expression(op, left, right)
@@ -1002,7 +1127,9 @@ function parse_binary_expression(stream, min_precedence)
   return left
 end
 
---- Parse unary expressions: !expr, -expr
+--- Parse unary prefix expressions: !expr or -expr.
+-- Unary operators have the highest precedence and are right-recursive
+-- (so !!x parses as !(!(x))).
 function parse_unary_expression(stream)
   if stream.is(TOKEN.NOT) or stream.is(TOKEN.MINUS) then
     local op_token = stream.advance()
@@ -1014,10 +1141,14 @@ function parse_unary_expression(stream)
   return parse_primary_expression(stream)
 end
 
---- Parse primary expressions (literals, identifiers, parenthesized, etc.)
+--- Parse primary (leaf) expressions — the atomic units that operators combine.
+-- Handles: literals, identifiers, parenthesized exprs, arrow functions,
+-- arrays, objects, function expressions.
+-- Also rejects excluded keywords (this, async, etc.) in expression context.
 function parse_primary_expression(stream)
   local token = stream.peek()
 
+  -- Reject excluded keywords before trying to parse them as anything else
   if stream.is(TOKEN.THIS) then
     return nil, string.format("'this' is not supported at line %d", stream.peek().line)
   elseif stream.is(TOKEN.ASYNC) then
@@ -1032,7 +1163,6 @@ function parse_primary_expression(stream)
 
   local token = stream.peek()
 
-  -- Literals
   if stream.is(TOKEN.NUMBER) then
     stream.advance()
     return number_literal(token.value, token)
@@ -1045,17 +1175,16 @@ function parse_primary_expression(stream)
   elseif stream.is(TOKEN.NULL) then
     stream.advance()
     return null_literal(token)
-  -- Identifier (could be variable reference or function call)
   elseif stream.is(TOKEN.IDENTIFIER) then
     return parse_identifier_or_call(stream)
-  -- Parenthesized expression (could be followed by => for arrow function)
+  -- Parenthesized expression OR arrow function with parenthesized params.
+  -- Disambiguation: scan ahead for matching ) then check if => follows.
+  -- depth starts at 0 because peek_n(1) is the current token (the opening ().
   elseif stream.is(TOKEN.LPAREN) then
-    -- Look ahead to check if this is an arrow function: (params) =>
-    -- We need to find the matching ) and check if => follows
     local depth = 0
     local n = 0
     local found_arrow = false
-    
+
     while true do
       local t = stream.peek_n(n + 1)
       if t.type == "EOF" then break end
@@ -1063,7 +1192,6 @@ function parse_primary_expression(stream)
       elseif t.type == TOKEN.RPAREN then depth = depth - 1
       end
       if depth == 0 then
-        -- Found matching ), check next token
         if stream.peek_n(n + 2) and stream.peek_n(n + 2).type == TOKEN.ARROW then
           found_arrow = true
         end
@@ -1071,10 +1199,10 @@ function parse_primary_expression(stream)
       end
       n = n + 1
     end
-    
+
     if found_arrow then
-      -- It's an arrow function
-      stream.advance() -- consume (
+      -- Arrow function with parenthesized params: (a, b) => body
+      stream.advance()
       local params = {}
       if not stream.is(TOKEN.RPAREN) then
         while true do
@@ -1092,22 +1220,18 @@ function parse_primary_expression(stream)
       local body = parse_arrow_function_body(stream)
       return arrow_function_expression(params, body)
     else
-      -- Regular parenthesized expression
+      -- Regular parenthesized expression: (expr)
       stream.advance()
       local expr = parse_expression(stream)
       stream.consume(TOKEN.RPAREN)
       return expr
     end
-  -- Array literal
   elseif stream.is(TOKEN.LBRACKET) then
     return parse_array_literal(stream)
-  -- Object literal
   elseif stream.is(TOKEN.LBRACE) then
     return parse_object_literal(stream)
-  -- Function expression
   elseif stream.is(TOKEN.FUNCTION) then
     return parse_function_expression(stream)
-  -- Arrow function without parentheses: x => x + 1
   elseif stream.is(TOKEN.ARROW) then
     return nil, "Unexpected arrow token"
   else
@@ -1116,18 +1240,26 @@ function parse_primary_expression(stream)
   end
 end
 
---- Parse arrow function body (can be expression or block)
+--- Parse the body of an arrow function.
+-- If body starts with {, it's a block body.
+-- Otherwise it's an expression body, which gets wrapped in a BlockStatement
+-- containing a single ExpressionStatement (desugared form).
 function parse_arrow_function_body(stream)
   if stream.is(TOKEN.LBRACE) then
     return parse_block_statement(stream)
   else
-    -- Expression body - parse as expression statement
     local expr = parse_expression(stream)
     return block_statement({ expression_statement(expr) })
   end
 end
 
---- Parse identifier which might be followed by call, member access, or arrow function
+--- Parse postfix operations on an expression: .prop, [expr], (args).
+-- Loops to handle chaining: obj.method()[0].field
+-- This is shared between parse_identifier_or_call and parse_call_expression
+-- to avoid duplicating the chaining logic.
+-- @param stream Token stream
+-- @param expr (table) The expression to apply postfix ops to
+-- @return (table) The resulting expression after all postfix ops
 function parse_postfix(stream, expr)
   while true do
     if stream.is(TOKEN.DOT) then
@@ -1141,6 +1273,7 @@ function parse_postfix(stream, expr)
       stream.consume(TOKEN.RBRACKET)
       expr = member_expression(expr, prop, true)
     elseif stream.is(TOKEN.LPAREN) then
+      -- Call: consume (args) then continue chaining
       stream.advance()
       local args = {}
       if not stream.is(TOKEN.RPAREN) then
@@ -1161,10 +1294,15 @@ function parse_postfix(stream, expr)
   return expr
 end
 
+--- Parse an identifier, which might be:
+--   1. A bare identifier (variable reference)
+--   2. The start of an arrow function: x => expr
+--   3. Followed by member access/calls via parse_postfix
 function parse_identifier_or_call(stream)
   local token = stream.consume(TOKEN.IDENTIFIER)
   local expr = identifier(token.value, token)
 
+  -- Bare identifier arrow function: x => x + 1
   if stream.is(TOKEN.ARROW) then
     stream.advance()
     local body = parse_arrow_function_body(stream)
@@ -1174,7 +1312,11 @@ function parse_identifier_or_call(stream)
   return parse_postfix(stream, expr)
 end
 
---- Parse call expression: callee(args)
+--- Parse call expression after callee has been identified.
+-- Called when the caller has already determined that ( follows an expression.
+-- Delegates to parse_postfix for further chaining after the call.
+-- @param stream Token stream
+-- @param callee (table) The expression being called
 function parse_call_expression(stream, callee)
   stream.consume(TOKEN.LPAREN)
   local arguments = {}
@@ -1192,7 +1334,8 @@ function parse_call_expression(stream, callee)
   return parse_postfix(stream, expr)
 end
 
---- Parse array literal: [element, element, ...]
+--- Parse array literal: [expr, expr, ...]
+-- Empty arrays [] are valid.
 function parse_array_literal(stream)
   stream.consume(TOKEN.LBRACKET)
   local elements = {}
@@ -1210,6 +1353,9 @@ function parse_array_literal(stream)
 end
 
 --- Parse object literal: { key: value, key: value, ... }
+-- Keys can be identifiers or string literals.
+-- Computed keys (e.g. {[expr]: value}) are not supported.
+-- Empty objects {} are valid.
 function parse_object_literal(stream)
   stream.consume(TOKEN.LBRACE)
   local properties = {}
@@ -1239,18 +1385,18 @@ function parse_object_literal(stream)
   return object_expression(properties)
 end
 
---- Parse function expression: function(params) { body }
+--- Parse function expression: function(params) { body } or function name(params) { body }
+-- Can be anonymous (no name) or named. Named function expressions produce
+-- a FunctionExpression node with a `name` field (not FunctionDeclaration).
 function parse_function_expression(stream)
   stream.consume(TOKEN.FUNCTION)
 
-  -- Function expressions can be anonymous
   local name = nil
-  -- Note: In JS, function expressions can have a name: function foo() {}
-  -- We check if next token is an identifier
+  -- Disambiguate: function foo( is a named expression, function( is anonymous.
+  -- Check if current token is identifier AND the one after it is (.
   if stream.is(TOKEN.IDENTIFIER) then
     local name_token = stream.peek_n(2)
     if name_token and name_token.type == TOKEN.LPAREN then
-      -- It's a name, not a parameter
       local id_token = stream.advance()
       name = id_token.value
     end
