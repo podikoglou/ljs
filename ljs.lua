@@ -291,10 +291,10 @@ local function tokenize(source)
       advance() -- skip opening quote
       local chars = {}
       local escaped = false
+      local found_closing = false
       while current() do
         local ch = current()
         if escaped then
-          -- Handle escape sequences
           if ch == "n" then ch = "\n"
           elseif ch == "r" then ch = "\r"
           elseif ch == "t" then ch = "\t"
@@ -313,7 +313,8 @@ local function tokenize(source)
           escaped = true
           advance()
         elseif ch == quote then
-          advance() -- skip closing quote
+          advance()
+          found_closing = true
           break
         elseif ch == "\n" then
           return nil, string.format("Unterminated string literal at line %d, col %d", line, start_col)
@@ -322,7 +323,7 @@ local function tokenize(source)
           advance()
         end
       end
-      if not current() then
+      if not found_closing then
         return nil, string.format("Unterminated string literal at line %d, col %d", line, start_col)
       end
       local str = table.concat(chars, "")
@@ -375,7 +376,10 @@ local function tokenize(source)
       table.insert(tokens, make_token(TOKEN.PERCENT))
       advance()
     elseif c == "=" then
-      if lookahead(2) == "==" then
+      if lookahead(2) == "=>" then
+        table.insert(tokens, make_token(TOKEN.ARROW))
+        advance(2)
+      elseif lookahead(2) == "==" then
         if lookahead(3) == "===" then
           table.insert(tokens, make_token(TOKEN.EQ))
           advance(3)
@@ -424,9 +428,6 @@ local function tokenize(source)
       else
         return nil, string.format("Unexpected character '%s' at line %d, col %d", c, line, col)
       end
-    elseif lookahead(2) == "=>" then
-      table.insert(tokens, make_token(TOKEN.ARROW))
-      advance(2)
 
     else
       return nil, string.format("Unexpected character '%s' at line %d, col %d", c, line, col)
@@ -786,11 +787,13 @@ function parse_variable_declaration(stream)
   end
 
   local declarations = {}
-  repeat
+  while true do
     local decl = parse_variable_declarator(stream)
     if not decl then return nil, "Expected variable declarator" end
     table.insert(declarations, decl)
-  until not stream.is(TOKEN.COMMA)
+    if not stream.is(TOKEN.COMMA) then break end
+    stream.advance()
+  end
 
   if stream.is(TOKEN.SEMICOLON) then
     stream.advance()
@@ -925,10 +928,12 @@ end
 function parse_parameters(stream)
   local params = {}
   if not stream.is(TOKEN.RPAREN) then
-    repeat
+    while true do
       local param_token = stream.consume(TOKEN.IDENTIFIER)
       table.insert(params, identifier(param_token.value, param_token))
-    until not stream.is(TOKEN.COMMA)
+      if not stream.is(TOKEN.COMMA) then break end
+      stream.advance()
+    end
   end
   return params
 end
@@ -1047,13 +1052,13 @@ function parse_primary_expression(stream)
   elseif stream.is(TOKEN.LPAREN) then
     -- Look ahead to check if this is an arrow function: (params) =>
     -- We need to find the matching ) and check if => follows
-    local depth = 1
+    local depth = 0
     local n = 0
     local found_arrow = false
     
     while true do
       local t = stream.peek_n(n + 1)
-      if not t then break end
+      if t.type == "EOF" then break end
       if t.type == TOKEN.LPAREN then depth = depth + 1
       elseif t.type == TOKEN.RPAREN then depth = depth - 1
       end
@@ -1072,13 +1077,15 @@ function parse_primary_expression(stream)
       stream.advance() -- consume (
       local params = {}
       if not stream.is(TOKEN.RPAREN) then
-        repeat
+        while true do
           if stream.is(TOKEN.IDENTIFIER) then
             table.insert(params, identifier(stream.advance().value))
           else
             return nil, "Arrow function parameters must be identifiers"
           end
-        until not stream.is(TOKEN.COMMA)
+          if not stream.is(TOKEN.COMMA) then break end
+          stream.advance()
+        end
       end
       stream.consume(TOKEN.RPAREN)
       stream.consume(TOKEN.ARROW)
@@ -1137,11 +1144,13 @@ function parse_postfix(stream, expr)
       stream.advance()
       local args = {}
       if not stream.is(TOKEN.RPAREN) then
-        repeat
+        while true do
           local arg = parse_expression(stream)
           if not arg then return nil end
           table.insert(args, arg)
-        until not stream.is(TOKEN.COMMA)
+          if not stream.is(TOKEN.COMMA) then break end
+          stream.advance()
+        end
       end
       stream.consume(TOKEN.RPAREN)
       expr = call_expression(expr, args)
@@ -1170,11 +1179,13 @@ function parse_call_expression(stream, callee)
   stream.consume(TOKEN.LPAREN)
   local arguments = {}
   if not stream.is(TOKEN.RPAREN) then
-    repeat
+    while true do
       local arg = parse_expression(stream)
       if not arg then return nil end
       table.insert(arguments, arg)
-    until not stream.is(TOKEN.COMMA)
+      if not stream.is(TOKEN.COMMA) then break end
+      stream.advance()
+    end
   end
   stream.consume(TOKEN.RPAREN)
   local expr = call_expression(callee, arguments)
@@ -1186,11 +1197,13 @@ function parse_array_literal(stream)
   stream.consume(TOKEN.LBRACKET)
   local elements = {}
   if not stream.is(TOKEN.RBRACKET) then
-    repeat
+    while true do
       local element = parse_expression(stream)
       if not element then return nil end
       table.insert(elements, element)
-    until not stream.is(TOKEN.COMMA)
+      if not stream.is(TOKEN.COMMA) then break end
+      stream.advance()
+    end
   end
   stream.consume(TOKEN.RBRACKET)
   return array_expression(elements)
@@ -1201,7 +1214,7 @@ function parse_object_literal(stream)
   stream.consume(TOKEN.LBRACE)
   local properties = {}
   if not stream.is(TOKEN.RBRACE) then
-    repeat
+    while true do
       local key
       if stream.is(TOKEN.IDENTIFIER) then
         local key_token = stream.advance()
@@ -1218,7 +1231,9 @@ function parse_object_literal(stream)
       if not value then return nil end
 
       table.insert(properties, property(key, value, false))
-    until not stream.is(TOKEN.COMMA)
+      if not stream.is(TOKEN.COMMA) then break end
+      stream.advance()
+    end
   end
   stream.consume(TOKEN.RBRACE)
   return object_expression(properties)
