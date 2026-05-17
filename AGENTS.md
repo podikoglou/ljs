@@ -66,7 +66,7 @@ All nodes are Lua tables with a `type` string field.
 
 -- Functions
 {type = "FunctionDeclaration", name = "f", params = {{...}, ...}, body = {...}}
-{type = "FunctionExpression", params = {{...}, ...}, body = {...}}
+{type = "FunctionExpression", name = "f" (optional), params = {{...}, ...}, body = {...}}
 {type = "ArrowFunctionExpression", params = {{...}, ...}, body = {...}}
 {type = "CallExpression", callee = {...}, arguments = {{...}, ...}}
 
@@ -77,7 +77,7 @@ All nodes are Lua tables with a `type` string field.
 {type = "MemberExpression", object = {...}, property = {...}, computed = true | false}
 
 -- Expressions
-{type = "BinaryExpression", operator = "+" | "-" | "*" | "/" | "===", left = {...}, right = {...}}
+{type = "BinaryExpression", operator = "+" | "-" | "*" | "/" | "%" | "===" | "!==" | "<" | ">" | "<=" | ">=" | "&&" | "||" | "=", left = {...}, right = {...}}
 {type = "UnaryExpression", operator = "-" | "!", argument = {...}}
 
 -- Control Flow

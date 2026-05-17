@@ -98,6 +98,12 @@ local KEYWORDS = {
   ["true"] = TOKEN.BOOLEAN,
   ["false"] = TOKEN.BOOLEAN,
   ["null"] = TOKEN.NULL,
+  ["var"] = TOKEN.LET,
+  ["this"] = TOKEN.THIS,
+  ["async"] = TOKEN.ASYNC,
+  ["await"] = TOKEN.AWAIT,
+  ["typeof"] = TOKEN.TYPEOF,
+  ["instanceof"] = TOKEN.INSTANCEOF,
 }
 
 -- ============================================================================
@@ -663,6 +669,7 @@ local parse_call_expression
 local parse_array_literal
 local parse_object_literal
 local parse_function_expression
+local parse_postfix
 
 --- Parse JavaScript source into an AST.
 -- @param source (string) JavaScript source code
@@ -725,7 +732,16 @@ function parse_statement(stream)
   -- Block statement (starts with {)
   elseif stream.is(TOKEN.LBRACE) then
     return parse_block_statement(stream)
-  -- Expression statement (everything else)
+  elseif stream.is(TOKEN.THIS) then
+    return nil, string.format("'this' is not supported at line %d", stream.peek().line)
+  elseif stream.is(TOKEN.ASYNC) then
+    return nil, string.format("'async' is not supported at line %d", stream.peek().line)
+  elseif stream.is(TOKEN.AWAIT) then
+    return nil, string.format("'await' is not supported at line %d", stream.peek().line)
+  elseif stream.is(TOKEN.TYPEOF) then
+    return nil, string.format("'typeof' is not supported at line %d", stream.peek().line)
+  elseif stream.is(TOKEN.INSTANCEOF) then
+    return nil, string.format("'instanceof' is not supported at line %d", stream.peek().line)
   else
     local expr, err = parse_expression(stream)
     if not expr then
@@ -760,7 +776,7 @@ function parse_variable_declaration(stream)
   local kind
   if kind_token.type == TOKEN.LET then
     stream.advance()
-    kind = "let"
+    kind = kind_token.value == "var" and "let" or "let"
   elseif kind_token.type == TOKEN.CONST then
     stream.advance()
     kind = "const"
@@ -997,6 +1013,20 @@ end
 function parse_primary_expression(stream)
   local token = stream.peek()
 
+  if stream.is(TOKEN.THIS) then
+    return nil, string.format("'this' is not supported at line %d", stream.peek().line)
+  elseif stream.is(TOKEN.ASYNC) then
+    return nil, string.format("'async' is not supported at line %d", stream.peek().line)
+  elseif stream.is(TOKEN.AWAIT) then
+    return nil, string.format("'await' is not supported at line %d", stream.peek().line)
+  elseif stream.is(TOKEN.TYPEOF) then
+    return nil, string.format("'typeof' is not supported at line %d", stream.peek().line)
+  elseif stream.is(TOKEN.INSTANCEOF) then
+    return nil, string.format("'instanceof' is not supported at line %d", stream.peek().line)
+  end
+
+  local token = stream.peek()
+
   -- Literals
   if stream.is(TOKEN.NUMBER) then
     stream.advance()
@@ -1091,74 +1121,8 @@ function parse_arrow_function_body(stream)
 end
 
 --- Parse identifier which might be followed by call, member access, or arrow function
-function parse_identifier_or_call(stream)
-  local token = stream.consume(TOKEN.IDENTIFIER)
-  local expr = identifier(token.value, token)
-
-  -- Check for arrow function without parens: x => ...
-  if stream.is(TOKEN.ARROW) then
-    stream.advance()
-    local body = parse_arrow_function_body(stream)
-    return arrow_function_expression({expr}, body)
-  end
-
+function parse_postfix(stream, expr)
   while true do
-    -- Member access: .property or [property]
-    if stream.is(TOKEN.DOT) then
-      stream.advance()
-      local prop_token = stream.consume(TOKEN.IDENTIFIER)
-      expr = member_expression(expr, identifier(prop_token.value, prop_token), false)
-      -- After member access, check for => (arrow function)
-      if stream.is(TOKEN.ARROW) then
-        stream.advance()
-        local body = parse_arrow_function_body(stream)
-        return arrow_function_expression({expr}, body)
-      end
-    elseif stream.is(TOKEN.LBRACKET) then
-      stream.advance()
-      local prop = parse_expression(stream)
-      stream.consume(TOKEN.RBRACKET)
-      expr = member_expression(expr, prop, true)
-      -- After computed member access, check for =>
-      if stream.is(TOKEN.ARROW) then
-        stream.advance()
-        local body = parse_arrow_function_body(stream)
-        return arrow_function_expression({expr}, body)
-      end
-    -- Call expression: (args)
-    elseif stream.is(TOKEN.LPAREN) then
-      expr = parse_call_expression(stream, expr)
-      -- After call, check for => (arrow function)
-      if stream.is(TOKEN.ARROW) then
-        stream.advance()
-        local body = parse_arrow_function_body(stream)
-        return arrow_function_expression({expr}, body)
-      end
-    else
-      break
-    end
-  end
-
-  return expr
-end
-
---- Parse call expression: callee(args)
-function parse_call_expression(stream, callee)
-  stream.consume(TOKEN.LPAREN)
-  local arguments = {}
-  if not stream.is(TOKEN.RPAREN) then
-    repeat
-      local arg = parse_expression(stream)
-      if not arg then return nil end
-      table.insert(arguments, arg)
-    until not stream.is(TOKEN.COMMA)
-  end
-  stream.consume(TOKEN.RPAREN)
-
-  -- Handle chained calls: obj.method().another()
-  local expr = call_expression(callee, arguments)
-
-  while stream.is(TOKEN.DOT) or stream.is(TOKEN.LBRACKET) or stream.is(TOKEN.LPAREN) do
     if stream.is(TOKEN.DOT) then
       stream.advance()
       local prop_token = stream.consume(TOKEN.IDENTIFIER)
@@ -1166,6 +1130,7 @@ function parse_call_expression(stream, callee)
     elseif stream.is(TOKEN.LBRACKET) then
       stream.advance()
       local prop = parse_expression(stream)
+      if not prop then return nil end
       stream.consume(TOKEN.RBRACKET)
       expr = member_expression(expr, prop, true)
     elseif stream.is(TOKEN.LPAREN) then
@@ -1180,10 +1145,40 @@ function parse_call_expression(stream, callee)
       end
       stream.consume(TOKEN.RPAREN)
       expr = call_expression(expr, args)
+    else
+      break
     end
   end
-
   return expr
+end
+
+function parse_identifier_or_call(stream)
+  local token = stream.consume(TOKEN.IDENTIFIER)
+  local expr = identifier(token.value, token)
+
+  if stream.is(TOKEN.ARROW) then
+    stream.advance()
+    local body = parse_arrow_function_body(stream)
+    return arrow_function_expression({expr}, body)
+  end
+
+  return parse_postfix(stream, expr)
+end
+
+--- Parse call expression: callee(args)
+function parse_call_expression(stream, callee)
+  stream.consume(TOKEN.LPAREN)
+  local arguments = {}
+  if not stream.is(TOKEN.RPAREN) then
+    repeat
+      local arg = parse_expression(stream)
+      if not arg then return nil end
+      table.insert(arguments, arg)
+    until not stream.is(TOKEN.COMMA)
+  end
+  stream.consume(TOKEN.RPAREN)
+  local expr = call_expression(callee, arguments)
+  return parse_postfix(stream, expr)
 end
 
 --- Parse array literal: [element, element, ...]
@@ -1253,8 +1248,7 @@ function parse_function_expression(stream)
   local body = parse_block_statement(stream)
 
   if name then
-    -- Named function expression
-    return function_declaration(name, params, body)
+    return { type = "FunctionExpression", name = name, params = params, body = body }
   else
     return function_expression(params, body)
   end
