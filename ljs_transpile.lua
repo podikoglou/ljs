@@ -171,8 +171,286 @@ end
 -- Section 4: Pass 2 — Code generation (recursive AST walk, Lua emission)
 -- ============================================================================
 
+local function escape_lua_string(s)
+  local out = {}
+  for i = 1, #s do
+    local c = s:sub(i, i)
+    local b = string.byte(c)
+    if c == "\\" then out[#out + 1] = "\\\\"
+    elseif c == '"' then out[#out + 1] = '\\"'
+    elseif c == "\n" then out[#out + 1] = "\\n"
+    elseif c == "\r" then out[#out + 1] = "\\r"
+    elseif c == "\t" then out[#out + 1] = "\\t"
+    elseif b < 32 then out[#out + 1] = string.format("\\%03d", b)
+    else out[#out + 1] = c end
+  end
+  return table.concat(out)
+end
+
+local function pad(n)
+  return string.rep("  ", n)
+end
+
+local function is_elseif_chain(node)
+  if node.type == "IfStatement" then return true end
+  if node.type == "BlockStatement" and #node.body == 1 and node.body[1].type == "IfStatement" then
+    return true
+  end
+  return false
+end
+
+local gen = {}
+
+local function emit(node, indent, scopes)
+  return gen[node.type](node, indent, scopes)
+end
+
+local function emit_body(stmts, indent, scopes)
+  local parts = {}
+  for _, s in ipairs(stmts) do parts[#parts + 1] = emit(s, indent, scopes) end
+  return table.concat(parts)
+end
+
+-- === Program ===
+
+gen.Program = function(node, indent, scopes)
+  scope_push(scopes)
+  local code = emit_body(node.body, indent, scopes)
+  scope_pop(scopes)
+  return code
+end
+
+-- === Literals ===
+
+gen.NumberLiteral = function(node) return tostring(node.value) end
+
+gen.StringLiteral = function(node)
+  return '"' .. escape_lua_string(node.value) .. '"'
+end
+
+gen.BooleanLiteral = function(node) return node.value and "true" or "false" end
+
+gen.NullLiteral = function() return "nil" end
+
+gen.Identifier = function(node) return node.name end
+
+-- === Statements ===
+
+gen.ExpressionStatement = function(node, indent, scopes)
+  return pad(indent) .. emit(node.expression, indent, scopes) .. "\n"
+end
+
+gen.VariableDeclaration = function(node, indent, scopes)
+  local out = {}
+  for _, decl in ipairs(node.declarations) do
+    scope_declare(scopes, decl.name.name)
+    local init = decl.init
+    if not init then
+      out[#out + 1] = pad(indent) .. "local " .. decl.name.name .. "\n"
+    elseif init.type == "ArrowFunctionExpression" or init.type == "FunctionExpression" then
+      local params = {}
+      for _, p in ipairs(init.params) do params[#params + 1] = p.name end
+      scope_push(scopes)
+      for _, p in ipairs(init.params) do scope_declare(scopes, p.name) end
+      local body = emit(init.body, indent, scopes)
+      scope_pop(scopes)
+      out[#out + 1] = pad(indent) .. "local function " .. decl.name.name .. "(" .. table.concat(params, ", ") .. ")\n"
+        .. body .. pad(indent) .. "end\n"
+    else
+      out[#out + 1] = pad(indent) .. "local " .. decl.name.name .. " = " .. emit(init, indent, scopes) .. "\n"
+    end
+  end
+  return table.concat(out)
+end
+
+gen.ReturnStatement = function(node, indent, scopes)
+  if node.argument then
+    return pad(indent) .. "return " .. emit(node.argument, indent, scopes) .. "\n"
+  end
+  return pad(indent) .. "return\n"
+end
+
+gen.ThrowStatement = function(node, indent, scopes)
+  return pad(indent) .. "error(" .. emit(node.argument, indent, scopes) .. ", 0)\n"
+end
+
+-- === Functions ===
+
+gen.FunctionDeclaration = function(node, indent, scopes)
+  scope_declare(scopes, node.name)
+  local params = {}
+  for _, p in ipairs(node.params) do params[#params + 1] = p.name end
+  scope_push(scopes)
+  for _, p in ipairs(node.params) do scope_declare(scopes, p.name) end
+  local body = emit(node.body, indent, scopes)
+  scope_pop(scopes)
+  return pad(indent) .. "local function " .. node.name .. "(" .. table.concat(params, ", ") .. ")\n"
+    .. body .. pad(indent) .. "end\n"
+end
+
+gen.FunctionExpression = function(node, indent, scopes)
+  local params = {}
+  for _, p in ipairs(node.params) do params[#params + 1] = p.name end
+  scope_push(scopes)
+  if node.name then scope_declare(scopes, node.name) end
+  for _, p in ipairs(node.params) do scope_declare(scopes, p.name) end
+  local body = emit(node.body, indent, scopes)
+  scope_pop(scopes)
+  return "function(" .. table.concat(params, ", ") .. ")\n"
+    .. body .. pad(indent) .. "end"
+end
+
+gen.ArrowFunctionExpression = gen.FunctionExpression
+
+-- === Control flow ===
+
+gen.BlockStatement = function(node, indent, scopes)
+  scope_push(scopes)
+  local code = emit_body(node.body, indent + 1, scopes)
+  scope_pop(scopes)
+  return code
+end
+
+local function emit_if_parts(node, indent, scopes, keyword)
+  local code = pad(indent) .. keyword .. " " .. emit(node.test, indent, scopes) .. " then\n"
+    .. emit(node.consequent, indent, scopes)
+  if not node.alternate then
+    return code .. pad(indent) .. "end\n"
+  end
+  if is_elseif_chain(node.alternate) then
+    local inner = node.alternate.type == "IfStatement" and node.alternate or node.alternate.body[1]
+    return code .. emit_if_parts(inner, indent, scopes, "elseif")
+  end
+  return code .. pad(indent) .. "else\n"
+    .. emit(node.alternate, indent, scopes)
+    .. pad(indent) .. "end\n"
+end
+
+gen.IfStatement = function(node, indent, scopes)
+  return emit_if_parts(node, indent, scopes, "if")
+end
+
+gen.WhileStatement = function(node, indent, scopes)
+  return pad(indent) .. "while " .. emit(node.test, indent, scopes) .. " do\n"
+    .. emit(node.body, indent, scopes)
+    .. pad(indent) .. "end\n"
+end
+
+gen.ForOfStatement = function(node, indent, scopes)
+  local var_name
+  if node.left.type == "VariableDeclaration" then
+    var_name = node.left.declarations[1].name.name
+  else
+    var_name = node.left.name
+  end
+  scope_push(scopes)
+  scope_declare(scopes, var_name)
+  local body = emit(node.body, indent, scopes)
+  scope_pop(scopes)
+  return pad(indent) .. "for _, " .. var_name .. " in ipairs(" .. emit(node.right, indent, scopes) .. ") do\n"
+    .. body .. pad(indent) .. "end\n"
+end
+
+-- === Exception handling ===
+
+gen.TryStatement = function(node, indent, scopes)
+  local param = node.handler.param.name
+  scope_push(scopes)
+  scope_declare(scopes, param)
+  local catch_body = emit(node.handler.body, indent, scopes)
+  scope_pop(scopes)
+  return pad(indent) .. "local ok, " .. param .. " = pcall(function()\n"
+    .. emit(node.block, indent, scopes)
+    .. pad(indent) .. "end)\n"
+    .. pad(indent) .. "if not ok then\n"
+    .. catch_body
+    .. pad(indent) .. "end\n"
+end
+
+-- === Expressions ===
+
+gen.BinaryExpression = function(node, indent, scopes)
+  local op = node.operator
+  if op == "+" then
+    return "_ljs_add(" .. emit(node.left, indent, scopes) .. ", " .. emit(node.right, indent, scopes) .. ")"
+  elseif op == "===" then
+    return emit(node.left, indent, scopes) .. " == " .. emit(node.right, indent, scopes)
+  elseif op == "!==" then
+    return emit(node.left, indent, scopes) .. " ~= " .. emit(node.right, indent, scopes)
+  elseif op == "&&" then
+    return emit(node.left, indent, scopes) .. " and " .. emit(node.right, indent, scopes)
+  elseif op == "||" then
+    return emit(node.left, indent, scopes) .. " or " .. emit(node.right, indent, scopes)
+  elseif op == "=" then
+    return emit(node.left, indent, scopes) .. " = " .. emit(node.right, indent, scopes)
+  else
+    return emit(node.left, indent, scopes) .. " " .. op .. " " .. emit(node.right, indent, scopes)
+  end
+end
+
+gen.UnaryExpression = function(node, indent, scopes)
+  if node.operator == "!" then
+    return "not " .. emit(node.argument, indent, scopes)
+  end
+  return "-" .. emit(node.argument, indent, scopes)
+end
+
+gen.CallExpression = function(node, indent, scopes)
+  local args = {}
+  for _, a in ipairs(node.arguments) do args[#args + 1] = emit(a, indent, scopes) end
+  if is_console_log(node, scopes) then
+    return "_ljs_log(" .. table.concat(args, ", ") .. ")"
+  end
+  return emit(node.callee, indent, scopes) .. "(" .. table.concat(args, ", ") .. ")"
+end
+
+gen.MemberExpression = function(node, indent, scopes)
+  local obj = emit(node.object, indent, scopes)
+  if node.computed then
+    if node.property.type == "StringLiteral" then
+      return obj .. "[" .. emit(node.property, indent, scopes) .. "]"
+    end
+    return obj .. "[(" .. emit(node.property, indent, scopes) .. ") + 1]"
+  end
+  return obj .. "." .. node.property.name
+end
+
+-- === Objects and arrays ===
+
+gen.ObjectExpression = function(node, indent, scopes)
+  if #node.properties == 0 then return "{}" end
+  local parts = {}
+  for _, prop in ipairs(node.properties) do
+    local key
+    if prop.key.type == "Identifier" then
+      key = prop.key.name
+    else
+      key = "[\"" .. escape_lua_string(prop.key.value) .. "\"]"
+    end
+    parts[#parts + 1] = key .. " = " .. emit(prop.value, indent, scopes)
+  end
+  return "{" .. table.concat(parts, ", ") .. "}"
+end
+
+gen.ArrayExpression = function(node, indent, scopes)
+  local elems = {}
+  for _, e in ipairs(node.elements) do elems[#elems + 1] = emit(e, indent, scopes) end
+  return "{" .. table.concat(elems, ", ") .. "}"
+end
+
+-- === Top-level generate ===
+
 local function generate(ast, meta)
-  error("not implemented: generate")
+  local scopes = {}
+  local code = emit(ast, 0, scopes)
+  local helper_parts = {}
+  for name, _ in pairs(meta.needed_helpers) do
+    helper_parts[#helper_parts + 1] = HELPERS[name]
+  end
+  table.sort(helper_parts)
+  local prefix = table.concat(helper_parts, "\n\n")
+  if #prefix > 0 then prefix = prefix .. "\n\n" end
+  return prefix .. code
 end
 
 -- ============================================================================
