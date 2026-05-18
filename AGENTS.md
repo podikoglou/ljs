@@ -1,126 +1,59 @@
 # ljs - Lua JS Parser
 
-## Project Overview
+Single-file Lua library that parses a well-defined subset of JavaScript into a Lua table-based AST.
 
-**ljs** (Lua JS) is a single-file Lua library that parses a well-defined subset of JavaScript into a Lua table-based AST.
+**Status**: Parser complete. Transpilation to Lua is planned.
 
-**Current Status**: Parser-only. Transformation/transpilation to Lua is planned for future work.
-
-## Scope
-
-### Included (Must Parse)
-
-| Feature | Notes |
-|--------|-------|
-| Variables | `let`/`const` only; `var` ignored |
-| Functions | Regular functions, closures |
-| Arrow Functions | Desugared to regular functions in AST |
-| Objects | As Lua tables; property access (`obj.prop`, `obj[prop]`) |
-| Method Calls | `obj.method()` |
-| Arrays | Parsed as tables; 1-indexed internally (boundary hidden later) |
-| Arithmetic | `+`, `-`, `*`, `/` |
-| Equality | `===` only (strict); `==` rejected |
-| Control Flow | `if`/`else`, `while`, `for...of` (arrays only) |
-| `console.log` | Recognized as special form |
-| Exceptions | `throw`, `try`/`catch` (parsed; `pcall` mapping happens later) |
-
-### Explicitly Excluded (Will Error or Ignore)
-
-| Feature | Handling |
-|--------|----------|
-| `this` | Error |
-| Prototypal inheritance | Flat objects only; `__proto__` ignored |
-| `async`/`await` | Error |
-| Promises | Error |
-| `==` coercion | Error (use `===`) |
-| `typeof`, `instanceof` | Error |
-| Regex literals | Error |
-| Standard library | Not parsed (except `console.log`) |
-| `var` | Ignored (treated as `let`) |
-
-## Implementation
-
-### File Structure
+## Files
 
 ```
 ljs/
-├── AGENTS.md          # This file
-└── ljs.lua            # Single-file parser library
+├── ljs.lua        # Parser library (single file, no deps)
+├── ljsdump.lua    # CLI: reads JS, prints AST as JSON
+├── test_ljs.lua   # Test suite (run with `lua test_ljs.lua`)
+├── examples/      # Example JS programs in the supported subset
+├── docs/
+│   └── AST.md     # Full AST node reference
+└── AGENTS.md      # This file
 ```
 
-### AST Format
+## JS Subset
 
-All nodes are Lua tables with a `type` string field.
+### Supported
 
-```lua
--- Literals
-{type = "NumberLiteral", value = 42}
-{type = "StringLiteral", value = "hello"}
-{type = "BooleanLiteral", value = true}
-{type = "NullLiteral"}
-{type = "Identifier", name = "x"}
+Variables (`let`/`const`; `var` normalized to `let`), functions, arrow functions (expression bodies desugared to `BlockStatement`), objects, arrays, arithmetic (`+` `-` `*` `/` `%`), strict equality (`===`/`!==`; `==` rejected at tokenizer level), comparison (`<` `>` `<=` `>=`), logical (`&&` `||`), assignment (`=`), unary (`!` `-`), `if`/`else`, `while`, `for...of`, `throw`, `try`/`catch`, `return`, `console.log` (parsed as regular `CallExpression` with `MemberExpression` callee).
 
--- Variables
-{type = "VariableDeclaration", kind = "let" | "const", declarations = {{...}, ...}}
-{type = "VariableDeclarator", name = "x", init = {...}}
+### Rejected (parse error)
 
--- Functions
-{type = "FunctionDeclaration", name = "f", params = {{...}, ...}, body = {...}}
-{type = "FunctionExpression", name = "f" (optional), params = {{...}, ...}, body = {...}}
-{type = "ArrowFunctionExpression", params = {{...}, ...}, body = {...}}
-{type = "CallExpression", callee = {...}, arguments = {{...}, ...}}
+`this`, `async`/`await`, `typeof`, `instanceof`, `==`, regex literals, Promises.
 
--- Objects & Arrays
-{type = "ObjectExpression", properties = {{...}, ...}}
-{type = "Property", key = {...}, value = {...}, computed = true | false}
-{type = "ArrayExpression", elements = {{...}, ...}}
-{type = "MemberExpression", object = {...}, property = {...}, computed = true | false}
-
--- Expressions
-{type = "BinaryExpression", operator = "+" | "-" | "*" | "/" | "%" | "===" | "!==" | "<" | ">" | "<=" | ">=" | "&&" | "||" | "=", left = {...}, right = {...}}
-{type = "UnaryExpression", operator = "-" | "!", argument = {...}}
-
--- Control Flow
-{type = "IfStatement", test = {...}, consequent = {...}, alternate = {...}}
-{type = "WhileStatement", test = {...}, body = {...}}
-{type = "ForOfStatement", left = {...}, right = {...}, body = {...}}
-{type = "BlockStatement", body = {{...}, ...}}
-
--- Exception Handling
-{type = "ThrowStatement", argument = {...}}
-{type = "TryStatement", block = {...}, handler = {...}}
-{type = "CatchClause", param = {...}, body = {...}}
-
--- Special Forms
-{type = "CallExpression", callee = {type = "MemberExpression", ...}, ...}  -- console.log
-```
-
-### Parser Interface
+## Parser API
 
 ```lua
 local ljs = require("ljs")
 
--- Parse a JS source string into AST
-local ast, err = ljs.parse(js_source)
--- Returns: AST table on success, nil + error string on failure
+local ast, err = ljs.parse("let x = 42;")
+-- ast = {type="Program", body={...}}, err = nil
+
+local ast, err = ljs.parse("this.x")
+-- ast = nil, err = "parse error: 'this' is not supported at line 1"
 ```
 
-### Error Handling
+Also exposes `ljs.tokenize(source)`, `ljs.parse_tokens(tokens)`, and `ljs.TOKEN` for testing.
 
-- Strict parsing: fails on first syntax error
-- Returns `nil, "parse error: <message> at line X"`
-- No error recovery attempted
+## AST
+
+All nodes are Lua tables with a `type` string field. See **docs/AST.md** for the full reference with fields, types, and examples for every node.
 
 ## Conventions
 
-1. **Code Style**: Lua 5.1+ compatible, 2-space indents, snake_case for internal functions
-2. **Documentation**: Every exported function has a Lua comment block
-3. **Tests**: None yet (parser-only phase). Future: add test file
-4. **Single File**: All code in `ljs.lua`. No external dependencies
+- Lua 5.1+ compatible, 2-space indents, snake_case internals
+- No external dependencies
+- Strict parsing: fails on first error, no recovery
+- Tests: `lua test_ljs.lua` (exit code 0 = all pass)
 
 ## Future Work
 
-1. Add `ljs.lua` - the parser implementation
-2. Add transformation layer (JS AST → Lua AST → Lua source)
-3. Add comprehensive tests
-4. Consider source location tracking in AST
+- Transformation layer (JS AST → Lua source)
+- Source location tracking in AST nodes
+- More operators (ternary `?:`, nullish coalescing `??`)
