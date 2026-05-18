@@ -289,6 +289,20 @@ Wraps any expression used as a statement. Semicolons are optional.
 
 **Source:** `for (let x of arr) { console.log(x); }`
 
+### ForStatement
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"ForStatement"` | |
+| `init` | `VariableDeclaration` or `ExpressionStatement` or `nil` | Initialization (declaration or expression), or nil |
+| `test` | `node` or `nil` | Loop condition, or nil (infinite) |
+| `update` | `node` or `nil` | Update expression, or nil |
+| `body` | `node` | Statement to repeat |
+
+**Source:** `for (let i = 0; i < 10; i = i + 1) { ... }`, `for (;;) { ... }`, `for (; x < 5; ) { ... }`
+
+All three clauses (`init`, `test`, `update`) can be nil independently. When `init` is a `VariableDeclaration`, its semicolon serves as the first separator. When `init` is an expression, the separator is an `ExpressionStatement` wrapper.
+
 ### BlockStatement
 
 | Field | Type | Description |
