@@ -774,26 +774,32 @@ local parse_postfix
 
 --- Parse JavaScript source into an AST.
 -- @param source (string) JavaScript source code
--- @return (table|nil) AST root node {type="Program", body={...}}, or nil on error
--- @return (string|nil) Error message if parsing failed
+-- @return ast (table) The AST root node (Program)
+-- @return err (string) Error message if parsing failed
 function ljs.parse(source)
   local tokens, tokenize_err = tokenize(source)
   if not tokens then
-    return nil, tokenize_err
+    return nil, "parse error: " .. tokenize_err
   end
 
   local stream = make_token_stream(tokens)
 
-  local statements = {}
-  while not stream.eof() do
-    local stmt, err = parse_statement(stream)
-    if not stmt then
-      return nil, err
+  local ok, result = pcall(function()
+    local statements = {}
+    while not stream.eof() do
+      local stmt, err = parse_statement(stream)
+      if not stmt then
+        error(err, 0)
+      end
+      table.insert(statements, stmt)
     end
-    table.insert(statements, stmt)
-  end
+    return { type = "Program", body = statements }
+  end)
 
-  return { type = "Program", body = statements }
+  if ok then
+    return result
+  end
+  return nil, "parse error: " .. tostring(result)
 end
 
 -- ============================================================================
