@@ -1,23 +1,7 @@
 local transpile = require("ljs_transpile")
 local parser = require("ljs_parser")
-local passed = 0
-local failed = 0
-
-local function test(name, fn)
-  local ok, err = pcall(fn)
-  if ok then
-    passed = passed + 1
-  else
-    failed = failed + 1
-    print("FAIL: " .. name .. " - " .. tostring(err))
-  end
-end
-
-local function assert_eq(actual, expected, msg)
-  if actual ~= expected then
-    error(string.format("%s: expected %q, got %q", msg or "assertion", expected, actual))
-  end
-end
+local T = require("ljs_test")
+local test, assert_eq = T.test, T.assert_eq
 
 -- Unit test helpers
 
@@ -475,5 +459,4 @@ end)
 -- Summary
 -- ============================================================================
 
-print(string.format("\n%d passed, %d failed", passed, failed))
-os.exit(failed > 0 and 1 or 0)
+T.summary()

@@ -1,43 +1,6 @@
 local ljs = require("ljs_parser")
-local passed = 0
-local failed = 0
-
-local function test(name, fn)
-  local ok, err = pcall(fn)
-  if ok then
-    passed = passed + 1
-  else
-    failed = failed + 1
-    print("FAIL: " .. name .. " - " .. tostring(err))
-  end
-end
-
-local function assert_eq(actual, expected, msg)
-  if actual ~= expected then
-    error(string.format("%s: expected %s, got %s", msg or "assertion failed", tostring(expected), tostring(actual)))
-  end
-end
-
-local function assert_table_eq(actual, expected, path)
-  path = path or "root"
-  if type(actual) ~= type(expected) then
-    error(string.format("%s: type mismatch, expected %s got %s", path, type(expected), type(actual)))
-  end
-  if type(expected) == "table" then
-    for k, v in pairs(expected) do
-      assert_table_eq(actual[k], v, path .. "." .. tostring(k))
-    end
-    for k, _ in pairs(actual) do
-      if expected[k] == nil then
-        error(string.format("%s: unexpected key %s", path, tostring(k)))
-      end
-    end
-  else
-    if actual ~= expected then
-      error(string.format("%s: expected %s, got %s", path, tostring(expected), tostring(actual)))
-    end
-  end
-end
+local T = require("ljs_test")
+local test, assert_eq, assert_table_eq = T.test, T.assert_eq, T.assert_table_eq
 
 local function assert_parse_ok(source, expected_body, msg)
   local ast, err = ljs.parse(source)
@@ -1381,7 +1344,7 @@ end)
 -- directly. If one of these fails, it is unambiguously a parser bug —
 -- the tokenizer is not involved.
 
-local T = ljs.TOKEN
+local TK = ljs.TOKEN
 
 local function tok(type, value, line, col)
   return { type = type, value = value, line = line or 1, col = col or 1 }
@@ -1389,8 +1352,8 @@ end
 
 test("parse_tokens: let declaration", function()
   local tokens = {
-    tok(T.LET, "let"), tok(T.IDENTIFIER, "x"), tok(T.ASSIGN),
-    tok(T.NUMBER, 42), tok(T.SEMICOLON), tok(T.EOF),
+    tok(TK.LET, "let"), tok(TK.IDENTIFIER, "x"), tok(TK.ASSIGN),
+    tok(TK.NUMBER, 42), tok(TK.SEMICOLON), tok(TK.EOF),
   }
   local ast = ljs.parse_tokens(tokens)
   assert_table_eq(ast, {type = "Program", body = {
@@ -1403,11 +1366,11 @@ end)
 
 test("parse_tokens: if/else", function()
   local tokens = {
-    tok(T.IF, "if"), tok(T.LPAREN), tok(T.IDENTIFIER, "x"), tok(T.RPAREN),
-    tok(T.LBRACE), tok(T.IDENTIFIER, "y"), tok(T.SEMICOLON), tok(T.RBRACE),
-    tok(T.ELSE, "else"),
-    tok(T.LBRACE), tok(T.IDENTIFIER, "z"), tok(T.SEMICOLON), tok(T.RBRACE),
-    tok(T.EOF),
+    tok(TK.IF, "if"), tok(TK.LPAREN), tok(TK.IDENTIFIER, "x"), tok(TK.RPAREN),
+    tok(TK.LBRACE), tok(TK.IDENTIFIER, "y"), tok(TK.SEMICOLON), tok(TK.RBRACE),
+    tok(TK.ELSE, "else"),
+    tok(TK.LBRACE), tok(TK.IDENTIFIER, "z"), tok(TK.SEMICOLON), tok(TK.RBRACE),
+    tok(TK.EOF),
   }
   local ast = ljs.parse_tokens(tokens)
   assert_table_eq(ast, {type = "Program", body = {
@@ -1425,8 +1388,8 @@ end)
 
 test("parse_tokens: binary expression with precedence", function()
   local tokens = {
-    tok(T.NUMBER, 1), tok(T.PLUS), tok(T.NUMBER, 2), tok(T.STAR),
-    tok(T.NUMBER, 3), tok(T.SEMICOLON), tok(T.EOF),
+    tok(TK.NUMBER, 1), tok(TK.PLUS), tok(TK.NUMBER, 2), tok(TK.STAR),
+    tok(TK.NUMBER, 3), tok(TK.SEMICOLON), tok(TK.EOF),
   }
   local ast = ljs.parse_tokens(tokens)
   assert_table_eq(ast, {type = "Program", body = {
@@ -1441,7 +1404,7 @@ end)
 
 test("parse_tokens: error on unexpected token", function()
   local tokens = {
-    tok(T.RPAREN), tok(T.EOF),
+    tok(TK.RPAREN), tok(TK.EOF),
   }
   local ast, err = ljs.parse_tokens(tokens)
   assert_eq(ast, nil, "expected nil ast")
@@ -1449,7 +1412,7 @@ test("parse_tokens: error on unexpected token", function()
 end)
 
 test("parse_tokens: empty program", function()
-  local ast = ljs.parse_tokens({tok(T.EOF)})
+  local ast = ljs.parse_tokens({tok(TK.EOF)})
   assert_table_eq(ast, {type = "Program", body = {}})
 end)
 
@@ -1457,5 +1420,4 @@ end)
 -- SUMMARY
 -- ============================================================================
 
-print(string.format("\n%d passed, %d failed", passed, failed))
-os.exit(failed > 0 and 1 or 0)
+T.summary()
