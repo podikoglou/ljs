@@ -1,0 +1,21 @@
+pre-commit:
+  jobs:
+    - name: parser tests
+      glob: "ljs_parser.lua"
+      run: lua test_ljs_parser.lua
+
+    - name: transpile tests
+      glob: "ljs_transpile.lua"
+      run: lua test_ljs_transpile.lua
+
+    - name: test harness
+      glob: "ljs_test.lua"
+      run: lua test_ljs_parser.lua && lua test_ljs_transpile.lua
+
+    - name: parser tests (test changes)
+      glob: "test_ljs_parser.lua"
+      run: lua test_ljs_parser.lua
+
+    - name: transpile tests (test changes)
+      glob: "test_ljs_transpile.lua"
+      run: lua test_ljs_transpile.lua
