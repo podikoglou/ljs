@@ -817,6 +817,85 @@ test("integration: complex chained expression with arrow functions", function()
 end)
 
 -- ============================================================================
+-- PARSER ISOLATION TESTS (via parse_tokens)
+-- ============================================================================
+-- These tests construct token arrays by hand and call ljs.parse_tokens()
+-- directly. If one of these fails, it is unambiguously a parser bug —
+-- the tokenizer is not involved.
+
+local T = ljs.TOKEN
+
+local function tok(type, value, line, col)
+  return { type = type, value = value, line = line or 1, col = col or 1 }
+end
+
+test("parse_tokens: let declaration", function()
+  local tokens = {
+    tok(T.LET, "let"), tok(T.IDENTIFIER, "x"), tok(T.ASSIGN),
+    tok(T.NUMBER, 42), tok(T.SEMICOLON), tok(T.EOF),
+  }
+  local ast = ljs.parse_tokens(tokens)
+  assert_table_eq(ast, {type = "Program", body = {
+    {type = "VariableDeclaration", kind = "let", declarations = {
+      {type = "VariableDeclarator", name = {type = "Identifier", name = "x"},
+        init = {type = "NumberLiteral", value = 42}}
+    }}
+  }})
+end)
+
+test("parse_tokens: if/else", function()
+  local tokens = {
+    tok(T.IF, "if"), tok(T.LPAREN), tok(T.IDENTIFIER, "x"), tok(T.RPAREN),
+    tok(T.LBRACE), tok(T.IDENTIFIER, "y"), tok(T.SEMICOLON), tok(T.RBRACE),
+    tok(T.ELSE, "else"),
+    tok(T.LBRACE), tok(T.IDENTIFIER, "z"), tok(T.SEMICOLON), tok(T.RBRACE),
+    tok(T.EOF),
+  }
+  local ast = ljs.parse_tokens(tokens)
+  assert_table_eq(ast, {type = "Program", body = {
+    {type = "IfStatement",
+      test = {type = "Identifier", name = "x"},
+      consequent = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "y"}}
+      }},
+      alternate = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "z"}}
+      }}
+    }
+  }})
+end)
+
+test("parse_tokens: binary expression with precedence", function()
+  local tokens = {
+    tok(T.NUMBER, 1), tok(T.PLUS), tok(T.NUMBER, 2), tok(T.STAR),
+    tok(T.NUMBER, 3), tok(T.SEMICOLON), tok(T.EOF),
+  }
+  local ast = ljs.parse_tokens(tokens)
+  assert_table_eq(ast, {type = "Program", body = {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "+",
+      left = {type = "NumberLiteral", value = 1},
+      right = {type = "BinaryExpression", operator = "*",
+        left = {type = "NumberLiteral", value = 2},
+        right = {type = "NumberLiteral", value = 3}}}
+    }
+  }})
+end)
+
+test("parse_tokens: error on unexpected token", function()
+  local tokens = {
+    tok(T.RPAREN), tok(T.EOF),
+  }
+  local ast, err = ljs.parse_tokens(tokens)
+  assert_eq(ast, nil, "expected nil ast")
+  assert(err ~= nil, "expected error message")
+end)
+
+test("parse_tokens: empty program", function()
+  local ast = ljs.parse_tokens({tok(T.EOF)})
+  assert_table_eq(ast, {type = "Program", body = {}})
+end)
+
+-- ============================================================================
 -- SUMMARY
 -- ============================================================================
 

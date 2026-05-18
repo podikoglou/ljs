@@ -87,6 +87,8 @@ local TOKEN = {
   INSTANCEOF = "instanceof",
 }
 
+ljs.TOKEN = TOKEN
+
 -- Maps keyword strings to their token type. Looked up during tokenization
 -- to distinguish keywords from plain identifiers. "var" maps to TOKEN.LET
 -- so it's treated identically to let in the parser.
@@ -549,6 +551,8 @@ local function make_token_stream(tokens)
   return stream
 end
 
+ljs.make_token_stream = make_token_stream
+
 -- ============================================================================
 -- AST BUILDERS
 -- ============================================================================
@@ -782,6 +786,34 @@ function ljs.parse(source)
     return nil, "parse error: " .. tokenize_err
   end
 
+  local stream = make_token_stream(tokens)
+
+  local ok, result = pcall(function()
+    local statements = {}
+    while not stream.eof() do
+      local stmt, err = parse_statement(stream)
+      if not stmt then
+        error(err, 0)
+      end
+      table.insert(statements, stmt)
+    end
+    return { type = "Program", body = statements }
+  end)
+
+  if ok then
+    return result
+  end
+  return nil, "parse error: " .. tostring(result)
+end
+
+--- Parse a pre-built token array into an AST.
+-- Bypasses tokenization — takes the token array directly.
+-- Useful for testing parser grammar rules in isolation from the tokenizer,
+-- or for feeding tokens from an alternative source.
+-- @param tokens (table) Array of token tables {type, value?, line, col}
+-- @return ast (table) The AST root node (Program)
+-- @return err (string) Error message if parsing failed
+function ljs.parse_tokens(tokens)
   local stream = make_token_stream(tokens)
 
   local ok, result = pcall(function()
