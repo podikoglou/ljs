@@ -76,6 +76,9 @@ local TOKEN = {
   ASSIGN = "=",
   -- Unary
   NOT = "!",
+  -- Update
+  INCREMENT = "++",
+  DECREMENT = "--",
   -- Arrow function
   ARROW = "=>",
 
