@@ -1,4 +1,4 @@
-# ljs - Lua JS Parser
+# ljs - Lua JS Toolkit
 
 Single-file Lua library that parses a well-defined subset of JavaScript into a Lua table-based AST.
 
@@ -8,13 +8,13 @@ Single-file Lua library that parses a well-defined subset of JavaScript into a L
 
 ```
 ljs/
-├── ljs.lua        # Parser library (single file, no deps)
-├── ljsdump.lua    # CLI: reads JS, prints AST as JSON
-├── test_ljs.lua   # Test suite (run with `lua test_ljs.lua`)
-├── examples/      # Example JS programs in the supported subset
+├── ljs_parser.lua        # Parser library (single file, no deps)
+├── ljs_parser_dump.lua   # CLI: reads JS, prints AST as JSON
+├── test_ljs_parser.lua   # Test suite (run with `lua test_ljs_parser.lua`)
+├── examples/             # Example JS programs in the supported subset
 ├── docs/
-│   └── AST.md     # Full AST node reference
-└── AGENTS.md      # This file
+│   └── AST.md            # Full AST node reference
+└── AGENTS.md             # This file
 ```
 
 ## JS Subset
@@ -30,16 +30,16 @@ Variables (`let`/`const`; `var` normalized to `let`), functions, arrow functions
 ## Parser API
 
 ```lua
-local ljs = require("ljs")
+local parser = require("ljs_parser")
 
-local ast, err = ljs.parse("let x = 42;")
+local ast, err = parser.parse("let x = 42;")
 -- ast = {type="Program", body={...}}, err = nil
 
-local ast, err = ljs.parse("this.x")
+local ast, err = parser.parse("this.x")
 -- ast = nil, err = "parse error: 'this' is not supported at line 1"
 ```
 
-Also exposes `ljs.tokenize(source)`, `ljs.parse_tokens(tokens)`, and `ljs.TOKEN` for testing.
+Also exposes `parser.tokenize(source)`, `parser.parse_tokens(tokens)`, and `parser.TOKEN` for testing.
 
 ## AST
 
@@ -50,7 +50,7 @@ All nodes are Lua tables with a `type` string field. See **docs/AST.md** for the
 - Lua 5.1+ compatible, 2-space indents, snake_case internals
 - No external dependencies
 - Strict parsing: fails on first error, no recovery
-- Tests: `lua test_ljs.lua` (exit code 0 = all pass)
+- Tests: `lua test_ljs_parser.lua` (exit code 0 = all pass)
 
 ## Future Work
 
