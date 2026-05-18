@@ -373,11 +373,21 @@ local function tokenize(source)
       table.insert(tokens, make_token(TOKEN.DOT))
       advance()
     elseif c == "+" then
-      table.insert(tokens, make_token(TOKEN.PLUS))
-      advance()
+      if lookahead(2) == "++" then
+        table.insert(tokens, make_token(TOKEN.INCREMENT))
+        advance(2)
+      else
+        table.insert(tokens, make_token(TOKEN.PLUS))
+        advance()
+      end
     elseif c == "-" then
-      table.insert(tokens, make_token(TOKEN.MINUS))
-      advance()
+      if lookahead(2) == "--" then
+        table.insert(tokens, make_token(TOKEN.DECREMENT))
+        advance(2)
+      else
+        table.insert(tokens, make_token(TOKEN.MINUS))
+        advance()
+      end
     elseif c == "*" then
       table.insert(tokens, make_token(TOKEN.STAR))
       advance()
