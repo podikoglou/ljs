@@ -516,6 +516,15 @@ test("error: for with expression but no semicolon or of", function()
   assert_parse_fail("for (x) { }", nil)
 end)
 
+test("parse for with var init (normalized to let)", function()
+  local ast = ljs.parse("for (var i = 0; i < 3; i = i + 1) { x; }")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForStatement")
+  assert_eq(f.init.type, "VariableDeclaration")
+  assert_eq(f.init.kind, "let")
+  assert_eq(f.init.declarations[1].name.name, "i")
+end)
+
 test("error: for with only one semicolon", function()
   assert_parse_fail("for (; ) { }", nil)
 end)

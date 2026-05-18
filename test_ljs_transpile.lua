@@ -324,6 +324,23 @@ test("for with no semicolons in Lua output", function()
   assert(not code:find(";"), "no semicolons in Lua output")
 end)
 
+test("for(;;) scoping: let init uses local", function()
+  local code = transpile_ok("for (let i = 0; i < 1; i = i + 1) { x; }")
+  assert(code:find("local i = 0"), "expected 'local i = 0'")
+end)
+
+test("for(;;) scoping: expression init does not use local", function()
+  local code = transpile_ok("for (i = 0; i < 1; i = i + 1) { x; }")
+  assert(not code:find("local i"), "no local for expression init")
+  assert(code:find("i = 0"), "expected bare 'i = 0'")
+end)
+
+test("for(;;) var init transpiles same as let", function()
+  local code = transpile_ok("for (var i = 0; i < 3; i = i + 1) { x; }")
+  assert(code:find("local i = 0"), "var normalized to local")
+  assert(code:find("while i < 3 do"), "expected while condition")
+end)
+
 -- ============================================================================
 -- Unit tests — objects and arrays
 -- ============================================================================
