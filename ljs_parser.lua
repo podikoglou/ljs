@@ -616,6 +616,14 @@ local function unary_expression(operator, argument)
   return { type = "UnaryExpression", operator = operator, argument = argument }
 end
 
+--- @param operator (string) "++" or "--"
+--- @param argument (table) The operand AST expression
+--- @param prefix (boolean) true for prefix (++x), false for postfix (x++)
+--- @return table {type="UpdateExpression", operator, argument, prefix}
+local function update_expression(operator, argument, prefix)
+  return { type = "UpdateExpression", operator = operator, argument = argument, prefix = prefix }
+end
+
 --- @param callee (table) Expression being called
 --- @param arguments (table) Array of argument expressions
 --- @return table {type="CallExpression", callee, arguments}
