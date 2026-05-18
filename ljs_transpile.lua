@@ -6,6 +6,17 @@ local ljs_transpile = {}
 
 local HELPERS = {}
 
+HELPERS._ljs_add = [[local function _ljs_add(a, b)
+  if type(a) == "string" or type(b) == "string" then
+    return tostring(a) .. tostring(b)
+  end
+  return a + b
+end]]
+
+HELPERS._ljs_log = [[local function _ljs_log(...)
+  print(...)
+end]]
+
 -- ============================================================================
 -- Section 3: Pass 1 — Analysis (scope tracker, helper detection)
 -- ============================================================================
