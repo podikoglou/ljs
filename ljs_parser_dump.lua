@@ -1,12 +1,12 @@
--- ljs_cli - CLI frontend for ljs parser
+-- ljs_parser_dump - CLI frontend for ljs parser
 -- Reads JS from file argument or stdin, prints AST as JSON to stdout.
 --
 -- Usage:
---   lua ljs_cli.lua file.js
---   cat file.js | lua ljs_cli.lua
---   echo "let x = 42;" | lua ljs_cli.lua
+--   lua ljs_parser_dump.lua file.js
+--   cat file.js | lua ljs_parser_dump.lua
+--   echo "let x = 42;" | lua ljs_parser_dump.lua
 
-local ljs = require("ljs")
+local ljs = require("ljs_parser")
 
 -- JSON serialization --------------------------------------------------------
 
