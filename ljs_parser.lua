@@ -1258,6 +1258,11 @@ function parse_unary_expression(stream)
     local argument = parse_unary_expression(stream)
     if not argument then return nil end
     return unary_expression(op == TOKEN.NOT and "!" or "-", argument)
+  elseif stream.is(TOKEN.INCREMENT) or stream.is(TOKEN.DECREMENT) then
+    local op_token = stream.advance()
+    local argument = parse_unary_expression(stream)
+    if not argument then return nil end
+    return update_expression(op_token.type, argument, true)
   end
   return parse_primary_expression(stream)
 end
