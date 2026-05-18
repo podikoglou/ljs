@@ -1383,6 +1383,7 @@ function parse_array_literal(stream)
       table.insert(elements, element)
       if not stream.is(TOKEN.COMMA) then break end
       stream.advance()
+      if stream.is(TOKEN.RBRACKET) then break end
     end
   end
   stream.consume(TOKEN.RBRACKET)
@@ -1416,6 +1417,7 @@ function parse_object_literal(stream)
       table.insert(properties, property(key, value, false))
       if not stream.is(TOKEN.COMMA) then break end
       stream.advance()
+      if stream.is(TOKEN.RBRACE) then break end
     end
   end
   stream.consume(TOKEN.RBRACE)
