@@ -184,6 +184,21 @@ Unary operators have the highest precedence (6) and are right-recursive: `!!x` p
 
 **Source:** `!x`, `-y`, `!!flag`
 
+### UpdateExpression
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"UpdateExpression"` | |
+| `operator` | `string` | `"++"` or `"--"` |
+| `argument` | `node` | The operand (Identifier or MemberExpression) |
+| `prefix` | `boolean` | `true` for prefix (`++x`), `false` for postfix (`x++`) |
+
+Postfix has the highest precedence (applied during primary expression parsing). Prefix has the same precedence as unary operators (6). Both are right-recursive for prefix: `++ ++ x` parses as `++(++x)`.
+
+Postfix is only valid after identifiers and member/call chains: `x++`, `a.b++`, `a[b]++`, `f()++`. It does not apply to literals or parenthesized expressions: `5++`, `(x)++` are parse errors.
+
+**Source:** `++x`, `x++`, `--y`, `y--`, `a.b++`, `++obj[prop]`, `i++` in for-loop update
+
 ### CallExpression
 
 | Field | Type | Description |
