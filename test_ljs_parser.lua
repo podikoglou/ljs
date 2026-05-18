@@ -167,7 +167,7 @@ test("tokenize keywords", function()
 end)
 
 test("tokenize operators", function()
-  local src = "+ - * / % === !== < > <= >= && || = !"
+  local src = "+ - * / % === !== < > <= >= && || = ! ++ --"
   assert_tok(src, 1, "+")
   assert_tok(src, 2, "-")
   assert_tok(src, 3, "*")
@@ -183,6 +183,8 @@ test("tokenize operators", function()
   assert_tok(src, 13, "||")
   assert_tok(src, 14, "=")
   assert_tok(src, 15, "!")
+  assert_tok(src, 16, "++")
+  assert_tok(src, 17, "--")
 end)
 
 test("tokenize punctuation", function()
@@ -231,6 +233,43 @@ end)
 
 test("tokenize error: unexpected character", function()
   assert_tokenize_fail("@", "Unexpected character")
+end)
+
+test("tokenize +++ maximal munch", function()
+  local tokens = ljs.tokenize("+++")
+  assert_eq(tokens[1].type, "++")
+  assert_eq(tokens[2].type, "+")
+end)
+
+test("tokenize --- maximal munch", function()
+  local tokens = ljs.tokenize("---")
+  assert_eq(tokens[1].type, "--")
+  assert_eq(tokens[2].type, "-")
+end)
+
+test("tokenize + + with space is not ++", function()
+  local tokens = ljs.tokenize("+ +")
+  assert_eq(tokens[1].type, "+")
+  assert_eq(tokens[2].type, "+")
+end)
+
+test("tokenize - - with space is not --", function()
+  local tokens = ljs.tokenize("- -")
+  assert_eq(tokens[1].type, "-")
+  assert_eq(tokens[2].type, "-")
+end)
+
+test("tokenize ++++ (two increments)", function()
+  local tokens = ljs.tokenize("++++")
+  assert_eq(tokens[1].type, "++")
+  assert_eq(tokens[2].type, "++")
+end)
+
+test("tokenize ++ in context: x++ + y", function()
+  assert_tok("x++ + y", 1, "Identifier")
+  assert_tok("x++ + y", 2, "++")
+  assert_tok("x++ + y", 3, "+")
+  assert_tok("x++ + y", 4, "Identifier")
 end)
 
 -- ============================================================================
@@ -525,6 +564,69 @@ test("parse for with var init (normalized to let)", function()
   assert_eq(f.init.declarations[1].name.name, "i")
 end)
 
+test("parse for with i++ update", function()
+  local ast = ljs.parse("for (let i = 0; i < 10; i++) {}")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForStatement")
+  assert_eq(f.update.type, "UpdateExpression")
+  assert_eq(f.update.operator, "++")
+  assert_eq(f.update.prefix, false)
+  assert_eq(f.update.argument.name, "i")
+end)
+
+test("parse for with --i update", function()
+  local ast = ljs.parse("for (let i = 10; i > 0; --i) {}")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForStatement")
+  assert_eq(f.update.type, "UpdateExpression")
+  assert_eq(f.update.operator, "--")
+  assert_eq(f.update.prefix, true)
+  assert_eq(f.update.argument.name, "i")
+end)
+
+test("parse x++ as if condition", function()
+  assert_parse_ok("if (x++) { y; }", {
+    {type = "IfStatement",
+      test = {type = "UpdateExpression", operator = "++",
+        argument = {type = "Identifier", name = "x"}, prefix = false},
+      consequent = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "y"}}
+      }}}
+  })
+end)
+
+test("parse let x = y++ (as variable init)", function()
+  assert_parse_ok("let x = y++;", {
+    {type = "VariableDeclaration", kind = "let", declarations = {
+      {type = "VariableDeclarator",
+        name = {type = "Identifier", name = "x"},
+        init = {type = "UpdateExpression", operator = "++",
+          argument = {type = "Identifier", name = "y"}, prefix = false}}
+    }}
+  })
+end)
+
+test("parse f(x++) as call argument", function()
+  assert_parse_ok("f(x++);", {
+    {type = "ExpressionStatement", expression = {type = "CallExpression",
+      callee = {type = "Identifier", name = "f"},
+      arguments = {
+        {type = "UpdateExpression", operator = "++",
+          argument = {type = "Identifier", name = "x"}, prefix = false}
+      }}}
+  })
+end)
+
+test("parse arr[x++] as computed property", function()
+  assert_parse_ok("arr[x++];", {
+    {type = "ExpressionStatement", expression = {type = "MemberExpression",
+      object = {type = "Identifier", name = "arr"},
+      property = {type = "UpdateExpression", operator = "++",
+        argument = {type = "Identifier", name = "x"}, prefix = false},
+      computed = true}}
+  })
+end)
+
 test("error: for with only one semicolon", function()
   assert_parse_fail("for (; ) { }", nil)
 end)
@@ -653,6 +755,223 @@ test("parse UnaryExpression -", function()
   assert_parse_ok("-x;", {
     {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "-",
       argument = {type = "Identifier", name = "x"}}}
+  })
+end)
+
+test("parse prefix ++x", function()
+  assert_parse_ok("++x;", {
+    {type = "ExpressionStatement", expression = {type = "UpdateExpression", operator = "++",
+      argument = {type = "Identifier", name = "x"}, prefix = true}}
+  })
+end)
+
+test("parse prefix --x", function()
+  assert_parse_ok("--x;", {
+    {type = "ExpressionStatement", expression = {type = "UpdateExpression", operator = "--",
+      argument = {type = "Identifier", name = "x"}, prefix = true}}
+  })
+end)
+
+test("parse nested prefix ++ ++ x", function()
+  assert_parse_ok("++ ++ x;", {
+    {type = "ExpressionStatement", expression = {type = "UpdateExpression", operator = "++",
+      argument = {type = "UpdateExpression", operator = "++",
+        argument = {type = "Identifier", name = "x"}, prefix = true},
+      prefix = true}}
+  })
+end)
+
+test("parse prefix ++ on member expression", function()
+  assert_parse_ok("++a.b;", {
+    {type = "ExpressionStatement", expression = {type = "UpdateExpression", operator = "++",
+      argument = {type = "MemberExpression",
+        object = {type = "Identifier", name = "a"},
+        property = {type = "Identifier", name = "b"},
+        computed = false},
+      prefix = true}}
+  })
+end)
+
+test("parse prefix -- on computed member", function()
+  assert_parse_ok("--a[b];", {
+    {type = "ExpressionStatement", expression = {type = "UpdateExpression", operator = "--",
+      argument = {type = "MemberExpression",
+        object = {type = "Identifier", name = "a"},
+        property = {type = "Identifier", name = "b"},
+        computed = true},
+      prefix = true}}
+  })
+end)
+
+test("parse prefix ++ on chained member a.b.c", function()
+  assert_parse_ok("++a.b.c;", {
+    {type = "ExpressionStatement", expression = {type = "UpdateExpression", operator = "++",
+      argument = {type = "MemberExpression",
+        object = {type = "MemberExpression",
+          object = {type = "Identifier", name = "a"},
+          property = {type = "Identifier", name = "b"},
+          computed = false},
+        property = {type = "Identifier", name = "c"},
+        computed = false},
+      prefix = true}}
+  })
+end)
+
+test("parse !++x (unary NOT then prefix)", function()
+  assert_parse_ok("!++x;", {
+    {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "!",
+      argument = {type = "UpdateExpression", operator = "++",
+        argument = {type = "Identifier", name = "x"}, prefix = true}}}
+  })
+end)
+
+test("parse --x as return value", function()
+  assert_parse_ok("function f() { return --x; }", {
+    {type = "FunctionDeclaration", name = "f",
+      params = {},
+      body = {type = "BlockStatement", body = {
+        {type = "ReturnStatement",
+          argument = {type = "UpdateExpression", operator = "--",
+            argument = {type = "Identifier", name = "x"}, prefix = true}}
+      }}}
+  })
+end)
+
+test("parse postfix x++", function()
+  assert_parse_ok("x++;", {
+    {type = "ExpressionStatement", expression = {type = "UpdateExpression", operator = "++",
+      argument = {type = "Identifier", name = "x"}, prefix = false}}
+  })
+end)
+
+test("parse postfix x--", function()
+  assert_parse_ok("x--;", {
+    {type = "ExpressionStatement", expression = {type = "UpdateExpression", operator = "--",
+      argument = {type = "Identifier", name = "x"}, prefix = false}}
+  })
+end)
+
+test("parse postfix on member a.b++", function()
+  assert_parse_ok("a.b++;", {
+    {type = "ExpressionStatement", expression = {type = "UpdateExpression", operator = "++",
+      argument = {type = "MemberExpression",
+        object = {type = "Identifier", name = "a"},
+        property = {type = "Identifier", name = "b"},
+        computed = false},
+      prefix = false}}
+  })
+end)
+
+test("parse postfix on computed member a[b]--", function()
+  assert_parse_ok("a[b]--;", {
+    {type = "ExpressionStatement", expression = {type = "UpdateExpression", operator = "--",
+      argument = {type = "MemberExpression",
+        object = {type = "Identifier", name = "a"},
+        property = {type = "Identifier", name = "b"},
+        computed = true},
+      prefix = false}}
+  })
+end)
+
+test("parse postfix on call f()++", function()
+  assert_parse_ok("f()++;", {
+    {type = "ExpressionStatement", expression = {type = "UpdateExpression", operator = "++",
+      argument = {type = "CallExpression",
+        callee = {type = "Identifier", name = "f"},
+        arguments = {}},
+      prefix = false}}
+  })
+end)
+
+test("parse postfix on chained member a.b.c++", function()
+  assert_parse_ok("a.b.c++;", {
+    {type = "ExpressionStatement", expression = {type = "UpdateExpression", operator = "++",
+      argument = {type = "MemberExpression",
+        object = {type = "MemberExpression",
+          object = {type = "Identifier", name = "a"},
+          property = {type = "Identifier", name = "b"},
+          computed = false},
+        property = {type = "Identifier", name = "c"},
+        computed = false},
+      prefix = false}}
+  })
+end)
+
+test("parse postfix on chained call+member", function()
+  assert_parse_ok("obj.method()++;", {
+    {type = "ExpressionStatement", expression = {type = "UpdateExpression", operator = "++",
+      argument = {type = "CallExpression",
+        callee = {type = "MemberExpression",
+          object = {type = "Identifier", name = "obj"},
+          property = {type = "Identifier", name = "method"},
+          computed = false},
+        arguments = {}},
+      prefix = false}}
+  })
+end)
+
+test("parse x++ + y (postfix in binary)", function()
+  assert_parse_ok("x++ + y;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "+",
+      left = {type = "UpdateExpression", operator = "++",
+        argument = {type = "Identifier", name = "x"}, prefix = false},
+      right = {type = "Identifier", name = "y"}}}
+  })
+end)
+
+test("parse x + ++y (prefix in binary)", function()
+  assert_parse_ok("x + ++y;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "+",
+      left = {type = "Identifier", name = "x"},
+      right = {type = "UpdateExpression", operator = "++",
+        argument = {type = "Identifier", name = "y"}, prefix = true}}}
+  })
+end)
+
+test("parse x++ + ++y (both sides)", function()
+  assert_parse_ok("x++ + ++y;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "+",
+      left = {type = "UpdateExpression", operator = "++",
+        argument = {type = "Identifier", name = "x"}, prefix = false},
+      right = {type = "UpdateExpression", operator = "++",
+        argument = {type = "Identifier", name = "y"}, prefix = true}}}
+  })
+end)
+
+test("parse x+++y maximal munch: (x++) + y", function()
+  assert_parse_ok("x+++y;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "+",
+      left = {type = "UpdateExpression", operator = "++",
+        argument = {type = "Identifier", name = "x"}, prefix = false},
+      right = {type = "Identifier", name = "y"}}}
+  })
+end)
+
+test("parse x---y maximal munch: (x--) - y", function()
+  assert_parse_ok("x---y;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "-",
+      left = {type = "UpdateExpression", operator = "--",
+        argument = {type = "Identifier", name = "x"}, prefix = false},
+      right = {type = "Identifier", name = "y"}}}
+  })
+end)
+
+test("parse a + b++ * c (postfix binds tighter)", function()
+  assert_parse_ok("a + b++ * c;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "+",
+      left = {type = "Identifier", name = "a"},
+      right = {type = "BinaryExpression", operator = "*",
+        left = {type = "UpdateExpression", operator = "++",
+          argument = {type = "Identifier", name = "b"}, prefix = false},
+        right = {type = "Identifier", name = "c"}}}}
+  })
+end)
+
+test("parse -x++ (unary minus on postfix)", function()
+  assert_parse_ok("-x++;", {
+    {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "-",
+      argument = {type = "UpdateExpression", operator = "++",
+        argument = {type = "Identifier", name = "x"}, prefix = false}}}
   })
 end)
 
@@ -892,6 +1211,50 @@ end)
 
 test("error: == rejected by tokenizer", function()
   assert_parse_fail("1 == 2", "Use ===")
+end)
+
+test("error: ++ with no operand", function()
+  assert_parse_fail("++;", nil)
+end)
+
+test("error: -- with no operand", function()
+  assert_parse_fail("--;", nil)
+end)
+
+test("error: ++ at end of input", function()
+  assert_parse_fail("let x = ++", nil)
+end)
+
+test("error: postfix on number literal", function()
+  assert_parse_fail("5++;", nil)
+end)
+
+test("error: postfix on string literal", function()
+  assert_parse_fail('"hello"++;', nil)
+end)
+
+test("error: postfix on boolean literal", function()
+  assert_parse_fail("true++;", nil)
+end)
+
+test("error: postfix on null literal", function()
+  assert_parse_fail("null++;", nil)
+end)
+
+test("error: postfix on parenthesized expression", function()
+  assert_parse_fail("(x)++;", nil)
+end)
+
+test("error: postfix on array literal", function()
+  assert_parse_fail("[1, 2]++;", nil)
+end)
+
+test("error: double postfix x++ ++", function()
+  assert_parse_fail("x++ ++;", nil)
+end)
+
+test("error: postfix followed by member access x++.y", function()
+  assert_parse_fail("x++.y;", nil)
 end)
 
 test("operator precedence: 1 + 2 * 3", function()
