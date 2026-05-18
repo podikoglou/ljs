@@ -1,4 +1,4 @@
-local ljs = require("ljs")
+local ljs = require("ljs_parser")
 local passed = 0
 local failed = 0
 
