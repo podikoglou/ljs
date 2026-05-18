@@ -1405,6 +1405,13 @@ function parse_postfix(stream, expr)
       break
     end
   end
+  if stream.is(TOKEN.INCREMENT) then
+    stream.advance()
+    return update_expression("++", expr, false)
+  elseif stream.is(TOKEN.DECREMENT) then
+    stream.advance()
+    return update_expression("--", expr, false)
+  end
   return expr
 end
 
