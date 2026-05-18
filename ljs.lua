@@ -803,6 +803,26 @@ function ljs.parse(source)
 end
 
 -- ============================================================================
+-- BANNED KEYWORD CHECK
+-- ============================================================================
+
+local BANNED_KEYWORDS = {
+  [TOKEN.THIS] = "this",
+  [TOKEN.ASYNC] = "async",
+  [TOKEN.AWAIT] = "await",
+  [TOKEN.TYPEOF] = "typeof",
+  [TOKEN.INSTANCEOF] = "instanceof",
+}
+
+local function check_banned(stream)
+  local kw = BANNED_KEYWORDS[stream.peek().type]
+  if kw then
+    return string.format("'%s' is not supported at line %d", kw, stream.peek().line)
+  end
+  return nil
+end
+
+-- ============================================================================
 -- STATEMENT PARSERS
 -- ============================================================================
 
@@ -831,19 +851,10 @@ function parse_statement(stream)
     return parse_return_statement(stream)
   elseif stream.is(TOKEN.LBRACE) then
     return parse_block_statement(stream)
-  -- Rejected keywords — produce clear error messages
-  elseif stream.is(TOKEN.THIS) then
-    return nil, string.format("'this' is not supported at line %d", stream.peek().line)
-  elseif stream.is(TOKEN.ASYNC) then
-    return nil, string.format("'async' is not supported at line %d", stream.peek().line)
-  elseif stream.is(TOKEN.AWAIT) then
-    return nil, string.format("'await' is not supported at line %d", stream.peek().line)
-  elseif stream.is(TOKEN.TYPEOF) then
-    return nil, string.format("'typeof' is not supported at line %d", stream.peek().line)
-  elseif stream.is(TOKEN.INSTANCEOF) then
-    return nil, string.format("'instanceof' is not supported at line %d", stream.peek().line)
   else
-    -- Expression statement: any expression followed by optional semicolon.
+    local banned_err = check_banned(stream)
+    if banned_err then return nil, banned_err end
+  -- Expression statement: any expression followed by optional semicolon.
     local expr, err = parse_expression(stream)
     if not expr then
       return nil, err
@@ -1152,20 +1163,8 @@ end
 -- arrays, objects, function expressions.
 -- Also rejects excluded keywords (this, async, etc.) in expression context.
 function parse_primary_expression(stream)
-  local token = stream.peek()
-
-  -- Reject excluded keywords before trying to parse them as anything else
-  if stream.is(TOKEN.THIS) then
-    return nil, string.format("'this' is not supported at line %d", stream.peek().line)
-  elseif stream.is(TOKEN.ASYNC) then
-    return nil, string.format("'async' is not supported at line %d", stream.peek().line)
-  elseif stream.is(TOKEN.AWAIT) then
-    return nil, string.format("'await' is not supported at line %d", stream.peek().line)
-  elseif stream.is(TOKEN.TYPEOF) then
-    return nil, string.format("'typeof' is not supported at line %d", stream.peek().line)
-  elseif stream.is(TOKEN.INSTANCEOF) then
-    return nil, string.format("'instanceof' is not supported at line %d", stream.peek().line)
-  end
+  local banned_err = check_banned(stream)
+  if banned_err then return nil, banned_err end
 
   local token = stream.peek()
 
