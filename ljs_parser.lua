@@ -1,4 +1,4 @@
--- ljs - JavaScript subset parser for Lua
+-- ljs_parser - JavaScript subset parser for Lua
 -- Parses a well-defined subset of JavaScript into a Lua table-based AST.
 --
 -- Supported: let/const/var, functions, arrow functions, objects, arrays,
@@ -9,8 +9,8 @@
 -- regex literals, prototypal inheritance, Promises.
 --
 -- Usage:
---   local ljs = require("ljs")
---   local ast, err = ljs.parse("let x = 42; console.log(x);")
+--   local parser = require("ljs_parser")
+--   local ast, err = parser.parse("let x = 42; console.log(x);")
 --   if not ast then print(err) end
 
 local ljs = {}
