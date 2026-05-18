@@ -21,8 +21,45 @@ end]]
 -- Section 3: Pass 1 — Analysis (scope tracker, helper detection)
 -- ============================================================================
 
+local function scope_push(scopes)
+  scopes[#scopes + 1] = {}
+end
+
+local function scope_pop(scopes)
+  scopes[#scopes] = nil
+end
+
+local function scope_declare(scopes, name)
+  scopes[#scopes][name] = true
+end
+
+local function scope_is_shadowed(scopes, name)
+  for i = #scopes, 1, -1 do
+    if scopes[i][name] then return true end
+  end
+  return false
+end
+
+local function is_console_log(node, scopes)
+  if node.type ~= "CallExpression" then return false end
+  local callee = node.callee
+  if not callee or callee.type ~= "MemberExpression" then return false end
+  if callee.computed then return false end
+  if callee.object.type ~= "Identifier" or callee.object.name ~= "console" then return false end
+  if callee.property.type ~= "Identifier" or callee.property.name ~= "log" then return false end
+  return not scope_is_shadowed(scopes, "console")
+end
+
+local function analyze_node(node, meta, scopes)
+  if not node or type(node) ~= "table" then return end
+  local t = node.type
+  -- TODO: dispatch on node type
+end
+
 local function analyze(ast)
-  error("not implemented: analyze")
+  local meta = { needed_helpers = {} }
+  analyze_node(ast, meta, {})
+  return meta
 end
 
 -- ============================================================================
