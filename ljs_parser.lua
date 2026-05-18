@@ -679,6 +679,10 @@ local function for_of_statement(left, right, body)
   return { type = "ForOfStatement", left = left, right = right, body = body }
 end
 
+local function for_statement(init, test, update, body)
+  return { type = "ForStatement", init = init, test = test, update = update, body = body }
+end
+
 --- @param body (table) Array of statement nodes
 --- @return table {type="BlockStatement", body}
 local function block_statement(body)
@@ -758,7 +762,7 @@ local parse_variable_declaration
 local parse_variable_declarator
 local parse_if_statement
 local parse_while_statement
-local parse_for_of_statement
+local parse_for_statement
 local parse_throw_statement
 local parse_try_statement
 local parse_function_declaration
@@ -872,7 +876,7 @@ function parse_statement(stream)
   elseif stream.is(TOKEN.WHILE) then
     return parse_while_statement(stream)
   elseif stream.is(TOKEN.FOR) then
-    return parse_for_of_statement(stream)
+    return parse_for_statement(stream)
   elseif stream.is(TOKEN.THROW) then
     return parse_throw_statement(stream)
   elseif stream.is(TOKEN.TRY) then
@@ -995,24 +999,71 @@ function parse_while_statement(stream)
   return while_statement(test, body)
 end
 
---- Parse for...of: for (let x of iterable) body
--- The left side can be a variable declaration or a bare expression.
-function parse_for_of_statement(stream)
+--- Parse for statement: dispatches between for...of and C-style for(;;).
+function parse_for_statement(stream)
   stream.consume(TOKEN.FOR)
   stream.consume(TOKEN.LPAREN)
 
-  local left
-  if stream.is(TOKEN.LET) or stream.is(TOKEN.CONST) then
-    left = parse_variable_declaration(stream)
-  else
-    left = parse_expression(stream)
+  if stream.is(TOKEN.SEMICOLON) then
+    return parse_c_style_for(stream, nil)
   end
 
+  if stream.is(TOKEN.LET) or stream.is(TOKEN.CONST) then
+    local decl = parse_variable_declaration(stream)
+
+    if stream.is(TOKEN.OF) then
+      return parse_for_of_from_left(stream, decl)
+    end
+
+    return parse_c_style_for_from_test(stream, decl)
+  end
+
+  local expr = parse_expression(stream)
+  if not expr then return nil, "Expected expression in for" end
+
+  if stream.is(TOKEN.OF) then
+    stream.consume(TOKEN.OF)
+    local right = parse_expression(stream)
+    if not right then return nil, "Expected expression after 'of'" end
+    stream.consume(TOKEN.RPAREN)
+    local body = parse_statement(stream)
+    return for_of_statement(expr, right, body)
+  end
+
+  local init = expression_statement(expr)
+  stream.consume(TOKEN.SEMICOLON)
+  return parse_c_style_for_from_test(stream, init)
+end
+
+function parse_c_style_for(stream, init)
+  stream.consume(TOKEN.SEMICOLON)
+  return parse_c_style_for_from_test(stream, init)
+end
+
+function parse_c_style_for_from_test(stream, init)
+  local test
+  if not stream.is(TOKEN.SEMICOLON) then
+    test = parse_expression(stream)
+    if not test then return nil, "Expected expression in for test" end
+  end
+  stream.consume(TOKEN.SEMICOLON)
+
+  local update
+  if not stream.is(TOKEN.RPAREN) then
+    update = parse_expression(stream)
+    if not update then return nil, "Expected expression in for update" end
+  end
+  stream.consume(TOKEN.RPAREN)
+
+  local body = parse_statement(stream)
+  return for_statement(init, test, update, body)
+end
+
+function parse_for_of_from_left(stream, left)
   stream.consume(TOKEN.OF)
   local right = parse_expression(stream)
   if not right then return nil, "Expected expression" end
   stream.consume(TOKEN.RPAREN)
-
   local body = parse_statement(stream)
   return for_of_statement(left, right, body)
 end
