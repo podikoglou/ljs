@@ -1,4 +1,4 @@
-# ljs AST Reference
+# ljs_parser AST Reference
 
 Every AST node is a Lua table with a `type` string field. This document covers every node type, its fields, and the JavaScript source that produces it.
 
@@ -6,7 +6,7 @@ Every AST node is a Lua table with a `type` string field. This document covers e
 
 ### Program
 
-The top-level node returned by `ljs.parse()`.
+The top-level node returned by `parser.parse()`.
 
 | Field | Type | Description |
 |-------|------|-------------|
