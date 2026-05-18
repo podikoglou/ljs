@@ -101,6 +101,19 @@ local function analyze_node(node, meta, scopes)
     analyze_node(node.body, meta, scopes)
     scope_pop(scopes)
 
+  elseif t == "ForStatement" then
+    if node.init then analyze_node(node.init, meta, scopes) end
+    if node.test then analyze_node(node.test, meta, scopes) end
+    if node.update then analyze_node(node.update, meta, scopes) end
+    scope_push(scopes)
+    if node.init and node.init.type == "VariableDeclaration" then
+      for _, decl in ipairs(node.init.declarations) do
+        scope_declare(scopes, decl.name.name)
+      end
+    end
+    analyze_node(node.body, meta, scopes)
+    scope_pop(scopes)
+
   elseif t == "CatchClause" then
     scope_push(scopes)
     scope_declare(scopes, node.param.name)
@@ -349,6 +362,28 @@ gen.ForOfStatement = function(node, indent, scopes)
   scope_pop(scopes)
   return pad(indent) .. "for _, " .. var_name .. " in ipairs(" .. emit(node.right, indent, scopes) .. ") do\n"
     .. body .. pad(indent) .. "end\n"
+end
+
+gen.ForStatement = function(node, indent, scopes)
+  local parts = {}
+  if node.init then
+    parts[#parts + 1] = emit(node.init, indent, scopes)
+  end
+  local test_code = node.test and emit(node.test, indent, scopes) or "true"
+  parts[#parts + 1] = pad(indent) .. "while " .. test_code .. " do\n"
+  scope_push(scopes)
+  if node.init and node.init.type == "VariableDeclaration" then
+    for _, decl in ipairs(node.init.declarations) do
+      scope_declare(scopes, decl.name.name)
+    end
+  end
+  local body = emit(node.body, indent, scopes)
+  if node.update then
+    body = body .. pad(indent + 1) .. emit(node.update, indent + 1, scopes) .. "\n"
+  end
+  scope_pop(scopes)
+  parts[#parts + 1] = body .. pad(indent) .. "end\n"
+  return table.concat(parts)
 end
 
 -- === Exception handling ===
