@@ -21,6 +21,12 @@ end]]
 -- Section 3: Pass 1 — Analysis (scope tracker, helper detection)
 -- ============================================================================
 
+local BUILTINS = {
+  console = {
+    log = { helper = "_ljs_log" },
+  },
+}
+
 local function scope_push(scopes)
   scopes[#scopes + 1] = {}
 end
@@ -40,14 +46,19 @@ local function scope_is_shadowed(scopes, name)
   return false
 end
 
-local function is_console_log(node, scopes)
-  if node.type ~= "CallExpression" then return false end
+local function lookup_builtin(node, scopes)
+  if node.type ~= "CallExpression" then return nil end
   local callee = node.callee
-  if not callee or callee.type ~= "MemberExpression" then return false end
-  if callee.computed then return false end
-  if callee.object.type ~= "Identifier" or callee.object.name ~= "console" then return false end
-  if callee.property.type ~= "Identifier" or callee.property.name ~= "log" then return false end
-  return not scope_is_shadowed(scopes, "console")
+  if not callee or callee.type ~= "MemberExpression" then return nil end
+  if callee.computed then return nil end
+  if callee.object.type ~= "Identifier" then return nil end
+  if callee.property.type ~= "Identifier" then return nil end
+  local obj_entry = BUILTINS[callee.object.name]
+  if not obj_entry then return nil end
+  local entry = obj_entry[callee.property.name]
+  if not entry then return nil end
+  if scope_is_shadowed(scopes, callee.object.name) then return nil end
+  return entry
 end
 
 local function analyze_node(node, meta, scopes)
@@ -153,8 +164,9 @@ local function analyze_node(node, meta, scopes)
     analyze_node(node.argument, meta, scopes)
 
   elseif t == "CallExpression" then
-    if is_console_log(node, scopes) then
-      meta.needed_helpers["_ljs_log"] = true
+    local builtin = lookup_builtin(node, scopes)
+    if builtin then
+      meta.needed_helpers[builtin.helper] = true
     end
     analyze_node(node.callee, meta, scopes)
     for _, arg in ipairs(node.arguments) do analyze_node(arg, meta, scopes) end
@@ -433,8 +445,9 @@ end
 gen.CallExpression = function(node, indent, scopes)
   local args = {}
   for _, a in ipairs(node.arguments) do args[#args + 1] = emit(a, indent, scopes) end
-  if is_console_log(node, scopes) then
-    return "_ljs_log(" .. table.concat(args, ", ") .. ")"
+  local builtin = lookup_builtin(node, scopes)
+  if builtin then
+    return builtin.helper .. "(" .. table.concat(args, ", ") .. ")"
   end
   return emit(node.callee, indent, scopes) .. "(" .. table.concat(args, ", ") .. ")"
 end
@@ -504,6 +517,7 @@ function ljs_transpile.transpile_source(source)
   return ljs_transpile.transpile(ast)
 end
 
+ljs_transpile.BUILTINS = BUILTINS
 ljs_transpile.HELPERS = HELPERS
 
 -- ============================================================================

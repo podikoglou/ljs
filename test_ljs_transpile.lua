@@ -421,6 +421,23 @@ test("transpile.HELPERS accessible", function()
 end)
 
 -- ============================================================================
+-- Unit tests — BUILTINS registry
+-- ============================================================================
+
+test("transpile.BUILTINS accessible", function()
+  assert(type(transpile.BUILTINS) == "table", "expected BUILTINS table")
+  assert(type(transpile.BUILTINS.console) == "table", "expected console entry")
+  assert(type(transpile.BUILTINS.console.log) == "table", "expected console.log entry")
+  assert_eq(transpile.BUILTINS.console.log.helper, "_ljs_log", "console.log helper name")
+end)
+
+test("shadowed console.log does not emit helper", function()
+  local code = transpile_ok("let console = {}; console.log(x);")
+  assert(not code:find("_ljs_log"), "shadowed console.log should not use helper")
+  assert(code:find("console%.log"), "should emit plain member call")
+end)
+
+-- ============================================================================
 -- Integration tests — example programs
 -- ============================================================================
 
