@@ -1,12 +1,12 @@
 // Adapted from porffor bench/exceptions.js
-// Tests: try/catch, throw, for(;;), error propagation
+// Tests: try/catch, throw, for(;;), error propagation, ++
 
 let caught = 0;
-for (let i = 0; i < 5; i = i + 1) {
+for (let i = 0; i < 5; i++) {
   try {
     throw i;
   } catch (e) {
-    caught += 1;
+    caught++;
   }
 }
 console.log("caught:", caught);
