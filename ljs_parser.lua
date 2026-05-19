@@ -40,6 +40,7 @@ local TOKEN = {
   WHILE = "while",
   FOR = "for",
   OF = "of",
+  IN = "in",
   THROW = "throw",
   TRY = "try",
   CATCH = "catch",
@@ -114,6 +115,7 @@ local KEYWORDS = {
   ["while"] = TOKEN.WHILE,
   ["for"] = TOKEN.FOR,
   ["of"] = TOKEN.OF,
+  ["in"] = TOKEN.IN,
   ["throw"] = TOKEN.THROW,
   ["try"] = TOKEN.TRY,
   ["catch"] = TOKEN.CATCH,
@@ -741,12 +743,20 @@ local function while_statement(test, body)
   return { type = "WhileStatement", test = test, body = body }
 end
 
+local function do_while_statement(body, test)
+  return { type = "DoWhileStatement", body = body, test = test }
+end
+
 --- @param left (table) VariableDeclaration or expression (the loop variable)
 --- @param right (table) Iterable expression
 --- @param body (table) Statement to repeat
 --- @return table {type="ForOfStatement", left, right, body}
 local function for_of_statement(left, right, body)
   return { type = "ForOfStatement", left = left, right = right, body = body }
+end
+
+local function for_in_statement(left, right, body)
+  return { type = "ForInStatement", left = left, right = right, body = body }
 end
 
 local function for_statement(init, test, update, body)
@@ -1086,7 +1096,7 @@ function parse_do_while_statement(stream)
   return do_while_statement(body, test)
 end
 
---- Parse for statement: dispatches between for...of and C-style for(;;).
+--- Parse for statement: dispatches between for...of, for...in, and C-style for(;;).
 function parse_for_statement(stream)
   stream.consume(TOKEN.FOR)
   stream.consume(TOKEN.LPAREN)
@@ -1102,6 +1112,10 @@ function parse_for_statement(stream)
       return parse_for_of_from_left(stream, decl)
     end
 
+    if stream.is(TOKEN.IN) then
+      return parse_for_in_from_left(stream, decl)
+    end
+
     return parse_c_style_for_from_test(stream, decl)
   end
 
@@ -1115,6 +1129,15 @@ function parse_for_statement(stream)
     stream.consume(TOKEN.RPAREN)
     local body = parse_statement(stream)
     return for_of_statement(expr, right, body)
+  end
+
+  if stream.is(TOKEN.IN) then
+    stream.consume(TOKEN.IN)
+    local right = parse_expression(stream)
+    if not right then return nil, "Expected expression after 'in'" end
+    stream.consume(TOKEN.RPAREN)
+    local body = parse_statement(stream)
+    return for_in_statement(expr, right, body)
   end
 
   local init = expression_statement(expr)
@@ -1153,6 +1176,21 @@ function parse_for_of_from_left(stream, left)
   stream.consume(TOKEN.RPAREN)
   local body = parse_statement(stream)
   return for_of_statement(left, right, body)
+end
+
+function parse_for_in_from_left(stream, left)
+  if #left.declarations ~= 1 then
+    return nil, "for-in loop requires a single variable"
+  end
+  if left.declarations[1].init ~= nil then
+    return nil, "for-in loop variable cannot have an initializer"
+  end
+  stream.consume(TOKEN.IN)
+  local right = parse_expression(stream)
+  if not right then return nil, "Expected expression after 'in'" end
+  stream.consume(TOKEN.RPAREN)
+  local body = parse_statement(stream)
+  return for_in_statement(left, right, body)
 end
 
 --- Parse throw: throw expression;
