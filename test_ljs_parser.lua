@@ -136,7 +136,7 @@ test("tokenize keywords", function()
 end)
 
 test("tokenize operators", function()
-  local src = "+ - * / % === !== < > <= >= && || = ! ++ -- += -= *= /= %="
+  local src = "+ - * / % === !== < > <= >= && || = ! ~ ++ -- += -= *= /= %="
   assert_tok(src, 1, "+")
   assert_tok(src, 2, "-")
   assert_tok(src, 3, "*")
@@ -152,13 +152,14 @@ test("tokenize operators", function()
   assert_tok(src, 13, "||")
   assert_tok(src, 14, "=")
   assert_tok(src, 15, "!")
-  assert_tok(src, 16, "++")
-  assert_tok(src, 17, "--")
-  assert_tok(src, 18, "+=")
-  assert_tok(src, 19, "-=")
-  assert_tok(src, 20, "*=")
-  assert_tok(src, 21, "/=")
-  assert_tok(src, 22, "%=")
+  assert_tok(src, 16, "~")
+  assert_tok(src, 17, "++")
+  assert_tok(src, 18, "--")
+  assert_tok(src, 19, "+=")
+  assert_tok(src, 20, "-=")
+  assert_tok(src, 21, "*=")
+  assert_tok(src, 22, "/=")
+  assert_tok(src, 23, "%=")
 end)
 
 test("tokenize punctuation", function()
@@ -1540,6 +1541,272 @@ test("parse -x++ (unary minus on postfix)", function()
       argument = {type = "UpdateExpression", operator = "++",
         argument = {type = "Identifier", name = "x"}, prefix = false}}}
   })
+end)
+
+-- ============================================================================
+-- Bitwise NOT (~) tests
+-- ============================================================================
+
+test("tokenize tilde", function()
+  assert_tok("~", 1, "~")
+end)
+
+test("tokenize double tilde", function()
+  local tokens = ljs.tokenize("~~")
+  assert_eq(tokens[1].type, "~")
+  assert_eq(tokens[2].type, "~")
+end)
+
+test("tokenize ~= as two tokens", function()
+  local tokens = ljs.tokenize("~=")
+  assert_eq(tokens[1].type, "~")
+  assert_eq(tokens[2].type, "=")
+end)
+
+test("parse bitwise NOT ~x", function()
+  assert_parse_ok("~x;", {
+    {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "~",
+      argument = {type = "Identifier", name = "x"}}}
+  })
+end)
+
+test("parse bitwise NOT ~0", function()
+  assert_parse_ok("~0;", {
+    {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "~",
+      argument = {type = "NumberLiteral", value = 0}}}
+  })
+end)
+
+test("parse double bitwise NOT ~~x", function()
+  assert_parse_ok("~~x;", {
+    {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "~",
+      argument = {type = "UnaryExpression", operator = "~",
+        argument = {type = "Identifier", name = "x"}}}}
+  })
+end)
+
+test("parse triple bitwise NOT ~~~x", function()
+  local ast = ljs.parse("~~~x;")
+  local expr = ast.body[1].expression
+  assert_eq(expr.type, "UnaryExpression")
+  assert_eq(expr.operator, "~")
+  assert_eq(expr.argument.type, "UnaryExpression")
+  assert_eq(expr.argument.operator, "~")
+  assert_eq(expr.argument.argument.type, "UnaryExpression")
+  assert_eq(expr.argument.argument.operator, "~")
+  assert_eq(expr.argument.argument.argument.name, "x")
+end)
+
+test("parse ~(a + b) grouped", function()
+  assert_parse_ok("~(a + b);", {
+    {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "~",
+      argument = {type = "BinaryExpression", operator = "+",
+        left = {type = "Identifier", name = "a"},
+        right = {type = "Identifier", name = "b"}}}}
+  })
+end)
+
+test("parse ~!x (bitwise NOT of logical NOT)", function()
+  assert_parse_ok("~!x;", {
+    {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "~",
+      argument = {type = "UnaryExpression", operator = "!",
+        argument = {type = "Identifier", name = "x"}}}}
+  })
+end)
+
+test("parse !~x (logical NOT of bitwise NOT)", function()
+  assert_parse_ok("!~x;", {
+    {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "!",
+      argument = {type = "UnaryExpression", operator = "~",
+        argument = {type = "Identifier", name = "x"}}}}
+  })
+end)
+
+test("parse -~x (unary minus of bitwise NOT)", function()
+  assert_parse_ok("-~x;", {
+    {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "-",
+      argument = {type = "UnaryExpression", operator = "~",
+        argument = {type = "Identifier", name = "x"}}}}
+  })
+end)
+
+test("parse ~+x (bitwise NOT of unary plus)", function()
+  assert_parse_ok("~+x;", {
+    {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "~",
+      argument = {type = "UnaryExpression", operator = "+",
+        argument = {type = "Identifier", name = "x"}}}}
+  })
+end)
+
+test("parse ~x + y (precedence over binary +)", function()
+  assert_parse_ok("~x + y;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "+",
+      left = {type = "UnaryExpression", operator = "~",
+        argument = {type = "Identifier", name = "x"}},
+      right = {type = "Identifier", name = "y"}}}
+  })
+end)
+
+test("parse ~a === b (precedence over ===)", function()
+  assert_parse_ok("~a === b;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "===",
+      left = {type = "UnaryExpression", operator = "~",
+        argument = {type = "Identifier", name = "a"}},
+      right = {type = "Identifier", name = "b"}}}
+  })
+end)
+
+test("parse ~a && b (precedence over &&)", function()
+  assert_parse_ok("~a && b;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "&&",
+      left = {type = "UnaryExpression", operator = "~",
+        argument = {type = "Identifier", name = "a"}},
+      right = {type = "Identifier", name = "b"}}}
+  })
+end)
+
+test("parse ~x ? 1 : 0 (in ternary)", function()
+  assert_parse_ok("~x ? 1 : 0;", {
+    {type = "ExpressionStatement", expression = {type = "ConditionalExpression",
+      test = {type = "UnaryExpression", operator = "~",
+        argument = {type = "Identifier", name = "x"}},
+      consequent = {type = "NumberLiteral", value = 1},
+      alternate = {type = "NumberLiteral", value = 0}}}
+  })
+end)
+
+test("parse let x = ~y (in variable init)", function()
+  assert_parse_ok("let x = ~y;", {
+    {type = "VariableDeclaration", kind = "let", declarations = {
+      {type = "VariableDeclarator",
+        name = {type = "Identifier", name = "x"},
+        init = {type = "UnaryExpression", operator = "~",
+          argument = {type = "Identifier", name = "y"}}}
+    }}
+  })
+end)
+
+test("parse return ~x (in return)", function()
+  assert_parse_ok("return ~x;", {
+    {type = "ReturnStatement",
+      argument = {type = "UnaryExpression", operator = "~",
+        argument = {type = "Identifier", name = "x"}}}
+  })
+end)
+
+test("parse if (~x) (in condition)", function()
+  assert_parse_ok("if (~x) { y; }", {
+    {type = "IfStatement",
+      test = {type = "UnaryExpression", operator = "~",
+        argument = {type = "Identifier", name = "x"}},
+      consequent = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "y"}}
+      }}}
+  })
+end)
+
+test("parse while (~x) (in condition)", function()
+  local ast = ljs.parse("while (~x) { y; }")
+  assert_eq(ast.body[1].type, "WhileStatement")
+  assert_eq(ast.body[1].test.type, "UnaryExpression")
+  assert_eq(ast.body[1].test.operator, "~")
+end)
+
+test("parse for (;~x;) (in for test)", function()
+  local ast = ljs.parse("for (;~x;) { y; }")
+  assert_eq(ast.body[1].type, "ForStatement")
+  assert_eq(ast.body[1].test.type, "UnaryExpression")
+  assert_eq(ast.body[1].test.operator, "~")
+end)
+
+test("parse f(~x) (as call argument)", function()
+  assert_parse_ok("f(~x);", {
+    {type = "ExpressionStatement", expression = {type = "CallExpression",
+      callee = {type = "Identifier", name = "f"},
+      arguments = {
+        {type = "UnaryExpression", operator = "~",
+          argument = {type = "Identifier", name = "x"}}
+      }}}
+  })
+end)
+
+test("parse arr[~i] (in computed member)", function()
+  assert_parse_ok("arr[~i];", {
+    {type = "ExpressionStatement", expression = {type = "MemberExpression",
+      object = {type = "Identifier", name = "arr"},
+      property = {type = "UnaryExpression", operator = "~",
+        argument = {type = "Identifier", name = "i"}},
+      computed = true}}
+  })
+end)
+
+test("parse ~f() (on call result)", function()
+  assert_parse_ok("~f();", {
+    {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "~",
+      argument = {type = "CallExpression",
+        callee = {type = "Identifier", name = "f"},
+        arguments = {}}}}
+  })
+end)
+
+test("parse ~obj.prop (on member expression)", function()
+  assert_parse_ok("~obj.prop;", {
+    {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "~",
+      argument = {type = "MemberExpression",
+        object = {type = "Identifier", name = "obj"},
+        property = {type = "Identifier", name = "prop"},
+        computed = false}}}
+  })
+end)
+
+test("parse ~null (on null)", function()
+  assert_parse_ok("~null;", {
+    {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "~",
+      argument = {type = "NullLiteral"}}}
+  })
+end)
+
+test("parse ~true (on boolean)", function()
+  assert_parse_ok("~true;", {
+    {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "~",
+      argument = {type = "BooleanLiteral", value = true}}}
+  })
+end)
+
+test("parse ~++x (bitwise NOT of prefix increment)", function()
+  assert_parse_ok("~++x;", {
+    {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "~",
+      argument = {type = "UpdateExpression", operator = "++",
+        argument = {type = "Identifier", name = "x"}, prefix = true}}}
+  })
+end)
+
+test("parse ~x++ (bitwise NOT of postfix increment)", function()
+  assert_parse_ok("~x++;", {
+    {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "~",
+      argument = {type = "UpdateExpression", operator = "++",
+        argument = {type = "Identifier", name = "x"}, prefix = false}}}
+  })
+end)
+
+test("error: bare tilde at EOF", function()
+  assert_parse_fail("~", nil)
+end)
+
+test("error: tilde then semicolon", function()
+  assert_parse_fail("let x = ~;", nil)
+end)
+
+test("error: double tilde at EOF", function()
+  assert_parse_fail("~~", nil)
+end)
+
+test("error: tilde then close paren", function()
+  assert_parse_fail("~)", nil)
+end)
+
+test("error: tilde then comma in call", function()
+  assert_parse_fail("f(~, x)", nil)
 end)
 
 test("parse assignment", function()
