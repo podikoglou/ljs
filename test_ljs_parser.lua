@@ -756,6 +756,86 @@ test("parse UnaryExpression -", function()
   })
 end)
 
+test("parse UnaryExpression +", function()
+  assert_parse_ok("+x;", {
+    {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "+",
+      argument = {type = "Identifier", name = "x"}}}
+  })
+end)
+
+test("parse unary + on literal", function()
+  assert_parse_ok("+42;", {
+    {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "+",
+      argument = {type = "NumberLiteral", value = 42}}}
+  })
+end)
+
+test("parse unary + on string", function()
+  assert_parse_ok('+"5";', {
+    {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "+",
+      argument = {type = "StringLiteral", value = "5"}}}
+  })
+end)
+
+test("parse nested unary +!x", function()
+  assert_parse_ok("+!x;", {
+    {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "+",
+      argument = {type = "UnaryExpression", operator = "!",
+        argument = {type = "Identifier", name = "x"}}}}
+  })
+end)
+
+test("parse nested unary !+x", function()
+  assert_parse_ok("!+x;", {
+    {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "!",
+      argument = {type = "UnaryExpression", operator = "+",
+        argument = {type = "Identifier", name = "x"}}}}
+  })
+end)
+
+test("parse + + x (space-separated double unary plus)", function()
+  assert_parse_ok("+ + x;", {
+    {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "+",
+      argument = {type = "UnaryExpression", operator = "+",
+        argument = {type = "Identifier", name = "x"}}}}
+  })
+end)
+
+test("parse unary + in binary context", function()
+  assert_parse_ok("1 + +x;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "+",
+      left = {type = "NumberLiteral", value = 1},
+      right = {type = "UnaryExpression", operator = "+",
+        argument = {type = "Identifier", name = "x"}}}}
+  })
+end)
+
+test("parse unary + in ternary", function()
+  assert_parse_ok("a ? +b : -c;", {
+    {type = "ExpressionStatement", expression = {type = "ConditionalExpression",
+      test = {type = "Identifier", name = "a"},
+      consequent = {type = "UnaryExpression", operator = "+",
+        argument = {type = "Identifier", name = "b"}},
+      alternate = {type = "UnaryExpression", operator = "-",
+        argument = {type = "Identifier", name = "c"}}}}
+  })
+end)
+
+test("parse ++x still parsed as UpdateExpression (not double unary +)", function()
+  assert_parse_ok("++x;", {
+    {type = "ExpressionStatement", expression = {type = "UpdateExpression", operator = "++",
+      argument = {type = "Identifier", name = "x"}, prefix = true}}
+  })
+end)
+
+test("error: unary + with no operand", function()
+  assert_parse_fail("let a = +;", nil)
+end)
+
+test("error: unary + at end of input", function()
+  assert_parse_fail("+", nil)
+end)
+
 test("parse prefix ++x", function()
   assert_parse_ok("++x;", {
     {type = "ExpressionStatement", expression = {type = "UpdateExpression", operator = "++",
