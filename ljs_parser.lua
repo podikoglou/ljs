@@ -1266,6 +1266,7 @@ function parse_binary_expression(stream, min_precedence)
         or op == TOKEN.STAR_ASSIGN or op == TOKEN.SLASH_ASSIGN or op == TOKEN.PERCENT_ASSIGN then
       stream.advance()
       local right = parse_expression(stream)
+      if not right then return nil end
       left = binary_expression(op, left, right)
     else
       stream.advance()

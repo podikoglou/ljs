@@ -130,7 +130,7 @@ test("tokenize keywords", function()
 end)
 
 test("tokenize operators", function()
-  local src = "+ - * / % === !== < > <= >= && || = ! ++ --"
+  local src = "+ - * / % === !== < > <= >= && || = ! ++ -- += -= *= /= %="
   assert_tok(src, 1, "+")
   assert_tok(src, 2, "-")
   assert_tok(src, 3, "*")
@@ -148,6 +148,11 @@ test("tokenize operators", function()
   assert_tok(src, 15, "!")
   assert_tok(src, 16, "++")
   assert_tok(src, 17, "--")
+  assert_tok(src, 18, "+=")
+  assert_tok(src, 19, "-=")
+  assert_tok(src, 20, "*=")
+  assert_tok(src, 21, "/=")
+  assert_tok(src, 22, "%=")
 end)
 
 test("tokenize punctuation", function()
@@ -233,6 +238,36 @@ test("tokenize ++ in context: x++ + y", function()
   assert_tok("x++ + y", 2, "++")
   assert_tok("x++ + y", 3, "+")
   assert_tok("x++ + y", 4, "Identifier")
+end)
+
+test("tokenize += in context: x += 1", function()
+  assert_tok("x += 1", 1, "Identifier")
+  assert_tok("x += 1", 2, "+=")
+  assert_tok("x += 1", 3, "Number")
+end)
+
+test("tokenize + = with space is not +=", function()
+  local tokens = ljs.tokenize("+ =")
+  assert_eq(tokens[1].type, "+")
+  assert_eq(tokens[2].type, "=")
+end)
+
+test("tokenize * = with space is not *=", function()
+  local tokens = ljs.tokenize("* =")
+  assert_eq(tokens[1].type, "*")
+  assert_eq(tokens[2].type, "=")
+end)
+
+test("tokenize +++= maximal munch: ++ +=", function()
+  local tokens = ljs.tokenize("+++=")
+  assert_eq(tokens[1].type, "++")
+  assert_eq(tokens[2].type, "+=")
+end)
+
+test("tokenize ---= maximal munch: -- -=", function()
+  local tokens = ljs.tokenize("---=")
+  assert_eq(tokens[1].type, "--")
+  assert_eq(tokens[2].type, "-=")
 end)
 
 -- ============================================================================
@@ -947,6 +982,107 @@ test("parse assignment", function()
   })
 end)
 
+test("parse compound += ", function()
+  assert_parse_ok("x += 1;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "+=",
+      left = {type = "Identifier", name = "x"},
+      right = {type = "NumberLiteral", value = 1}}
+    }
+  })
+end)
+
+test("parse compound -=", function()
+  assert_parse_ok("x -= 2;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "-=",
+      left = {type = "Identifier", name = "x"},
+      right = {type = "NumberLiteral", value = 2}}
+    }
+  })
+end)
+
+test("parse compound *=", function()
+  assert_parse_ok("x *= 3;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "*=",
+      left = {type = "Identifier", name = "x"},
+      right = {type = "NumberLiteral", value = 3}}
+    }
+  })
+end)
+
+test("parse compound /=", function()
+  assert_parse_ok("x /= 4;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "/=",
+      left = {type = "Identifier", name = "x"},
+      right = {type = "NumberLiteral", value = 4}}
+    }
+  })
+end)
+
+test("parse compound %=", function()
+  assert_parse_ok("x %= 5;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "%=",
+      left = {type = "Identifier", name = "x"},
+      right = {type = "NumberLiteral", value = 5}}
+    }
+  })
+end)
+
+test("parse compound += on member expression", function()
+  assert_parse_ok("obj.x += 1;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "+=",
+      left = {type = "MemberExpression",
+        object = {type = "Identifier", name = "obj"},
+        property = {type = "Identifier", name = "x"},
+        computed = false},
+      right = {type = "NumberLiteral", value = 1}}
+    }
+  })
+end)
+
+test("parse compound *= on computed member", function()
+  assert_parse_ok("arr[i] *= 2;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "*=",
+      left = {type = "MemberExpression",
+        object = {type = "Identifier", name = "arr"},
+        property = {type = "Identifier", name = "i"},
+        computed = true},
+      right = {type = "NumberLiteral", value = 2}}
+    }
+  })
+end)
+
+test("parse compound += precedence: x += 1 + 2 means x += (1 + 2)", function()
+  assert_parse_ok("x += 1 + 2;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "+=",
+      left = {type = "Identifier", name = "x"},
+      right = {type = "BinaryExpression", operator = "+",
+        left = {type = "NumberLiteral", value = 1},
+        right = {type = "NumberLiteral", value = 2}}}
+    }
+  })
+end)
+
+test("parse compound += right-associative: x += y += 1", function()
+  assert_parse_ok("x += y += 1;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "+=",
+      left = {type = "Identifier", name = "x"},
+      right = {type = "BinaryExpression", operator = "+=",
+        left = {type = "Identifier", name = "y"},
+        right = {type = "NumberLiteral", value = 1}}}
+    }
+  })
+end)
+
+test("parse for with i += 1 update", function()
+  local ast = ljs.parse("for (let i = 0; i < 10; i += 1) {}")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForStatement")
+  assert_eq(f.update.type, "BinaryExpression")
+  assert_eq(f.update.operator, "+=")
+  assert_eq(f.update.left.name, "i")
+  assert_eq(f.update.right.value, 1)
+end)
+
 test("parse CallExpression no args", function()
   assert_parse_ok("f();", {
     {type = "ExpressionStatement", expression = {type = "CallExpression",
@@ -1220,6 +1356,18 @@ test("error: postfix followed by member access x++.y", function()
   assert_parse_fail("x++.y;", nil)
 end)
 
+test("error: += without right operand", function()
+  assert_parse_fail("x += ;", nil)
+end)
+
+test("error: += without left operand", function()
+  assert_parse_fail("+= 1;", nil)
+end)
+
+test("error: += at end of input", function()
+  assert_parse_fail("x +=", nil)
+end)
+
 test("operator precedence: 1 + 2 * 3", function()
   assert_parse_ok("1 + 2 * 3;", {
     {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "+",
@@ -1414,6 +1562,20 @@ end)
 test("parse_tokens: empty program", function()
   local ast = ljs.parse_tokens({tok(TK.EOF)})
   assert_table_eq(ast, {type = "Program", body = {}})
+end)
+
+test("parse_tokens: compound assignment x += 1", function()
+  local tokens = {
+    tok(TK.IDENTIFIER, "x"), tok(TK.PLUS_ASSIGN),
+    tok(TK.NUMBER, 1), tok(TK.SEMICOLON), tok(TK.EOF),
+  }
+  local ast = ljs.parse_tokens(tokens)
+  assert_table_eq(ast, {type = "Program", body = {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "+=",
+      left = {type = "Identifier", name = "x"},
+      right = {type = "NumberLiteral", value = 1}}
+    }
+  }})
 end)
 
 -- ============================================================================
