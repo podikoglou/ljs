@@ -299,7 +299,7 @@ local function tokenize(source)
     elseif is_digit(c) then
       local start_pos = pos
       local start_col = col
-      if c == "0" and (lookahead(2) == "x" or lookahead(2) == "X") then
+      if c == "0" and (lookahead(2) == "0x" or lookahead(2) == "0X") then
         advance()
         advance()
         if not current() or not current():match("%x") then

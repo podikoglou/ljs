@@ -1129,6 +1129,42 @@ test("parse NumberLiteral", function()
   })
 end)
 
+test("parse hex literal 0xFF", function()
+  assert_parse_ok("0xFF;", {
+    {type = "ExpressionStatement", expression = {type = "NumberLiteral", value = 255}}
+  })
+end)
+
+test("parse hex literal 0x1a", function()
+  assert_parse_ok("0x1a;", {
+    {type = "ExpressionStatement", expression = {type = "NumberLiteral", value = 26}}
+  })
+end)
+
+test("parse hex literal 0X0F uppercase prefix", function()
+  assert_parse_ok("0X0F;", {
+    {type = "ExpressionStatement", expression = {type = "NumberLiteral", value = 15}}
+  })
+end)
+
+test("parse hex literal 0x0", function()
+  assert_parse_ok("0x0;", {
+    {type = "ExpressionStatement", expression = {type = "NumberLiteral", value = 0}}
+  })
+end)
+
+test("parse error: hex literal with no digits after 0x", function()
+  assert_parse_fail("0x;", "hex")
+end)
+
+test("parse hex in variable", function()
+  assert_parse_ok("let x = 0xFF;", {
+    {type = "VariableDeclaration", kind = "let", declarations = {
+      {type = "VariableDeclarator", name = {type = "Identifier", name = "x"}, init = {type = "NumberLiteral", value = 255}}
+    }}
+  })
+end)
+
 test("parse StringLiteral", function()
   assert_parse_ok('"hello";', {
     {type = "ExpressionStatement", expression = {type = "StringLiteral", value = "hello"}}
