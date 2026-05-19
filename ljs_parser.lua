@@ -90,6 +90,7 @@ local TOKEN = {
   PERCENT_ASSIGN = "%=",
   -- Unary
   NOT = "!",
+  TILDE = "~",
   -- Update
   INCREMENT = "++",
   DECREMENT = "--",
@@ -485,6 +486,9 @@ local function tokenize(source)
         table.insert(tokens, make_token(TOKEN.NOT))
         advance()
       end
+    elseif c == "~" then
+      table.insert(tokens, make_token(TOKEN.TILDE))
+      advance()
     elseif c == "<" then
       if lookahead(2) == "<=" then
         table.insert(tokens, make_token(TOKEN.LTE))
@@ -675,7 +679,7 @@ local function binary_expression(operator, left, right)
   return { type = "BinaryExpression", operator = operator, left = left, right = right }
 end
 
---- @param operator (string) "!" or "-"
+--- @param operator (string) "!" or "-" or "~"
 --- @param argument (table) The operand AST expression
 --- @return table {type="UnaryExpression", operator, argument}
 local function unary_expression(operator, argument)
@@ -1440,7 +1444,7 @@ end
 --     -> loops while next operator has sufficient precedence
 --
 -- Precedence levels (higher = binds tighter):
---   6   unary ! -
+--   6   unary ! - ~
 --   5   * / %
 --   4   + -
 --   3   === !== < > <= >=
@@ -1452,6 +1456,7 @@ end
 
 local PRECEDENCE = {
   [TOKEN.NOT] = 6,
+  [TOKEN.TILDE] = 6,
   [TOKEN.STAR] = 5,
   [TOKEN.SLASH] = 5,
   [TOKEN.PERCENT] = 5,
@@ -1530,16 +1535,16 @@ function parse_binary_expression(stream, min_precedence)
   return left
 end
 
---- Parse unary prefix expressions: !expr, -expr, or +expr.
+--- Parse unary prefix expressions: !expr, -expr, +expr, or ~expr.
 -- Unary operators have the highest precedence and are right-recursive
 -- (so !!x parses as !(!(x))).
 function parse_unary_expression(stream)
-  if stream.is(TOKEN.NOT) or stream.is(TOKEN.MINUS) or stream.is(TOKEN.PLUS) then
+  if stream.is(TOKEN.NOT) or stream.is(TOKEN.MINUS) or stream.is(TOKEN.PLUS) or stream.is(TOKEN.TILDE) then
     local op_token = stream.advance()
     local op = op_token.type
     local argument = parse_unary_expression(stream)
     if not argument then return nil end
-    local op_str = op == TOKEN.NOT and "!" or op == TOKEN.PLUS and "+" or "-"
+    local op_str = op == TOKEN.NOT and "!" or op == TOKEN.TILDE and "~" or op == TOKEN.PLUS and "+" or "-"
     return unary_expression(op_str, argument)
   elseif stream.is(TOKEN.INCREMENT) or stream.is(TOKEN.DECREMENT) then
     local op_token = stream.advance()
