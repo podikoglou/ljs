@@ -628,7 +628,7 @@ local function null_literal(token)
   return { type = "NullLiteral" }
 end
 
---- @param operator (string) One of: + - * / % === !== < > <= >= && || =
+--- @param operator (string) One of: + - * / % === !== < > <= >= && || = += -= *= /= %=
 --- @param left (table) Left-hand AST expression
 --- @param right (table) Right-hand AST expression
 --- @return table {type="BinaryExpression", operator, left, right}
@@ -1207,9 +1207,9 @@ end
 --   3   === !== < > <= >=
 --   2   &&
 --   1   ||
---   0.5 = (assignment, right-associative)
+--   0.5 = += -= *= /= %= (assignment and compound assignment, right-associative)
 --
--- All binary operators except = are left-associative.
+-- All binary operators except assignment and compound assignment are left-associative.
 
 local PRECEDENCE = {
   [TOKEN.NOT] = 6,
@@ -1227,6 +1227,11 @@ local PRECEDENCE = {
   [TOKEN.AND] = 2,
   [TOKEN.OR] = 1,
   [TOKEN.ASSIGN] = 0.5,
+  [TOKEN.PLUS_ASSIGN] = 0.5,
+  [TOKEN.MINUS_ASSIGN] = 0.5,
+  [TOKEN.STAR_ASSIGN] = 0.5,
+  [TOKEN.SLASH_ASSIGN] = 0.5,
+  [TOKEN.PERCENT_ASSIGN] = 0.5,
 }
 
 --- Entry point for expression parsing. Starts at minimum precedence 0.
@@ -1255,12 +1260,13 @@ function parse_binary_expression(stream, min_precedence)
       break
     end
 
-    -- Assignment is right-associative: a = b = c parses as a = (b = c).
+    -- Assignment and compound assignment are right-associative: a = b = c parses as a = (b = c).
     -- All other operators are left-associative: a + b + c parses as (a + b) + c.
-    if op == TOKEN.ASSIGN then
+    if op == TOKEN.ASSIGN or op == TOKEN.PLUS_ASSIGN or op == TOKEN.MINUS_ASSIGN
+        or op == TOKEN.STAR_ASSIGN or op == TOKEN.SLASH_ASSIGN or op == TOKEN.PERCENT_ASSIGN then
       stream.advance()
       local right = parse_expression(stream)
-      left = binary_expression("=", left, right)
+      left = binary_expression(op, left, right)
     else
       stream.advance()
       -- Left-associative: parse right at precedence+1 so same-level ops
