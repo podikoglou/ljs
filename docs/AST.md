@@ -2,6 +2,8 @@
 
 Every AST node is a Lua table with a `type` string field. This document covers every node type, its fields, and the JavaScript source that produces it.
 
+> **Compatibility:** Transpilation requires Lua 5.2+ (uses `goto` for `continue` statements).
+
 ## Root
 
 ### Program
@@ -403,6 +405,14 @@ All three clauses (`init`, `test`, `update`) can be nil independently. When `ini
 | `type` | `"BreakStatement"` | |
 
 **Source:** `break;`
+
+### ContinueStatement
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"ContinueStatement"` | |
+
+**Source:** `continue;`
 
 ---
 
