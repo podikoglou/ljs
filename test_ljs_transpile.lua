@@ -356,6 +356,48 @@ test("for...of", function()
 end)
 
 -- ============================================================================
+-- for...in transpile tests
+-- ============================================================================
+
+test("for...in with let transpiles to pairs", function()
+  local code = transpile_ok("for (let key in obj) { console.log(key); }")
+  assert(code:find("for key, _ in pairs"), "expected for key, _ in pairs")
+end)
+
+test("for...in with const transpiles to pairs", function()
+  local code = transpile_ok("for (const k in obj) { k; }")
+  assert(code:find("for k, _ in pairs"), "expected for k, _ in pairs")
+end)
+
+test("for...in with expression left transpiles to pairs (no local)", function()
+  local code = transpile_ok("for (key in obj) { key; }")
+  assert(code:find("for key, _ in pairs"), "expected for key, _ in pairs")
+end)
+
+test("for...in with object literal right transpiles correctly", function()
+  local code = transpile_ok('for (let k in {a: 1}) { k; }')
+  assert(code:find("for k, _ in pairs"), "expected for k, _ in pairs")
+  assert(code:find("{a = 1}"), "expected object literal")
+end)
+
+test("for...in nested with for...of transpiles correctly", function()
+  local code = transpile_ok("for (let k in obj) { for (const x of arr) { k; } }")
+  assert(code:find("for k, _ in pairs"), "expected for k, _ in pairs")
+  assert(code:find("for _, x in ipairs"), "expected for _, x in ipairs")
+end)
+
+test("for...in with console.log uses helper", function()
+  local code = transpile_ok("for (let k in obj) { console.log(k); }")
+  assert(code:find("for k, _ in pairs"), "expected for k, _ in pairs")
+  assert(code:find("_ljs_log"), "expected _ljs_log helper")
+end)
+
+test("for-of still transpiles correctly after for-in (regression)", function()
+  local code = transpile_ok("for (const x of arr) { console.log(x); }")
+  assert(code:find("for _, x in ipairs"), "expected for _, x in ipairs")
+end)
+
+-- ============================================================================
 -- C-style for(;;) transpile tests
 -- ============================================================================
 

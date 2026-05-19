@@ -684,6 +684,141 @@ test("parse for...of", function()
 end)
 
 -- ============================================================================
+-- for...in tests
+-- ============================================================================
+
+test("parse for...in with let", function()
+  assert_parse_ok("for (let key in obj) { console.log(key); }", {
+    {type = "ForInStatement",
+      left = {type = "VariableDeclaration", kind = "let", declarations = {
+        {type = "VariableDeclarator", name = {type = "Identifier", name = "key"}}
+      }},
+      right = {type = "Identifier", name = "obj"},
+      body = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "CallExpression",
+          callee = {type = "MemberExpression", object = {type = "Identifier", name = "console"},
+            property = {type = "Identifier", name = "log"}, computed = false},
+          arguments = {{type = "Identifier", name = "key"}}
+        }}
+      }}
+    }
+  })
+end)
+
+test("parse for...in with const", function()
+  assert_parse_ok("for (const k in obj) { k; }", {
+    {type = "ForInStatement",
+      left = {type = "VariableDeclaration", kind = "const", declarations = {
+        {type = "VariableDeclarator", name = {type = "Identifier", name = "k"}}
+      }},
+      right = {type = "Identifier", name = "obj"},
+      body = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "k"}}
+      }}
+    }
+  })
+end)
+
+test("parse for...in with var (normalized to let)", function()
+  local ast = ljs.parse("for (var k in obj) { k; }")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForInStatement")
+  assert_eq(f.left.type, "VariableDeclaration")
+  assert_eq(f.left.kind, "let")
+  assert_eq(f.left.declarations[1].name.name, "k")
+  assert_eq(f.right.name, "obj")
+end)
+
+test("parse for...in with expression left (no declaration)", function()
+  local ast = ljs.parse("for (key in obj) { key; }")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForInStatement")
+  assert_eq(f.left.type, "Identifier")
+  assert_eq(f.left.name, "key")
+  assert_eq(f.right.name, "obj")
+end)
+
+test("parse for...in without body braces", function()
+  local ast = ljs.parse("for (let k in obj) f(k);")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForInStatement")
+  assert_eq(f.body.type, "ExpressionStatement")
+end)
+
+test("parse for...in with object literal right", function()
+  local ast = ljs.parse("for (let k in {a: 1, b: 2}) { k; }")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForInStatement")
+  assert_eq(f.right.type, "ObjectExpression")
+  assert_eq(#f.right.properties, 2)
+end)
+
+test("parse for...in with member expression right", function()
+  local ast = ljs.parse("for (let k in obj.prop) { k; }")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForInStatement")
+  assert_eq(f.right.type, "MemberExpression")
+end)
+
+test("parse for...in with computed member expression right", function()
+  local ast = ljs.parse("for (let k in obj[key]) { k; }")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForInStatement")
+  assert_eq(f.right.type, "MemberExpression")
+  assert_eq(f.right.computed, true)
+end)
+
+test("parse nested for...in", function()
+  local ast = ljs.parse("for (let k in obj) { for (let j in arr) { x; } }")
+  local outer = ast.body[1]
+  assert_eq(outer.type, "ForInStatement")
+  local inner = outer.body.body[1]
+  assert_eq(inner.type, "ForInStatement")
+end)
+
+test("parse for...in body uses key with bracket access", function()
+  local ast = ljs.parse("for (let k in obj) { obj[k]; }")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForInStatement")
+  local expr = f.body.body[1].expression
+  assert_eq(expr.type, "MemberExpression")
+  assert_eq(expr.computed, true)
+  assert_eq(expr.property.name, "k")
+end)
+
+-- for...in error cases
+
+test("error: for-in with multiple declarators", function()
+  assert_parse_fail("for (let x, y in obj) { }", "single variable")
+end)
+
+test("error: for-in with initializer", function()
+  assert_parse_fail("for (let x = 1 in obj) { }", "initializer")
+end)
+
+test("error: for-in with const and initializer", function()
+  assert_parse_fail("for (const x = 1 in obj) { }", "initializer")
+end)
+
+test("error: for-in missing right expression", function()
+  assert_parse_fail("for (let x in) { }", nil)
+end)
+
+test("error: for-in with in as variable name", function()
+  assert_parse_fail("for (let in in obj) { }", nil)
+end)
+
+test("error: let in = 5 (in is keyword)", function()
+  assert_parse_fail("let in = 5", nil)
+end)
+
+test("error: for-in missing body", function()
+  local ast = ljs.parse("for (let x in obj) ")
+  assert_eq(ast.body[1].type, "ForInStatement")
+  assert_eq(ast.body[1].body, nil)
+end)
+
+-- ============================================================================
 -- C-style for(;;) tests
 -- ============================================================================
 
