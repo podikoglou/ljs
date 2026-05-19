@@ -141,7 +141,7 @@ Escape sequences (`\n`, `\t`, `\\`, etc.) are resolved during tokenization.
 | `params` | `Identifier[]` | Parameter list |
 | `body` | `BlockStatement` | Always a BlockStatement |
 
-Expression bodies are desugared: `x => x + 1` becomes a `BlockStatement` containing a single `ExpressionStatement`.
+Expression bodies are desugared: `x => x + 1` becomes a `BlockStatement` containing a single `ReturnStatement`.
 
 **Source:** `x => x + 1`, `(a, b) => a + b`, `(x) => { return x; }`
 
@@ -420,8 +420,8 @@ console.log(double(5));
               type = "BlockStatement",
               body = {
                 {
-                  type = "ExpressionStatement",
-                  expression = {
+                  type = "ReturnStatement",
+                  argument = {
                     type = "BinaryExpression",
                     operator = "*",
                     left = { type = "Identifier", name = "x" },
