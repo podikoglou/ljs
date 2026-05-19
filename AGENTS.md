@@ -60,7 +60,18 @@ All nodes are Lua tables with a `type` string field. See **docs/AST.md** for the
 - Strict parsing: fails on first error, no recovery
 - Tests: `lua test_ljs_parser.lua`, `lua test_ljs_transpile.lua`, `lua test_ljs_codegen.lua` (exit code 0 = all pass)
 - **Keep it simple.** This is a small library — don't over-engineer, don't add abstractions, don't split files. Just read the code, understand it, and make the change.
-- **When changing the parser, update `docs/AST.md`.** The parser is the source of truth. Any time you add, remove, or rename a node type or field, update the AST reference to match.
+
+## Adding a new JS feature — checklist
+
+Every new JS language feature touches a predictable set of files. Follow this in order:
+
+1. **`ljs_parser.lua`** — add tokenizer support (new token type or keyword) and/or parser rule (new AST node type or field). Update the `JS Subset > Supported` section above if it's a new construct.
+2. **`docs/AST.md`** — add or update the node reference. Every node type, field, and edge case must be documented. If you added a node type, add a new section. If you changed fields, update the table.
+3. **`test_ljs_parser.lua`** — add tests for the new syntax: valid parses (check AST structure), error cases (rejected syntax), and edge cases.
+4. **`ljs_codegen.lua`** — only if the feature needs a new *Lua syntax construct* that doesn't exist yet (e.g. `repeat...until` for `do...while`). Most features won't need this — the existing builders cover standard Lua patterns. If you add a builder, add tests in `test_ljs_codegen.lua`.
+5. **`ljs_transpile.lua`** — add a `gen.NodeType` handler that maps the JS AST to Lua source using `cg.*` calls. If the feature needs a runtime helper (like `_ljs_add`), add it to `HELPERS` and register detection in `analyze_node`. If it's a new builtin (like `console.log`), add to `BUILTINS`.
+6. **`test_ljs_transpile.lua`** — add unit tests (source → expected Lua) and integration tests (transpile + run the Lua and check output). Test edge cases: empty variants, nesting, interactions with other features.
+7. **Run all tests** — `lua test_ljs_parser.lua && lua test_ljs_transpile.lua && lua test_ljs_codegen.lua`
 
 ### LuaDoc conventions
 
