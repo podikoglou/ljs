@@ -177,6 +177,39 @@ test("addition emits helper definition", function()
   assert(code:find("_ljs_add"), "expected _ljs_add helper in output")
 end)
 
+test("compound += desugars with _ljs_add", function()
+  assert_eq(expr_code("x += 1"), "x = _ljs_add(x, 1)")
+end)
+
+test("compound -= desugars", function()
+  assert_eq(expr_code("x -= 1"), "x = x - 1")
+end)
+
+test("compound *= desugars", function()
+  assert_eq(expr_code("x *= 2"), "x = x * 2")
+end)
+
+test("compound /= desugars", function()
+  assert_eq(expr_code("x /= 2"), "x = x / 2")
+end)
+
+test("compound %= desugars", function()
+  assert_eq(expr_code("x %= 2"), "x = x % 2")
+end)
+
+test("compound += on member expression", function()
+  assert_eq(expr_code("obj.x += 1"), "obj.x = _ljs_add(obj.x, 1)")
+end)
+
+test("compound += with string concatenation", function()
+  assert_eq(expr_code('x += "hello"'), 'x = _ljs_add(x, "hello")')
+end)
+
+test("compound += emits _ljs_add helper definition", function()
+  local code = transpile_ok("x += 1;")
+  assert(code:find("_ljs_add"), "expected _ljs_add helper in output")
+end)
+
 -- ============================================================================
 -- Unit tests — functions
 -- ============================================================================
