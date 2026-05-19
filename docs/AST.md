@@ -188,12 +188,14 @@ All other binary operators are left-associative: `1 + 2 + 3` parses as `(1 + 2) 
 | Field | Type | Description |
 |-------|------|-------------|
 | `type` | `"UnaryExpression"` | |
-| `operator` | `string` | `"!"`, `"-"`, or `"+"` |
+| `operator` | `string` | `"!"`, `"-"`, `"+"`, or `"~"` |
 | `argument` | `node` | The operand |
 
 Unary operators have the highest precedence (6) and are right-recursive: `!!x` parses as `!(!(x))`.
 
-**Source:** `!x`, `-y`, `+z`, `!!flag`, `+"5"`
+**Source:** `!x`, `-y`, `+z`, `~w`, `!!flag`, `+"5"`, `~~5.7`
+
+The `~` (bitwise NOT) operator coerces its operand to a 32-bit integer via `ToInt32`, then computes `-(x+1)`. The transpiler emits a runtime helper `_ljs_bnot` that simulates this using pure math (`math.floor` + modular arithmetic).
 
 ### UpdateExpression
 
