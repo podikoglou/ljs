@@ -295,16 +295,28 @@ local function tokenize(source)
 
     -- Numbers: integer and float. Dots only start fractional part if followed
     -- by a digit (otherwise it's a member access like obj.length).
+    -- Hex literals: 0x or 0X followed by hex digits.
     elseif is_digit(c) then
       local start_pos = pos
       local start_col = col
-      while current() and is_digit(current()) do
+      if c == "0" and (lookahead(2) == "x" or lookahead(2) == "X") then
         advance()
-      end
-      if current() == "." and is_digit(lookahead(2)) then
         advance()
+        if not current() or not current():match("%x") then
+          return nil, string.format("Invalid hex literal at line %d, col %d", line, start_col)
+        end
+        while current() and current():match("%x") do
+          advance()
+        end
+      else
         while current() and is_digit(current()) do
           advance()
+        end
+        if current() == "." and is_digit(lookahead(2)) then
+          advance()
+          while current() and is_digit(current()) do
+            advance()
+          end
         end
       end
       local text = source:sub(start_pos, pos - 1)
