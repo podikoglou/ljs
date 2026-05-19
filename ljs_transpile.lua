@@ -154,7 +154,7 @@ local function analyze_node(node, meta, scopes)
     analyze_node(node.expression, meta, scopes)
 
   elseif t == "BinaryExpression" then
-    if node.operator == "+" then
+    if node.operator == "+" or node.operator == "+=" then
       meta.needed_helpers["_ljs_add"] = true
     end
     analyze_node(node.left, meta, scopes)
@@ -430,6 +430,11 @@ gen.BinaryExpression = function(node, indent, scopes)
     return emit(node.left, indent, scopes) .. " or " .. emit(node.right, indent, scopes)
   elseif op == "=" then
     return emit(node.left, indent, scopes) .. " = " .. emit(node.right, indent, scopes)
+  elseif op == "+=" then
+    return emit(node.left, indent, scopes) .. " = _ljs_add(" .. emit(node.left, indent, scopes) .. ", " .. emit(node.right, indent, scopes) .. ")"
+  elseif op == "-=" or op == "*=" or op == "/=" or op == "%=" then
+    local base_op = op:sub(1, 1)
+    return emit(node.left, indent, scopes) .. " = " .. emit(node.left, indent, scopes) .. " " .. base_op .. " " .. emit(node.right, indent, scopes)
   else
     return emit(node.left, indent, scopes) .. " " .. op .. " " .. emit(node.right, indent, scopes)
   end
