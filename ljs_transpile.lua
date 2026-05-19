@@ -220,6 +220,34 @@ local function analyze(ast)
 end
 
 -- ============================================================================
+-- Section 3b: Continue detection helper
+-- ============================================================================
+
+--- Check whether an AST subtree contains a ContinueStatement.
+-- Stops at loop and function boundaries (each loop handles its own continue).
+-- @param node (table|nil) AST node
+-- @return (boolean) true if a ContinueStatement exists in the subtree
+local function has_continue(node)
+  if not node or type(node) ~= "table" then return false end
+  if node.type == "ContinueStatement" then return true end
+  if node.type == "WhileStatement" or node.type == "ForOfStatement"
+    or node.type == "ForInStatement" or node.type == "ForStatement"
+    or node.type == "DoWhileStatement" then
+    return false
+  end
+  if node.type == "FunctionDeclaration" or node.type == "FunctionExpression"
+    or node.type == "ArrowFunctionExpression" then
+    return false
+  end
+  for _, v in pairs(node) do
+    if type(v) == "table" then
+      if has_continue(v) then return true end
+    end
+  end
+  return false
+end
+
+-- ============================================================================
 -- Section 4: Pass 2 — Code generation (JS AST → Lua source via ljs_codegen)
 -- ============================================================================
 
@@ -381,7 +409,12 @@ gen.IfStatement = function(node, indent, scopes)
 end
 
 gen.WhileStatement = function(node, indent, scopes)
-  return cg.while_stmt(emit(node.test, indent, scopes), emit(node.body, indent, scopes), indent)
+  local test_code = emit(node.test, indent, scopes)
+  local body = emit(node.body, indent, scopes)
+  if has_continue(node.body) then
+    body = body .. cg.pad(indent + 1) .. "::_continue::\n"
+  end
+  return cg.while_stmt(test_code, body, indent)
 end
 
 gen.ForOfStatement = function(node, indent, scopes)
@@ -394,6 +427,9 @@ gen.ForOfStatement = function(node, indent, scopes)
   scope_push(scopes)
   scope_declare(scopes, var_name)
   local body = emit(node.body, indent, scopes)
+  if has_continue(node.body) then
+    body = body .. cg.pad(indent + 1) .. "::_continue::\n"
+  end
   scope_pop(scopes)
   local iter = cg.call("ipairs", {emit(node.right, indent, scopes)})
   return cg.for_in_stmt("_, " .. var_name, iter, body, indent)
@@ -409,6 +445,9 @@ gen.ForInStatement = function(node, indent, scopes)
   scope_push(scopes)
   scope_declare(scopes, var_name)
   local body = emit(node.body, indent, scopes)
+  if has_continue(node.body) then
+    body = body .. cg.pad(indent + 1) .. "::_continue::\n"
+  end
   scope_pop(scopes)
   local iter = cg.call("pairs", {emit(node.right, indent, scopes)})
   return cg.for_in_stmt(var_name .. ", _", iter, body, indent)
@@ -427,6 +466,9 @@ gen.ForStatement = function(node, indent, scopes)
     end
   end
   local body = emit(node.body, indent, scopes)
+  if has_continue(node.body) then
+    body = body .. cg.pad(indent + 1) .. "::_continue::\n"
+  end
   if node.update then
     body = body .. cg.expr_stmt(emit(node.update, indent + 1, scopes), indent + 1)
   end
@@ -460,6 +502,10 @@ end
 
 gen.BreakStatement = function(node, indent, scopes)
   return cg.break_stmt(indent)
+end
+
+gen.ContinueStatement = function(node, indent, scopes)
+  return cg.pad(indent) .. "goto _continue\n"
 end
 
 -- === Exception handling ===
