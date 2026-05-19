@@ -317,6 +317,16 @@ Wraps any expression used as a statement. Semicolons are optional.
 
 **Source:** `while (x) { y; }`
 
+### DoWhileStatement
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"DoWhileStatement"` | |
+| `body` | `node` | Statement to repeat (executes at least once) |
+| `test` | `node` | Condition expression (checked after body) |
+
+**Source:** `do { y; } while (x);`
+
 ### ForOfStatement
 
 | Field | Type | Description |
