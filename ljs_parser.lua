@@ -1238,6 +1238,7 @@ local PRECEDENCE = {
   [TOKEN.GTE] = 3,
   [TOKEN.AND] = 2,
   [TOKEN.OR] = 1,
+  [TOKEN.QUESTION] = 0.75,
   [TOKEN.ASSIGN] = 0.5,
   [TOKEN.PLUS_ASSIGN] = 0.5,
   [TOKEN.MINUS_ASSIGN] = 0.5,
@@ -1280,6 +1281,14 @@ function parse_binary_expression(stream, min_precedence)
       local right = parse_expression(stream)
       if not right then return nil end
       left = binary_expression(op, left, right)
+    elseif op == TOKEN.QUESTION then
+      stream.advance()
+      local consequent = parse_expression(stream)
+      if not consequent then return nil end
+      stream.consume(TOKEN.COLON)
+      local alternate = parse_expression(stream)
+      if not alternate then return nil end
+      left = conditional_expression(left, consequent, alternate)
     else
       stream.advance()
       -- Left-associative: parse right at precedence+1 so same-level ops
