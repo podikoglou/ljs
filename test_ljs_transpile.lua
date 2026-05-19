@@ -951,6 +951,30 @@ test("nested loops each get own label via lexical scoping", function()
   assert_eq(goto_count, 2, "expected 2 goto _continue")
 end)
 
+test("continue as last statement in loop body", function()
+  local code = transpile_ok("while (x) { a; continue; }")
+  assert(code:find("goto _continue"), "expected goto _continue")
+  assert(code:find("::_continue::"), "expected ::_continue:: label")
+end)
+
+test("continue in for-of nested inside while", function()
+  local code = transpile_ok("while (a) { for (let x of b) { continue; } continue; }")
+  local _, label_count = code:gsub("::_continue::", "")
+  assert_eq(label_count, 2, "expected 2 labels (one per loop)")
+  local _, goto_count = code:gsub("goto _continue", "")
+  assert_eq(goto_count, 2, "expected 2 gotos")
+end)
+
+test("for-of without continue has no label", function()
+  local code = transpile_ok("for (let x of arr) { x; }")
+  assert(not code:find("::_continue::"), "unexpected ::_continue:: label")
+end)
+
+test("for-in without continue has no label", function()
+  local code = transpile_ok("for (let k in obj) { k; }")
+  assert(not code:find("::_continue::"), "unexpected ::_continue:: label")
+end)
+
 -- ============================================================================
 -- Integration tests — continue
 -- ============================================================================
@@ -1101,6 +1125,39 @@ test("continue integration: C-style for with continue hitting every iteration", 
     console.log(result);
   ]])
   assert_eq(output:gsub("%s+", ""), "")
+end)
+
+test("continue integration: continue and break in for-of", function()
+  local output = run_js([[
+    let result = "";
+    for (let x of [1, 2, 3, 4, 5]) {
+      if (x === 2) { continue; }
+      if (x === 5) { break; }
+      result = result + x;
+    }
+    console.log(result);
+  ]])
+  assert_eq(output:gsub("%s+", ""), "134")
+end)
+
+test("continue integration: for-of inside while with continue in both", function()
+  local output = run_js([[
+    let result = "";
+    let i = 0;
+    while (i < 3) {
+      i = i + 1;
+      if (i === 2) { continue; }
+      for (let x of [10, 20]) {
+        if (x === 10) { continue; }
+        result = result + i + ":" + x + " ";
+      }
+    }
+    console.log(result);
+  ]])
+  assert(not output:find(":10"), "x=10 should be skipped")
+  assert(not output:find("2:"), "i=2 should be skipped")
+  assert(output:find("1:20"), "expected 1:20")
+  assert(output:find("3:20"), "expected 3:20")
 end)
 
 -- ============================================================================
