@@ -57,6 +57,33 @@ All nodes are Lua tables with a `type` string field. See **docs/AST.md** for the
 - Tests: `lua test_ljs_parser.lua` and `lua test_ljs_transpile.lua` (exit code 0 = all pass)
 - **Keep it simple.** This is a small library — don't over-engineer, don't add abstractions, don't split files. Just read the code, understand it, and make the change.
 
+### LuaDoc conventions
+
+All functions MUST have LuaDoc comments. Two styles are used depending on context:
+
+**AST builders** (simple factory functions) — param/return only, no summary:
+```lua
+--- @param name (string) Description
+--- @return table {type="...", field=value}
+local function foo(name, token)
+```
+
+**Public API, token stream methods, and parser functions** — summary + param/return:
+```lua
+--- One-line summary of what the function does.
+-- Extended description if needed.
+-- @param name (type) Description
+-- @return (type) Description
+function foo(stream)
+```
+
+Rules:
+- Every function gets a `---` doc block
+- `@param` always includes type in parentheses: `@param stream (table) ...`
+- `@return` includes type: `@return (table|nil) ...` or `@return table {type="..."}`
+- Use `---` to start a doc block, `--` for continuation lines
+- Never add comments inside function bodies unless asked
+
 ## Future Work
 
 - Transformation layer (JS AST → Lua source)
