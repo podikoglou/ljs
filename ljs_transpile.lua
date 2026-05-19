@@ -19,6 +19,12 @@ HELPERS._ljs_log = [[local function _ljs_log(...)
   print(...)
 end]]
 
+HELPERS._ljs_bnot = [[local function _ljs_bnot(x)
+  x = math.floor(x) % 0x100000000
+  if x >= 0x80000000 then x = x - 0x100000000 end
+  return -x - 1
+end]]
+
 -- ============================================================================
 -- Section 3: Pass 1 — Analysis (scope tracker, helper detection)
 -- ============================================================================
@@ -189,6 +195,9 @@ local function analyze_node(node, meta, scopes)
     analyze_node(node.argument, meta, scopes)
 
   elseif t == "UnaryExpression" then
+    if node.operator == "~" then
+      meta.needed_helpers["_ljs_bnot"] = true
+    end
     analyze_node(node.argument, meta, scopes)
 
   elseif t == "ConditionalExpression" then
@@ -569,6 +578,8 @@ gen.UnaryExpression = function(node, indent, scopes)
   local expr = emit(node.argument, indent, scopes)
   if node.operator == "!" then
     return cg.unop("not", expr)
+  elseif node.operator == "~" then
+    return cg.call("_ljs_bnot", {expr})
   elseif node.operator == "+" then
     return cg.call("tonumber", {expr})
   end
