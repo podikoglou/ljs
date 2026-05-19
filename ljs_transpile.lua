@@ -1,5 +1,7 @@
 local ljs_transpile = {}
 
+local cg = require("ljs_codegen")
+
 -- ============================================================================
 -- Section 2: Helper definitions (HELPERS registry)
 -- ============================================================================
@@ -218,36 +220,8 @@ local function analyze(ast)
 end
 
 -- ============================================================================
--- Section 4: Pass 2 — Code generation (recursive AST walk, Lua emission)
+-- Section 4: Pass 2 — Code generation (JS AST → Lua source via ljs_codegen)
 -- ============================================================================
-
-local function escape_lua_string(s)
-  local out = {}
-  for i = 1, #s do
-    local c = s:sub(i, i)
-    local b = string.byte(c)
-    if c == "\\" then out[#out + 1] = "\\\\"
-    elseif c == '"' then out[#out + 1] = '\\"'
-    elseif c == "\n" then out[#out + 1] = "\\n"
-    elseif c == "\r" then out[#out + 1] = "\\r"
-    elseif c == "\t" then out[#out + 1] = "\\t"
-    elseif b < 32 then out[#out + 1] = string.format("\\%03d", b)
-    else out[#out + 1] = c end
-  end
-  return table.concat(out)
-end
-
-local function pad(n)
-  return string.rep("  ", n)
-end
-
-local function is_elseif_chain(node)
-  if node.type == "IfStatement" then return true end
-  if node.type == "BlockStatement" and #node.body == 1 and node.body[1].type == "IfStatement" then
-    return true
-  end
-  return false
-end
 
 local gen = {}
 
@@ -261,6 +235,43 @@ local function emit_body(stmts, indent, scopes)
   return table.concat(parts)
 end
 
+local function is_elseif_chain(node)
+  if node.type == "IfStatement" then return true end
+  if node.type == "BlockStatement" and #node.body == 1 and node.body[1].type == "IfStatement" then
+    return true
+  end
+  return false
+end
+
+--- Collect if/elseif/else parts from a JS AST if-else chain.
+-- @param node (table) JS IfStatement node
+-- @param indent (number) Indentation level
+-- @param scopes (table) Scope stack
+-- @return (string) test, (string) then_body, (table|nil) elseifs, (string|nil) else_body
+local function collect_if_chain(node, indent, scopes)
+  local test = emit(node.test, indent, scopes)
+  local body = emit(node.consequent, indent, scopes)
+  local elseifs = {}
+  local else_body = nil
+
+  local alternate = node.alternate
+  while alternate do
+    if is_elseif_chain(alternate) then
+      local inner = alternate.type == "IfStatement" and alternate or alternate.body[1]
+      elseifs[#elseifs + 1] = {
+        test = emit(inner.test, indent, scopes),
+        body = emit(inner.consequent, indent, scopes),
+      }
+      alternate = inner.alternate
+    else
+      else_body = emit(alternate, indent, scopes)
+      break
+    end
+  end
+
+  return test, body, elseifs, else_body
+end
+
 -- === Program ===
 
 gen.Program = function(node, indent, scopes)
@@ -272,22 +283,30 @@ end
 
 -- === Literals ===
 
-gen.NumberLiteral = function(node) return tostring(node.value) end
-
-gen.StringLiteral = function(node)
-  return '"' .. escape_lua_string(node.value) .. '"'
+gen.NumberLiteral = function(node)
+  return cg.number(node.value)
 end
 
-gen.BooleanLiteral = function(node) return node.value and "true" or "false" end
+gen.StringLiteral = function(node)
+  return cg.string(node.value)
+end
 
-gen.NullLiteral = function() return "nil" end
+gen.BooleanLiteral = function(node)
+  return cg.boolean(node.value)
+end
 
-gen.Identifier = function(node) return node.name end
+gen.NullLiteral = function()
+  return cg.nil_val()
+end
+
+gen.Identifier = function(node)
+  return cg.ident(node.name)
+end
 
 -- === Statements ===
 
 gen.ExpressionStatement = function(node, indent, scopes)
-  return pad(indent) .. emit(node.expression, indent, scopes) .. "\n"
+  return cg.expr_stmt(emit(node.expression, indent, scopes), indent)
 end
 
 gen.VariableDeclaration = function(node, indent, scopes)
@@ -296,7 +315,7 @@ gen.VariableDeclaration = function(node, indent, scopes)
     scope_declare(scopes, decl.name.name)
     local init = decl.init
     if not init then
-      out[#out + 1] = pad(indent) .. "local " .. decl.name.name .. "\n"
+      out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
     elseif init.type == "ArrowFunctionExpression" or init.type == "FunctionExpression" then
       local params = {}
       for _, p in ipairs(init.params) do params[#params + 1] = p.name end
@@ -304,24 +323,21 @@ gen.VariableDeclaration = function(node, indent, scopes)
       for _, p in ipairs(init.params) do scope_declare(scopes, p.name) end
       local body = emit(init.body, indent, scopes)
       scope_pop(scopes)
-      out[#out + 1] = pad(indent) .. "local function " .. decl.name.name .. "(" .. table.concat(params, ", ") .. ")\n"
-        .. body .. pad(indent) .. "end\n"
+      out[#out + 1] = cg.local_fn(decl.name.name, table.concat(params, ", "), body, indent)
     else
-      out[#out + 1] = pad(indent) .. "local " .. decl.name.name .. " = " .. emit(init, indent, scopes) .. "\n"
+      out[#out + 1] = cg.local_decl(decl.name.name, emit(init, indent, scopes), indent)
     end
   end
   return table.concat(out)
 end
 
 gen.ReturnStatement = function(node, indent, scopes)
-  if node.argument then
-    return pad(indent) .. "return " .. emit(node.argument, indent, scopes) .. "\n"
-  end
-  return pad(indent) .. "return\n"
+  local expr = node.argument and emit(node.argument, indent, scopes) or nil
+  return cg.return_stmt(expr, indent)
 end
 
 gen.ThrowStatement = function(node, indent, scopes)
-  return pad(indent) .. "error(" .. emit(node.argument, indent, scopes) .. ", 0)\n"
+  return cg.expr_stmt(cg.call("error", {emit(node.argument, indent, scopes), "0"}), indent)
 end
 
 -- === Functions ===
@@ -334,8 +350,7 @@ gen.FunctionDeclaration = function(node, indent, scopes)
   for _, p in ipairs(node.params) do scope_declare(scopes, p.name) end
   local body = emit(node.body, indent, scopes)
   scope_pop(scopes)
-  return pad(indent) .. "local function " .. node.name .. "(" .. table.concat(params, ", ") .. ")\n"
-    .. body .. pad(indent) .. "end\n"
+  return cg.local_fn(node.name, table.concat(params, ", "), body, indent)
 end
 
 gen.FunctionExpression = function(node, indent, scopes)
@@ -346,8 +361,7 @@ gen.FunctionExpression = function(node, indent, scopes)
   for _, p in ipairs(node.params) do scope_declare(scopes, p.name) end
   local body = emit(node.body, indent, scopes)
   scope_pop(scopes)
-  return "function(" .. table.concat(params, ", ") .. ")\n"
-    .. body .. pad(indent) .. "end"
+  return cg.fn_expr(table.concat(params, ", "), body, indent)
 end
 
 gen.ArrowFunctionExpression = gen.FunctionExpression
@@ -361,29 +375,13 @@ gen.BlockStatement = function(node, indent, scopes)
   return code
 end
 
-local function emit_if_parts(node, indent, scopes, keyword)
-  local code = pad(indent) .. keyword .. " " .. emit(node.test, indent, scopes) .. " then\n"
-    .. emit(node.consequent, indent, scopes)
-  if not node.alternate then
-    return code .. pad(indent) .. "end\n"
-  end
-  if is_elseif_chain(node.alternate) then
-    local inner = node.alternate.type == "IfStatement" and node.alternate or node.alternate.body[1]
-    return code .. emit_if_parts(inner, indent, scopes, "elseif")
-  end
-  return code .. pad(indent) .. "else\n"
-    .. emit(node.alternate, indent, scopes)
-    .. pad(indent) .. "end\n"
-end
-
 gen.IfStatement = function(node, indent, scopes)
-  return emit_if_parts(node, indent, scopes, "if")
+  local test, body, elseifs, else_body = collect_if_chain(node, indent, scopes)
+  return cg.if_stmt(test, body, elseifs, else_body, indent)
 end
 
 gen.WhileStatement = function(node, indent, scopes)
-  return pad(indent) .. "while " .. emit(node.test, indent, scopes) .. " do\n"
-    .. emit(node.body, indent, scopes)
-    .. pad(indent) .. "end\n"
+  return cg.while_stmt(emit(node.test, indent, scopes), emit(node.body, indent, scopes), indent)
 end
 
 gen.ForOfStatement = function(node, indent, scopes)
@@ -397,8 +395,8 @@ gen.ForOfStatement = function(node, indent, scopes)
   scope_declare(scopes, var_name)
   local body = emit(node.body, indent, scopes)
   scope_pop(scopes)
-  return pad(indent) .. "for _, " .. var_name .. " in ipairs(" .. emit(node.right, indent, scopes) .. ") do\n"
-    .. body .. pad(indent) .. "end\n"
+  local iter = cg.call("ipairs", {emit(node.right, indent, scopes)})
+  return cg.for_in_stmt("_, " .. var_name, iter, body, indent)
 end
 
 gen.ForInStatement = function(node, indent, scopes)
@@ -412,8 +410,8 @@ gen.ForInStatement = function(node, indent, scopes)
   scope_declare(scopes, var_name)
   local body = emit(node.body, indent, scopes)
   scope_pop(scopes)
-  return pad(indent) .. "for " .. var_name .. ", _ in pairs(" .. emit(node.right, indent, scopes) .. ") do\n"
-    .. body .. pad(indent) .. "end\n"
+  local iter = cg.call("pairs", {emit(node.right, indent, scopes)})
+  return cg.for_in_stmt(var_name .. ", _", iter, body, indent)
 end
 
 gen.ForStatement = function(node, indent, scopes)
@@ -422,7 +420,6 @@ gen.ForStatement = function(node, indent, scopes)
     parts[#parts + 1] = emit(node.init, indent, scopes)
   end
   local test_code = node.test and emit(node.test, indent, scopes) or "true"
-  parts[#parts + 1] = pad(indent) .. "while " .. test_code .. " do\n"
   scope_push(scopes)
   if node.init and node.init.type == "VariableDeclaration" then
     for _, decl in ipairs(node.init.declarations) do
@@ -431,94 +428,91 @@ gen.ForStatement = function(node, indent, scopes)
   end
   local body = emit(node.body, indent, scopes)
   if node.update then
-    body = body .. pad(indent + 1) .. emit(node.update, indent + 1, scopes) .. "\n"
+    body = body .. cg.expr_stmt(emit(node.update, indent + 1, scopes), indent + 1)
   end
   scope_pop(scopes)
-  parts[#parts + 1] = body .. pad(indent) .. "end\n"
+  parts[#parts + 1] = cg.while_stmt(test_code, body, indent)
   return table.concat(parts)
 end
 
 gen.SwitchStatement = function(node, indent, scopes)
   local disc = emit(node.discriminant, indent, scopes)
   local parts = {}
-  parts[#parts + 1] = pad(indent) .. "local _ljs_sw = " .. disc .. "\n"
-  parts[#parts + 1] = pad(indent) .. "local _ljs_matched = false\n"
-  parts[#parts + 1] = pad(indent) .. "for _ = 1, 1 do\n"
+  parts[#parts + 1] = cg.local_decl("_ljs_sw", disc, indent)
+  parts[#parts + 1] = cg.local_decl("_ljs_matched", "false", indent)
+  local cases_body = {}
   for _, case in ipairs(node.cases) do
+    local case_body = cg.expr_stmt("_ljs_matched = true", indent + 2)
+    for _, stmt in ipairs(case.consequent) do
+      case_body = case_body .. emit(stmt, indent + 2, scopes)
+    end
     if case.test then
       local test_code = emit(case.test, indent, scopes)
-      parts[#parts + 1] = pad(indent + 1) .. "if _ljs_matched or _ljs_sw == " .. test_code .. " then\n"
-      parts[#parts + 1] = pad(indent + 2) .. "_ljs_matched = true\n"
-      for _, stmt in ipairs(case.consequent) do
-        parts[#parts + 1] = emit(stmt, indent + 2, scopes)
-      end
-      parts[#parts + 1] = pad(indent + 1) .. "end\n"
+      local test_expr = cg.binop("or", "_ljs_matched", cg.binop("==", "_ljs_sw", test_code))
+      cases_body[#cases_body + 1] = cg.if_stmt(test_expr, case_body, nil, nil, indent + 1)
     else
-      parts[#parts + 1] = pad(indent + 1) .. "if true then\n"
-      parts[#parts + 1] = pad(indent + 2) .. "_ljs_matched = true\n"
-      for _, stmt in ipairs(case.consequent) do
-        parts[#parts + 1] = emit(stmt, indent + 2, scopes)
-      end
-      parts[#parts + 1] = pad(indent + 1) .. "end\n"
+      cases_body[#cases_body + 1] = cg.if_stmt("true", case_body, nil, nil, indent + 1)
     end
   end
-  parts[#parts + 1] = pad(indent) .. "end\n"
+  parts[#parts + 1] = cg.numeric_for("_", "1", "1", table.concat(cases_body), indent)
   return table.concat(parts)
 end
 
 gen.BreakStatement = function(node, indent, scopes)
-  return pad(indent) .. "break\n"
+  return cg.break_stmt(indent)
 end
 
 -- === Exception handling ===
 
 gen.TryStatement = function(node, indent, scopes)
   local param = node.handler.param.name
+  local try_body = emit(node.block, indent, scopes)
   scope_push(scopes)
   scope_declare(scopes, param)
   local catch_body = emit(node.handler.body, indent, scopes)
   scope_pop(scopes)
-  return pad(indent) .. "local ok, " .. param .. " = pcall(function()\n"
-    .. emit(node.block, indent, scopes)
-    .. pad(indent) .. "end)\n"
-    .. pad(indent) .. "if not ok then\n"
-    .. catch_body
-    .. pad(indent) .. "end\n"
+  local pcall_fn = cg.fn_expr("", try_body, indent)
+  local pcall_expr = cg.call("pcall", {pcall_fn})
+  return cg.local_decl("ok, " .. param, pcall_expr, indent)
+    .. cg.if_stmt("not ok", catch_body, nil, nil, indent)
 end
 
 -- === Expressions ===
 
 gen.BinaryExpression = function(node, indent, scopes)
   local op = node.operator
+  local left = emit(node.left, indent, scopes)
+  local right = emit(node.right, indent, scopes)
   if op == "+" then
-    return "_ljs_add(" .. emit(node.left, indent, scopes) .. ", " .. emit(node.right, indent, scopes) .. ")"
+    return cg.call("_ljs_add", {left, right})
   elseif op == "===" then
-    return emit(node.left, indent, scopes) .. " == " .. emit(node.right, indent, scopes)
+    return cg.binop("==", left, right)
   elseif op == "!==" then
-    return emit(node.left, indent, scopes) .. " ~= " .. emit(node.right, indent, scopes)
+    return cg.binop("~=", left, right)
   elseif op == "&&" then
-    return emit(node.left, indent, scopes) .. " and " .. emit(node.right, indent, scopes)
+    return cg.binop("and", left, right)
   elseif op == "||" then
-    return emit(node.left, indent, scopes) .. " or " .. emit(node.right, indent, scopes)
+    return cg.binop("or", left, right)
   elseif op == "=" then
-    return emit(node.left, indent, scopes) .. " = " .. emit(node.right, indent, scopes)
+    return cg.binop("=", left, right)
   elseif op == "+=" then
-    return emit(node.left, indent, scopes) .. " = _ljs_add(" .. emit(node.left, indent, scopes) .. ", " .. emit(node.right, indent, scopes) .. ")"
+    return cg.binop("=", left, cg.call("_ljs_add", {left, right}))
   elseif op == "-=" or op == "*=" or op == "/=" or op == "%=" then
     local base_op = op:sub(1, 1)
-    return emit(node.left, indent, scopes) .. " = " .. emit(node.left, indent, scopes) .. " " .. base_op .. " " .. emit(node.right, indent, scopes)
+    return cg.binop("=", left, cg.binop(base_op, left, right))
   else
-    return emit(node.left, indent, scopes) .. " " .. op .. " " .. emit(node.right, indent, scopes)
+    return cg.binop(op, left, right)
   end
 end
 
 gen.UnaryExpression = function(node, indent, scopes)
+  local expr = emit(node.argument, indent, scopes)
   if node.operator == "!" then
-    return "not " .. emit(node.argument, indent, scopes)
+    return cg.unop("not", expr)
   elseif node.operator == "+" then
-    return "tonumber(" .. emit(node.argument, indent, scopes) .. ")"
+    return cg.call("tonumber", {expr})
   end
-  return "-" .. emit(node.argument, indent, scopes)
+  return cg.unop("-", expr)
 end
 
 gen.ConditionalExpression = function(node, indent, scopes)
@@ -533,43 +527,42 @@ gen.CallExpression = function(node, indent, scopes)
   for _, a in ipairs(node.arguments) do args[#args + 1] = emit(a, indent, scopes) end
   local builtin = lookup_builtin(node, scopes)
   if builtin then
-    return builtin.helper .. "(" .. table.concat(args, ", ") .. ")"
+    return cg.call(builtin.helper, args)
   end
-  return emit(node.callee, indent, scopes) .. "(" .. table.concat(args, ", ") .. ")"
+  return cg.call(emit(node.callee, indent, scopes), args)
 end
 
 gen.MemberExpression = function(node, indent, scopes)
   local obj = emit(node.object, indent, scopes)
   if node.computed then
     if node.property.type == "StringLiteral" then
-      return obj .. "[" .. emit(node.property, indent, scopes) .. "]"
+      return cg.member_index(obj, emit(node.property, indent, scopes))
     end
-    return obj .. "[(" .. emit(node.property, indent, scopes) .. ") + 1]"
+    return cg.member_index(obj, "(" .. emit(node.property, indent, scopes) .. ") + 1")
   end
-  return obj .. "." .. node.property.name
+  return cg.member_dot(obj, node.property.name)
 end
 
 -- === Objects and arrays ===
 
 gen.ObjectExpression = function(node, indent, scopes)
-  if #node.properties == 0 then return "{}" end
-  local parts = {}
+  local fields = {}
   for _, prop in ipairs(node.properties) do
     local key
     if prop.key.type == "Identifier" then
       key = prop.key.name
     else
-      key = "[\"" .. escape_lua_string(prop.key.value) .. "\"]"
+      key = "[\"" .. cg.escape_string(prop.key.value) .. "\"]"
     end
-    parts[#parts + 1] = key .. " = " .. emit(prop.value, indent, scopes)
+    fields[#fields + 1] = { key = key, value = emit(prop.value, indent, scopes) }
   end
-  return "{" .. table.concat(parts, ", ") .. "}"
+  return cg.object(fields)
 end
 
 gen.ArrayExpression = function(node, indent, scopes)
   local elems = {}
   for _, e in ipairs(node.elements) do elems[#elems + 1] = emit(e, indent, scopes) end
-  return "{" .. table.concat(elems, ", ") .. "}"
+  return cg.array(elems)
 end
 
 -- === Top-level generate ===
@@ -591,11 +584,18 @@ end
 -- Section 5: Public API
 -- ============================================================================
 
+--- Transpile a parsed JS AST into Lua source code.
+-- @param ast (table) AST from parser.parse()
+-- @return (string) Lua source code
 function ljs_transpile.transpile(ast)
   local meta = analyze(ast)
   return generate(ast, meta)
 end
 
+--- Parse JS source and transpile to Lua in one step.
+-- @param source (string) JavaScript source code
+-- @return (string|nil) Lua source code, or nil on error
+-- @return (string|nil) Error message, or nil on success
 function ljs_transpile.transpile_source(source)
   local parser = require("ljs_parser")
   local ast, err = parser.parse(source)
