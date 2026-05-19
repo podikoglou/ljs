@@ -2,23 +2,27 @@
 
 This is a **tiny** codebase (~5k lines total across all files). No need for subagents, careful file loading, or complex workflows. Just read the relevant file, make the change, run the tests. The whole thing fits in your context easily.
 
-Single-file Lua library that parses a well-defined subset of JavaScript into a Lua table-based AST.
+Lua libraries that parse a well-defined subset of JavaScript into a Lua table-based AST and transpile it to Lua source code.
 
-**Status**: Parser complete. Transpilation to Lua is planned.
+**Status**: Parser and transpiler complete.
 
 ## Files
 
 ```
 ljs/
-├── ljs_parser.lua        # Parser library (single file, no deps) ~1600 lines
-├── ljs_parser_dump.lua   # CLI: reads JS, prints AST as JSON ~150 lines
-├── ljs_test.lua          # Minimal test harness (shared by all test files)
-├── test_ljs_parser.lua   # Parser test suite (run with `lua test_ljs_parser.lua`) ~2000 lines
-├── test_ljs_transpile.lua # Transpile test suite (run with `lua test_ljs_transpile.lua`) ~630 lines
-├── examples/             # Example JS programs in the supported subset
+├── ljs_parser.lua          # Parser library (single file, no deps) ~1800 lines
+├── ljs_parser_dump.lua     # CLI: reads JS, prints AST as JSON ~150 lines
+├── ljs_codegen.lua         # Lua source code builder library (no deps) ~250 lines
+├── ljs_transpile.lua       # JS AST → Lua transpiler (uses ljs_codegen) ~530 lines
+├── ljs_transpile_dump.lua  # CLI: reads JS, prints Lua source ~40 lines
+├── ljs_test.lua            # Minimal test harness (shared by all test files)
+├── test_ljs_parser.lua     # Parser test suite (run with `lua test_ljs_parser.lua`)
+├── test_ljs_transpile.lua  # Transpile test suite (run with `lua test_ljs_transpile.lua`)
+├── test_ljs_codegen.lua    # Codegen test suite (run with `lua test_ljs_codegen.lua`)
+├── examples/               # Example JS programs in the supported subset
 ├── docs/
-│   └── AST.md            # Full AST node reference
-└── AGENTS.md             # This file
+│   └── AST.md              # Full AST node reference
+└── AGENTS.md               # This file
 ```
 
 ## JS Subset
@@ -54,7 +58,7 @@ All nodes are Lua tables with a `type` string field. See **docs/AST.md** for the
 - Lua 5.1+ compatible, 2-space indents, snake_case internals
 - No external dependencies
 - Strict parsing: fails on first error, no recovery
-- Tests: `lua test_ljs_parser.lua` and `lua test_ljs_transpile.lua` (exit code 0 = all pass)
+- Tests: `lua test_ljs_parser.lua`, `lua test_ljs_transpile.lua`, `lua test_ljs_codegen.lua` (exit code 0 = all pass)
 - **Keep it simple.** This is a small library — don't over-engineer, don't add abstractions, don't split files. Just read the code, understand it, and make the change.
 - **When changing the parser, update `docs/AST.md`.** The parser is the source of truth. Any time you add, remove, or rename a node type or field, update the AST reference to match.
 
@@ -87,6 +91,5 @@ Rules:
 
 ## Future Work
 
-- Transformation layer (JS AST → Lua source)
 - Source location tracking in AST nodes
 - More operators (nullish coalescing `??`)
