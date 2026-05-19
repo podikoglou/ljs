@@ -1303,16 +1303,17 @@ function parse_binary_expression(stream, min_precedence)
   return left
 end
 
---- Parse unary prefix expressions: !expr or -expr.
+--- Parse unary prefix expressions: !expr, -expr, or +expr.
 -- Unary operators have the highest precedence and are right-recursive
 -- (so !!x parses as !(!(x))).
 function parse_unary_expression(stream)
-  if stream.is(TOKEN.NOT) or stream.is(TOKEN.MINUS) then
+  if stream.is(TOKEN.NOT) or stream.is(TOKEN.MINUS) or stream.is(TOKEN.PLUS) then
     local op_token = stream.advance()
     local op = op_token.type
     local argument = parse_unary_expression(stream)
     if not argument then return nil end
-    return unary_expression(op == TOKEN.NOT and "!" or "-", argument)
+    local op_str = op == TOKEN.NOT and "!" or op == TOKEN.PLUS and "+" or "-"
+    return unary_expression(op_str, argument)
   elseif stream.is(TOKEN.INCREMENT) or stream.is(TOKEN.DECREMENT) then
     local op_token = stream.advance()
     local argument = parse_unary_expression(stream)
