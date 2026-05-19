@@ -448,6 +448,8 @@ end
 gen.UnaryExpression = function(node, indent, scopes)
   if node.operator == "!" then
     return "not " .. emit(node.argument, indent, scopes)
+  elseif node.operator == "+" then
+    return "tonumber(" .. emit(node.argument, indent, scopes) .. ")"
   end
   return "-" .. emit(node.argument, indent, scopes)
 end
