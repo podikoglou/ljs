@@ -964,7 +964,7 @@ test("switch integration: switch inside while with break", function()
         case 1: console.log("one"); break;
         default: console.log("other"); break;
       }
-      i = i + 1;
+      i++;
     }
   ]])
   assert(output:find("other"), "expected other for i=0")
@@ -994,15 +994,15 @@ test("continue in for-in emits goto _continue with label", function()
 end)
 
 test("continue in C-style for emits goto _continue with label", function()
-  local code = transpile_ok("for (let i = 0; i < 10; i = i + 1) { continue; }")
+  local code = transpile_ok("for (let i = 0; i < 10; i++) { continue; }")
   assert(code:find("goto _continue"), "expected goto _continue")
   assert(code:find("::_continue::"), "expected ::_continue:: label")
 end)
 
 test("for loop with continue: label placed before update", function()
-  local code = transpile_ok("for (let i = 0; i < 10; i = i + 1) { if (i === 2) { continue; } x; }")
+  local code = transpile_ok("for (let i = 0; i < 10; i++) { if (i === 2) { continue; } x; }")
   local label_pos = code:find("::_continue::")
-  local update_pos = code:find("i = _ljs_add") or code:find("i = i %+ 1")
+  local update_pos = code:find("i = _ljs_add") or code:find("i = i %- 1")
   assert(label_pos, "expected ::_continue:: label")
   assert(update_pos, "expected update expression")
   assert(label_pos < update_pos, "label should come before update")
@@ -1015,7 +1015,7 @@ test("while loop without continue has no label", function()
 end)
 
 test("for loop without continue has no label", function()
-  local code = transpile_ok("for (let i = 0; i < 10; i = i + 1) { x; }")
+  local code = transpile_ok("for (let i = 0; i < 10; i++) { x; }")
   assert(not code:find("::_continue::"), "unexpected ::_continue:: label")
 end)
 
@@ -1089,7 +1089,7 @@ test("continue integration: skips rest of while body", function()
     let i = 0;
     let result = "";
     while (i < 5) {
-      i = i + 1;
+      i++;
       if (i === 3) { continue; }
       result = result + i;
     }
@@ -1113,7 +1113,7 @@ end)
 test("continue integration: C-style for update still runs", function()
   local output = run_js([[
     let result = "";
-    for (let i = 0; i < 5; i = i + 1) {
+    for (let i = 0; i < 5; i++) {
       if (i === 2) { continue; }
       result = result + i;
     }
@@ -1144,11 +1144,11 @@ test("continue integration: nested loops independent", function()
     while (i < 3) {
       let j = 0;
       while (j < 3) {
-        j = j + 1;
+        j++;
         if (j === 2) { continue; }
         result = result + i + ":" + j + " ";
       }
-      i = i + 1;
+      i++;
     }
     console.log(result);
   ]])
@@ -1164,7 +1164,7 @@ test("continue integration: inside switch inside while", function()
     let result = "";
     let i = 0;
     while (i < 4) {
-      i = i + 1;
+      i++;
       switch (i) {
         case 2: continue;
         default: result = result + i;
@@ -1180,7 +1180,7 @@ test("continue integration: continue and break in same loop", function()
     let result = "";
     let i = 0;
     while (i < 10) {
-      i = i + 1;
+      i++;
       if (i === 3) { continue; }
       if (i === 6) { break; }
       result = result + i;
@@ -1195,7 +1195,7 @@ test("continue integration: continue as only statement in loop", function()
     let count = 0;
     let i = 0;
     while (i < 5) {
-      i = i + 1;
+      i++;
       if (i < 10) { continue; }
       count = count + 1;
     }
@@ -1207,7 +1207,7 @@ end)
 test("continue integration: continue inside deeply nested if", function()
   local output = run_js([[
     let result = "";
-    for (let i = 0; i < 5; i = i + 1) {
+    for (let i = 0; i < 5; i++) {
       if (i > 0) {
         if (i === 3) {
           continue;
@@ -1223,7 +1223,7 @@ end)
 test("continue integration: C-style for with continue hitting every iteration", function()
   local output = run_js([[
     let result = "";
-    for (let i = 0; i < 5; i = i + 1) {
+    for (let i = 0; i < 5; i++) {
       if (i < 10) { continue; }
       result = result + i;
     }
@@ -1250,7 +1250,7 @@ test("continue integration: for-of inside while with continue in both", function
     let result = "";
     let i = 0;
     while (i < 3) {
-      i = i + 1;
+      i++;
       if (i === 2) { continue; }
       for (let x of [10, 20]) {
         if (x === 10) { continue; }
