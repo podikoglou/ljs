@@ -1,11 +1,11 @@
 // Adapted from porffor bench/interp-dispatch.js
-// Tests: function declarations, while, prefix --, compound assignment *= +=, return
+// Tests: function declarations, while, prefix --, compound assignment *=, return
 
 function factorial(n) {
   let result = 1;
   while (n > 1) {
     result *= n;
-    n -= 1;
+    --n;
   }
   return result;
 }
