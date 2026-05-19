@@ -1,5 +1,7 @@
 # ljs - Lua JS Toolkit
 
+This is a **tiny** codebase (~5k lines total across all files). No need for subagents, careful file loading, or complex workflows. Just read the relevant file, make the change, run the tests. The whole thing fits in your context easily.
+
 Single-file Lua library that parses a well-defined subset of JavaScript into a Lua table-based AST.
 
 **Status**: Parser complete. Transpilation to Lua is planned.
@@ -8,11 +10,11 @@ Single-file Lua library that parses a well-defined subset of JavaScript into a L
 
 ```
 ljs/
-├── ljs_parser.lua        # Parser library (single file, no deps)
-├── ljs_parser_dump.lua   # CLI: reads JS, prints AST as JSON
+├── ljs_parser.lua        # Parser library (single file, no deps) ~1600 lines
+├── ljs_parser_dump.lua   # CLI: reads JS, prints AST as JSON ~150 lines
 ├── ljs_test.lua          # Minimal test harness (shared by all test files)
-├── test_ljs_parser.lua   # Parser test suite (run with `lua test_ljs_parser.lua`)
-├── test_ljs_transpile.lua # Transpile test suite (run with `lua test_ljs_transpile.lua`)
+├── test_ljs_parser.lua   # Parser test suite (run with `lua test_ljs_parser.lua`) ~2000 lines
+├── test_ljs_transpile.lua # Transpile test suite (run with `lua test_ljs_transpile.lua`) ~630 lines
 ├── examples/             # Example JS programs in the supported subset
 ├── docs/
 │   └── AST.md            # Full AST node reference
@@ -53,6 +55,7 @@ All nodes are Lua tables with a `type` string field. See **docs/AST.md** for the
 - No external dependencies
 - Strict parsing: fails on first error, no recovery
 - Tests: `lua test_ljs_parser.lua` and `lua test_ljs_transpile.lua` (exit code 0 = all pass)
+- **Keep it simple.** This is a small library — don't over-engineer, don't add abstractions, don't split files. Just read the code, understand it, and make the change.
 
 ## Future Work
 
