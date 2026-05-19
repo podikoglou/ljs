@@ -41,6 +41,10 @@ local TOKEN = {
   FOR = "for",
   OF = "of",
   IN = "in",
+  SWITCH = "switch",
+  CASE = "case",
+  DEFAULT = "default",
+  BREAK = "break",
   THROW = "throw",
   TRY = "try",
   CATCH = "catch",
@@ -116,6 +120,10 @@ local KEYWORDS = {
   ["for"] = TOKEN.FOR,
   ["of"] = TOKEN.OF,
   ["in"] = TOKEN.IN,
+  ["switch"] = TOKEN.SWITCH,
+  ["case"] = TOKEN.CASE,
+  ["default"] = TOKEN.DEFAULT,
+  ["break"] = TOKEN.BREAK,
   ["throw"] = TOKEN.THROW,
   ["try"] = TOKEN.TRY,
   ["catch"] = TOKEN.CATCH,
@@ -821,6 +829,18 @@ local function array_expression(elements)
   return { type = "ArrayExpression", elements = elements }
 end
 
+local function switch_statement(discriminant, cases)
+  return { type = "SwitchStatement", discriminant = discriminant, cases = cases }
+end
+
+local function switch_case(test, consequent)
+  return { type = "SwitchCase", test = test, consequent = consequent }
+end
+
+local function break_statement()
+  return { type = "BreakStatement" }
+end
+
 -- ============================================================================
 -- PARSER
 -- ============================================================================
@@ -836,6 +856,8 @@ end
 -- Forward declarations are required because Lua's local functions must be
 -- declared before use, and many parse functions are mutually recursive.
 
+local parse_switch_statement
+local parse_break_statement
 local parse_statement
 local parse_block_statement
 local parse_variable_declaration
@@ -967,6 +989,10 @@ function parse_statement(stream)
     return parse_function_declaration(stream)
   elseif stream.is(TOKEN.RETURN) then
     return parse_return_statement(stream)
+  elseif stream.is(TOKEN.SWITCH) then
+    return parse_switch_statement(stream)
+  elseif stream.is(TOKEN.BREAK) then
+    return parse_break_statement(stream)
   elseif stream.is(TOKEN.LBRACE) then
     return parse_block_statement(stream)
   else
@@ -1251,6 +1277,64 @@ function parse_return_statement(stream)
     stream.advance()
   end
   return return_statement(argument)
+end
+
+--- Parse switch: switch (expr) { case val: stmts default: stmts }
+function parse_switch_statement(stream)
+  stream.consume(TOKEN.SWITCH)
+  stream.consume(TOKEN.LPAREN)
+  local discriminant = parse_expression(stream)
+  if not discriminant then return nil, "Expected expression after switch" end
+  stream.consume(TOKEN.RPAREN)
+  stream.consume(TOKEN.LBRACE)
+
+  local cases = {}
+  local has_default = false
+
+  while not stream.is(TOKEN.RBRACE) and not stream.eof() do
+    local test = nil
+
+    if stream.is(TOKEN.CASE) then
+      stream.advance()
+      test = parse_expression(stream)
+      if not test then return nil, "Expected expression after case" end
+    elseif stream.is(TOKEN.DEFAULT) then
+      if has_default then
+        error(string.format("Duplicate default clause at line %d", stream.peek().line), 0)
+      end
+      has_default = true
+      stream.advance()
+    else
+      error(string.format("Expected case or default, got %s at line %d, col %d",
+        stream.peek().type, stream.peek().line, stream.peek().col), 0)
+    end
+
+    stream.consume(TOKEN.COLON)
+
+    local consequent = {}
+    while not stream.is(TOKEN.CASE)
+        and not stream.is(TOKEN.DEFAULT)
+        and not stream.is(TOKEN.RBRACE)
+        and not stream.eof() do
+      local stmt, err = parse_statement(stream)
+      if not stmt then return nil, err end
+      table.insert(consequent, stmt)
+    end
+
+    table.insert(cases, switch_case(test, consequent))
+  end
+
+  stream.consume(TOKEN.RBRACE)
+  return switch_statement(discriminant, cases)
+end
+
+--- Parse break: break ;
+function parse_break_statement(stream)
+  stream.consume(TOKEN.BREAK)
+  if stream.is(TOKEN.SEMICOLON) then
+    stream.advance()
+  end
+  return break_statement()
 end
 
 --- Parse a comma-separated list of identifier parameters.
