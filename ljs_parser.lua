@@ -55,6 +55,7 @@ local TOKEN = {
   SEMICOLON = ";",
   COLON = ":",
   DOT = ".",
+  QUESTION = "?",
 
   -- Arithmetic
   PLUS = "+",
@@ -377,6 +378,9 @@ local function tokenize(source)
       advance()
     elseif c == "." then
       table.insert(tokens, make_token(TOKEN.DOT))
+      advance()
+    elseif c == "?" then
+      table.insert(tokens, make_token(TOKEN.QUESTION))
       advance()
     elseif c == "+" then
       if lookahead(2) == "++" then
