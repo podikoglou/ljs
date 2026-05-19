@@ -1059,7 +1059,7 @@ function parse_variable_declaration(stream)
   if kind_token.type == TOKEN.LET then
     stream.advance()
     -- var and let both map to TOKEN.LET; normalize var -> "let"
-    kind = kind_token.value == "var" and "let" or "let"
+    kind = "let"
   elseif kind_token.type == TOKEN.CONST then
     stream.advance()
     kind = "const"

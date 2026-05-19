@@ -199,7 +199,7 @@ Unary operators have the highest precedence (6) and are right-recursive: `!!x` p
 |-------|------|-------------|
 | `type` | `"UpdateExpression"` | |
 | `operator` | `string` | `"++"` or `"--"` |
-| `argument` | `node` | The operand (Identifier or MemberExpression) |
+| `argument` | `node` | The operand (Identifier, MemberExpression, or CallExpression) |
 | `prefix` | `boolean` | `true` for prefix (`++x`), `false` for postfix (`x++`) |
 
 Postfix has the highest precedence (applied during primary expression parsing). Prefix has the same precedence as unary operators (6). Both are right-recursive for prefix: `++ ++ x` parses as `++(++x)`.
