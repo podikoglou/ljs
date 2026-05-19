@@ -112,6 +112,17 @@ local function analyze_node(node, meta, scopes)
     analyze_node(node.body, meta, scopes)
     scope_pop(scopes)
 
+  elseif t == "ForInStatement" then
+    analyze_node(node.right, meta, scopes)
+    scope_push(scopes)
+    if node.left.type == "VariableDeclaration" then
+      for _, decl in ipairs(node.left.declarations) do
+        scope_declare(scopes, decl.name.name)
+      end
+    end
+    analyze_node(node.body, meta, scopes)
+    scope_pop(scopes)
+
   elseif t == "ForStatement" then
     if node.init then analyze_node(node.init, meta, scopes) end
     if node.test then analyze_node(node.test, meta, scopes) end
@@ -378,6 +389,21 @@ gen.ForOfStatement = function(node, indent, scopes)
   local body = emit(node.body, indent, scopes)
   scope_pop(scopes)
   return pad(indent) .. "for _, " .. var_name .. " in ipairs(" .. emit(node.right, indent, scopes) .. ") do\n"
+    .. body .. pad(indent) .. "end\n"
+end
+
+gen.ForInStatement = function(node, indent, scopes)
+  local var_name
+  if node.left.type == "VariableDeclaration" then
+    var_name = node.left.declarations[1].name.name
+  else
+    var_name = node.left.name
+  end
+  scope_push(scopes)
+  scope_declare(scopes, var_name)
+  local body = emit(node.body, indent, scopes)
+  scope_pop(scopes)
+  return pad(indent) .. "for " .. var_name .. ", _ in pairs(" .. emit(node.right, indent, scopes) .. ") do\n"
     .. body .. pad(indent) .. "end\n"
 end
 
