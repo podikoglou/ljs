@@ -101,6 +101,11 @@ test("tokenize null", function()
   assert_eq(t.type, "Null")
 end)
 
+test("tokenize undefined", function()
+  local t = tok("undefined", 1)
+  assert_eq(t.type, "Undefined")
+end)
+
 test("tokenize simple identifier", function()
   assert_tok("x", 1, "Identifier", "x")
 end)
@@ -703,6 +708,12 @@ end)
 test("parse NullLiteral", function()
   assert_parse_ok("null;", {
     {type = "ExpressionStatement", expression = {type = "NullLiteral"}}
+  })
+end)
+
+test("parse UndefinedLiteral", function()
+  assert_parse_ok("undefined;", {
+    {type = "ExpressionStatement", expression = {type = "UndefinedLiteral"}}
   })
 end)
 
@@ -1464,6 +1475,16 @@ test("parse ternary with null alternate", function()
   })
 end)
 
+test("parse ternary with undefined alternate", function()
+  assert_parse_ok("x ? y : undefined;", {
+    {type = "ExpressionStatement", expression = {type = "ConditionalExpression",
+      test = {type = "Identifier", name = "x"},
+      consequent = {type = "Identifier", name = "y"},
+      alternate = {type = "UndefinedLiteral"}}
+    }
+  })
+end)
+
 -- Negative tests
 
 test("parse error: missing colon", function()
@@ -1741,6 +1762,10 @@ end)
 
 test("error: postfix on null literal", function()
   assert_parse_fail("null++;", nil)
+end)
+
+test("error: postfix on undefined literal", function()
+  assert_parse_fail("undefined++;", nil)
 end)
 
 test("error: postfix on parenthesized expression", function()

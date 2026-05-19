@@ -68,6 +68,14 @@ Escape sequences (`\n`, `\t`, `\\`, etc.) are resolved during tokenization.
 
 **Source:** `null`
 
+### UndefinedLiteral
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"UndefinedLiteral"` | |
+
+**Source:** `undefined`
+
 ---
 
 ## Identifiers

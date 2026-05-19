@@ -89,6 +89,7 @@ local TOKEN = {
   -- Arrow function
   ARROW = "=>",
 
+  UNDEFINED = "Undefined",
   -- Error-triggering keywords: tokenized normally but rejected by the parser
   THIS = "this",
   ASYNC = "async",
@@ -118,6 +119,7 @@ local KEYWORDS = {
   ["true"] = TOKEN.BOOLEAN,
   ["false"] = TOKEN.BOOLEAN,
   ["null"] = TOKEN.NULL,
+  ["undefined"] = TOKEN.UNDEFINED,
   ["var"] = TOKEN.LET,
   ["this"] = TOKEN.THIS,
   ["async"] = TOKEN.ASYNC,
@@ -273,6 +275,8 @@ local function tokenize(source)
         table.insert(tokens, make_token(TOKEN.BOOLEAN, text == "true"))
       elseif token_type == TOKEN.NULL then
         table.insert(tokens, make_token(TOKEN.NULL, nil))
+      elseif token_type == TOKEN.UNDEFINED then
+        table.insert(tokens, make_token(TOKEN.UNDEFINED, nil))
       else
         table.insert(tokens, make_token(token_type, text))
       end
@@ -630,6 +634,10 @@ end
 --- @return table {type="NullLiteral"}
 local function null_literal(token)
   return { type = "NullLiteral" }
+end
+
+local function undefined_literal(token)
+  return { type = "UndefinedLiteral" }
 end
 
 --- @param operator (string) One of: + - * / % === !== < > <= >= && || = += -= *= /= %=
@@ -1345,6 +1353,9 @@ function parse_primary_expression(stream)
   elseif stream.is(TOKEN.NULL) then
     stream.advance()
     return null_literal(token)
+  elseif stream.is(TOKEN.UNDEFINED) then
+    stream.advance()
+    return undefined_literal(token)
   elseif stream.is(TOKEN.IDENTIFIER) then
     return parse_identifier_or_call(stream)
   -- Parenthesized expression OR arrow function with parenthesized params.
