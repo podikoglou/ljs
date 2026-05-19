@@ -2960,6 +2960,15 @@ test("parse multiple continues in same loop body", function()
   assert_eq(body[2].consequent.body[1].type, "ContinueStatement")
 end)
 
+test("error: continue as expression operand", function()
+  assert_parse_fail("let x = continue;", nil)
+end)
+
+test("note: labeled continue accepted (labels ignored, same as break)", function()
+  local ast = ljs.parse("while (x) { continue foo; }")
+  assert_eq(ast.body[1].body.body[1].type, "ContinueStatement")
+end)
+
 -- Integration
 
 test("integration: switch after variable declaration", function()
