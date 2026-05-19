@@ -67,6 +67,26 @@ test("NumberLiteral float", function()
   assert_eq(code, "3.14\n")
 end)
 
+test("NumberLiteral hex 0xFF", function()
+  local code = transpile_ok("0xFF;")
+  assert_eq(code, "255\n")
+end)
+
+test("NumberLiteral hex 0x1a", function()
+  local code = transpile_ok("0x1a;")
+  assert_eq(code, "26\n")
+end)
+
+test("NumberLiteral hex 0X0F", function()
+  local code = transpile_ok("0X0F;")
+  assert_eq(code, "15\n")
+end)
+
+test("NumberLiteral hex in variable", function()
+  local code = transpile_ok("let x = 0xFF;")
+  assert_eq(code, "local x = 255\n")
+end)
+
 test("StringLiteral", function()
   local code = transpile_ok('"hello";')
   assert_eq(code, '"hello"\n')
