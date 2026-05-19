@@ -155,6 +155,15 @@ local function analyze_node(node, meta, scopes)
     analyze_node(node.block, meta, scopes)
     if node.handler then analyze_node(node.handler, meta, scopes) end
 
+  elseif t == "SwitchStatement" then
+    analyze_node(node.discriminant, meta, scopes)
+    for _, case in ipairs(node.cases) do
+      if case.test then analyze_node(case.test, meta, scopes) end
+      for _, stmt in ipairs(case.consequent) do
+        analyze_node(stmt, meta, scopes)
+      end
+    end
+
   elseif t == "ThrowStatement" then
     if node.argument then analyze_node(node.argument, meta, scopes) end
 
