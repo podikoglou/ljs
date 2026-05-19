@@ -2558,6 +2558,14 @@ test("tokenize 'breakdown' as Identifier", function()
   assert_tok("breakdown", 1, "Identifier", "breakdown")
 end)
 
+test("tokenize 'continue' keyword", function()
+  assert_tok("continue", 1, "continue", "continue")
+end)
+
+test("tokenize 'continuation' as Identifier (not keyword prefix)", function()
+  assert_tok("continuation", 1, "Identifier", "continuation")
+end)
+
 -- SwitchStatement: basic structure
 
 test("parse minimal switch with one case + break", function()
@@ -2854,6 +2862,104 @@ test("parse break inside do...while", function()
   assert_eq(brk.type, "BreakStatement")
 end)
 
+-- ContinueStatement
+
+test("parse bare continue", function()
+  assert_parse_ok("continue;", {
+    {type = "ContinueStatement"}
+  })
+end)
+
+test("parse continue without semicolon before }", function()
+  assert_parse_ok("while (x) { continue }", {
+    {type = "WhileStatement",
+      test = {type = "Identifier", name = "x"},
+      body = {type = "BlockStatement", body = {
+        {type = "ContinueStatement"}
+      }}}
+  })
+end)
+
+test("parse continue inside while loop", function()
+  local ast = ljs.parse("while (true) { continue; }")
+  local cont = ast.body[1].body.body[1]
+  assert_eq(cont.type, "ContinueStatement")
+end)
+
+test("parse continue inside for-of loop", function()
+  local ast = ljs.parse("for (let x of arr) { continue; }")
+  local cont = ast.body[1].body.body[1]
+  assert_eq(cont.type, "ContinueStatement")
+end)
+
+test("parse continue inside for-in loop", function()
+  local ast = ljs.parse("for (let k in obj) { continue; }")
+  local cont = ast.body[1].body.body[1]
+  assert_eq(cont.type, "ContinueStatement")
+end)
+
+test("parse continue inside C-style for loop", function()
+  local ast = ljs.parse("for (;;) { continue; }")
+  local cont = ast.body[1].body.body[1]
+  assert_eq(cont.type, "ContinueStatement")
+end)
+
+test("parse continue inside do...while", function()
+  local ast = ljs.parse("do { continue; } while (true);")
+  local cont = ast.body[1].body.body[1]
+  assert_eq(cont.type, "ContinueStatement")
+end)
+
+test("parse continue inside nested if within loop", function()
+  local ast = ljs.parse("while (x) { if (a) { continue; } b; }")
+  local if_stmt = ast.body[1].body.body[1]
+  assert_eq(if_stmt.type, "IfStatement")
+  local cont = if_stmt.consequent.body[1]
+  assert_eq(cont.type, "ContinueStatement")
+end)
+
+test("parse continue inside switch within loop", function()
+  local ast = ljs.parse("while (x) { switch (a) { case 1: continue; } }")
+  local sw = ast.body[1].body.body[1]
+  assert_eq(sw.type, "SwitchStatement")
+  local cont = sw.cases[1].consequent[1]
+  assert_eq(cont.type, "ContinueStatement")
+end)
+
+test("parse continue in nested loops (inner and outer)", function()
+  local ast = ljs.parse("while (a) { while (b) { continue; } continue; }")
+  local outer = ast.body[1]
+  local inner = outer.body.body[1]
+  local inner_cont = inner.body.body[1]
+  assert_eq(inner_cont.type, "ContinueStatement")
+  local outer_cont = outer.body.body[2]
+  assert_eq(outer_cont.type, "ContinueStatement")
+end)
+
+test("parse continue mixed with break in switch inside loop", function()
+  local ast = ljs.parse("while (x) { switch (a) { case 1: continue; case 2: break; default: continue; } }")
+  local sw = ast.body[1].body.body[1]
+  assert_eq(sw.cases[1].consequent[1].type, "ContinueStatement")
+  assert_eq(sw.cases[2].consequent[1].type, "BreakStatement")
+  assert_eq(sw.cases[3].consequent[1].type, "ContinueStatement")
+end)
+
+test("parse continue after other statements", function()
+  local ast = ljs.parse("while (x) { a; b; continue; c; }")
+  local body = ast.body[1].body.body
+  assert_eq(body[1].type, "ExpressionStatement")
+  assert_eq(body[2].type, "ExpressionStatement")
+  assert_eq(body[3].type, "ContinueStatement")
+  assert_eq(body[4].type, "ExpressionStatement")
+end)
+
+test("parse multiple continues in same loop body", function()
+  local ast = ljs.parse("while (x) { if (a) { continue; } if (b) { continue; } c; }")
+  local body = ast.body[1].body.body
+  assert_eq(body[1].consequent.body[1].type, "ContinueStatement")
+  assert_eq(body[2].consequent.body[1].type, "ContinueStatement")
+end)
+
 -- Integration
 
 test("integration: switch after variable declaration", function()
@@ -2943,6 +3049,16 @@ test("parse_tokens: break statement", function()
   }})
 end)
 
+test("parse_tokens: continue statement", function()
+  local tokens = {
+    tok(TK.CONTINUE, "continue"), tok(TK.SEMICOLON), tok(TK.EOF),
+  }
+  local ast = ljs.parse_tokens(tokens)
+  assert_table_eq(ast, {type = "Program", body = {
+    {type = "ContinueStatement"}
+  }})
+end)
+
 -- ============================================================================
 -- SWITCH/CASE/BREAK NEGATIVE TESTS
 -- ============================================================================
@@ -3001,6 +3117,10 @@ end)
 
 test("error: break as variable name", function()
   assert_parse_fail("let break = 1;", nil)
+end)
+
+test("error: continue as variable name", function()
+  assert_parse_fail("let continue = 1;", nil)
 end)
 
 test("error: switch keyword in expression context", function()
