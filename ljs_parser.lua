@@ -655,6 +655,14 @@ local function update_expression(operator, argument, prefix)
   return { type = "UpdateExpression", operator = operator, argument = argument, prefix = prefix }
 end
 
+--- @param test (table) Condition expression
+--- @param consequent (table) Expression if truthy
+--- @param alternate (table) Expression if falsy
+--- @return table {type="ConditionalExpression", test, consequent, alternate}
+local function conditional_expression(test, consequent, alternate)
+  return { type = "ConditionalExpression", test = test, consequent = consequent, alternate = alternate }
+end
+
 --- @param callee (table) Expression being called
 --- @param arguments (table) Array of argument expressions
 --- @return table {type="CallExpression", callee, arguments}
