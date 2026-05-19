@@ -338,6 +338,19 @@ Wraps any expression used as a statement. Semicolons are optional.
 
 **Source:** `for (let x of arr) { console.log(x); }`
 
+### ForInStatement
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"ForInStatement"` | |
+| `left` | `VariableDeclaration` or `node` | Loop variable (declaration or expression) |
+| `right` | `node` | Object expression to iterate keys of |
+| `body` | `node` | Statement to repeat |
+
+**Source:** `for (let key in obj) { console.log(key); }`
+
+The left-hand side must be a single variable with no initializer (matching JS semantics). Multiple declarators or initializers produce a parse error.
+
 ### ForStatement
 
 | Field | Type | Description |
