@@ -182,6 +182,12 @@ local function analyze_node(node, meta, scopes)
     analyze_node(node.left, meta, scopes)
     analyze_node(node.right, meta, scopes)
 
+  elseif t == "UpdateExpression" then
+    if node.operator == "++" then
+      meta.needed_helpers["_ljs_add"] = true
+    end
+    analyze_node(node.argument, meta, scopes)
+
   elseif t == "UnaryExpression" then
     analyze_node(node.argument, meta, scopes)
 
@@ -559,6 +565,22 @@ gen.UnaryExpression = function(node, indent, scopes)
     return cg.call("tonumber", {expr})
   end
   return cg.unop("-", expr)
+end
+
+gen.UpdateExpression = function(node, indent, scopes)
+  local arg = emit(node.argument, indent, scopes)
+  if node.operator == "++" then
+    local add = cg.call("_ljs_add", {arg, "1"})
+    if node.prefix then
+      return "(function() " .. arg .. " = " .. add .. "; return " .. arg .. " end)()"
+    end
+    return "(function() local _t = " .. arg .. "; " .. arg .. " = " .. add .. "; return _t end)()"
+  end
+  local sub = arg .. " - 1"
+  if node.prefix then
+    return "(function() " .. arg .. " = " .. sub .. "; return " .. arg .. " end)()"
+  end
+  return "(function() local _t = " .. arg .. "; " .. arg .. " = " .. sub .. "; return _t end)()"
 end
 
 gen.ConditionalExpression = function(node, indent, scopes)
