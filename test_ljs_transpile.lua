@@ -165,6 +165,26 @@ test("unary minus", function()
   assert_eq(code, "-x")
 end)
 
+test("unary plus", function()
+  local code = expr_code("+x")
+  assert_eq(code, "tonumber(x)")
+end)
+
+test("unary plus on string", function()
+  local code = expr_code('+"5"')
+  assert_eq(code, 'tonumber("5")')
+end)
+
+test("nested unary +!x", function()
+  local code = expr_code("+!x")
+  assert_eq(code, "tonumber(not x)")
+end)
+
+test("unary + in binary context", function()
+  local code = expr_code("1 + +x")
+  assert_eq(code, "_ljs_add(1, tonumber(x))")
+end)
+
 test("comparison operators", function()
   assert_eq(expr_code("a < b"), "a < b")
   assert_eq(expr_code("a > b"), "a > b")
