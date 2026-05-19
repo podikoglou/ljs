@@ -648,6 +648,7 @@ local function null_literal(token)
   return { type = "NullLiteral" }
 end
 
+--- @return table {type="UndefinedLiteral"}
 local function undefined_literal(token)
   return { type = "UndefinedLiteral" }
 end
@@ -751,6 +752,9 @@ local function while_statement(test, body)
   return { type = "WhileStatement", test = test, body = body }
 end
 
+--- @param body (table) Statement to repeat
+--- @param test (table) Condition expression
+--- @return table {type="DoWhileStatement", body, test}
 local function do_while_statement(body, test)
   return { type = "DoWhileStatement", body = body, test = test }
 end
@@ -763,10 +767,19 @@ local function for_of_statement(left, right, body)
   return { type = "ForOfStatement", left = left, right = right, body = body }
 end
 
+--- @param left (table) VariableDeclaration or expression (the loop variable)
+--- @param right (table) Object expression to iterate over
+--- @param body (table) Statement to repeat
+--- @return table {type="ForInStatement", left, right, body}
 local function for_in_statement(left, right, body)
   return { type = "ForInStatement", left = left, right = right, body = body }
 end
 
+--- @param init (table|nil) Initialization expression or VariableDeclaration
+--- @param test (table|nil) Loop condition expression
+--- @param update (table|nil) Update expression evaluated after each iteration
+--- @param body (table) Statement to repeat
+--- @return table {type="ForStatement", init, test, update, body}
 local function for_statement(init, test, update, body)
   return { type = "ForStatement", init = init, test = test, update = update, body = body }
 end
@@ -829,14 +842,21 @@ local function array_expression(elements)
   return { type = "ArrayExpression", elements = elements }
 end
 
+--- @param discriminant (table) Expression being matched against
+--- @param cases (table) Array of SwitchCase nodes
+--- @return table {type="SwitchStatement", discriminant, cases}
 local function switch_statement(discriminant, cases)
   return { type = "SwitchStatement", discriminant = discriminant, cases = cases }
 end
 
+--- @param test (table|nil) Case value expression, or nil for default
+--- @param consequent (table) Array of statement nodes in this case
+--- @return table {type="SwitchCase", test, consequent}
 local function switch_case(test, consequent)
   return { type = "SwitchCase", test = test, consequent = consequent }
 end
 
+--- @return table {type="BreakStatement"}
 local function break_statement()
   return { type = "BreakStatement" }
 end
@@ -952,6 +972,9 @@ local BANNED_KEYWORDS = {
   [TOKEN.INSTANCEOF] = "instanceof",
 }
 
+--- Check if the current token is a banned keyword and return an error message.
+-- @param stream (table) Token stream
+-- @return (string|nil) Error message if banned keyword found, nil otherwise
 local function check_banned(stream)
   local kw = BANNED_KEYWORDS[stream.peek().type]
   if kw then
@@ -1107,6 +1130,11 @@ function parse_while_statement(stream)
   return while_statement(test, body)
 end
 
+--- Parse do...while: do body while (test);
+-- Body always executes at least once. Semicolon after is optional.
+-- @param stream Token stream
+-- @return (table|nil) DoWhileStatement AST node, or nil on error
+-- @return (string|nil) Error message if parsing failed
 function parse_do_while_statement(stream)
   stream.consume(TOKEN.DO)
   local body = parse_statement(stream)
@@ -1171,11 +1199,19 @@ function parse_for_statement(stream)
   return parse_c_style_for_from_test(stream, init)
 end
 
+--- Parse C-style for loop starting from the first semicolon (no init clause).
+-- @param stream Token stream
+-- @param init (table|nil) Initialization expression or nil
+-- @return (table|nil) ForStatement AST node, or nil on error
 function parse_c_style_for(stream, init)
   stream.consume(TOKEN.SEMICOLON)
   return parse_c_style_for_from_test(stream, init)
 end
 
+--- Parse C-style for loop test and update clauses after init has been consumed.
+-- @param stream Token stream
+-- @param init (table|nil) Initialization expression or VariableDeclaration
+-- @return (table|nil) ForStatement AST node, or nil on error
 function parse_c_style_for_from_test(stream, init)
   local test
   if not stream.is(TOKEN.SEMICOLON) then
@@ -1195,6 +1231,11 @@ function parse_c_style_for_from_test(stream, init)
   return for_statement(init, test, update, body)
 end
 
+--- Parse for...of loop after the left-hand variable declaration has been consumed.
+-- @param stream Token stream
+-- @param left (table) VariableDeclaration for the loop variable
+-- @return (table|nil) ForOfStatement AST node, or nil on error
+-- @return (string|nil) Error message if parsing failed
 function parse_for_of_from_left(stream, left)
   stream.consume(TOKEN.OF)
   local right = parse_expression(stream)
@@ -1204,6 +1245,12 @@ function parse_for_of_from_left(stream, left)
   return for_of_statement(left, right, body)
 end
 
+--- Parse for...in loop after the left-hand variable declaration has been consumed.
+-- Validates that there is exactly one declarator with no initializer.
+-- @param stream Token stream
+-- @param left (table) VariableDeclaration for the loop variable
+-- @return (table|nil) ForInStatement AST node, or nil on error
+-- @return (string|nil) Error message if parsing failed
 function parse_for_in_from_left(stream, left)
   if #left.declarations ~= 1 then
     return nil, "for-in loop requires a single variable"
