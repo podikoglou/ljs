@@ -163,6 +163,11 @@ local function analyze_node(node, meta, scopes)
   elseif t == "UnaryExpression" then
     analyze_node(node.argument, meta, scopes)
 
+  elseif t == "ConditionalExpression" then
+    analyze_node(node.test, meta, scopes)
+    analyze_node(node.consequent, meta, scopes)
+    analyze_node(node.alternate, meta, scopes)
+
   elseif t == "CallExpression" then
     local builtin = lookup_builtin(node, scopes)
     if builtin then
@@ -445,6 +450,13 @@ gen.UnaryExpression = function(node, indent, scopes)
     return "not " .. emit(node.argument, indent, scopes)
   end
   return "-" .. emit(node.argument, indent, scopes)
+end
+
+gen.ConditionalExpression = function(node, indent, scopes)
+  local test_code = emit(node.test, indent, scopes)
+  local cons_code = emit(node.consequent, indent, scopes)
+  local alt_code = emit(node.alternate, indent, scopes)
+  return "(function() if " .. test_code .. " then return " .. cons_code .. " else return " .. alt_code .. " end end)()"
 end
 
 gen.CallExpression = function(node, indent, scopes)
