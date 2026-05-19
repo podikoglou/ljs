@@ -376,6 +376,36 @@ All three clauses (`init`, `test`, `update`) can be nil independently. When `ini
 
 ---
 
+### SwitchStatement
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"SwitchStatement"` | |
+| `discriminant` | `node` | Expression to match against |
+| `cases` | `SwitchCase[]` | Array of case clauses (can be empty) |
+
+**Source:** `switch (x) { case 1: break; default: y; }`
+
+### SwitchCase
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"SwitchCase"` | |
+| `test` | `node?` | Test expression for `case`, or `nil` for `default` |
+| `consequent` | `node[]` | Array of statements (can be empty for fallthrough) |
+
+**Source:** `case 1: break;` (test is NumberLiteral), `default: y;` (test is nil)
+
+### BreakStatement
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"BreakStatement"` | |
+
+**Source:** `break;`
+
+---
+
 ## Exception Handling
 
 ### ThrowStatement
