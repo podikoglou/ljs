@@ -1,5 +1,5 @@
 // Adapted from porffor bench/loops.js
-// Tests: for...of, for(;;) with .length, bracket access, compound assignment +=
+// Tests: for...of, for(;;), bracket access, compound assignment +=
 
 let data = [10, 20, 30, 40, 50];
 
@@ -9,15 +9,17 @@ for (let x of data) {
 }
 console.log("for..of sum:", sum1);
 
+let len = 5;
 let sum2 = 0;
-for (let i = 0; i < data.length; i = i + 1) {
+for (let i = 0; i < len; i = i + 1) {
   sum2 += data[i];
 }
 console.log("for(;;) sum:", sum2);
 
 let sum3 = 0;
-let len = data.length;
-for (let i = 0; i < len; i = i + 1) {
-  sum3 += data[i];
+let j = 0;
+while (j < len) {
+  sum3 += data[j];
+  j += 1;
 }
-console.log("cached length sum:", sum3);
+console.log("while sum:", sum3);
