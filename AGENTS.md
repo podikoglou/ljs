@@ -23,7 +23,7 @@ ljs/
 
 ### Supported
 
-Variables (`let`/`const`; `var` normalized to `let`), functions, arrow functions (expression bodies desugared to `BlockStatement`), objects, arrays, arithmetic (`+` `-` `*` `/` `%`), strict equality (`===`/`!==`; `==` rejected at tokenizer level), comparison (`<` `>` `<=` `>=`), logical (`&&` `||`), assignment (`=`), compound assignment (`+=` `-=` `*=` `/=` `%=`), unary (`!` `-`), update (`++`/`--`, prefix and postfix), `if`/`else`, `while`, `for...of`, `for(;;)` (C-style for with optional init/test/update), `throw`, `try`/`catch`, `return`, `console.log` (parsed as regular `CallExpression` with `MemberExpression` callee).
+Variables (`let`/`const`; `var` normalized to `let`), functions, arrow functions (expression bodies desugared to `BlockStatement`), objects, arrays, arithmetic (`+` `-` `*` `/` `%`), strict equality (`===`/`!==`; `==` rejected at tokenizer level), comparison (`<` `>` `<=` `>=`), logical (`&&` `||`), ternary (`? :`), assignment (`=`), compound assignment (`+=` `-=` `*=` `/=` `%=`), unary (`!` `-`), update (`++`/`--`, prefix and postfix), `if`/`else`, `while`, `for...of`, `for(;;)` (C-style for with optional init/test/update), `throw`, `try`/`catch`, `return`, `console.log` (parsed as regular `CallExpression` with `MemberExpression` callee).
 
 ### Rejected (parse error)
 
@@ -58,4 +58,4 @@ All nodes are Lua tables with a `type` string field. See **docs/AST.md** for the
 
 - Transformation layer (JS AST → Lua source)
 - Source location tracking in AST nodes
-- More operators (ternary `?:`, nullish coalescing `??`)
+- More operators (nullish coalescing `??`)

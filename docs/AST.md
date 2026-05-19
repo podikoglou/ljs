@@ -167,6 +167,7 @@ Expression bodies are desugared: `x => x + 1` becomes a `BlockStatement` contain
 | 3 | `===` `!==` `<` `>` `<=` `>=` | Left |
 | 2 | `&&` | Left |
 | 1 | `\|\|` | Left |
+| 0.75 | `? :` (ternary) | Right |
 | 0.5 | `=` `+=` `-=` `*=` `/=` `%=` | Right |
 
 Assignment (`=`) and compound assignment operators are right-associative: `a = b = c` parses as `a = (b = c)`; `x += y += 1` parses as `x += (y += 1)`.  
@@ -198,6 +199,21 @@ Postfix has the highest precedence (applied during primary expression parsing). 
 Postfix is only valid after identifiers and member/call chains: `x++`, `a.b++`, `a[b]++`, `f()++`. It does not apply to literals or parenthesized expressions: `5++`, `(x)++` are parse errors.
 
 **Source:** `++x`, `x++`, `--y`, `y--`, `a.b++`, `++obj[prop]`, `i++` in for-loop update
+
+### ConditionalExpression
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"ConditionalExpression"` | |
+| `test` | `node` | Condition expression |
+| `consequent` | `node` | Expression if truthy |
+| `alternate` | `node` | Expression if falsy |
+
+The ternary operator `? :` has precedence 0.75 (between `\|\|` and assignment) and is right-associative: `a ? b : c ? d : e` parses as `a ? b : (c ? d : e)`.
+
+Both branches allow full expressions including assignment and nested ternaries. The `:` delimiter naturally ends the consequent expression.
+
+**Source:** `x ? 1 : 0`, `a ? b ? 1 : 2 : 3`, `let x = flag ? "yes" : "no"`, `a || b ? 1 : 0`
 
 ### CallExpression
 
