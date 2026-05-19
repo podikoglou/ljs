@@ -205,6 +205,98 @@ test("unary + in binary context", function()
   assert_eq(code, "_ljs_add(1, tonumber(x))")
 end)
 
+-- ============================================================================
+-- Unit tests — bitwise NOT (~)
+-- ============================================================================
+
+test("bitwise NOT basic", function()
+  local code = expr_code("~x")
+  assert_eq(code, "_ljs_bnot(x)")
+end)
+
+test("bitwise NOT double", function()
+  local code = expr_code("~~x")
+  assert_eq(code, "_ljs_bnot(_ljs_bnot(x))")
+end)
+
+test("bitwise NOT on literal", function()
+  local code = expr_code("~0")
+  assert_eq(code, "_ljs_bnot(0)")
+end)
+
+test("bitwise NOT on negative", function()
+  local code = expr_code("~-1")
+  assert_eq(code, "_ljs_bnot(-1)")
+end)
+
+test("bitwise NOT in binary context", function()
+  local code = expr_code("~x + y")
+  assert_eq(code, "_ljs_add(_ljs_bnot(x), y)")
+end)
+
+test("bitwise NOT emits helper definition", function()
+  local code = transpile_ok("let x = ~y;")
+  assert(code:find("local function _ljs_bnot"), "expected _ljs_bnot helper in output")
+end)
+
+test("no _ljs_bnot when unused", function()
+  local code = transpile_ok("let x = 1 + 2;")
+  assert(not code:find("_ljs_bnot"), "expected no _ljs_bnot")
+end)
+
+test("transpile.HELPERS._ljs_bnot accessible", function()
+  assert(type(transpile.HELPERS._ljs_bnot) == "string", "expected _ljs_bnot helper string")
+end)
+
+-- ============================================================================
+-- Integration tests — bitwise NOT (~)
+-- ============================================================================
+
+test("bitwise NOT ~0 = -1", function()
+  local output = run_js("console.log(~0);")
+  assert_eq(output:gsub("%s+", ""), "-1")
+end)
+
+test("bitwise NOT ~(-1) = 0", function()
+  local output = run_js("console.log(~(-1));")
+  assert_eq(output:gsub("%s+", ""), "0")
+end)
+
+test("bitwise NOT ~5 = -6", function()
+  local output = run_js("console.log(~5);")
+  assert_eq(output:gsub("%s+", ""), "-6")
+end)
+
+test("bitwise NOT ~(-6) = 5", function()
+  local output = run_js("console.log(~(-6));")
+  assert_eq(output:gsub("%s+", ""), "5")
+end)
+
+test("double bitwise NOT ~~5.7 truncates to int", function()
+  local output = run_js("console.log(~~5.7);")
+  assert_eq(output:gsub("%s+", ""), "5")
+end)
+
+test("double bitwise NOT ~~3.14 truncates to int", function()
+  local output = run_js("console.log(~~3.14);")
+  assert_eq(output:gsub("%s+", ""), "3")
+end)
+
+test("bitwise NOT ~2147483647 = -2147483648", function()
+  local output = run_js("console.log(~2147483647);")
+  assert_eq(output:gsub("%s+", ""), "-2147483648")
+end)
+
+test("bitwise NOT ~(-2147483648) = 2147483647", function()
+  local output = run_js("console.log(~(-2147483648));")
+  assert_eq(output:gsub("%s+", ""), "2147483647")
+end)
+
+test("bitwise NOT end-to-end in variable", function()
+  local output = run_js("let x = ~5; console.log(x);")
+  assert_eq(output:gsub("%s+", ""), "-6")
+end)
+
 test("comparison operators", function()
   assert_eq(expr_code("a < b"), "a < b")
   assert_eq(expr_code("a > b"), "a > b")
