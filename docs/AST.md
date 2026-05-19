@@ -178,12 +178,12 @@ All other binary operators are left-associative: `1 + 2 + 3` parses as `(1 + 2) 
 | Field | Type | Description |
 |-------|------|-------------|
 | `type` | `"UnaryExpression"` | |
-| `operator` | `string` | `"!"` or `"-"` |
+| `operator` | `string` | `"!"`, `"-"`, or `"+"` |
 | `argument` | `node` | The operand |
 
 Unary operators have the highest precedence (6) and are right-recursive: `!!x` parses as `!(!(x))`.
 
-**Source:** `!x`, `-y`, `!!flag`
+**Source:** `!x`, `-y`, `+z`, `!!flag`, `+"5"`
 
 ### UpdateExpression
 
