@@ -454,9 +454,12 @@ gen.SwitchStatement = function(node, indent, scopes)
       end
       parts[#parts + 1] = pad(indent + 1) .. "end\n"
     else
+      parts[#parts + 1] = pad(indent + 1) .. "if true then\n"
+      parts[#parts + 1] = pad(indent + 2) .. "_ljs_matched = true\n"
       for _, stmt in ipairs(case.consequent) do
-        parts[#parts + 1] = emit(stmt, indent + 1, scopes)
+        parts[#parts + 1] = emit(stmt, indent + 2, scopes)
       end
+      parts[#parts + 1] = pad(indent + 1) .. "end\n"
     end
   end
   parts[#parts + 1] = pad(indent) .. "end\n"
