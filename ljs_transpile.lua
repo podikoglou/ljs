@@ -438,6 +438,35 @@ gen.ForStatement = function(node, indent, scopes)
   return table.concat(parts)
 end
 
+gen.SwitchStatement = function(node, indent, scopes)
+  local disc = emit(node.discriminant, indent, scopes)
+  local parts = {}
+  parts[#parts + 1] = pad(indent) .. "local _ljs_sw = " .. disc .. "\n"
+  parts[#parts + 1] = pad(indent) .. "local _ljs_matched = false\n"
+  parts[#parts + 1] = pad(indent) .. "for _ = 1, 1 do\n"
+  for _, case in ipairs(node.cases) do
+    if case.test then
+      local test_code = emit(case.test, indent, scopes)
+      parts[#parts + 1] = pad(indent + 1) .. "if _ljs_matched or _ljs_sw == " .. test_code .. " then\n"
+      parts[#parts + 1] = pad(indent + 2) .. "_ljs_matched = true\n"
+      for _, stmt in ipairs(case.consequent) do
+        parts[#parts + 1] = emit(stmt, indent + 2, scopes)
+      end
+      parts[#parts + 1] = pad(indent + 1) .. "end\n"
+    else
+      for _, stmt in ipairs(case.consequent) do
+        parts[#parts + 1] = emit(stmt, indent + 1, scopes)
+      end
+    end
+  end
+  parts[#parts + 1] = pad(indent) .. "end\n"
+  return table.concat(parts)
+end
+
+gen.BreakStatement = function(node, indent, scopes)
+  return pad(indent) .. "break\n"
+end
+
 -- === Exception handling ===
 
 gen.TryStatement = function(node, indent, scopes)
