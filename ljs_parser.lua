@@ -1418,7 +1418,7 @@ function parse_arrow_function_body(stream)
     return parse_block_statement(stream)
   else
     local expr = parse_expression(stream)
-    return block_statement({ expression_statement(expr) })
+    return block_statement({ return_statement(expr) })
   end
 end
 

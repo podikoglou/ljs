@@ -1553,7 +1553,7 @@ test("parse arrow function: single param expression body", function()
     {type = "ExpressionStatement", expression = {type = "ArrowFunctionExpression",
       params = {{type = "Identifier", name = "x"}},
       body = {type = "BlockStatement", body = {
-        {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "+",
+        {type = "ReturnStatement", argument = {type = "BinaryExpression", operator = "+",
           left = {type = "Identifier", name = "x"},
           right = {type = "NumberLiteral", value = 1}}
         }
@@ -1570,7 +1570,7 @@ test("parse arrow function: multi param", function()
         {type = "Identifier", name = "b"}
       },
       body = {type = "BlockStatement", body = {
-        {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "+",
+        {type = "ReturnStatement", argument = {type = "BinaryExpression", operator = "+",
           left = {type = "Identifier", name = "a"},
           right = {type = "Identifier", name = "b"}}
         }
@@ -1782,7 +1782,7 @@ test("integration: complex chained expression with arrow functions", function()
               arguments = {{type = "ArrowFunctionExpression",
                 params = {{type = "Identifier", name = "x"}},
                 body = {type = "BlockStatement", body = {
-                  {type = "ExpressionStatement", expression = {type = "BinaryExpression",
+                  {type = "ReturnStatement", argument = {type = "BinaryExpression",
                     operator = ">",
                     left = {type = "Identifier", name = "x"},
                     right = {type = "NumberLiteral", value = 0}}
@@ -1795,7 +1795,7 @@ test("integration: complex chained expression with arrow functions", function()
           arguments = {{type = "ArrowFunctionExpression",
             params = {{type = "Identifier", name = "x"}},
             body = {type = "BlockStatement", body = {
-              {type = "ExpressionStatement", expression = {type = "BinaryExpression",
+              {type = "ReturnStatement", argument = {type = "BinaryExpression",
                 operator = "*",
                 left = {type = "Identifier", name = "x"},
                 right = {type = "NumberLiteral", value = 2}}
