@@ -56,6 +56,7 @@ All nodes are Lua tables with a `type` string field. See **docs/AST.md** for the
 - Strict parsing: fails on first error, no recovery
 - Tests: `lua test_ljs_parser.lua` and `lua test_ljs_transpile.lua` (exit code 0 = all pass)
 - **Keep it simple.** This is a small library — don't over-engineer, don't add abstractions, don't split files. Just read the code, understand it, and make the change.
+- **When changing the parser, update `docs/AST.md`.** The parser is the source of truth. Any time you add, remove, or rename a node type or field, update the AST reference to match.
 
 ### LuaDoc conventions
 
