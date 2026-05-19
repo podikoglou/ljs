@@ -74,6 +74,12 @@ local TOKEN = {
   OR = "||",
   -- Assignment
   ASSIGN = "=",
+  -- Compound assignment
+  PLUS_ASSIGN = "+=",
+  MINUS_ASSIGN = "-=",
+  STAR_ASSIGN = "*=",
+  SLASH_ASSIGN = "/=",
+  PERCENT_ASSIGN = "%=",
   -- Unary
   NOT = "!",
   -- Update
@@ -376,6 +382,9 @@ local function tokenize(source)
       if lookahead(2) == "++" then
         table.insert(tokens, make_token(TOKEN.INCREMENT))
         advance(2)
+      elseif lookahead(2) == "+=" then
+        table.insert(tokens, make_token(TOKEN.PLUS_ASSIGN))
+        advance(2)
       else
         table.insert(tokens, make_token(TOKEN.PLUS))
         advance()
@@ -384,19 +393,37 @@ local function tokenize(source)
       if lookahead(2) == "--" then
         table.insert(tokens, make_token(TOKEN.DECREMENT))
         advance(2)
+      elseif lookahead(2) == "-=" then
+        table.insert(tokens, make_token(TOKEN.MINUS_ASSIGN))
+        advance(2)
       else
         table.insert(tokens, make_token(TOKEN.MINUS))
         advance()
       end
     elseif c == "*" then
-      table.insert(tokens, make_token(TOKEN.STAR))
-      advance()
+      if lookahead(2) == "*=" then
+        table.insert(tokens, make_token(TOKEN.STAR_ASSIGN))
+        advance(2)
+      else
+        table.insert(tokens, make_token(TOKEN.STAR))
+        advance()
+      end
     elseif c == "/" then
-      table.insert(tokens, make_token(TOKEN.SLASH))
-      advance()
+      if lookahead(2) == "/=" then
+        table.insert(tokens, make_token(TOKEN.SLASH_ASSIGN))
+        advance(2)
+      else
+        table.insert(tokens, make_token(TOKEN.SLASH))
+        advance()
+      end
     elseif c == "%" then
-      table.insert(tokens, make_token(TOKEN.PERCENT))
-      advance()
+      if lookahead(2) == "%=" then
+        table.insert(tokens, make_token(TOKEN.PERCENT_ASSIGN))
+        advance(2)
+      else
+        table.insert(tokens, make_token(TOKEN.PERCENT))
+        advance()
+      end
     -- = handler: must check => first (arrow), then ===, then reject ==,
     -- then fall through to plain assignment =.
     elseif c == "=" then
