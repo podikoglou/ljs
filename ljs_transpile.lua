@@ -258,6 +258,7 @@ end
 -- ============================================================================
 
 local gen = {}
+local gen_stmt = {}
 
 local function emit(node, indent, scopes)
   return gen[node.type](node, indent, scopes)
@@ -340,6 +341,8 @@ end
 -- === Statements ===
 
 gen.ExpressionStatement = function(node, indent, scopes)
+  local stmt_fn = gen_stmt[node.expression.type]
+  if stmt_fn then return stmt_fn(node.expression, indent, scopes) end
   return cg.expr_stmt(emit(node.expression, indent, scopes), indent)
 end
 
@@ -476,7 +479,12 @@ gen.ForStatement = function(node, indent, scopes)
     body = body .. cg.pad(indent + 1) .. "::_continue::\n"
   end
   if node.update then
-    body = body .. cg.expr_stmt(emit(node.update, indent + 1, scopes), indent + 1)
+    local stmt_fn = gen_stmt[node.update.type]
+    if stmt_fn then
+      body = body .. stmt_fn(node.update, indent + 1, scopes)
+    else
+      body = body .. cg.expr_stmt(emit(node.update, indent + 1, scopes), indent + 1)
+    end
   end
   scope_pop(scopes)
   parts[#parts + 1] = cg.while_stmt(test_code, body, indent)
@@ -631,6 +639,20 @@ gen.ArrayExpression = function(node, indent, scopes)
   local elems = {}
   for _, e in ipairs(node.elements) do elems[#elems + 1] = emit(e, indent, scopes) end
   return cg.array(elems)
+end
+
+-- === Statement emission for IIFE-returning expressions ===
+
+gen_stmt.UpdateExpression = function(node, indent, scopes)
+  local arg = emit(node.argument, indent, scopes)
+  if node.operator == "++" then
+    return cg.expr_stmt(arg .. " = " .. cg.call("_ljs_add", {arg, "1"}), indent)
+  end
+  return cg.expr_stmt(arg .. " = " .. arg .. " - 1", indent)
+end
+
+gen_stmt.ConditionalExpression = function(node, indent, scopes)
+  return cg.pad(indent) .. ";" .. emit(node, indent, scopes) .. "\n"
 end
 
 -- === Top-level generate ===
