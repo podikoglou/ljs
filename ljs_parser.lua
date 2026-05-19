@@ -36,6 +36,7 @@ local TOKEN = {
   -- Control flow keywords
   IF = "if",
   ELSE = "else",
+  DO = "do",
   WHILE = "while",
   FOR = "for",
   OF = "of",
@@ -109,6 +110,7 @@ local KEYWORDS = {
   ["function"] = TOKEN.FUNCTION,
   ["if"] = TOKEN.IF,
   ["else"] = TOKEN.ELSE,
+  ["do"] = TOKEN.DO,
   ["while"] = TOKEN.WHILE,
   ["for"] = TOKEN.FOR,
   ["of"] = TOKEN.OF,
@@ -943,6 +945,8 @@ function parse_statement(stream)
     return parse_if_statement(stream)
   elseif stream.is(TOKEN.WHILE) then
     return parse_while_statement(stream)
+  elseif stream.is(TOKEN.DO) then
+    return parse_do_while_statement(stream)
   elseif stream.is(TOKEN.FOR) then
     return parse_for_statement(stream)
   elseif stream.is(TOKEN.THROW) then
@@ -1065,6 +1069,21 @@ function parse_while_statement(stream)
   stream.consume(TOKEN.RPAREN)
   local body = parse_statement(stream)
   return while_statement(test, body)
+end
+
+function parse_do_while_statement(stream)
+  stream.consume(TOKEN.DO)
+  local body = parse_statement(stream)
+  if not body then return nil, "Expected statement after 'do'" end
+  stream.consume(TOKEN.WHILE)
+  stream.consume(TOKEN.LPAREN)
+  local test = parse_expression(stream)
+  if not test then return nil, "Expected expression" end
+  stream.consume(TOKEN.RPAREN)
+  if stream.is(TOKEN.SEMICOLON) then
+    stream.advance()
+  end
+  return do_while_statement(body, test)
 end
 
 --- Parse for statement: dispatches between for...of and C-style for(;;).
