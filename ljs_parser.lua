@@ -990,7 +990,7 @@ end
 --- Dispatch to the correct statement parser based on the current token.
 -- Falls through to expression statement for anything unrecognized.
 -- Semicolons are optional — consumed if present, no error if absent.
--- @param stream Token stream
+-- @param stream (table) Token stream
 -- @return (table|nil) AST node, or nil on error
 -- @return (string|nil) Error message if parsing failed
 function parse_statement(stream)
@@ -1132,7 +1132,7 @@ end
 
 --- Parse do...while: do body while (test);
 -- Body always executes at least once. Semicolon after is optional.
--- @param stream Token stream
+-- @param stream (table) Token stream
 -- @return (table|nil) DoWhileStatement AST node, or nil on error
 -- @return (string|nil) Error message if parsing failed
 function parse_do_while_statement(stream)
@@ -1200,7 +1200,7 @@ function parse_for_statement(stream)
 end
 
 --- Parse C-style for loop starting from the first semicolon (no init clause).
--- @param stream Token stream
+-- @param stream (table) Token stream
 -- @param init (table|nil) Initialization expression or nil
 -- @return (table|nil) ForStatement AST node, or nil on error
 function parse_c_style_for(stream, init)
@@ -1209,7 +1209,7 @@ function parse_c_style_for(stream, init)
 end
 
 --- Parse C-style for loop test and update clauses after init has been consumed.
--- @param stream Token stream
+-- @param stream (table) Token stream
 -- @param init (table|nil) Initialization expression or VariableDeclaration
 -- @return (table|nil) ForStatement AST node, or nil on error
 function parse_c_style_for_from_test(stream, init)
@@ -1232,7 +1232,7 @@ function parse_c_style_for_from_test(stream, init)
 end
 
 --- Parse for...of loop after the left-hand variable declaration has been consumed.
--- @param stream Token stream
+-- @param stream (table) Token stream
 -- @param left (table) VariableDeclaration for the loop variable
 -- @return (table|nil) ForOfStatement AST node, or nil on error
 -- @return (string|nil) Error message if parsing failed
@@ -1247,7 +1247,7 @@ end
 
 --- Parse for...in loop after the left-hand variable declaration has been consumed.
 -- Validates that there is exactly one declarator with no initializer.
--- @param stream Token stream
+-- @param stream (table) Token stream
 -- @param left (table) VariableDeclaration for the loop variable
 -- @return (table|nil) ForInStatement AST node, or nil on error
 -- @return (string|nil) Error message if parsing failed
@@ -1454,7 +1454,7 @@ end
 --    consume it and parse the right operand at a higher precedence level.
 -- 3. Assignment is right-associative (right-recursive call to parse_expression
 --    instead of parse_binary_expression with +1).
--- @param stream Token stream
+-- @param stream (table) Token stream
 -- @param min_precedence (number) Minimum precedence to continue parsing
 function parse_binary_expression(stream, min_precedence)
   local left = parse_unary_expression(stream)
@@ -1626,7 +1626,7 @@ end
 -- Loops to handle chaining: obj.method()[0].field
 -- This is shared between parse_identifier_or_call and parse_call_expression
 -- to avoid duplicating the chaining logic.
--- @param stream Token stream
+-- @param stream (table) Token stream
 -- @param expr (table) The expression to apply postfix ops to
 -- @return (table) The resulting expression after all postfix ops
 function parse_postfix(stream, expr)
@@ -1691,7 +1691,7 @@ end
 --- Parse call expression after callee has been identified.
 -- Called when the caller has already determined that ( follows an expression.
 -- Delegates to parse_postfix for further chaining after the call.
--- @param stream Token stream
+-- @param stream (table) Token stream
 -- @param callee (table) The expression being called
 function parse_call_expression(stream, callee)
   stream.consume(TOKEN.LPAREN)
