@@ -39,7 +39,7 @@ let x = 1; x;
 | `type` | `"NumberLiteral"` | |
 | `value` | `number` | Integer or float |
 
-**Source:** `42`, `3.14`, `0`
+**Source:** `42`, `3.14`, `0`, `0xFF`, `0X1A`
 
 ### StringLiteral
 
