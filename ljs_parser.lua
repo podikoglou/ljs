@@ -45,6 +45,7 @@ local TOKEN = {
   CASE = "case",
   DEFAULT = "default",
   BREAK = "break",
+  CONTINUE = "continue",
   THROW = "throw",
   TRY = "try",
   CATCH = "catch",
@@ -124,6 +125,7 @@ local KEYWORDS = {
   ["case"] = TOKEN.CASE,
   ["default"] = TOKEN.DEFAULT,
   ["break"] = TOKEN.BREAK,
+  ["continue"] = TOKEN.CONTINUE,
   ["throw"] = TOKEN.THROW,
   ["try"] = TOKEN.TRY,
   ["catch"] = TOKEN.CATCH,
@@ -873,6 +875,11 @@ local function break_statement()
   return { type = "BreakStatement" }
 end
 
+--- @return table {type="ContinueStatement"}
+local function continue_statement()
+  return { type = "ContinueStatement" }
+end
+
 -- ============================================================================
 -- PARSER
 -- ============================================================================
@@ -890,6 +897,7 @@ end
 
 local parse_switch_statement
 local parse_break_statement
+local parse_continue_statement
 local parse_statement
 local parse_block_statement
 local parse_variable_declaration
@@ -1028,6 +1036,8 @@ function parse_statement(stream)
     return parse_switch_statement(stream)
   elseif stream.is(TOKEN.BREAK) then
     return parse_break_statement(stream)
+  elseif stream.is(TOKEN.CONTINUE) then
+    return parse_continue_statement(stream)
   elseif stream.is(TOKEN.LBRACE) then
     return parse_block_statement(stream)
   else
@@ -1394,6 +1404,15 @@ function parse_break_statement(stream)
     stream.advance()
   end
   return break_statement()
+end
+
+--- Parse continue: continue ;
+function parse_continue_statement(stream)
+  stream.consume(TOKEN.CONTINUE)
+  if stream.is(TOKEN.SEMICOLON) then
+    stream.advance()
+  end
+  return continue_statement()
 end
 
 --- Parse a comma-separated list of identifier parameters.
