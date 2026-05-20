@@ -18,6 +18,14 @@ test("escape_string: control chars", function()
   assert_eq(cg.escape_string(string.char(7)), "\\007")
 end)
 
+test("escape_string: carriage return", function()
+  assert_eq(cg.escape_string("a\rb"), "a\\rb")
+end)
+
+test("escape_string: mixed newlines", function()
+  assert_eq(cg.escape_string("a\r\nb"), "a\\r\\nb")
+end)
+
 test("escape_string: empty", function()
   assert_eq(cg.escape_string(""), "")
 end)
@@ -61,6 +69,38 @@ end)
 
 test("ident", function()
   assert_eq(cg.ident("foo"), "foo")
+end)
+
+test("join: empty list", function()
+  assert_eq(cg.join({}), "")
+end)
+
+test("join: single element", function()
+  assert_eq(cg.join({"x"}), "x")
+end)
+
+test("join: multiple elements", function()
+  assert_eq(cg.join({"a", "b", "c"}), "a, b, c")
+end)
+
+test("paren", function()
+  assert_eq(cg.paren("x + 1"), "(x + 1)")
+end)
+
+test("bracket_key: string expression", function()
+  assert_eq(cg.bracket_key('"key"'), '["key"]')
+end)
+
+test("bracket_key: numeric expression", function()
+  assert_eq(cg.bracket_key("42"), "[42]")
+end)
+
+test("do_block: no indent", function()
+  assert_eq(cg.do_block("  x = 1\n", 0), "do\n  x = 1\nend\n")
+end)
+
+test("do_block: with indent", function()
+  assert_eq(cg.do_block("    x = 1\n", 1), "  do\n    x = 1\n  end\n")
 end)
 
 test("binop: arithmetic and comparison", function()

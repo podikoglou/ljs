@@ -119,4 +119,63 @@ test("arrows produces correct output", function()
   assert(output:find("add5%(10%):%s*15"), "expected add5(10): 15")
 end)
 
+-- ============================================================================
+-- INVARIANT: transpile_source produces loadable Lua for all valid JS
+-- Contract: the transpiler's output must always be valid Lua source code.
+-- If load() fails on the output, every downstream consumer breaks silently.
+-- This tests a representative sample of JS constructs end-to-end.
+
+test("invariant: transpile output is always loadable Lua", function()
+  local sources = {
+    "let x = 1;",
+    "let x = 1; let y = 2; let z = x + y;",
+    "function f(n) { return n * 2; }",
+    "if (x) { f(); } else { g(); }",
+    "while (x > 0) { x = x - 1; }",
+    "for (let i = 0; i < 10; i = i + 1) { x = x + i; }",
+    "let arr = [1, 2, 3];",
+    "let obj = {a: 1, b: 2};",
+    "let x = a ? 1 : 0;",
+    "let x = a && b || c;",
+    "try { x(); } catch (e) { y(e); }",
+    "switch (x) { case 1: break; default: z(); }",
+    "let f = (a, b) => { return a + b; };",
+    "let x = 5 & 3;",
+    "let x = 5 | 3;",
+    "let x = 5 ^ 3;",
+    "let x = 1 << 4;",
+    "let x = 16 >> 2;",
+    "let x = ~5;",
+    "delete obj.x;",
+    "do { x = x - 1; } while (x > 0);",
+    "for (let k in obj) { x = k; }",
+    "for (let v of arr) { x = v; }",
+    "throw 'error';",
+  }
+  for _, src in ipairs(sources) do
+    local code = transpile_ok(src)
+    local fn, err = load(code)
+    if not fn then
+      error("load() failed for: " .. src .. "\n  output: " .. code .. "\n  error: " .. tostring(err))
+    end
+  end
+end)
+
+-- ============================================================================
+-- INVARIANT: transpile_source returns nil, err for invalid JS
+-- Contract: same error convention as the parser.
+
+test("invariant: transpile_source returns nil, err for invalid JS", function()
+  local cases = {
+    "this.x",
+    "async function f() {}",
+    "1 == 2",
+  }
+  for _, src in ipairs(cases) do
+    local code, err = transpile.transpile_source(src)
+    assert(code == nil, "expected nil for: " .. src)
+    assert(err ~= nil, "expected error message for: " .. src)
+  end
+end)
+
 T.summary()

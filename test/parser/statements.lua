@@ -1,6 +1,6 @@
 local T = require("ljs_test")
 local P = require("test.helpers.parser")
-local test = T.test
+local test, assert_table_eq = T.test, T.assert_table_eq
 local assert_parse_ok = P.assert_parse_ok
 
 -- ============================================================================
@@ -83,6 +83,35 @@ test("parse while", function()
         {type = "ExpressionStatement", expression = {type = "Identifier", name = "y"}}
       }}
     }
+  })
+end)
+
+-- ============================================================================
+-- INVARIANT: parse("") and parse(whitespace) produce empty Program
+-- Contract: the parser must handle empty/whitespace-only input gracefully.
+-- If this breaks, any tool that passes user input directly to parse() will crash.
+
+test("parse empty source produces empty Program", function()
+  local ast = P.ljs.parse("")
+  assert_table_eq(ast, {type = "Program", body = {}})
+end)
+
+test("parse whitespace-only source produces empty Program", function()
+  local ast = P.ljs.parse("   \n  \t  \n  ")
+  assert_table_eq(ast, {type = "Program", body = {}})
+end)
+
+-- ============================================================================
+-- INVARIANT: var always normalizes to kind="let"
+-- Already tested once above, but this confirms it holds for multi-declarator
+-- and uninitialized forms where a different code path might be taken.
+
+test("parse var multi-declarator normalizes to let", function()
+  assert_parse_ok("var a, b = 2;", {
+    {type = "VariableDeclaration", kind = "let", declarations = {
+      {type = "VariableDeclarator", name = {type = "Identifier", name = "a"}},
+      {type = "VariableDeclarator", name = {type = "Identifier", name = "b"}, init = {type = "NumberLiteral", value = 2}},
+    }}
   })
 end)
 
