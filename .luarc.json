@@ -2,8 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
   "runtime.version": "Lua 5.1",
   "diagnostics.neededFileStatus": {
-    "need-check-nil": "None",
-    "param-type-mismatch": "None"
+    "need-check-nil": "None"
   },
   "diagnostics.severity": {
     "undefined-field": "Hint"

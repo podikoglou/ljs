@@ -159,9 +159,7 @@ test("error: let in = 5 (in is keyword)", function()
 end)
 
 test("error: for-in missing body", function()
-  local ast = ljs.parse("for (let x in obj) ")
-  assert_eq(ast.body[1].type, "ForInStatement")
-  assert_eq(ast.body[1].body, nil)
+  assert_parse_fail("for (let x in obj) ", "Expected statement")
 end)
 
 -- ============================================================================
@@ -333,9 +331,7 @@ end)
 -- ============================================================================
 
 test("error: for missing body", function()
-  local ast = ljs.parse("for (;;) ")
-  assert_eq(ast.body[1].type, "ForStatement")
-  assert_eq(ast.body[1].body, nil)
+  assert_parse_fail("for (;;) ", "Expected statement")
 end)
 
 test("error: for missing closing paren", function()

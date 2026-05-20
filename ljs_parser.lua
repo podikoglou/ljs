@@ -1247,6 +1247,9 @@ function parse_if_statement(stream)
   stream.consume(TOKEN.RPAREN)
 
   local consequent = parse_statement(stream)
+  if not consequent then
+    return nil, "Expected statement after if condition"
+  end
 
   local alternate = nil
   if stream.is(TOKEN.ELSE) then
@@ -1267,6 +1270,9 @@ function parse_while_statement(stream)
   end
   stream.consume(TOKEN.RPAREN)
   local body = parse_statement(stream)
+  if not body then
+    return nil, "Expected statement after while condition"
+  end
   return while_statement(test, body)
 end
 
@@ -1330,6 +1336,9 @@ function parse_for_statement(stream)
     end
     stream.consume(TOKEN.RPAREN)
     local body = parse_statement(stream)
+    if not body then
+      return nil, "Expected statement after for...of"
+    end
     return for_of_statement(expr, right, body)
   end
 
@@ -1341,6 +1350,9 @@ function parse_for_statement(stream)
     end
     stream.consume(TOKEN.RPAREN)
     local body = parse_statement(stream)
+    if not body then
+      return nil, "Expected statement after for...in"
+    end
     return for_in_statement(expr, right, body)
   end
 
@@ -1382,6 +1394,9 @@ function parse_c_style_for_from_test(stream, init)
   stream.consume(TOKEN.RPAREN)
 
   local body = parse_statement(stream)
+  if not body then
+    return nil, "Expected statement in for loop body"
+  end
   return for_statement(init, test, update, body)
 end
 
@@ -1398,6 +1413,9 @@ function parse_for_of_from_left(stream, left)
   end
   stream.consume(TOKEN.RPAREN)
   local body = parse_statement(stream)
+  if not body then
+    return nil, "Expected statement in for...of loop"
+  end
   return for_of_statement(left, right, body)
 end
 
@@ -1421,6 +1439,9 @@ function parse_for_in_from_left(stream, left)
   end
   stream.consume(TOKEN.RPAREN)
   local body = parse_statement(stream)
+  if not body then
+    return nil, "Expected statement in for...in loop"
+  end
   return for_in_statement(left, right, body)
 end
 
@@ -1442,6 +1463,9 @@ end
 function parse_try_statement(stream)
   stream.consume(TOKEN.TRY)
   local block = parse_block_statement(stream)
+  if not block then
+    return nil, "Expected block after try"
+  end
 
   local handler = nil
   if stream.is(TOKEN.CATCH) then
@@ -1450,6 +1474,9 @@ function parse_try_statement(stream)
     local param = identifier(stream.consume(TOKEN.IDENTIFIER).value)
     stream.consume(TOKEN.RPAREN)
     local catch_body = parse_block_statement(stream)
+    if not catch_body then
+      return nil, "Expected block after catch"
+    end
     handler = catch_clause(param, catch_body)
   end
 
@@ -1478,6 +1505,9 @@ function parse_function_declaration(stream)
   stream.consume(TOKEN.RPAREN)
 
   local body = parse_block_statement(stream)
+  if not body then
+    return nil, "Expected block after function parameters"
+  end
   return function_declaration(name, params, body)
 end
 
@@ -1868,6 +1898,9 @@ function parse_primary_expression(stream)
       stream.consume(TOKEN.RPAREN)
       stream.consume(TOKEN.ARROW)
       local body = parse_arrow_function_body(stream)
+      if not body then
+        return nil, "Expected arrow function body"
+      end
       return arrow_function_expression(params, body)
     else
       -- Regular parenthesized expression: (expr)
@@ -1969,6 +2002,9 @@ function parse_identifier_or_call(stream)
   if stream.is(TOKEN.ARROW) then
     stream.advance()
     local body = parse_arrow_function_body(stream)
+    if not body then
+      return nil, "Expected arrow function body"
+    end
     return arrow_function_expression({ expr }, body)
   end
 
@@ -2088,6 +2124,9 @@ function parse_function_expression(stream)
   stream.consume(TOKEN.RPAREN)
 
   local body = parse_block_statement(stream)
+  if not body then
+    return nil, "Expected block after function expression parameters"
+  end
 
   if name then
     return { type = "FunctionExpression", name = name, params = params, body = body }
