@@ -47,6 +47,7 @@ local function assert_tokenize_fail(source, substr, msg)
 end
 
 return {
+  ljs = ljs,
   test = test,
   assert_eq = assert_eq,
   assert_table_eq = assert_table_eq,

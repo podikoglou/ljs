@@ -1,7 +1,10 @@
 local T = require("ljs_test")
 local P = require("ljs_test_parser")
-local test = T.test
+local test, assert_eq, assert_table_eq = T.test, T.assert_eq, T.assert_table_eq
 local assert_parse_ok, assert_parse_fail = P.assert_parse_ok, P.assert_parse_fail
+local tok, assert_tok, assert_tokenize_fail = P.tok, P.assert_tok, P.assert_tokenize_fail
+local ljs = P.ljs
+local TK = ljs.TOKEN
 
 -- SWITCH/CASE/BREAK TESTS
 -- ============================================================================
@@ -493,14 +496,18 @@ end)
 
 -- parse_tokens isolation
 
+local function tok_constructor(type, value, line, col)
+  return { type = type, value = value, line = line or 1, col = col or 1 }
+end
+
 test("parse_tokens: minimal switch", function()
   local tokens = {
-    tok(TK.SWITCH, "switch"), tok(TK.LPAREN), tok(TK.IDENTIFIER, "x"), tok(TK.RPAREN),
-    tok(TK.LBRACE),
-    tok(TK.CASE, "case"), tok(TK.NUMBER, 1), tok(TK.COLON),
-    tok(TK.BREAK, "break"), tok(TK.SEMICOLON),
-    tok(TK.RBRACE),
-    tok(TK.EOF),
+    tok_constructor(TK.SWITCH, "switch"), tok_constructor(TK.LPAREN), tok_constructor(TK.IDENTIFIER, "x"), tok_constructor(TK.RPAREN),
+    tok_constructor(TK.LBRACE),
+    tok_constructor(TK.CASE, "case"), tok_constructor(TK.NUMBER, 1), tok_constructor(TK.COLON),
+    tok_constructor(TK.BREAK, "break"), tok_constructor(TK.SEMICOLON),
+    tok_constructor(TK.RBRACE),
+    tok_constructor(TK.EOF),
   }
   local ast = ljs.parse_tokens(tokens)
   assert_table_eq(ast, {type = "Program", body = {
@@ -518,7 +525,7 @@ end)
 
 test("parse_tokens: break statement", function()
   local tokens = {
-    tok(TK.BREAK, "break"), tok(TK.SEMICOLON), tok(TK.EOF),
+    tok_constructor(TK.BREAK, "break"), tok_constructor(TK.SEMICOLON), tok_constructor(TK.EOF),
   }
   local ast = ljs.parse_tokens(tokens)
   assert_table_eq(ast, {type = "Program", body = {
@@ -528,7 +535,7 @@ end)
 
 test("parse_tokens: continue statement", function()
   local tokens = {
-    tok(TK.CONTINUE, "continue"), tok(TK.SEMICOLON), tok(TK.EOF),
+    tok_constructor(TK.CONTINUE, "continue"), tok_constructor(TK.SEMICOLON), tok_constructor(TK.EOF),
   }
   local ast = ljs.parse_tokens(tokens)
   assert_table_eq(ast, {type = "Program", body = {

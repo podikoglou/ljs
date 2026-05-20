@@ -1,7 +1,9 @@
 local T = require("ljs_test")
 local P = require("ljs_test_parser")
-local test = T.test
+local test, assert_eq, assert_table_eq = T.test, T.assert_eq, T.assert_table_eq
 local assert_parse_ok, assert_parse_fail = P.assert_parse_ok, P.assert_parse_fail
+local tok, assert_tok, assert_tokenize_fail = P.tok, P.assert_tok, P.assert_tokenize_fail
+local ljs = P.ljs
 
 -- DELETE EXPRESSION TESTS
 -- ============================================================================
