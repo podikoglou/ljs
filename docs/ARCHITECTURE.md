@@ -34,3 +34,7 @@ Variables (`let`/`const`; `var` normalized to `let`), functions, arrow functions
 ### Rejected (parse error)
 
 `this`, `async`/`await`, `instanceof`, `==`, regex literals, Promises.
+
+### Known gaps
+
+- **`typeof null`**: Returns `"undefined"` instead of `"object"`. The transpiler maps JS `null` → Lua `nil`, which `_ljs_typeof` maps to `"undefined"`. All other `typeof` results match JS semantics.
