@@ -7,6 +7,13 @@ local cg = {}
 --- Escape a string for use inside double-quoted Lua string literals.
 -- @param s (string) Raw string value
 -- @return (string) Escaped string (without surrounding quotes)
+--- Join a list of name strings with ", ".
+-- @param names (table) List of name strings
+-- @return (string) Comma-separated names
+function cg.join(names)
+  return table.concat(names, ", ")
+end
+
 function cg.escape_string(s)
   local out = {}
   for i = 1, #s do

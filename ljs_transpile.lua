@@ -445,7 +445,7 @@ gen.VariableDeclaration = function(node, indent, scopes)
       for _, p in ipairs(init.params) do scope_declare(scopes, p.name) end
       local body = emit(init.body, indent, scopes)
       scope_pop(scopes)
-      out[#out + 1] = cg.local_fn(decl.name.name, table.concat(params, ", "), body, indent)
+      out[#out + 1] = cg.local_fn(decl.name.name, cg.join(params), body, indent)
     else
       out[#out + 1] = cg.local_decl(decl.name.name, emit(init, indent, scopes), indent)
     end
@@ -472,7 +472,7 @@ gen.FunctionDeclaration = function(node, indent, scopes)
   for _, p in ipairs(node.params) do scope_declare(scopes, p.name) end
   local body = emit(node.body, indent, scopes)
   scope_pop(scopes)
-  return cg.local_fn(node.name, table.concat(params, ", "), body, indent)
+  return cg.local_fn(node.name, cg.join(params), body, indent)
 end
 
 gen.FunctionExpression = function(node, indent, scopes)
@@ -483,7 +483,7 @@ gen.FunctionExpression = function(node, indent, scopes)
   for _, p in ipairs(node.params) do scope_declare(scopes, p.name) end
   local body = emit(node.body, indent, scopes)
   scope_pop(scopes)
-  return cg.fn_expr(table.concat(params, ", "), body, indent)
+  return cg.fn_expr(cg.join(params), body, indent)
 end
 
 gen.ArrowFunctionExpression = gen.FunctionExpression
@@ -536,7 +536,7 @@ gen.ForOfStatement = function(node, indent, scopes)
   end
   scope_pop(scopes)
   local iter = cg.call("ipairs", {emit(node.right, indent, scopes)})
-  return cg.for_in_stmt("_, " .. var_name, iter, body, indent)
+  return cg.for_in_stmt(cg.join({"_", var_name}), iter, body, indent)
 end
 
 gen.ForInStatement = function(node, indent, scopes)
@@ -554,7 +554,7 @@ gen.ForInStatement = function(node, indent, scopes)
   end
   scope_pop(scopes)
   local iter = cg.call("pairs", {emit(node.right, indent, scopes)})
-  return cg.for_in_stmt(var_name .. ", _", iter, body, indent)
+  return cg.for_in_stmt(cg.join({var_name, "_"}), iter, body, indent)
 end
 
 gen.ForStatement = function(node, indent, scopes)
@@ -650,12 +650,12 @@ gen.TryStatement = function(node, indent, scopes)
   end
 
   if node.finalizer and node.handler then
-    local pcall_line = cg.local_decl("ok, " .. param, pcall_expr, indent)
+    local pcall_line = cg.local_decl(cg.join({"ok", param}), pcall_expr, indent)
     local catch_block = cg.if_stmt("not ok", catch_body, nil, nil, indent)
     return pcall_line .. catch_block .. finalizer_body
   end
 
-  local pcall_line = cg.local_decl("ok, " .. param, pcall_expr, indent)
+  local pcall_line = cg.local_decl(cg.join({"ok", param}), pcall_expr, indent)
   return pcall_line .. cg.if_stmt("not ok", catch_body, nil, nil, indent)
 end
 
