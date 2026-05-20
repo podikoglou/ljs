@@ -2079,7 +2079,11 @@ function parse_array_literal(stream)
 end
 
 --- Parse object literal: { key: value, key: value, ... }
--- Keys can be identifiers or string literals.
+-- Property forms:
+--   key: value       — regular key-value pair
+--   key(params) {}   — method shorthand (identifier keys only)
+--   key              — shorthand property, equivalent to key: key (identifier keys only)
+-- String keys only support the key: value form.
 -- Computed keys (e.g. {[expr]: value}) are not supported.
 -- Empty objects {} are valid.
 function parse_object_literal(stream)
@@ -2088,9 +2092,11 @@ function parse_object_literal(stream)
   if not stream.is(TOKEN.RBRACE) then
     while true do
       local key
+      local key_is_identifier = false
       if stream.is(TOKEN.IDENTIFIER) then
         local key_token = stream.advance()
         key = identifier(key_token.value, key_token)
+        key_is_identifier = true
       elseif stream.is(TOKEN.STRING) then
         local key_token = stream.advance()
         key = string_literal(key_token.value, key_token)
@@ -2098,13 +2104,29 @@ function parse_object_literal(stream)
         return nil, "Expected property key"
       end
 
-      stream.consume(TOKEN.COLON)
-      local value = parse_expression(stream)
-      if not value then
-        return nil
+      if stream.is(TOKEN.COLON) then
+        stream.advance()
+        local value = parse_expression(stream)
+        if not value then
+          return nil
+        end
+        table.insert(properties, property(key, value, false))
+      elseif key_is_identifier and stream.is(TOKEN.LPAREN) then
+        stream.consume(TOKEN.LPAREN)
+        local params = parse_parameters(stream)
+        stream.consume(TOKEN.RPAREN)
+        local body = parse_block_statement(stream)
+        if not body then
+          return nil, "Expected block after method shorthand parameters"
+        end
+        local fn = { type = "FunctionExpression", name = key.name, params = params, body = body }
+        table.insert(properties, property(key, fn, false))
+      elseif key_is_identifier and (stream.is(TOKEN.COMMA) or stream.is(TOKEN.RBRACE)) then
+        table.insert(properties, property(key, identifier(key.name, key), false))
+      else
+        return nil, "Expected ':', '(', ',', or '}' after property key"
       end
 
-      table.insert(properties, property(key, value, false))
       if not stream.is(TOKEN.COMMA) then
         break
       end
