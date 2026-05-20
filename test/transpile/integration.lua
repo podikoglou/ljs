@@ -147,6 +147,8 @@ test("invariant: transpile output is always loadable Lua", function()
     "let x = 16 >> 2;",
     "let x = ~5;",
     "delete obj.x;",
+    "let t = typeof x;",
+    "typeof x;",
     "do { x = x - 1; } while (x > 0);",
     "for (let k in obj) { x = k; }",
     "for (let v of arr) { x = v; }",
