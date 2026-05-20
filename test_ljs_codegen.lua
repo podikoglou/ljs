@@ -172,6 +172,14 @@ test("while_stmt", function()
   assert_eq(cg.while_stmt("x > 0", "  x = x - 1\n", 0), "while x > 0 do\n  x = x - 1\nend\n")
 end)
 
+test("repeat_until", function()
+  assert_eq(cg.repeat_until("not (x < 10)", "  x = x + 1\n", 0), "repeat\n  x = x + 1\nuntil not (x < 10)\n")
+end)
+
+test("repeat_until indented", function()
+  assert_eq(cg.repeat_until("not done", "    x = x + 1\n", 1), "  repeat\n    x = x + 1\n  until not done\n")
+end)
+
 test("for_in_stmt", function()
   assert_eq(cg.for_in_stmt("k, v", "pairs(t)", "  print(k)\n", 0), "for k, v in pairs(t) do\n  print(k)\nend\n")
 end)
