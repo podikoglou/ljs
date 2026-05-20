@@ -175,15 +175,19 @@ Expression bodies are desugared: `x => x + 1` becomes a `BlockStatement` contain
 | 5.5 | `**` | Right |
 | 5 | `*` `/` `%` | Left |
 | 4 | `+` `-` | Left |
+| 3.5 | `<<` `>>` `>>>` | Left |
 | 3 | `===` `!==` `<` `>` `<=` `>=` | Left |
+| 2.75 | `&` | Left |
+| 2.5 | `^` | Left |
+| 2.25 | `\|` | Left |
 | 2 | `&&` | Left |
 | 1 | `\|\|` | Left |
 | 0.75 | `? :` (ternary) | Right |
-| 0.5 | `=` `+=` `-=` `*=` `/=` `%=` `**=` | Right |
+| 0.5 | `=` `+=` `-=` `*=` `/=` `%=` `**=` `&=` `\|=` `^=` `<<=` `>>=` `>>>=` | Right |
 
 Assignment (`=`) and compound assignment operators are right-associative: `a = b = c` parses as `a = (b = c)`; `x += y += 1` parses as `x += (y += 1)`.  
 `**` (exponentiation) is also right-associative: `2 ** 3 ** 4` parses as `2 ** (3 ** 4)`.  
-All other binary operators are left-associative: `1 + 2 + 3` parses as `(1 + 2) + 3`.
+All other binary operators (including bitwise `&` `^` `|` and shifts `<<` `>>` `>>>`) are left-associative: `1 + 2 + 3` parses as `(1 + 2) + 3`.
 
 ### UnaryExpression
 
