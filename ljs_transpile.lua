@@ -8,6 +8,12 @@ local cg = require("ljs_codegen")
 
 local HELPERS = {}
 
+HELPERS._ljs_to_int32 = [[local function _ljs_to_int32(x)
+  x = math.floor(x) % 0x100000000
+  if x >= 0x80000000 then x = x - 0x100000000 end
+  return x
+end]]
+
 HELPERS._ljs_add = [[local function _ljs_add(a, b)
   if type(a) == "string" or type(b) == "string" then
     return tostring(a) .. tostring(b)
@@ -20,9 +26,61 @@ HELPERS._ljs_log = [[local function _ljs_log(...)
 end]]
 
 HELPERS._ljs_bnot = [[local function _ljs_bnot(x)
-  x = math.floor(x) % 0x100000000
-  if x >= 0x80000000 then x = x - 0x100000000 end
-  return -x - 1
+  return -_ljs_to_int32(x) - 1
+end]]
+
+HELPERS._ljs_band = [[local function _ljs_band(a, b)
+  a = math.floor(a) % 0x100000000
+  b = math.floor(b) % 0x100000000
+  local r, m = 0, 1
+  while a > 0 and b > 0 do
+    if a % 2 == 1 and b % 2 == 1 then r = r + m end
+    a, b, m = math.floor(a / 2), math.floor(b / 2), m * 2
+  end
+  return _ljs_to_int32(r)
+end]]
+
+HELPERS._ljs_bor = [[local function _ljs_bor(a, b)
+  a = math.floor(a) % 0x100000000
+  b = math.floor(b) % 0x100000000
+  local r, m = 0, 1
+  while a > 0 or b > 0 do
+    if a % 2 == 1 or b % 2 == 1 then r = r + m end
+    a, b, m = math.floor(a / 2), math.floor(b / 2), m * 2
+  end
+  return _ljs_to_int32(r)
+end]]
+
+HELPERS._ljs_bxor = [[local function _ljs_bxor(a, b)
+  a = math.floor(a) % 0x100000000
+  b = math.floor(b) % 0x100000000
+  local r, m = 0, 1
+  while a > 0 or b > 0 do
+    if a % 2 ~= b % 2 then r = r + m end
+    a, b, m = math.floor(a / 2), math.floor(b / 2), m * 2
+  end
+  return _ljs_to_int32(r)
+end]]
+
+HELPERS._ljs_shl = [[local function _ljs_shl(a, b)
+  a = _ljs_to_int32(a)
+  b = math.floor(b) % 32
+  if b == 0 then return a end
+  return _ljs_to_int32(a * 2^b)
+end]]
+
+HELPERS._ljs_shr = [[local function _ljs_shr(a, b)
+  a = _ljs_to_int32(a)
+  b = math.floor(b) % 32
+  if b == 0 then return a end
+  return math.floor(a / 2^b)
+end]]
+
+HELPERS._ljs_usr = [[local function _ljs_usr(a, b)
+  a = math.floor(a) % 0x100000000
+  b = math.floor(b) % 32
+  if b == 0 then return a end
+  return math.floor(a / 2^b)
 end]]
 
 -- ============================================================================
@@ -186,8 +244,21 @@ local function analyze_node(node, meta, scopes)
     analyze_node(node.expression, meta, scopes)
 
   elseif t == "BinaryExpression" then
-    if node.operator == "+" or node.operator == "+=" then
+    local op = node.operator
+    if op == "+" or op == "+=" then
       meta.needed_helpers["_ljs_add"] = true
+    elseif op == "&" or op == "&=" then
+      meta.needed_helpers["_ljs_band"] = true
+    elseif op == "|" or op == "|=" then
+      meta.needed_helpers["_ljs_bor"] = true
+    elseif op == "^" or op == "^=" then
+      meta.needed_helpers["_ljs_bxor"] = true
+    elseif op == "<<" or op == "<<=" then
+      meta.needed_helpers["_ljs_shl"] = true
+    elseif op == ">>" or op == ">>=" then
+      meta.needed_helpers["_ljs_shr"] = true
+    elseif op == ">>>" or op == ">>>=" then
+      meta.needed_helpers["_ljs_usr"] = true
     end
     analyze_node(node.left, meta, scopes)
     analyze_node(node.right, meta, scopes)
@@ -587,6 +658,30 @@ gen.BinaryExpression = function(node, indent, scopes)
   elseif op == "-=" or op == "*=" or op == "/=" or op == "%=" then
     local base_op = op:sub(1, 1)
     return cg.binop("=", left, cg.binop(base_op, left, right))
+  elseif op == "&" then
+    return cg.call("_ljs_band", {left, right})
+  elseif op == "|" then
+    return cg.call("_ljs_bor", {left, right})
+  elseif op == "^" then
+    return cg.call("_ljs_bxor", {left, right})
+  elseif op == "<<" then
+    return cg.call("_ljs_shl", {left, right})
+  elseif op == ">>" then
+    return cg.call("_ljs_shr", {left, right})
+  elseif op == ">>>" then
+    return cg.call("_ljs_usr", {left, right})
+  elseif op == "&=" then
+    return cg.binop("=", left, cg.call("_ljs_band", {left, right}))
+  elseif op == "|=" then
+    return cg.binop("=", left, cg.call("_ljs_bor", {left, right}))
+  elseif op == "^=" then
+    return cg.binop("=", left, cg.call("_ljs_bxor", {left, right}))
+  elseif op == "<<=" then
+    return cg.binop("=", left, cg.call("_ljs_shl", {left, right}))
+  elseif op == ">>=" then
+    return cg.binop("=", left, cg.call("_ljs_shr", {left, right}))
+  elseif op == ">>>=" then
+    return cg.binop("=", left, cg.call("_ljs_usr", {left, right}))
   else
     return cg.binop(op, left, right)
   end
@@ -685,13 +780,28 @@ end
 -- === Top-level generate ===
 
 local function generate(ast, meta)
+  if meta.needed_helpers["_ljs_bnot"]
+    or meta.needed_helpers["_ljs_band"] or meta.needed_helpers["_ljs_bor"]
+    or meta.needed_helpers["_ljs_bxor"] or meta.needed_helpers["_ljs_shl"]
+    or meta.needed_helpers["_ljs_shr"] or meta.needed_helpers["_ljs_usr"] then
+    meta.needed_helpers["_ljs_to_int32"] = true
+  end
   local scopes = {}
   local code = emit(ast, 0, scopes)
   local helper_parts = {}
-  for name, _ in pairs(meta.needed_helpers) do
-    helper_parts[#helper_parts + 1] = HELPERS[name]
+  if meta.needed_helpers["_ljs_to_int32"] then
+    helper_parts[#helper_parts + 1] = HELPERS["_ljs_to_int32"]
   end
-  table.sort(helper_parts)
+  local rest = {}
+  for name, _ in pairs(meta.needed_helpers) do
+    if name ~= "_ljs_to_int32" then
+      rest[#rest + 1] = HELPERS[name]
+    end
+  end
+  table.sort(rest)
+  for _, h in ipairs(rest) do
+    helper_parts[#helper_parts + 1] = h
+  end
   local prefix = table.concat(helper_parts, "\n\n")
   if #prefix > 0 then prefix = prefix .. "\n\n" end
   return prefix .. code
