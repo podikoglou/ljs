@@ -276,6 +276,9 @@ local function analyze_node(node, meta, scopes)
     end
     analyze_node(node.argument, meta, scopes)
 
+  elseif t == "DeleteExpression" then
+    analyze_node(node.argument, meta, scopes)
+
   elseif t == "ConditionalExpression" then
     analyze_node(node.test, meta, scopes)
     analyze_node(node.consequent, meta, scopes)
@@ -727,6 +730,30 @@ gen.UnaryExpression = function(node, indent, scopes)
   return cg.unop("-", expr)
 end
 
+local function delete_key_and_obj(arg, indent, scopes)
+  if arg.type ~= "MemberExpression" then return nil, nil end
+  local obj = emit(arg.object, indent, scopes)
+  local key
+  if arg.computed then
+    if arg.property.type == "StringLiteral" then
+      key = emit(arg.property, indent, scopes)
+    else
+      key = cg.binop("+", cg.paren(emit(arg.property, indent, scopes)), "1")
+    end
+  else
+    key = cg.string(arg.property.name)
+  end
+  return obj, key
+end
+
+gen.DeleteExpression = function(node, indent, scopes)
+  local obj, key = delete_key_and_obj(node.argument, indent, scopes)
+  if obj then
+    return cg.paren(cg.binop("and", cg.call("rawset", {obj, key, cg.nil_val()}), "true"))
+  end
+  return "true"
+end
+
 gen.UpdateExpression = function(node, indent, scopes)
   local arg = emit(node.argument, indent, scopes)
   local val
@@ -803,6 +830,14 @@ end
 
 gen_stmt.ConditionalExpression = function(node, indent, scopes)
   return cg.expr_stmt(emit(node, indent, scopes), indent)
+end
+
+gen_stmt.DeleteExpression = function(node, indent, scopes)
+  local obj, key = delete_key_and_obj(node.argument, indent, scopes)
+  if obj then
+    return cg.expr_stmt(cg.call("rawset", {obj, key, cg.nil_val()}), indent)
+  end
+  return ""
 end
 
 -- === Top-level generate ===
