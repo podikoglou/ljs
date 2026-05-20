@@ -49,6 +49,7 @@ local TOKEN = {
   THROW = "throw",
   TRY = "try",
   CATCH = "catch",
+  FINALLY = "finally",
   RETURN = "return",
 
   -- Punctuation
@@ -145,6 +146,7 @@ local KEYWORDS = {
   ["throw"] = TOKEN.THROW,
   ["try"] = TOKEN.TRY,
   ["catch"] = TOKEN.CATCH,
+  ["finally"] = TOKEN.FINALLY,
   ["return"] = TOKEN.RETURN,
   ["true"] = TOKEN.BOOLEAN,
   ["false"] = TOKEN.BOOLEAN,
@@ -877,9 +879,10 @@ end
 
 --- @param block (table) BlockStatement (the try body)
 --- @param handler (table|nil) CatchClause node, or nil
---- @return table {type="TryStatement", block, handler}
-local function try_statement(block, handler)
-  return { type = "TryStatement", block = block, handler = handler }
+--- @param finalizer (table|nil) BlockStatement for finally body, or nil
+--- @return table {type="TryStatement", block, handler, finalizer}
+local function try_statement(block, handler, finalizer)
+  return { type = "TryStatement", block = block, handler = handler, finalizer = finalizer }
 end
 
 --- @param param (table) Identifier node for the caught error
@@ -1358,8 +1361,8 @@ function parse_throw_statement(stream)
   return throw_statement(argument)
 end
 
---- Parse try/catch: try { ... } catch (param) { ... }
--- The catch clause is optional (though rare to omit in practice).
+--- Parse try/catch/finally: try { ... } catch (param) { ... } finally { ... }
+-- At least one of catch or finally must be present.
 function parse_try_statement(stream)
   stream.consume(TOKEN.TRY)
   local block = parse_block_statement(stream)
@@ -1374,7 +1377,17 @@ function parse_try_statement(stream)
     handler = catch_clause(param, catch_body)
   end
 
-  return try_statement(block, handler)
+  local finalizer = nil
+  if stream.is(TOKEN.FINALLY) then
+    stream.advance()
+    finalizer = parse_block_statement(stream)
+  end
+
+  if not handler and not finalizer then
+    error("Expected catch or finally after try block")
+  end
+
+  return try_statement(block, handler, finalizer)
 end
 
 --- Parse function declaration: function name(params) { body }
