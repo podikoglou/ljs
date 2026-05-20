@@ -119,7 +119,7 @@ test("tokenize identifier with numbers", function()
 end)
 
 test("tokenize keywords", function()
-  local src = "let const function if else while do for of throw try catch return"
+  local src = "let const function if else while do for of throw try catch finally return"
   assert_tok(src, 1, "let", "let")
   assert_tok(src, 2, "const", "const")
   assert_tok(src, 3, "function", "function")
@@ -132,7 +132,8 @@ test("tokenize keywords", function()
   assert_tok(src, 10, "throw", "throw")
   assert_tok(src, 11, "try", "try")
   assert_tok(src, 12, "catch", "catch")
-  assert_tok(src, 13, "return", "return")
+  assert_tok(src, 13, "finally", "finally")
+  assert_tok(src, 14, "return", "return")
 end)
 
 test("tokenize operators", function()
@@ -1141,9 +1142,312 @@ test("parse try/catch", function()
         body = {type = "BlockStatement", body = {
           {type = "ExpressionStatement", expression = {type = "Identifier", name = "y"}}
         }}
-      }
+      },
+      finalizer = nil
     }
   })
+end)
+
+test("parse try/catch/finally", function()
+  assert_parse_ok("try { x; } catch (e) { y; } finally { z; }", {
+    {type = "TryStatement",
+      block = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "x"}}
+      }},
+      handler = {type = "CatchClause", param = {type = "Identifier", name = "e"},
+        body = {type = "BlockStatement", body = {
+          {type = "ExpressionStatement", expression = {type = "Identifier", name = "y"}}
+        }}
+      },
+      finalizer = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "z"}}
+      }}
+    }
+  })
+end)
+
+test("parse try/finally (no catch)", function()
+  assert_parse_ok("try { x; } finally { cleanup; }", {
+    {type = "TryStatement",
+      block = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "x"}}
+      }},
+      handler = nil,
+      finalizer = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "cleanup"}}
+      }}
+    }
+  })
+end)
+
+test("parse try/finally with empty finally block", function()
+  assert_parse_ok("try { x; } catch (e) { y; } finally { }", {
+    {type = "TryStatement",
+      block = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "x"}}
+      }},
+      handler = {type = "CatchClause", param = {type = "Identifier", name = "e"},
+        body = {type = "BlockStatement", body = {
+          {type = "ExpressionStatement", expression = {type = "Identifier", name = "y"}}
+        }}
+      },
+      finalizer = {type = "BlockStatement", body = {}}
+    }
+  })
+end)
+
+test("parse try/finally with empty try block", function()
+  assert_parse_ok("try { } finally { x; }", {
+    {type = "TryStatement",
+      block = {type = "BlockStatement", body = {}},
+      handler = nil,
+      finalizer = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "x"}}
+      }}
+    }
+  })
+end)
+
+test("parse try/catch/finally with multiple statements in finally", function()
+  assert_parse_ok("try { x; } catch (e) { y; } finally { a; b; c; }", {
+    {type = "TryStatement",
+      block = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "x"}}
+      }},
+      handler = {type = "CatchClause", param = {type = "Identifier", name = "e"},
+        body = {type = "BlockStatement", body = {
+          {type = "ExpressionStatement", expression = {type = "Identifier", name = "y"}}
+        }}
+      },
+      finalizer = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "a"}},
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "b"}},
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "c"}}
+      }}
+    }
+  })
+end)
+
+test("parse try/catch/finally inside function", function()
+  assert_parse_ok("function f() { try { x; } catch (e) { y; } finally { z; } }", {
+    {type = "FunctionDeclaration", name = "f",
+      params = {},
+      body = {type = "BlockStatement", body = {
+        {type = "TryStatement",
+          block = {type = "BlockStatement", body = {
+            {type = "ExpressionStatement", expression = {type = "Identifier", name = "x"}}
+          }},
+          handler = {type = "CatchClause", param = {type = "Identifier", name = "e"},
+            body = {type = "BlockStatement", body = {
+              {type = "ExpressionStatement", expression = {type = "Identifier", name = "y"}}
+            }}
+          },
+          finalizer = {type = "BlockStatement", body = {
+            {type = "ExpressionStatement", expression = {type = "Identifier", name = "z"}}
+          }}
+        }
+      }}
+    }
+  })
+end)
+
+test("parse nested try/catch/finally", function()
+  assert_parse_ok("try { try { a; } catch (e1) { b; } finally { c; } } catch (e2) { d; } finally { e; }", {
+    {type = "TryStatement",
+      block = {type = "BlockStatement", body = {
+        {type = "TryStatement",
+          block = {type = "BlockStatement", body = {
+            {type = "ExpressionStatement", expression = {type = "Identifier", name = "a"}}
+          }},
+          handler = {type = "CatchClause", param = {type = "Identifier", name = "e1"},
+            body = {type = "BlockStatement", body = {
+              {type = "ExpressionStatement", expression = {type = "Identifier", name = "b"}}
+            }}
+          },
+          finalizer = {type = "BlockStatement", body = {
+            {type = "ExpressionStatement", expression = {type = "Identifier", name = "c"}}
+          }}
+        }
+      }},
+      handler = {type = "CatchClause", param = {type = "Identifier", name = "e2"},
+        body = {type = "BlockStatement", body = {
+          {type = "ExpressionStatement", expression = {type = "Identifier", name = "d"}}
+        }}
+      },
+      finalizer = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "e"}}
+      }}
+    }
+  })
+end)
+
+test("parse try/catch/finally with throw in finally", function()
+  assert_parse_ok("try { x; } catch (e) { y; } finally { throw z; }", {
+    {type = "TryStatement",
+      block = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "x"}}
+      }},
+      handler = {type = "CatchClause", param = {type = "Identifier", name = "e"},
+        body = {type = "BlockStatement", body = {
+          {type = "ExpressionStatement", expression = {type = "Identifier", name = "y"}}
+        }}
+      },
+      finalizer = {type = "BlockStatement", body = {
+        {type = "ThrowStatement", argument = {type = "Identifier", name = "z"}}
+      }}
+    }
+  })
+end)
+
+test("parse try/finally with return in finally", function()
+  assert_parse_ok("try { x; } finally { return 1; }", {
+    {type = "TryStatement",
+      block = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "x"}}
+      }},
+      handler = nil,
+      finalizer = {type = "BlockStatement", body = {
+        {type = "ReturnStatement", argument = {type = "NumberLiteral", value = 1}}
+      }}
+    }
+  })
+end)
+
+test("parse try/catch/finally in while loop", function()
+  assert_parse_ok("while (cond) { try { x; } finally { y; } }", {
+    {type = "WhileStatement",
+      test = {type = "Identifier", name = "cond"},
+      body = {type = "BlockStatement", body = {
+        {type = "TryStatement",
+          block = {type = "BlockStatement", body = {
+            {type = "ExpressionStatement", expression = {type = "Identifier", name = "x"}}
+          }},
+          handler = nil,
+          finalizer = {type = "BlockStatement", body = {
+            {type = "ExpressionStatement", expression = {type = "Identifier", name = "y"}}
+          }}
+        }
+      }}
+    }
+  })
+end)
+
+test("parse try/finally with complex expression in try body", function()
+  assert_parse_ok('try { f(a + b); } finally { g(); }', {
+    {type = "TryStatement",
+      block = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "CallExpression",
+          callee = {type = "Identifier", name = "f"},
+          arguments = {{type = "BinaryExpression", operator = "+",
+            left = {type = "Identifier", name = "a"},
+            right = {type = "Identifier", name = "b"}}}
+        }}
+      }},
+      handler = nil,
+      finalizer = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "CallExpression",
+          callee = {type = "Identifier", name = "g"},
+          arguments = {}
+        }}
+      }}
+    }
+  })
+end)
+
+test("parse try/catch/finally with if in catch", function()
+  assert_parse_ok("try { x; } catch (e) { if (e) { y; } } finally { z; }", {
+    {type = "TryStatement",
+      block = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "x"}}
+      }},
+      handler = {type = "CatchClause", param = {type = "Identifier", name = "e"},
+        body = {type = "BlockStatement", body = {
+          {type = "IfStatement",
+            test = {type = "Identifier", name = "e"},
+            consequent = {type = "BlockStatement", body = {
+              {type = "ExpressionStatement", expression = {type = "Identifier", name = "y"}}
+            }},
+            alternate = nil
+          }
+        }}
+      },
+      finalizer = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "z"}}
+      }}
+    }
+  })
+end)
+
+test("parse try/catch/finally followed by another statement", function()
+  assert_parse_ok("try { x; } catch (e) { y; } finally { z; } w;", {
+    {type = "TryStatement",
+      block = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "x"}}
+      }},
+      handler = {type = "CatchClause", param = {type = "Identifier", name = "e"},
+        body = {type = "BlockStatement", body = {
+          {type = "ExpressionStatement", expression = {type = "Identifier", name = "y"}}
+        }}
+      },
+      finalizer = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "z"}}
+      }}
+    },
+    {type = "ExpressionStatement", expression = {type = "Identifier", name = "w"}}
+  })
+end)
+
+test("parse multiple try/catch/finally in sequence", function()
+  assert_parse_ok("try { a; } finally { b; } try { c; } finally { d; }", {
+    {type = "TryStatement",
+      block = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "a"}}
+      }},
+      handler = nil,
+      finalizer = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "b"}}
+      }}
+    },
+    {type = "TryStatement",
+      block = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "c"}}
+      }},
+      handler = nil,
+      finalizer = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "d"}}
+      }}
+    }
+  })
+end)
+
+-- error cases
+
+test("error: try without catch or finally", function()
+  assert_parse_fail("try { x; }", "catch or finally")
+end)
+
+test("error: try without catch or finally at EOF", function()
+  assert_parse_fail("try { }", "catch or finally")
+end)
+
+test("error: finally without braces", function()
+  assert_parse_fail("try { x; } finally x;", nil)
+end)
+
+test("error: finally without block body", function()
+  assert_parse_fail("try { x; } catch (e) { y; } finally", nil)
+end)
+
+test("error: try without block after try keyword", function()
+  assert_parse_fail("try x; catch (e) { y; }", nil)
+end)
+
+test("error: finally used as identifier", function()
+  assert_parse_fail("let finally = 1;", nil)
+end)
+
+test("error: catch after finally", function()
+  assert_parse_fail("try { x; } finally { y; } catch (e) { z; }", nil)
 end)
 
 test("parse return with value", function()

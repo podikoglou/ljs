@@ -442,8 +442,11 @@ All three clauses (`init`, `test`, `update`) can be nil independently. When `ini
 | `type` | `"TryStatement"` | |
 | `block` | `BlockStatement` | The try body |
 | `handler` | `CatchClause?` | Catch handler, or `nil` |
+| `finalizer` | `BlockStatement?` | Finally body, or `nil` |
 
-**Source:** `try { x; } catch (e) { y; }`
+At least one of `handler` or `finalizer` must be present.
+
+**Source:** `try { x; } catch (e) { y; }`, `try { x; } finally { z; }`, `try { x; } catch (e) { y; } finally { z; }`
 
 ### CatchClause
 
