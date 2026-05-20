@@ -19,6 +19,7 @@ The transpiler decides **what** to emit based on the AST. Codegen decides **how*
 - Build IIFE wrappers manually — use `cg.iife()`
 - Construct goto/label strings manually — use `cg.goto_stmt()` and `cg.label()`
 - Build inline Lua statements manually — use `cg.local_inline()`, `cg.return_inline()`, `cg.inline_if_return()`
+- Join parameter/name lists with `", "` manually — use `cg.join()`
 
 **Exception**: prepending a single `;` character to a codegen-produced expression (to prevent Lua ambiguous function call parsing) is acceptable: `cg.expr_stmt(";" .. codegen_expr, indent)`.
 
