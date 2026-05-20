@@ -114,6 +114,7 @@ local TOKEN = {
   ARROW = "=>",
 
   UNDEFINED = "Undefined",
+  DELETE = "delete",
   -- Error-triggering keywords: tokenized normally but rejected by the parser
   THIS = "this",
   ASYNC = "async",
@@ -153,6 +154,7 @@ local KEYWORDS = {
   ["null"] = TOKEN.NULL,
   ["undefined"] = TOKEN.UNDEFINED,
   ["var"] = TOKEN.LET,
+  ["delete"] = TOKEN.DELETE,
   ["this"] = TOKEN.THIS,
   ["async"] = TOKEN.ASYNC,
   ["await"] = TOKEN.AWAIT,
@@ -749,6 +751,12 @@ end
 --- @return table {type="UpdateExpression", operator, argument, prefix}
 local function update_expression(operator, argument, prefix)
   return { type = "UpdateExpression", operator = operator, argument = argument, prefix = prefix }
+end
+
+--- @param argument (table) The operand AST expression
+--- @return table {type="DeleteExpression", argument}
+local function delete_expression(argument)
+  return { type = "DeleteExpression", argument = argument }
 end
 
 --- @param test (table) Condition expression
@@ -1632,7 +1640,7 @@ function parse_binary_expression(stream, min_precedence)
   return left
 end
 
---- Parse unary prefix expressions: !expr, -expr, +expr, or ~expr.
+--- Parse unary prefix expressions: !expr, -expr, +expr, ~expr, or delete expr.
 -- Unary operators have the highest precedence and are right-recursive
 -- (so !!x parses as !(!(x))).
 function parse_unary_expression(stream)
@@ -1648,6 +1656,11 @@ function parse_unary_expression(stream)
     local argument = parse_unary_expression(stream)
     if not argument then return nil end
     return update_expression(op_token.type, argument, true)
+  elseif stream.is(TOKEN.DELETE) then
+    stream.advance()
+    local argument = parse_unary_expression(stream)
+    if not argument then return nil end
+    return delete_expression(argument)
   end
   return parse_primary_expression(stream)
 end
