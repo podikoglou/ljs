@@ -1187,7 +1187,9 @@ end
 -- "var" is treated as "let" (maps to TOKEN.LET in the tokenizer).
 -- Supports multiple declarators separated by commas.
 -- Semicolon is optional.
-function parse_variable_declaration(stream)
+-- @param stream (table) Token stream
+-- @param no_in (boolean|nil) If true, suppress 'in' in initializer expressions
+function parse_variable_declaration(stream, no_in)
   local kind_token = stream.peek()
   local kind
   if kind_token.type == TOKEN.LET then
@@ -1204,7 +1206,7 @@ function parse_variable_declaration(stream)
 
   local declarations = {}
   while true do
-    local decl = parse_variable_declarator(stream)
+    local decl = parse_variable_declarator(stream, no_in)
     if not decl then
       return nil, "Expected variable declarator"
     end
@@ -1223,14 +1225,16 @@ function parse_variable_declaration(stream)
 end
 
 --- Parse a single variable declarator: name or name = init
-function parse_variable_declarator(stream)
+-- @param stream (table) Token stream
+-- @param no_in (boolean|nil) If true, suppress 'in' in initializer expression
+function parse_variable_declarator(stream, no_in)
   local token = stream.consume(TOKEN.IDENTIFIER)
   local name = identifier(token.value, token)
 
   local init = nil
   if stream.is(TOKEN.ASSIGN) then
     stream.advance()
-    init, _ = parse_expression(stream)
+    init, _ = parse_expression(stream, no_in)
     if not init then
       return nil, "Expected initializer"
     end
@@ -1314,7 +1318,7 @@ function parse_for_statement(stream)
   end
 
   if stream.is(TOKEN.LET) or stream.is(TOKEN.CONST) then
-    local decl = parse_variable_declaration(stream)
+    local decl = parse_variable_declaration(stream, true)
 
     if stream.is(TOKEN.OF) then
       return parse_for_of_from_left(stream, decl)
@@ -1327,7 +1331,7 @@ function parse_for_statement(stream)
     return parse_c_style_for_from_test(stream, decl)
   end
 
-  local expr = parse_expression(stream)
+  local expr = parse_expression(stream, true)
   if not expr then
     return nil, "Expected expression in for"
   end
@@ -1672,6 +1676,7 @@ local PRECEDENCE = {
   [TOKEN.GT] = 3,
   [TOKEN.LTE] = 3,
   [TOKEN.GTE] = 3,
+  [TOKEN.IN] = 3,
   [TOKEN.BITWISE_AND] = 2.75,
   [TOKEN.BITWISE_XOR] = 2.5,
   [TOKEN.BITWISE_OR] = 2.25,
@@ -1694,8 +1699,10 @@ local PRECEDENCE = {
 }
 
 --- Entry point for expression parsing. Starts at minimum precedence 0.
-function parse_expression(stream)
-  return parse_binary_expression(stream, 0)
+-- @param stream (table) Token stream
+-- @param no_in (boolean|nil) If true, suppress 'in' as a binary operator (for for-loop init)
+function parse_expression(stream, no_in)
+  return parse_binary_expression(stream, 0, no_in)
 end
 
 --- Pratt parser core: parse binary expressions with precedence climbing.
@@ -1706,7 +1713,8 @@ end
 --    instead of parse_binary_expression with +1).
 -- @param stream (table) Token stream
 -- @param min_precedence (number) Minimum precedence to continue parsing
-function parse_binary_expression(stream, min_precedence)
+-- @param no_in (boolean|nil) If true, suppress 'in' as a binary operator
+function parse_binary_expression(stream, min_precedence, no_in)
   local left = parse_unary_expression(stream)
   if not left then
     return nil
@@ -1718,6 +1726,10 @@ function parse_binary_expression(stream, min_precedence)
     local precedence = PRECEDENCE[op]
 
     if not precedence or precedence < min_precedence then
+      break
+    end
+
+    if op == TOKEN.IN and no_in then
       break
     end
 
@@ -1740,26 +1752,26 @@ function parse_binary_expression(stream, min_precedence)
       or op == TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN
     then
       stream.advance()
-      local right = parse_expression(stream)
+      local right = parse_expression(stream, no_in)
       if not right then
         return nil
       end
       left = binary_expression(op, left, right)
     elseif op == TOKEN.STARSTAR then
       stream.advance()
-      local right = parse_binary_expression(stream, precedence)
+      local right = parse_binary_expression(stream, precedence, no_in)
       if not right then
         return nil
       end
       left = binary_expression(op, left, right)
     elseif op == TOKEN.QUESTION then
       stream.advance()
-      local consequent = parse_expression(stream)
+      local consequent = parse_expression(stream, no_in)
       if not consequent then
         return nil
       end
       stream.consume(TOKEN.COLON)
-      local alternate = parse_expression(stream)
+      local alternate = parse_expression(stream, no_in)
       if not alternate then
         return nil
       end
@@ -1769,7 +1781,7 @@ function parse_binary_expression(stream, min_precedence)
       -- Left-associative: parse right at precedence+0.5 so same-level ops
       -- bind to the left (they stop the inner parse, letting the outer loop consume them).
       local next_min = precedence + 0.01
-      local right = parse_binary_expression(stream, next_min)
+      local right = parse_binary_expression(stream, next_min, no_in)
       if not right then
         return nil
       end
