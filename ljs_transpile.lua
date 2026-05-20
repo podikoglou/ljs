@@ -798,7 +798,7 @@ gen.BinaryExpression = function(node, indent, scopes)
     else
       key_code = cg.binop("+", cg.paren(left), "1")
     end
-    return cg.binop("~=", cg.call("rawget", { right, key_code }), cg.nil_val())
+    return cg.paren(cg.binop("~=", cg.call("rawget", { right, key_code }), cg.nil_val()))
   else
     return cg.binop(op, left, right)
   end
