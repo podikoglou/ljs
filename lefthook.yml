@@ -1,17 +1,5 @@
 pre-commit:
   jobs:
-    - name: parser tests
-      glob: "{ljs_parser.lua,test_ljs_parser_*.lua}"
-      run: bash run_tests.sh
-
-    - name: transpile tests
-      glob: "{ljs_transpile.lua,test_ljs_transpile_*.lua}"
-      run: bash run_tests.sh
-
-    - name: codegen tests
-      glob: "{ljs_codegen.lua,test_ljs_codegen.lua}"
-      run: bash run_tests.sh
-
-    - name: test harness
-      glob: "ljs_test.lua"
+    - name: tests
+      glob: "{ljs_parser.lua,ljs_transpile.lua,ljs_codegen.lua,ljs_test.lua,test_ljs_*.lua}"
       run: bash run_tests.sh
