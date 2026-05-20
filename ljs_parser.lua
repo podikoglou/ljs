@@ -68,6 +68,7 @@ local TOKEN = {
   PLUS = "+",
   MINUS = "-",
   STAR = "*",
+  STARSTAR = "**",
   SLASH = "/",
   PERCENT = "%",
   -- Comparison
@@ -86,6 +87,7 @@ local TOKEN = {
   PLUS_ASSIGN = "+=",
   MINUS_ASSIGN = "-=",
   STAR_ASSIGN = "*=",
+  STARSTAR_ASSIGN = "**=",
   SLASH_ASSIGN = "/=",
   PERCENT_ASSIGN = "%=",
   -- Unary
@@ -436,7 +438,13 @@ local function tokenize(source)
         advance()
       end
     elseif c == "*" then
-      if lookahead(2) == "*=" then
+      if lookahead(3) == "**=" then
+        table.insert(tokens, make_token(TOKEN.STARSTAR_ASSIGN))
+        advance(3)
+      elseif lookahead(2) == "**" then
+        table.insert(tokens, make_token(TOKEN.STARSTAR))
+        advance(2)
+      elseif lookahead(2) == "*=" then
         table.insert(tokens, make_token(TOKEN.STAR_ASSIGN))
         advance(2)
       else
@@ -671,7 +679,7 @@ local function undefined_literal(token)
   return { type = "UndefinedLiteral" }
 end
 
---- @param operator (string) One of: + - * / % === !== < > <= >= && || = += -= *= /= %=
+--- @param operator (string) One of: + - * / % ** === !== < > <= >= && || = += -= *= /= %= **=
 --- @param left (table) Left-hand AST expression
 --- @param right (table) Right-hand AST expression
 --- @return table {type="BinaryExpression", operator, left, right}
@@ -1444,19 +1452,21 @@ end
 --     -> loops while next operator has sufficient precedence
 --
 -- Precedence levels (higher = binds tighter):
---   6   unary ! - ~
+--   6   unary ! -
+--   5.5 ** (exponentiation, right-associative)
 --   5   * / %
 --   4   + -
 --   3   === !== < > <= >=
 --   2   &&
 --   1   ||
---   0.5 = += -= *= /= %= (assignment and compound assignment, right-associative)
+--   0.5 = += -= *= /= %= **= (assignment and compound assignment, right-associative)
 --
--- All binary operators except assignment and compound assignment are left-associative.
+-- All binary operators except assignment, compound assignment, and ** are left-associative.
 
 local PRECEDENCE = {
   [TOKEN.NOT] = 6,
   [TOKEN.TILDE] = 6,
+  [TOKEN.STARSTAR] = 5.5,
   [TOKEN.STAR] = 5,
   [TOKEN.SLASH] = 5,
   [TOKEN.PERCENT] = 5,
@@ -1475,6 +1485,7 @@ local PRECEDENCE = {
   [TOKEN.PLUS_ASSIGN] = 0.5,
   [TOKEN.MINUS_ASSIGN] = 0.5,
   [TOKEN.STAR_ASSIGN] = 0.5,
+  [TOKEN.STARSTAR_ASSIGN] = 0.5,
   [TOKEN.SLASH_ASSIGN] = 0.5,
   [TOKEN.PERCENT_ASSIGN] = 0.5,
 }
@@ -1506,11 +1517,18 @@ function parse_binary_expression(stream, min_precedence)
     end
 
     -- Assignment and compound assignment are right-associative: a = b = c parses as a = (b = c).
+    -- ** is also right-associative: 2 ** 3 ** 4 parses as 2 ** (3 ** 4).
     -- All other operators are left-associative: a + b + c parses as (a + b) + c.
     if op == TOKEN.ASSIGN or op == TOKEN.PLUS_ASSIGN or op == TOKEN.MINUS_ASSIGN
-        or op == TOKEN.STAR_ASSIGN or op == TOKEN.SLASH_ASSIGN or op == TOKEN.PERCENT_ASSIGN then
+        or op == TOKEN.STAR_ASSIGN or op == TOKEN.STARSTAR_ASSIGN
+        or op == TOKEN.SLASH_ASSIGN or op == TOKEN.PERCENT_ASSIGN then
       stream.advance()
       local right = parse_expression(stream)
+      if not right then return nil end
+      left = binary_expression(op, left, right)
+    elseif op == TOKEN.STARSTAR then
+      stream.advance()
+      local right = parse_binary_expression(stream, precedence)
       if not right then return nil end
       left = binary_expression(op, left, right)
     elseif op == TOKEN.QUESTION then
