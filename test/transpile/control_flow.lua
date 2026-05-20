@@ -76,7 +76,7 @@ test("for...in with expression left transpiles to pairs (no local)", function()
 end)
 
 test("for...in with object literal right transpiles correctly", function()
-  local code = transpile_ok('for (let k in {a: 1}) { k; }')
+  local code = transpile_ok("for (let k in {a: 1}) { k; }")
   assert(code:find("for k, _ in pairs"), "expected for k, _ in pairs")
   assert(code:find("{a = 1}"), "expected object literal")
 end)

@@ -1,6 +1,6 @@
 -- Parser test helpers module
 local ljs = require("ljs_parser")
-local T = require("ljs_test")  -- ljs_test is at root
+local T = require("ljs_test") -- ljs_test is at root
 
 local test, assert_eq, assert_table_eq = T.test, T.assert_eq, T.assert_table_eq
 
@@ -9,7 +9,7 @@ local function assert_parse_ok(source, expected_body, msg)
   if not ast then
     error(string.format("%s: parse failed: %s", msg or source, tostring(err)))
   end
-  assert_table_eq(ast, {type = "Program", body = expected_body}, msg or source)
+  assert_table_eq(ast, { type = "Program", body = expected_body }, msg or source)
 end
 
 local function assert_parse_fail(source, substr, msg)
@@ -18,13 +18,22 @@ local function assert_parse_fail(source, substr, msg)
     error(string.format("%s: expected failure but got result", msg or source))
   end
   if substr and not string.find(tostring(err), substr, 1, true) then
-    error(string.format("%s: expected error containing '%s', got '%s'", msg or source, substr, tostring(err)))
+    error(
+      string.format(
+        "%s: expected error containing '%s', got '%s'",
+        msg or source,
+        substr,
+        tostring(err)
+      )
+    )
   end
 end
 
 local function tok(source, idx)
   local tokens, err = ljs.tokenize(source)
-  if not tokens then error("tokenize failed: " .. tostring(err)) end
+  if not tokens then
+    error("tokenize failed: " .. tostring(err))
+  end
   return tokens[idx]
 end
 
@@ -42,7 +51,14 @@ local function assert_tokenize_fail(source, substr, msg)
     error(string.format("%s: expected failure but got tokens", msg or source))
   end
   if substr and not string.find(tostring(err), substr, 1, true) then
-    error(string.format("%s: expected error containing '%s', got '%s'", msg or source, substr, tostring(err)))
+    error(
+      string.format(
+        "%s: expected error containing '%s', got '%s'",
+        msg or source,
+        substr,
+        tostring(err)
+      )
+    )
   end
 end
 

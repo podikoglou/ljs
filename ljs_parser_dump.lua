@@ -38,7 +38,9 @@ local function is_array(t)
   local i = 0
   for _ in pairs(t) do
     i = i + 1
-    if t[i] == nil then return false end
+    if t[i] == nil then
+      return false
+    end
   end
   return true
 end
@@ -53,9 +55,15 @@ local function serialize(val, indent, visited)
   elseif t == "string" then
     return '"' .. json_escape_string(val) .. '"'
   elseif t == "number" then
-    if val ~= val then return "null" end
-    if val == math.huge then return "1e308" end
-    if val == -math.huge then return "-1e308" end
+    if val ~= val then
+      return "null"
+    end
+    if val == math.huge then
+      return "1e308"
+    end
+    if val == -math.huge then
+      return "-1e308"
+    end
     return tostring(val)
   elseif t == "boolean" then
     return val and "true" or "false"
@@ -65,7 +73,9 @@ local function serialize(val, indent, visited)
     end
 
     if visited then
-      if visited[val] then return "null" end
+      if visited[val] then
+        return "null"
+      end
       visited[val] = true
     else
       visited = { [val] = true }
@@ -79,7 +89,9 @@ local function serialize(val, indent, visited)
       for i = 1, #val do
         parts[#parts + 1] = inner .. serialize(val[i], inner, visited)
       end
-      if #parts == 0 then return "[]" end
+      if #parts == 0 then
+        return "[]"
+      end
       return "[\n" .. table.concat(parts, ",\n") .. "\n" .. indent .. "]"
     else
       local keys = {}
@@ -94,7 +106,9 @@ local function serialize(val, indent, visited)
           parts[#parts + 1] = inner .. '"' .. json_escape_string(tostring(k)) .. '": ' .. vs
         end
       end
-      if #parts == 0 then return "{}" end
+      if #parts == 0 then
+        return "{}"
+      end
       return "{\n" .. table.concat(parts, ",\n") .. "\n" .. indent .. "}"
     end
   else
@@ -106,7 +120,9 @@ end
 
 local function read_file(path)
   local f, err = io.open(path, "r")
-  if not f then return nil, err end
+  if not f then
+    return nil, err
+  end
   local content = f:read("*a")
   f:close()
   return content

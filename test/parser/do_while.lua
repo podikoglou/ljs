@@ -2,7 +2,8 @@ local T = require("ljs_test")
 local P = require("test.helpers.parser")
 local ljs = require("ljs_parser")
 local test, assert_eq = T.test, T.assert_eq
-local assert_tok, assert_parse_ok, assert_parse_fail = P.assert_tok, P.assert_parse_ok, P.assert_parse_fail
+local assert_tok, assert_parse_ok, assert_parse_fail =
+  P.assert_tok, P.assert_parse_ok, P.assert_parse_fail
 
 -- ============================================================================
 -- DO...WHILE TESTS
@@ -14,28 +15,44 @@ end)
 
 test("parse do...while basic with braces", function()
   assert_parse_ok("do { y; } while (x);", {
-    {type = "DoWhileStatement",
-      body = {type = "BlockStatement", body = {
-        {type = "ExpressionStatement", expression = {type = "Identifier", name = "y"}}
-      }},
-      test = {type = "Identifier", name = "x"}
-    }
+    {
+      type = "DoWhileStatement",
+      body = {
+        type = "BlockStatement",
+        body = {
+          { type = "ExpressionStatement", expression = { type = "Identifier", name = "y" } },
+        },
+      },
+      test = { type = "Identifier", name = "x" },
+    },
   })
 end)
 
 test("parse do...while without braces", function()
   assert_parse_ok("do y = y + 1; while (x < 10);", {
-    {type = "DoWhileStatement",
-      body = {type = "ExpressionStatement", expression = {type = "BinaryExpression",
-        operator = "=",
-        left = {type = "Identifier", name = "y"},
-        right = {type = "BinaryExpression", operator = "+",
-          left = {type = "Identifier", name = "y"},
-          right = {type = "NumberLiteral", value = 1}}}},
-      test = {type = "BinaryExpression", operator = "<",
-        left = {type = "Identifier", name = "x"},
-        right = {type = "NumberLiteral", value = 10}}
-    }
+    {
+      type = "DoWhileStatement",
+      body = {
+        type = "ExpressionStatement",
+        expression = {
+          type = "BinaryExpression",
+          operator = "=",
+          left = { type = "Identifier", name = "y" },
+          right = {
+            type = "BinaryExpression",
+            operator = "+",
+            left = { type = "Identifier", name = "y" },
+            right = { type = "NumberLiteral", value = 1 },
+          },
+        },
+      },
+      test = {
+        type = "BinaryExpression",
+        operator = "<",
+        left = { type = "Identifier", name = "x" },
+        right = { type = "NumberLiteral", value = 10 },
+      },
+    },
   })
 end)
 
@@ -68,13 +85,20 @@ end)
 
 test("parse do...while with unary negation test", function()
   assert_parse_ok("do { y; } while (!done);", {
-    {type = "DoWhileStatement",
-      body = {type = "BlockStatement", body = {
-        {type = "ExpressionStatement", expression = {type = "Identifier", name = "y"}}
-      }},
-      test = {type = "UnaryExpression", operator = "!",
-        argument = {type = "Identifier", name = "done"}}
-    }
+    {
+      type = "DoWhileStatement",
+      body = {
+        type = "BlockStatement",
+        body = {
+          { type = "ExpressionStatement", expression = { type = "Identifier", name = "y" } },
+        },
+      },
+      test = {
+        type = "UnaryExpression",
+        operator = "!",
+        argument = { type = "Identifier", name = "done" },
+      },
+    },
   })
 end)
 
@@ -184,14 +208,24 @@ end)
 
 test("parse do...while body is update expression", function()
   assert_parse_ok("do x++; while (y < 10);", {
-    {type = "DoWhileStatement",
-      body = {type = "ExpressionStatement", expression = {type = "UpdateExpression",
-        operator = "++", prefix = false,
-        argument = {type = "Identifier", name = "x"}}},
-      test = {type = "BinaryExpression", operator = "<",
-        left = {type = "Identifier", name = "y"},
-        right = {type = "NumberLiteral", value = 10}}
-    }
+    {
+      type = "DoWhileStatement",
+      body = {
+        type = "ExpressionStatement",
+        expression = {
+          type = "UpdateExpression",
+          operator = "++",
+          prefix = false,
+          argument = { type = "Identifier", name = "x" },
+        },
+      },
+      test = {
+        type = "BinaryExpression",
+        operator = "<",
+        left = { type = "Identifier", name = "y" },
+        right = { type = "NumberLiteral", value = 10 },
+      },
+    },
   })
 end)
 
@@ -309,19 +343,35 @@ end)
 
 test("parse for...of", function()
   assert_parse_ok("for (let x of arr) { console.log(x); }", {
-    {type = "ForOfStatement",
-      left = {type = "VariableDeclaration", kind = "let", declarations = {
-        {type = "VariableDeclarator", name = {type = "Identifier", name = "x"}}
-      }},
-      right = {type = "Identifier", name = "arr"},
-      body = {type = "BlockStatement", body = {
-        {type = "ExpressionStatement", expression = {type = "CallExpression",
-          callee = {type = "MemberExpression", object = {type = "Identifier", name = "console"},
-            property = {type = "Identifier", name = "log"}, computed = false},
-          arguments = {{type = "Identifier", name = "x"}}
-        }}
-      }}
-    }
+    {
+      type = "ForOfStatement",
+      left = {
+        type = "VariableDeclaration",
+        kind = "let",
+        declarations = {
+          { type = "VariableDeclarator", name = { type = "Identifier", name = "x" } },
+        },
+      },
+      right = { type = "Identifier", name = "arr" },
+      body = {
+        type = "BlockStatement",
+        body = {
+          {
+            type = "ExpressionStatement",
+            expression = {
+              type = "CallExpression",
+              callee = {
+                type = "MemberExpression",
+                object = { type = "Identifier", name = "console" },
+                property = { type = "Identifier", name = "log" },
+                computed = false,
+              },
+              arguments = { { type = "Identifier", name = "x" } },
+            },
+          },
+        },
+      },
+    },
   })
 end)
 

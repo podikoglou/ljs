@@ -40,7 +40,7 @@ test("tokenize escape \\\\", function()
   assert_tok('"a\\\\b"', 1, "String", "a\\b")
 end)
 
-test("tokenize escape \\\"", function()
+test('tokenize escape \\"', function()
   assert_tok('"a\\"b"', 1, "String", 'a"b')
 end)
 
@@ -295,9 +295,18 @@ end)
 
 test("invariant: tokenize always ends with EOF", function()
   local sources = {
-    "", "42", "let x = 1;", "  \n  \t  ", "// comment\n",
-    "a + b * c", "function f() { return 1; }", "1 + 2; 3 - 4;",
-    '"hello"', "[]", "{}", "true false null undefined",
+    "",
+    "42",
+    "let x = 1;",
+    "  \n  \t  ",
+    "// comment\n",
+    "a + b * c",
+    "function f() { return 1; }",
+    "1 + 2; 3 - 4;",
+    '"hello"',
+    "[]",
+    "{}",
+    "true false null undefined",
   }
   for _, src in ipairs(sources) do
     local tokens = ljs.tokenize(src)
@@ -322,12 +331,12 @@ test("invariant: all tokens have valid positions", function()
   }
   for _, src in ipairs(sources) do
     local tokens = ljs.tokenize(src)
-    if not tokens then goto continue end
-    for i, t in ipairs(tokens) do
-      assert(t.line >= 1, string.format("token %d has line=%s in: %s", i, tostring(t.line), src))
-      assert(t.col >= 1, string.format("token %d has col=%s in: %s", i, tostring(t.col), src))
+    if tokens then
+      for i, t in ipairs(tokens) do
+        assert(t.line >= 1, string.format("token %d has line=%s in: %s", i, tostring(t.line), src))
+        assert(t.col >= 1, string.format("token %d has col=%s in: %s", i, tostring(t.col), src))
+      end
     end
-    ::continue::
   end
 end)
 

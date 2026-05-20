@@ -166,49 +166,85 @@ end)
 
 test("parse bitwise AND: a & b", function()
   assert_parse_ok("a & b;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "&",
-      left = {type = "Identifier", name = "a"},
-      right = {type = "Identifier", name = "b"}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "&",
+        left = { type = "Identifier", name = "a" },
+        right = { type = "Identifier", name = "b" },
+      },
+    },
   })
 end)
 
 test("parse bitwise OR: a | b", function()
   assert_parse_ok("a | b;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "|",
-      left = {type = "Identifier", name = "a"},
-      right = {type = "Identifier", name = "b"}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "|",
+        left = { type = "Identifier", name = "a" },
+        right = { type = "Identifier", name = "b" },
+      },
+    },
   })
 end)
 
 test("parse bitwise XOR: a ^ b", function()
   assert_parse_ok("a ^ b;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "^",
-      left = {type = "Identifier", name = "a"},
-      right = {type = "Identifier", name = "b"}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "^",
+        left = { type = "Identifier", name = "a" },
+        right = { type = "Identifier", name = "b" },
+      },
+    },
   })
 end)
 
 test("parse left shift: a << 1", function()
   assert_parse_ok("a << 1;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "<<",
-      left = {type = "Identifier", name = "a"},
-      right = {type = "NumberLiteral", value = 1}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "<<",
+        left = { type = "Identifier", name = "a" },
+        right = { type = "NumberLiteral", value = 1 },
+      },
+    },
   })
 end)
 
 test("parse right shift: a >> 1", function()
   assert_parse_ok("a >> 1;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = ">>",
-      left = {type = "Identifier", name = "a"},
-      right = {type = "NumberLiteral", value = 1}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = ">>",
+        left = { type = "Identifier", name = "a" },
+        right = { type = "NumberLiteral", value = 1 },
+      },
+    },
   })
 end)
 
 test("parse unsigned right shift: a >>> 1", function()
   assert_parse_ok("a >>> 1;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = ">>>",
-      left = {type = "Identifier", name = "a"},
-      right = {type = "NumberLiteral", value = 1}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = ">>>",
+        left = { type = "Identifier", name = "a" },
+        right = { type = "NumberLiteral", value = 1 },
+      },
+    },
   })
 end)
 
@@ -216,71 +252,123 @@ end)
 
 test("parse compound &= ", function()
   assert_parse_ok("x &= 1;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "&=",
-      left = {type = "Identifier", name = "x"},
-      right = {type = "NumberLiteral", value = 1}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "&=",
+        left = { type = "Identifier", name = "x" },
+        right = { type = "NumberLiteral", value = 1 },
+      },
+    },
   })
 end)
 
 test("parse compound |= ", function()
   assert_parse_ok("x |= 1;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "|=",
-      left = {type = "Identifier", name = "x"},
-      right = {type = "NumberLiteral", value = 1}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "|=",
+        left = { type = "Identifier", name = "x" },
+        right = { type = "NumberLiteral", value = 1 },
+      },
+    },
   })
 end)
 
 test("parse compound ^= ", function()
   assert_parse_ok("x ^= 1;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "^=",
-      left = {type = "Identifier", name = "x"},
-      right = {type = "NumberLiteral", value = 1}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "^=",
+        left = { type = "Identifier", name = "x" },
+        right = { type = "NumberLiteral", value = 1 },
+      },
+    },
   })
 end)
 
 test("parse compound <<= ", function()
   assert_parse_ok("x <<= 2;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "<<=",
-      left = {type = "Identifier", name = "x"},
-      right = {type = "NumberLiteral", value = 2}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "<<=",
+        left = { type = "Identifier", name = "x" },
+        right = { type = "NumberLiteral", value = 2 },
+      },
+    },
   })
 end)
 
 test("parse compound >>= ", function()
   assert_parse_ok("x >>= 2;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = ">>=",
-      left = {type = "Identifier", name = "x"},
-      right = {type = "NumberLiteral", value = 2}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = ">>=",
+        left = { type = "Identifier", name = "x" },
+        right = { type = "NumberLiteral", value = 2 },
+      },
+    },
   })
 end)
 
 test("parse compound >>>= ", function()
   assert_parse_ok("x >>>= 2;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = ">>>=",
-      left = {type = "Identifier", name = "x"},
-      right = {type = "NumberLiteral", value = 2}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = ">>>=",
+        left = { type = "Identifier", name = "x" },
+        right = { type = "NumberLiteral", value = 2 },
+      },
+    },
   })
 end)
 
 test("parse &= on member expression", function()
   assert_parse_ok("obj.x &= 1;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "&=",
-      left = {type = "MemberExpression",
-        object = {type = "Identifier", name = "obj"},
-        property = {type = "Identifier", name = "x"},
-        computed = false},
-      right = {type = "NumberLiteral", value = 1}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "&=",
+        left = {
+          type = "MemberExpression",
+          object = { type = "Identifier", name = "obj" },
+          property = { type = "Identifier", name = "x" },
+          computed = false,
+        },
+        right = { type = "NumberLiteral", value = 1 },
+      },
+    },
   })
 end)
 
 test("parse |= on computed member", function()
   assert_parse_ok("arr[i] |= 1;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "|=",
-      left = {type = "MemberExpression",
-        object = {type = "Identifier", name = "arr"},
-        property = {type = "Identifier", name = "i"},
-        computed = true},
-      right = {type = "NumberLiteral", value = 1}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "|=",
+        left = {
+          type = "MemberExpression",
+          object = { type = "Identifier", name = "arr" },
+          property = { type = "Identifier", name = "i" },
+          computed = true,
+        },
+        right = { type = "NumberLiteral", value = 1 },
+      },
+    },
   })
 end)
 
@@ -288,31 +376,58 @@ end)
 
 test("parse a & b & c is left-associative", function()
   assert_parse_ok("a & b & c;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "&",
-      left = {type = "BinaryExpression", operator = "&",
-        left = {type = "Identifier", name = "a"},
-        right = {type = "Identifier", name = "b"}},
-      right = {type = "Identifier", name = "c"}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "&",
+        left = {
+          type = "BinaryExpression",
+          operator = "&",
+          left = { type = "Identifier", name = "a" },
+          right = { type = "Identifier", name = "b" },
+        },
+        right = { type = "Identifier", name = "c" },
+      },
+    },
   })
 end)
 
 test("parse a | b | c is left-associative", function()
   assert_parse_ok("a | b | c;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "|",
-      left = {type = "BinaryExpression", operator = "|",
-        left = {type = "Identifier", name = "a"},
-        right = {type = "Identifier", name = "b"}},
-      right = {type = "Identifier", name = "c"}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "|",
+        left = {
+          type = "BinaryExpression",
+          operator = "|",
+          left = { type = "Identifier", name = "a" },
+          right = { type = "Identifier", name = "b" },
+        },
+        right = { type = "Identifier", name = "c" },
+      },
+    },
   })
 end)
 
 test("parse a << b << c is left-associative", function()
   assert_parse_ok("a << b << c;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "<<",
-      left = {type = "BinaryExpression", operator = "<<",
-        left = {type = "Identifier", name = "a"},
-        right = {type = "Identifier", name = "b"}},
-      right = {type = "Identifier", name = "c"}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "<<",
+        left = {
+          type = "BinaryExpression",
+          operator = "<<",
+          left = { type = "Identifier", name = "a" },
+          right = { type = "Identifier", name = "b" },
+        },
+        right = { type = "Identifier", name = "c" },
+      },
+    },
   })
 end)
 
@@ -320,21 +435,39 @@ end)
 
 test("parse &= right-associative: x &= y &= 1", function()
   assert_parse_ok("x &= y &= 1;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "&=",
-      left = {type = "Identifier", name = "x"},
-      right = {type = "BinaryExpression", operator = "&=",
-        left = {type = "Identifier", name = "y"},
-        right = {type = "NumberLiteral", value = 1}}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "&=",
+        left = { type = "Identifier", name = "x" },
+        right = {
+          type = "BinaryExpression",
+          operator = "&=",
+          left = { type = "Identifier", name = "y" },
+          right = { type = "NumberLiteral", value = 1 },
+        },
+      },
+    },
   })
 end)
 
 test("parse |= right-associative: x |= y |= 1", function()
   assert_parse_ok("x |= y |= 1;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "|=",
-      left = {type = "Identifier", name = "x"},
-      right = {type = "BinaryExpression", operator = "|=",
-        left = {type = "Identifier", name = "y"},
-        right = {type = "NumberLiteral", value = 1}}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "|=",
+        left = { type = "Identifier", name = "x" },
+        right = {
+          type = "BinaryExpression",
+          operator = "|=",
+          left = { type = "Identifier", name = "y" },
+          right = { type = "NumberLiteral", value = 1 },
+        },
+      },
+    },
   })
 end)
 
@@ -342,21 +475,39 @@ end)
 
 test("parse precedence: + tighter than <<", function()
   assert_parse_ok("a + b << c;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "<<",
-      left = {type = "BinaryExpression", operator = "+",
-        left = {type = "Identifier", name = "a"},
-        right = {type = "Identifier", name = "b"}},
-      right = {type = "Identifier", name = "c"}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "<<",
+        left = {
+          type = "BinaryExpression",
+          operator = "+",
+          left = { type = "Identifier", name = "a" },
+          right = { type = "Identifier", name = "b" },
+        },
+        right = { type = "Identifier", name = "c" },
+      },
+    },
   })
 end)
 
 test("parse precedence: << tighter than ===", function()
   assert_parse_ok("a << b === c;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "===",
-      left = {type = "BinaryExpression", operator = "<<",
-        left = {type = "Identifier", name = "a"},
-        right = {type = "Identifier", name = "b"}},
-      right = {type = "Identifier", name = "c"}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "===",
+        left = {
+          type = "BinaryExpression",
+          operator = "<<",
+          left = { type = "Identifier", name = "a" },
+          right = { type = "Identifier", name = "b" },
+        },
+        right = { type = "Identifier", name = "c" },
+      },
+    },
   })
 end)
 
@@ -364,11 +515,20 @@ end)
 
 test("parse precedence: === tighter than &", function()
   assert_parse_ok("a === b & c;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "&",
-      left = {type = "BinaryExpression", operator = "===",
-        left = {type = "Identifier", name = "a"},
-        right = {type = "Identifier", name = "b"}},
-      right = {type = "Identifier", name = "c"}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "&",
+        left = {
+          type = "BinaryExpression",
+          operator = "===",
+          left = { type = "Identifier", name = "a" },
+          right = { type = "Identifier", name = "b" },
+        },
+        right = { type = "Identifier", name = "c" },
+      },
+    },
   })
 end)
 
@@ -376,31 +536,58 @@ end)
 
 test("parse precedence: & tighter than ^", function()
   assert_parse_ok("a & b ^ c;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "^",
-      left = {type = "BinaryExpression", operator = "&",
-        left = {type = "Identifier", name = "a"},
-        right = {type = "Identifier", name = "b"}},
-      right = {type = "Identifier", name = "c"}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "^",
+        left = {
+          type = "BinaryExpression",
+          operator = "&",
+          left = { type = "Identifier", name = "a" },
+          right = { type = "Identifier", name = "b" },
+        },
+        right = { type = "Identifier", name = "c" },
+      },
+    },
   })
 end)
 
 test("parse precedence: ^ tighter than |", function()
   assert_parse_ok("a ^ b | c;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "|",
-      left = {type = "BinaryExpression", operator = "^",
-        left = {type = "Identifier", name = "a"},
-        right = {type = "Identifier", name = "b"}},
-      right = {type = "Identifier", name = "c"}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "|",
+        left = {
+          type = "BinaryExpression",
+          operator = "^",
+          left = { type = "Identifier", name = "a" },
+          right = { type = "Identifier", name = "b" },
+        },
+        right = { type = "Identifier", name = "c" },
+      },
+    },
   })
 end)
 
 test("parse precedence: & tighter than |", function()
   assert_parse_ok("a & b | c;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "|",
-      left = {type = "BinaryExpression", operator = "&",
-        left = {type = "Identifier", name = "a"},
-        right = {type = "Identifier", name = "b"}},
-      right = {type = "Identifier", name = "c"}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "|",
+        left = {
+          type = "BinaryExpression",
+          operator = "&",
+          left = { type = "Identifier", name = "a" },
+          right = { type = "Identifier", name = "b" },
+        },
+        right = { type = "Identifier", name = "c" },
+      },
+    },
   })
 end)
 
@@ -408,21 +595,39 @@ end)
 
 test("parse precedence: | tighter than &&", function()
   assert_parse_ok("a | b && c;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "&&",
-      left = {type = "BinaryExpression", operator = "|",
-        left = {type = "Identifier", name = "a"},
-        right = {type = "Identifier", name = "b"}},
-      right = {type = "Identifier", name = "c"}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "&&",
+        left = {
+          type = "BinaryExpression",
+          operator = "|",
+          left = { type = "Identifier", name = "a" },
+          right = { type = "Identifier", name = "b" },
+        },
+        right = { type = "Identifier", name = "c" },
+      },
+    },
   })
 end)
 
 test("parse precedence: | tighter than ||", function()
   assert_parse_ok("a | b || c;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "||",
-      left = {type = "BinaryExpression", operator = "|",
-        left = {type = "Identifier", name = "a"},
-        right = {type = "Identifier", name = "b"}},
-      right = {type = "Identifier", name = "c"}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "||",
+        left = {
+          type = "BinaryExpression",
+          operator = "|",
+          left = { type = "Identifier", name = "a" },
+          right = { type = "Identifier", name = "b" },
+        },
+        right = { type = "Identifier", name = "c" },
+      },
+    },
   })
 end)
 
@@ -430,29 +635,59 @@ end)
 
 test("parse ~a & b (unary bitwise NOT then AND)", function()
   assert_parse_ok("~a & b;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "&",
-      left = {type = "UnaryExpression", operator = "~",
-        argument = {type = "Identifier", name = "a"}},
-      right = {type = "Identifier", name = "b"}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "&",
+        left = {
+          type = "UnaryExpression",
+          operator = "~",
+          argument = { type = "Identifier", name = "a" },
+        },
+        right = { type = "Identifier", name = "b" },
+      },
+    },
   })
 end)
 
 test("parse a & ~b (bitwise AND then unary NOT)", function()
   assert_parse_ok("a & ~b;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "&",
-      left = {type = "Identifier", name = "a"},
-      right = {type = "UnaryExpression", operator = "~",
-        argument = {type = "Identifier", name = "b"}}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "&",
+        left = { type = "Identifier", name = "a" },
+        right = {
+          type = "UnaryExpression",
+          operator = "~",
+          argument = { type = "Identifier", name = "b" },
+        },
+      },
+    },
   })
 end)
 
 test("parse ~a | ~b (both sides unary NOT)", function()
   assert_parse_ok("~a | ~b;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "|",
-      left = {type = "UnaryExpression", operator = "~",
-        argument = {type = "Identifier", name = "a"}},
-      right = {type = "UnaryExpression", operator = "~",
-        argument = {type = "Identifier", name = "b"}}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "|",
+        left = {
+          type = "UnaryExpression",
+          operator = "~",
+          argument = { type = "Identifier", name = "a" },
+        },
+        right = {
+          type = "UnaryExpression",
+          operator = "~",
+          argument = { type = "Identifier", name = "b" },
+        },
+      },
+    },
   })
 end)
 
@@ -460,34 +695,56 @@ end)
 
 test("parse let x = a & b (in variable init)", function()
   assert_parse_ok("let x = a & b;", {
-    {type = "VariableDeclaration", kind = "let", declarations = {
-      {type = "VariableDeclarator",
-        name = {type = "Identifier", name = "x"},
-        init = {type = "BinaryExpression", operator = "&",
-          left = {type = "Identifier", name = "a"},
-          right = {type = "Identifier", name = "b"}}}
-    }}
+    {
+      type = "VariableDeclaration",
+      kind = "let",
+      declarations = {
+        {
+          type = "VariableDeclarator",
+          name = { type = "Identifier", name = "x" },
+          init = {
+            type = "BinaryExpression",
+            operator = "&",
+            left = { type = "Identifier", name = "a" },
+            right = { type = "Identifier", name = "b" },
+          },
+        },
+      },
+    },
   })
 end)
 
 test("parse return a | b (in return)", function()
   assert_parse_ok("return a | b;", {
-    {type = "ReturnStatement",
-      argument = {type = "BinaryExpression", operator = "|",
-        left = {type = "Identifier", name = "a"},
-        right = {type = "Identifier", name = "b"}}}
+    {
+      type = "ReturnStatement",
+      argument = {
+        type = "BinaryExpression",
+        operator = "|",
+        left = { type = "Identifier", name = "a" },
+        right = { type = "Identifier", name = "b" },
+      },
+    },
   })
 end)
 
 test("parse if (a & b) (in condition)", function()
   assert_parse_ok("if (a & b) { y; }", {
-    {type = "IfStatement",
-      test = {type = "BinaryExpression", operator = "&",
-        left = {type = "Identifier", name = "a"},
-        right = {type = "Identifier", name = "b"}},
-      consequent = {type = "BlockStatement", body = {
-        {type = "ExpressionStatement", expression = {type = "Identifier", name = "y"}}
-      }}}
+    {
+      type = "IfStatement",
+      test = {
+        type = "BinaryExpression",
+        operator = "&",
+        left = { type = "Identifier", name = "a" },
+        right = { type = "Identifier", name = "b" },
+      },
+      consequent = {
+        type = "BlockStatement",
+        body = {
+          { type = "ExpressionStatement", expression = { type = "Identifier", name = "y" } },
+        },
+      },
+    },
   })
 end)
 
@@ -500,71 +757,128 @@ end)
 
 test("parse f(a ^ b) (as call argument)", function()
   assert_parse_ok("f(a ^ b);", {
-    {type = "ExpressionStatement", expression = {type = "CallExpression",
-      callee = {type = "Identifier", name = "f"},
-      arguments = {
-        {type = "BinaryExpression", operator = "^",
-          left = {type = "Identifier", name = "a"},
-          right = {type = "Identifier", name = "b"}}
-      }}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "CallExpression",
+        callee = { type = "Identifier", name = "f" },
+        arguments = {
+          {
+            type = "BinaryExpression",
+            operator = "^",
+            left = { type = "Identifier", name = "a" },
+            right = { type = "Identifier", name = "b" },
+          },
+        },
+      },
+    },
   })
 end)
 
 test("parse [a << 1] (in array)", function()
   assert_parse_ok("[a << 1];", {
-    {type = "ExpressionStatement", expression = {type = "ArrayExpression", elements = {
-      {type = "BinaryExpression", operator = "<<",
-        left = {type = "Identifier", name = "a"},
-        right = {type = "NumberLiteral", value = 1}}
-    }}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "ArrayExpression",
+        elements = {
+          {
+            type = "BinaryExpression",
+            operator = "<<",
+            left = { type = "Identifier", name = "a" },
+            right = { type = "NumberLiteral", value = 1 },
+          },
+        },
+      },
+    },
   })
 end)
 
 test("parse {x: a >> 1} (in object)", function()
   assert_parse_ok("let o = {x: a >> 1};", {
-    {type = "VariableDeclaration", kind = "let", declarations = {
-      {type = "VariableDeclarator",
-        name = {type = "Identifier", name = "o"},
-        init = {type = "ObjectExpression", properties = {
-          {type = "Property",
-            key = {type = "Identifier", name = "x"},
-            value = {type = "BinaryExpression", operator = ">>",
-              left = {type = "Identifier", name = "a"},
-              right = {type = "NumberLiteral", value = 1}},
-            computed = false}
-        }}
-      }
-    }}
+    {
+      type = "VariableDeclaration",
+      kind = "let",
+      declarations = {
+        {
+          type = "VariableDeclarator",
+          name = { type = "Identifier", name = "o" },
+          init = {
+            type = "ObjectExpression",
+            properties = {
+              {
+                type = "Property",
+                key = { type = "Identifier", name = "x" },
+                value = {
+                  type = "BinaryExpression",
+                  operator = ">>",
+                  left = { type = "Identifier", name = "a" },
+                  right = { type = "NumberLiteral", value = 1 },
+                },
+                computed = false,
+              },
+            },
+          },
+        },
+      },
+    },
   })
 end)
 
 test("parse a | b ? 1 : 0 (bitwise in ternary test)", function()
   assert_parse_ok("a | b ? 1 : 0;", {
-    {type = "ExpressionStatement", expression = {type = "ConditionalExpression",
-      test = {type = "BinaryExpression", operator = "|",
-        left = {type = "Identifier", name = "a"},
-        right = {type = "Identifier", name = "b"}},
-      consequent = {type = "NumberLiteral", value = 1},
-      alternate = {type = "NumberLiteral", value = 0}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "ConditionalExpression",
+        test = {
+          type = "BinaryExpression",
+          operator = "|",
+          left = { type = "Identifier", name = "a" },
+          right = { type = "Identifier", name = "b" },
+        },
+        consequent = { type = "NumberLiteral", value = 1 },
+        alternate = { type = "NumberLiteral", value = 0 },
+      },
+    },
   })
 end)
 
 test("parse x = a & b (bitwise in assignment RHS)", function()
   assert_parse_ok("x = a & b;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "=",
-      left = {type = "Identifier", name = "x"},
-      right = {type = "BinaryExpression", operator = "&",
-        left = {type = "Identifier", name = "a"},
-        right = {type = "Identifier", name = "b"}}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "=",
+        left = { type = "Identifier", name = "x" },
+        right = {
+          type = "BinaryExpression",
+          operator = "&",
+          left = { type = "Identifier", name = "a" },
+          right = { type = "Identifier", name = "b" },
+        },
+      },
+    },
   })
 end)
 
 test("parse x++ & y (postfix in bitwise)", function()
   assert_parse_ok("x++ & y;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "&",
-      left = {type = "UpdateExpression", operator = "++",
-        argument = {type = "Identifier", name = "x"}, prefix = false},
-      right = {type = "Identifier", name = "y"}}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "&",
+        left = {
+          type = "UpdateExpression",
+          operator = "++",
+          argument = { type = "Identifier", name = "x" },
+          prefix = false,
+        },
+        right = { type = "Identifier", name = "y" },
+      },
+    },
   })
 end)
 
@@ -616,101 +930,161 @@ end)
 
 test("parse assignment", function()
   assert_parse_ok("x = 5;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "=",
-      left = {type = "Identifier", name = "x"},
-      right = {type = "NumberLiteral", value = 5}}
-    }
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "=",
+        left = { type = "Identifier", name = "x" },
+        right = { type = "NumberLiteral", value = 5 },
+      },
+    },
   })
 end)
 
 test("parse compound += ", function()
   assert_parse_ok("x += 1;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "+=",
-      left = {type = "Identifier", name = "x"},
-      right = {type = "NumberLiteral", value = 1}}
-    }
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "+=",
+        left = { type = "Identifier", name = "x" },
+        right = { type = "NumberLiteral", value = 1 },
+      },
+    },
   })
 end)
 
 test("parse compound -=", function()
   assert_parse_ok("x -= 2;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "-=",
-      left = {type = "Identifier", name = "x"},
-      right = {type = "NumberLiteral", value = 2}}
-    }
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "-=",
+        left = { type = "Identifier", name = "x" },
+        right = { type = "NumberLiteral", value = 2 },
+      },
+    },
   })
 end)
 
 test("parse compound *=", function()
   assert_parse_ok("x *= 3;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "*=",
-      left = {type = "Identifier", name = "x"},
-      right = {type = "NumberLiteral", value = 3}}
-    }
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "*=",
+        left = { type = "Identifier", name = "x" },
+        right = { type = "NumberLiteral", value = 3 },
+      },
+    },
   })
 end)
 
 test("parse compound /=", function()
   assert_parse_ok("x /= 4;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "/=",
-      left = {type = "Identifier", name = "x"},
-      right = {type = "NumberLiteral", value = 4}}
-    }
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "/=",
+        left = { type = "Identifier", name = "x" },
+        right = { type = "NumberLiteral", value = 4 },
+      },
+    },
   })
 end)
 
 test("parse compound %=", function()
   assert_parse_ok("x %= 5;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "%=",
-      left = {type = "Identifier", name = "x"},
-      right = {type = "NumberLiteral", value = 5}}
-    }
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "%=",
+        left = { type = "Identifier", name = "x" },
+        right = { type = "NumberLiteral", value = 5 },
+      },
+    },
   })
 end)
 
 test("parse compound += on member expression", function()
   assert_parse_ok("obj.x += 1;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "+=",
-      left = {type = "MemberExpression",
-        object = {type = "Identifier", name = "obj"},
-        property = {type = "Identifier", name = "x"},
-        computed = false},
-      right = {type = "NumberLiteral", value = 1}}
-    }
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "+=",
+        left = {
+          type = "MemberExpression",
+          object = { type = "Identifier", name = "obj" },
+          property = { type = "Identifier", name = "x" },
+          computed = false,
+        },
+        right = { type = "NumberLiteral", value = 1 },
+      },
+    },
   })
 end)
 
 test("parse compound *= on computed member", function()
   assert_parse_ok("arr[i] *= 2;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "*=",
-      left = {type = "MemberExpression",
-        object = {type = "Identifier", name = "arr"},
-        property = {type = "Identifier", name = "i"},
-        computed = true},
-      right = {type = "NumberLiteral", value = 2}}
-    }
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "*=",
+        left = {
+          type = "MemberExpression",
+          object = { type = "Identifier", name = "arr" },
+          property = { type = "Identifier", name = "i" },
+          computed = true,
+        },
+        right = { type = "NumberLiteral", value = 2 },
+      },
+    },
   })
 end)
 
 test("parse compound += precedence: x += 1 + 2 means x += (1 + 2)", function()
   assert_parse_ok("x += 1 + 2;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "+=",
-      left = {type = "Identifier", name = "x"},
-      right = {type = "BinaryExpression", operator = "+",
-        left = {type = "NumberLiteral", value = 1},
-        right = {type = "NumberLiteral", value = 2}}}
-    }
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "+=",
+        left = { type = "Identifier", name = "x" },
+        right = {
+          type = "BinaryExpression",
+          operator = "+",
+          left = { type = "NumberLiteral", value = 1 },
+          right = { type = "NumberLiteral", value = 2 },
+        },
+      },
+    },
   })
 end)
 
 test("parse compound += right-associative: x += y += 1", function()
   assert_parse_ok("x += y += 1;", {
-    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "+=",
-      left = {type = "Identifier", name = "x"},
-      right = {type = "BinaryExpression", operator = "+=",
-        left = {type = "Identifier", name = "y"},
-        right = {type = "NumberLiteral", value = 1}}}
-    }
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "BinaryExpression",
+        operator = "+=",
+        left = { type = "Identifier", name = "x" },
+        right = {
+          type = "BinaryExpression",
+          operator = "+=",
+          left = { type = "Identifier", name = "y" },
+          right = { type = "NumberLiteral", value = 1 },
+        },
+      },
+    },
   })
 end)
 

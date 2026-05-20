@@ -114,66 +114,94 @@ end
 
 local function scope_is_shadowed(scopes, name)
   for i = #scopes, 1, -1 do
-    if scopes[i][name] then return true end
+    if scopes[i][name] then
+      return true
+    end
   end
   return false
 end
 
 local function lookup_builtin(node, scopes)
-  if node.type ~= "CallExpression" then return nil end
+  if node.type ~= "CallExpression" then
+    return nil
+  end
   local callee = node.callee
-  if not callee or callee.type ~= "MemberExpression" then return nil end
-  if callee.computed then return nil end
-  if callee.object.type ~= "Identifier" then return nil end
-  if callee.property.type ~= "Identifier" then return nil end
+  if not callee or callee.type ~= "MemberExpression" then
+    return nil
+  end
+  if callee.computed then
+    return nil
+  end
+  if callee.object.type ~= "Identifier" then
+    return nil
+  end
+  if callee.property.type ~= "Identifier" then
+    return nil
+  end
   local obj_entry = BUILTINS[callee.object.name]
-  if not obj_entry then return nil end
+  if not obj_entry then
+    return nil
+  end
   local entry = obj_entry[callee.property.name]
-  if not entry then return nil end
-  if scope_is_shadowed(scopes, callee.object.name) then return nil end
+  if not entry then
+    return nil
+  end
+  if scope_is_shadowed(scopes, callee.object.name) then
+    return nil
+  end
   return entry
 end
 
 local function analyze_node(node, meta, scopes)
-  if not node or type(node) ~= "table" then return end
+  if not node or type(node) ~= "table" then
+    return
+  end
   local t = node.type
 
   if t == "Program" then
     scope_push(scopes)
-    for _, child in ipairs(node.body) do analyze_node(child, meta, scopes) end
+    for _, child in ipairs(node.body) do
+      analyze_node(child, meta, scopes)
+    end
     scope_pop(scopes)
-
   elseif t == "BlockStatement" then
     scope_push(scopes)
-    for _, child in ipairs(node.body) do analyze_node(child, meta, scopes) end
+    for _, child in ipairs(node.body) do
+      analyze_node(child, meta, scopes)
+    end
     scope_pop(scopes)
-
   elseif t == "VariableDeclaration" then
     for _, decl in ipairs(node.declarations) do
       scope_declare(scopes, decl.name.name)
-      if decl.init then analyze_node(decl.init, meta, scopes) end
+      if decl.init then
+        analyze_node(decl.init, meta, scopes)
+      end
     end
-
   elseif t == "FunctionDeclaration" then
     scope_declare(scopes, node.name)
     scope_push(scopes)
-    for _, p in ipairs(node.params) do scope_declare(scopes, p.name) end
+    for _, p in ipairs(node.params) do
+      scope_declare(scopes, p.name)
+    end
     analyze_node(node.body, meta, scopes)
     scope_pop(scopes)
-
   elseif t == "FunctionExpression" then
     scope_push(scopes)
-    if node.name then scope_declare(scopes, node.name) end
-    for _, p in ipairs(node.params) do scope_declare(scopes, p.name) end
+    if node.name then
+      scope_declare(scopes, node.name)
+    end
+    for _, p in ipairs(node.params) do
+      scope_declare(scopes, p.name)
+    end
     analyze_node(node.body, meta, scopes)
     scope_pop(scopes)
-
   elseif t == "ArrowFunctionExpression" then
     scope_push(scopes)
-    for _, p in ipairs(node.params) do scope_declare(scopes, p.name) end
+    for _, p in ipairs(node.params) do
+      scope_declare(scopes, p.name)
+    end
     analyze_node(node.body, meta, scopes)
     scope_pop(scopes)
-
   elseif t == "ForOfStatement" then
     analyze_node(node.right, meta, scopes)
     scope_push(scopes)
@@ -184,7 +212,6 @@ local function analyze_node(node, meta, scopes)
     end
     analyze_node(node.body, meta, scopes)
     scope_pop(scopes)
-
   elseif t == "ForInStatement" then
     analyze_node(node.right, meta, scopes)
     scope_push(scopes)
@@ -195,11 +222,16 @@ local function analyze_node(node, meta, scopes)
     end
     analyze_node(node.body, meta, scopes)
     scope_pop(scopes)
-
   elseif t == "ForStatement" then
-    if node.init then analyze_node(node.init, meta, scopes) end
-    if node.test then analyze_node(node.test, meta, scopes) end
-    if node.update then analyze_node(node.update, meta, scopes) end
+    if node.init then
+      analyze_node(node.init, meta, scopes)
+    end
+    if node.test then
+      analyze_node(node.test, meta, scopes)
+    end
+    if node.update then
+      analyze_node(node.update, meta, scopes)
+    end
     scope_push(scopes)
     if node.init and node.init.type == "VariableDeclaration" then
       for _, decl in ipairs(node.init.declarations) do
@@ -208,49 +240,51 @@ local function analyze_node(node, meta, scopes)
     end
     analyze_node(node.body, meta, scopes)
     scope_pop(scopes)
-
   elseif t == "CatchClause" then
     scope_push(scopes)
     scope_declare(scopes, node.param.name)
     analyze_node(node.body, meta, scopes)
     scope_pop(scopes)
-
   elseif t == "IfStatement" then
     analyze_node(node.test, meta, scopes)
     analyze_node(node.consequent, meta, scopes)
-    if node.alternate then analyze_node(node.alternate, meta, scopes) end
-
+    if node.alternate then
+      analyze_node(node.alternate, meta, scopes)
+    end
   elseif t == "WhileStatement" then
     analyze_node(node.test, meta, scopes)
     analyze_node(node.body, meta, scopes)
-
   elseif t == "DoWhileStatement" then
     analyze_node(node.body, meta, scopes)
     analyze_node(node.test, meta, scopes)
-
   elseif t == "TryStatement" then
     analyze_node(node.block, meta, scopes)
-    if node.handler then analyze_node(node.handler, meta, scopes) end
-    if node.finalizer then analyze_node(node.finalizer, meta, scopes) end
-
+    if node.handler then
+      analyze_node(node.handler, meta, scopes)
+    end
+    if node.finalizer then
+      analyze_node(node.finalizer, meta, scopes)
+    end
   elseif t == "SwitchStatement" then
     analyze_node(node.discriminant, meta, scopes)
     for _, case in ipairs(node.cases) do
-      if case.test then analyze_node(case.test, meta, scopes) end
+      if case.test then
+        analyze_node(case.test, meta, scopes)
+      end
       for _, stmt in ipairs(case.consequent) do
         analyze_node(stmt, meta, scopes)
       end
     end
-
   elseif t == "ThrowStatement" then
-    if node.argument then analyze_node(node.argument, meta, scopes) end
-
+    if node.argument then
+      analyze_node(node.argument, meta, scopes)
+    end
   elseif t == "ReturnStatement" then
-    if node.argument then analyze_node(node.argument, meta, scopes) end
-
+    if node.argument then
+      analyze_node(node.argument, meta, scopes)
+    end
   elseif t == "ExpressionStatement" then
     analyze_node(node.expression, meta, scopes)
-
   elseif t == "BinaryExpression" then
     local op = node.operator
     if op == "+" or op == "+=" then
@@ -270,51 +304,47 @@ local function analyze_node(node, meta, scopes)
     end
     analyze_node(node.left, meta, scopes)
     analyze_node(node.right, meta, scopes)
-
   elseif t == "UpdateExpression" then
     if node.operator == "++" then
       meta.needed_helpers["_ljs_add"] = true
     end
     analyze_node(node.argument, meta, scopes)
-
   elseif t == "UnaryExpression" then
     if node.operator == "~" then
       meta.needed_helpers["_ljs_bnot"] = true
     end
     analyze_node(node.argument, meta, scopes)
-
   elseif t == "DeleteExpression" then
     analyze_node(node.argument, meta, scopes)
-
   elseif t == "TypeofExpression" then
     meta.needed_helpers["_ljs_typeof"] = true
     analyze_node(node.argument, meta, scopes)
-
   elseif t == "ConditionalExpression" then
     analyze_node(node.test, meta, scopes)
     analyze_node(node.consequent, meta, scopes)
     analyze_node(node.alternate, meta, scopes)
-
   elseif t == "CallExpression" then
     local builtin = lookup_builtin(node, scopes)
     if builtin then
       meta.needed_helpers[builtin.helper] = true
     end
     analyze_node(node.callee, meta, scopes)
-    for _, arg in ipairs(node.arguments) do analyze_node(arg, meta, scopes) end
-
+    for _, arg in ipairs(node.arguments) do
+      analyze_node(arg, meta, scopes)
+    end
   elseif t == "MemberExpression" then
     analyze_node(node.object, meta, scopes)
-    if node.computed then analyze_node(node.property, meta, scopes) end
-
+    if node.computed then
+      analyze_node(node.property, meta, scopes)
+    end
   elseif t == "ObjectExpression" then
     for _, prop in ipairs(node.properties) do
       analyze_node(prop.value, meta, scopes)
     end
-
   elseif t == "ArrayExpression" then
-    for _, elem in ipairs(node.elements) do analyze_node(elem, meta, scopes) end
-
+    for _, elem in ipairs(node.elements) do
+      analyze_node(elem, meta, scopes)
+    end
   end
 end
 
@@ -333,20 +363,33 @@ end
 -- @param node (table|nil) AST node
 -- @return (boolean) true if a ContinueStatement exists in the subtree
 local function has_continue(node)
-  if not node or type(node) ~= "table" then return false end
-  if node.type == "ContinueStatement" then return true end
-  if node.type == "WhileStatement" or node.type == "ForOfStatement"
-    or node.type == "ForInStatement" or node.type == "ForStatement"
-    or node.type == "DoWhileStatement" then
+  if not node or type(node) ~= "table" then
     return false
   end
-  if node.type == "FunctionDeclaration" or node.type == "FunctionExpression"
-    or node.type == "ArrowFunctionExpression" then
+  if node.type == "ContinueStatement" then
+    return true
+  end
+  if
+    node.type == "WhileStatement"
+    or node.type == "ForOfStatement"
+    or node.type == "ForInStatement"
+    or node.type == "ForStatement"
+    or node.type == "DoWhileStatement"
+  then
+    return false
+  end
+  if
+    node.type == "FunctionDeclaration"
+    or node.type == "FunctionExpression"
+    or node.type == "ArrowFunctionExpression"
+  then
     return false
   end
   for _, v in pairs(node) do
     if type(v) == "table" then
-      if has_continue(v) then return true end
+      if has_continue(v) then
+        return true
+      end
     end
   end
   return false
@@ -365,12 +408,16 @@ end
 
 local function emit_body(stmts, indent, scopes)
   local parts = {}
-  for _, s in ipairs(stmts) do parts[#parts + 1] = emit(s, indent, scopes) end
+  for _, s in ipairs(stmts) do
+    parts[#parts + 1] = emit(s, indent, scopes)
+  end
   return table.concat(parts)
 end
 
 local function is_elseif_chain(node)
-  if node.type == "IfStatement" then return true end
+  if node.type == "IfStatement" then
+    return true
+  end
   if node.type == "BlockStatement" and #node.body == 1 and node.body[1].type == "IfStatement" then
     return true
   end
@@ -441,7 +488,9 @@ end
 
 gen.ExpressionStatement = function(node, indent, scopes)
   local stmt_fn = gen_stmt[node.expression.type]
-  if stmt_fn then return stmt_fn(node.expression, indent, scopes) end
+  if stmt_fn then
+    return stmt_fn(node.expression, indent, scopes)
+  end
   return cg.expr_stmt(emit(node.expression, indent, scopes), indent)
 end
 
@@ -454,9 +503,13 @@ gen.VariableDeclaration = function(node, indent, scopes)
       out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
     elseif init.type == "ArrowFunctionExpression" or init.type == "FunctionExpression" then
       local params = {}
-      for _, p in ipairs(init.params) do params[#params + 1] = p.name end
+      for _, p in ipairs(init.params) do
+        params[#params + 1] = p.name
+      end
       scope_push(scopes)
-      for _, p in ipairs(init.params) do scope_declare(scopes, p.name) end
+      for _, p in ipairs(init.params) do
+        scope_declare(scopes, p.name)
+      end
       local body = emit(init.body, indent, scopes)
       scope_pop(scopes)
       out[#out + 1] = cg.local_fn(decl.name.name, cg.join(params), body, indent)
@@ -473,7 +526,7 @@ gen.ReturnStatement = function(node, indent, scopes)
 end
 
 gen.ThrowStatement = function(node, indent, scopes)
-  return cg.expr_stmt(cg.call("error", {emit(node.argument, indent, scopes), "0"}), indent)
+  return cg.expr_stmt(cg.call("error", { emit(node.argument, indent, scopes), "0" }), indent)
 end
 
 -- === Functions ===
@@ -481,9 +534,13 @@ end
 gen.FunctionDeclaration = function(node, indent, scopes)
   scope_declare(scopes, node.name)
   local params = {}
-  for _, p in ipairs(node.params) do params[#params + 1] = p.name end
+  for _, p in ipairs(node.params) do
+    params[#params + 1] = p.name
+  end
   scope_push(scopes)
-  for _, p in ipairs(node.params) do scope_declare(scopes, p.name) end
+  for _, p in ipairs(node.params) do
+    scope_declare(scopes, p.name)
+  end
   local body = emit(node.body, indent, scopes)
   scope_pop(scopes)
   return cg.local_fn(node.name, cg.join(params), body, indent)
@@ -491,10 +548,16 @@ end
 
 gen.FunctionExpression = function(node, indent, scopes)
   local params = {}
-  for _, p in ipairs(node.params) do params[#params + 1] = p.name end
+  for _, p in ipairs(node.params) do
+    params[#params + 1] = p.name
+  end
   scope_push(scopes)
-  if node.name then scope_declare(scopes, node.name) end
-  for _, p in ipairs(node.params) do scope_declare(scopes, p.name) end
+  if node.name then
+    scope_declare(scopes, node.name)
+  end
+  for _, p in ipairs(node.params) do
+    scope_declare(scopes, p.name)
+  end
   local body = emit(node.body, indent, scopes)
   scope_pop(scopes)
   return cg.fn_expr(cg.join(params), body, indent)
@@ -549,8 +612,8 @@ gen.ForOfStatement = function(node, indent, scopes)
     body = body .. cg.label("_continue", indent + 1)
   end
   scope_pop(scopes)
-  local iter = cg.call("ipairs", {emit(node.right, indent, scopes)})
-  return cg.for_in_stmt(cg.join({"_", var_name}), iter, body, indent)
+  local iter = cg.call("ipairs", { emit(node.right, indent, scopes) })
+  return cg.for_in_stmt(cg.join({ "_", var_name }), iter, body, indent)
 end
 
 gen.ForInStatement = function(node, indent, scopes)
@@ -567,8 +630,8 @@ gen.ForInStatement = function(node, indent, scopes)
     body = body .. cg.label("_continue", indent + 1)
   end
   scope_pop(scopes)
-  local iter = cg.call("pairs", {emit(node.right, indent, scopes)})
-  return cg.for_in_stmt(cg.join({var_name, "_"}), iter, body, indent)
+  local iter = cg.call("pairs", { emit(node.right, indent, scopes) })
+  return cg.for_in_stmt(cg.join({ var_name, "_" }), iter, body, indent)
 end
 
 gen.ForStatement = function(node, indent, scopes)
@@ -651,25 +714,29 @@ gen.TryStatement = function(node, indent, scopes)
   end
 
   local pcall_fn = cg.fn_expr("", try_body, indent + 1)
-  local pcall_expr = cg.call("pcall", {pcall_fn})
+  local pcall_expr = cg.call("pcall", { pcall_fn })
 
   if node.finalizer and not node.handler then
     local names = "_ljs_ok, _ljs_err"
     local pcall_line = cg.local_decl(names, pcall_expr, indent)
     local finally_block = finalizer_body
-    local rethrow = cg.if_stmt("not _ljs_ok",
-      cg.expr_stmt(cg.call("error", {"_ljs_err"}), indent + 2),
-      nil, nil, indent)
+    local rethrow = cg.if_stmt(
+      "not _ljs_ok",
+      cg.expr_stmt(cg.call("error", { "_ljs_err" }), indent + 2),
+      nil,
+      nil,
+      indent
+    )
     return pcall_line .. finally_block .. rethrow
   end
 
   if node.finalizer and node.handler then
-    local pcall_line = cg.local_decl(cg.join({"ok", param}), pcall_expr, indent)
+    local pcall_line = cg.local_decl(cg.join({ "ok", param }), pcall_expr, indent)
     local catch_block = cg.if_stmt("not ok", catch_body, nil, nil, indent)
     return pcall_line .. catch_block .. finalizer_body
   end
 
-  local pcall_line = cg.local_decl(cg.join({"ok", param}), pcall_expr, indent)
+  local pcall_line = cg.local_decl(cg.join({ "ok", param }), pcall_expr, indent)
   return pcall_line .. cg.if_stmt("not ok", catch_body, nil, nil, indent)
 end
 
@@ -680,7 +747,7 @@ gen.BinaryExpression = function(node, indent, scopes)
   local left = emit(node.left, indent, scopes)
   local right = emit(node.right, indent, scopes)
   if op == "+" then
-    return cg.call("_ljs_add", {left, right})
+    return cg.call("_ljs_add", { left, right })
   elseif op == "===" then
     return cg.binop("==", left, right)
   elseif op == "!==" then
@@ -692,7 +759,7 @@ gen.BinaryExpression = function(node, indent, scopes)
   elseif op == "=" then
     return cg.binop("=", left, right)
   elseif op == "+=" then
-    return cg.binop("=", left, cg.call("_ljs_add", {left, right}))
+    return cg.binop("=", left, cg.call("_ljs_add", { left, right }))
   elseif op == "**" then
     return cg.binop("^", left, right)
   elseif op == "**=" then
@@ -701,29 +768,29 @@ gen.BinaryExpression = function(node, indent, scopes)
     local base_op = op:sub(1, 1)
     return cg.binop("=", left, cg.binop(base_op, left, right))
   elseif op == "&" then
-    return cg.call("_ljs_band", {left, right})
+    return cg.call("_ljs_band", { left, right })
   elseif op == "|" then
-    return cg.call("_ljs_bor", {left, right})
+    return cg.call("_ljs_bor", { left, right })
   elseif op == "^" then
-    return cg.call("_ljs_bxor", {left, right})
+    return cg.call("_ljs_bxor", { left, right })
   elseif op == "<<" then
-    return cg.call("_ljs_shl", {left, right})
+    return cg.call("_ljs_shl", { left, right })
   elseif op == ">>" then
-    return cg.call("_ljs_shr", {left, right})
+    return cg.call("_ljs_shr", { left, right })
   elseif op == ">>>" then
-    return cg.call("_ljs_usr", {left, right})
+    return cg.call("_ljs_usr", { left, right })
   elseif op == "&=" then
-    return cg.binop("=", left, cg.call("_ljs_band", {left, right}))
+    return cg.binop("=", left, cg.call("_ljs_band", { left, right }))
   elseif op == "|=" then
-    return cg.binop("=", left, cg.call("_ljs_bor", {left, right}))
+    return cg.binop("=", left, cg.call("_ljs_bor", { left, right }))
   elseif op == "^=" then
-    return cg.binop("=", left, cg.call("_ljs_bxor", {left, right}))
+    return cg.binop("=", left, cg.call("_ljs_bxor", { left, right }))
   elseif op == "<<=" then
-    return cg.binop("=", left, cg.call("_ljs_shl", {left, right}))
+    return cg.binop("=", left, cg.call("_ljs_shl", { left, right }))
   elseif op == ">>=" then
-    return cg.binop("=", left, cg.call("_ljs_shr", {left, right}))
+    return cg.binop("=", left, cg.call("_ljs_shr", { left, right }))
   elseif op == ">>>=" then
-    return cg.binop("=", left, cg.call("_ljs_usr", {left, right}))
+    return cg.binop("=", left, cg.call("_ljs_usr", { left, right }))
   else
     return cg.binop(op, left, right)
   end
@@ -734,15 +801,17 @@ gen.UnaryExpression = function(node, indent, scopes)
   if node.operator == "!" then
     return cg.unop("not", expr)
   elseif node.operator == "~" then
-    return cg.call("_ljs_bnot", {expr})
+    return cg.call("_ljs_bnot", { expr })
   elseif node.operator == "+" then
-    return cg.call("tonumber", {expr})
+    return cg.call("tonumber", { expr })
   end
   return cg.unop("-", expr)
 end
 
 local function delete_key_and_obj(arg, indent, scopes)
-  if arg.type ~= "MemberExpression" then return nil, nil end
+  if arg.type ~= "MemberExpression" then
+    return nil, nil
+  end
   local obj = emit(arg.object, indent, scopes)
   local key
   if arg.computed then
@@ -760,39 +829,41 @@ end
 gen.DeleteExpression = function(node, indent, scopes)
   local obj, key = delete_key_and_obj(node.argument, indent, scopes)
   if obj then
-    return cg.paren(cg.binop("and", cg.call("rawset", {obj, key, cg.nil_val()}), "true"))
+    return cg.paren(cg.binop("and", cg.call("rawset", { obj, key, cg.nil_val() }), "true"))
   end
   return "true"
 end
 
 gen.TypeofExpression = function(node, indent, scopes)
-  return cg.call("_ljs_typeof", {emit(node.argument, indent, scopes)})
+  return cg.call("_ljs_typeof", { emit(node.argument, indent, scopes) })
 end
 
 gen.UpdateExpression = function(node, indent, scopes)
   local arg = emit(node.argument, indent, scopes)
   local val
   if node.operator == "++" then
-    val = cg.call("_ljs_add", {arg, "1"})
+    val = cg.call("_ljs_add", { arg, "1" })
   else
     val = cg.binop("-", arg, "1")
   end
   if node.prefix then
-    return cg.iife({cg.binop("=", arg, val), cg.return_inline(arg)})
+    return cg.iife({ cg.binop("=", arg, val), cg.return_inline(arg) })
   end
-  return cg.iife({cg.local_inline("_t", arg), cg.binop("=", arg, val), cg.return_inline("_t")})
+  return cg.iife({ cg.local_inline("_t", arg), cg.binop("=", arg, val), cg.return_inline("_t") })
 end
 
 gen.ConditionalExpression = function(node, indent, scopes)
   local test_code = emit(node.test, indent, scopes)
   local cons_code = emit(node.consequent, indent, scopes)
   local alt_code = emit(node.alternate, indent, scopes)
-  return cg.iife({cg.inline_if_return(test_code, cons_code, alt_code)})
+  return cg.iife({ cg.inline_if_return(test_code, cons_code, alt_code) })
 end
 
 gen.CallExpression = function(node, indent, scopes)
   local args = {}
-  for _, a in ipairs(node.arguments) do args[#args + 1] = emit(a, indent, scopes) end
+  for _, a in ipairs(node.arguments) do
+    args[#args + 1] = emit(a, indent, scopes)
+  end
   local builtin = lookup_builtin(node, scopes)
   if builtin then
     return cg.call(builtin.helper, args)
@@ -829,7 +900,9 @@ end
 
 gen.ArrayExpression = function(node, indent, scopes)
   local elems = {}
-  for _, e in ipairs(node.elements) do elems[#elems + 1] = emit(e, indent, scopes) end
+  for _, e in ipairs(node.elements) do
+    elems[#elems + 1] = emit(e, indent, scopes)
+  end
   return cg.array(elems)
 end
 
@@ -838,7 +911,7 @@ end
 gen_stmt.UpdateExpression = function(node, indent, scopes)
   local arg = emit(node.argument, indent, scopes)
   if node.operator == "++" then
-    return cg.expr_stmt(cg.binop("=", arg, cg.call("_ljs_add", {arg, "1"})), indent)
+    return cg.expr_stmt(cg.binop("=", arg, cg.call("_ljs_add", { arg, "1" })), indent)
   end
   return cg.expr_stmt(cg.binop("=", arg, cg.binop("-", arg, "1")), indent)
 end
@@ -850,7 +923,7 @@ end
 gen_stmt.DeleteExpression = function(node, indent, scopes)
   local obj, key = delete_key_and_obj(node.argument, indent, scopes)
   if obj then
-    return cg.expr_stmt(cg.call("rawset", {obj, key, cg.nil_val()}), indent)
+    return cg.expr_stmt(cg.call("rawset", { obj, key, cg.nil_val() }), indent)
   end
   return ""
 end
@@ -862,10 +935,15 @@ end
 -- === Top-level generate ===
 
 local function generate(ast, meta)
-  if meta.needed_helpers["_ljs_bnot"]
-    or meta.needed_helpers["_ljs_band"] or meta.needed_helpers["_ljs_bor"]
-    or meta.needed_helpers["_ljs_bxor"] or meta.needed_helpers["_ljs_shl"]
-    or meta.needed_helpers["_ljs_shr"] or meta.needed_helpers["_ljs_usr"] then
+  if
+    meta.needed_helpers["_ljs_bnot"]
+    or meta.needed_helpers["_ljs_band"]
+    or meta.needed_helpers["_ljs_bor"]
+    or meta.needed_helpers["_ljs_bxor"]
+    or meta.needed_helpers["_ljs_shl"]
+    or meta.needed_helpers["_ljs_shr"]
+    or meta.needed_helpers["_ljs_usr"]
+  then
     meta.needed_helpers["_ljs_to_int32"] = true
   end
   local scopes = {}
@@ -885,7 +963,9 @@ local function generate(ast, meta)
     helper_parts[#helper_parts + 1] = h
   end
   local prefix = table.concat(helper_parts, "\n\n")
-  if #prefix > 0 then prefix = prefix .. "\n\n" end
+  if #prefix > 0 then
+    prefix = prefix .. "\n\n"
+  end
   return prefix .. code
 end
 
@@ -908,7 +988,9 @@ end
 function ljs_transpile.transpile_source(source)
   local parser = require("ljs_parser")
   local ast, err = parser.parse(source)
-  if not ast then return nil, err end
+  if not ast then
+    return nil, err
+  end
   return ljs_transpile.transpile(ast)
 end
 

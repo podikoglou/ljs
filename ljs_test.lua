@@ -15,14 +15,23 @@ end
 
 function ljs_test.assert_eq(actual, expected, msg)
   if actual ~= expected then
-    error(string.format("%s: expected %s, got %s", msg or "assertion failed", tostring(expected), tostring(actual)))
+    error(
+      string.format(
+        "%s: expected %s, got %s",
+        msg or "assertion failed",
+        tostring(expected),
+        tostring(actual)
+      )
+    )
   end
 end
 
 function ljs_test.assert_table_eq(actual, expected, path)
   path = path or "root"
   if type(actual) ~= type(expected) then
-    error(string.format("%s: type mismatch, expected %s got %s", path, type(expected), type(actual)))
+    error(
+      string.format("%s: type mismatch, expected %s got %s", path, type(expected), type(actual))
+    )
   end
   if type(expected) == "table" then
     for k, v in pairs(expected) do

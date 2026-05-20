@@ -256,7 +256,9 @@ local function tokenize(source)
       else
         local ok, err = skip_multi_line_comment()
         if not ok then
-          if err then return false, err end
+          if err then
+            return false, err
+          end
           break
         end
         skip_whitespace()
@@ -289,8 +291,12 @@ local function tokenize(source)
 
   while pos <= len do
     local ok, err = skip_trivia()
-    if not ok then return nil, err end
-    if pos > len then break end
+    if not ok then
+      return nil, err
+    end
+    if pos > len then
+      break
+    end
 
     local c = current()
 
@@ -367,14 +373,22 @@ local function tokenize(source)
       while current() do
         local ch = current()
         if escaped then
-          if ch == "n" then ch = "\n"
-          elseif ch == "r" then ch = "\r"
-          elseif ch == "t" then ch = "\t"
-          elseif ch == "b" then ch = "\b"
-          elseif ch == "f" then ch = "\f"
-          elseif ch == "\\" then ch = "\\"
-          elseif ch == '"' then ch = '"'
-          elseif ch == "'" then ch = "'"
+          if ch == "n" then
+            ch = "\n"
+          elseif ch == "r" then
+            ch = "\r"
+          elseif ch == "t" then
+            ch = "\t"
+          elseif ch == "b" then
+            ch = "\b"
+          elseif ch == "f" then
+            ch = "\f"
+          elseif ch == "\\" then
+            ch = "\\"
+          elseif ch == '"' then
+            ch = '"'
+          elseif ch == "'" then
+            ch = "'"
           else
             return nil, string.format("Invalid escape sequence at line %d, col %d", line, col)
           end
@@ -389,7 +403,8 @@ local function tokenize(source)
           found_closing = true
           break
         elseif ch == "\n" then
-          return nil, string.format("Unterminated string literal at line %d, col %d", line, start_col)
+          return nil,
+            string.format("Unterminated string literal at line %d, col %d", line, start_col)
         else
           table.insert(chars, ch)
           advance()
@@ -584,7 +599,6 @@ local function tokenize(source)
         table.insert(tokens, make_token(TOKEN.BITWISE_OR))
         advance()
       end
-
     else
       return nil, string.format("Unexpected character '%s' at line %d, col %d", c, line, col)
     end
@@ -642,7 +656,7 @@ local function make_token_stream(tokens)
   -- @param ... Expected token types (varargs)
   -- @return boolean True if current token type matches any
   function stream.is_any(...)
-    local expected = {...}
+    local expected = { ... }
     local t = stream.peek().type
     for i = 1, #expected do
       if t == expected[i] then
@@ -678,8 +692,15 @@ local function make_token_stream(tokens)
     local token = stream.expect(expected)
     if not token then
       local current = stream.peek()
-      error(string.format("Expected %s, got %s at line %d, col %d",
-        expected, current.type, current.line, current.col))
+      error(
+        string.format(
+          "Expected %s, got %s at line %d, col %d",
+          expected,
+          current.type,
+          current.line,
+          current.col
+        )
+      )
     end
     return token
   end
@@ -775,7 +796,12 @@ end
 --- @param alternate (table) Expression if falsy
 --- @return table {type="ConditionalExpression", test, consequent, alternate}
 local function conditional_expression(test, consequent, alternate)
-  return { type = "ConditionalExpression", test = test, consequent = consequent, alternate = alternate }
+  return {
+    type = "ConditionalExpression",
+    test = test,
+    consequent = consequent,
+    alternate = alternate,
+  }
 end
 
 --- @param callee (table) Expression being called
@@ -1122,8 +1148,10 @@ function parse_statement(stream)
     return parse_block_statement(stream)
   else
     local banned_err = check_banned(stream)
-    if banned_err then return nil, banned_err end
-  -- Expression statement: any expression followed by optional semicolon.
+    if banned_err then
+      return nil, banned_err
+    end
+    -- Expression statement: any expression followed by optional semicolon.
     local expr, err = parse_expression(stream)
     if not expr then
       return nil, err
@@ -1173,9 +1201,13 @@ function parse_variable_declaration(stream)
   local declarations = {}
   while true do
     local decl = parse_variable_declarator(stream)
-    if not decl then return nil, "Expected variable declarator" end
+    if not decl then
+      return nil, "Expected variable declarator"
+    end
     table.insert(declarations, decl)
-    if not stream.is(TOKEN.COMMA) then break end
+    if not stream.is(TOKEN.COMMA) then
+      break
+    end
     stream.advance()
   end
 
@@ -1195,7 +1227,9 @@ function parse_variable_declarator(stream)
   if stream.is(TOKEN.ASSIGN) then
     stream.advance()
     init, _ = parse_expression(stream)
-    if not init then return nil, "Expected initializer" end
+    if not init then
+      return nil, "Expected initializer"
+    end
   end
 
   return variable_declarator(name, init)
@@ -1207,7 +1241,9 @@ function parse_if_statement(stream)
   stream.consume(TOKEN.IF)
   stream.consume(TOKEN.LPAREN)
   local test = parse_expression(stream)
-  if not test then return nil, "Expected expression" end
+  if not test then
+    return nil, "Expected expression"
+  end
   stream.consume(TOKEN.RPAREN)
 
   local consequent = parse_statement(stream)
@@ -1226,7 +1262,9 @@ function parse_while_statement(stream)
   stream.consume(TOKEN.WHILE)
   stream.consume(TOKEN.LPAREN)
   local test = parse_expression(stream)
-  if not test then return nil, "Expected expression" end
+  if not test then
+    return nil, "Expected expression"
+  end
   stream.consume(TOKEN.RPAREN)
   local body = parse_statement(stream)
   return while_statement(test, body)
@@ -1240,11 +1278,15 @@ end
 function parse_do_while_statement(stream)
   stream.consume(TOKEN.DO)
   local body = parse_statement(stream)
-  if not body then return nil, "Expected statement after 'do'" end
+  if not body then
+    return nil, "Expected statement after 'do'"
+  end
   stream.consume(TOKEN.WHILE)
   stream.consume(TOKEN.LPAREN)
   local test = parse_expression(stream)
-  if not test then return nil, "Expected expression" end
+  if not test then
+    return nil, "Expected expression"
+  end
   stream.consume(TOKEN.RPAREN)
   if stream.is(TOKEN.SEMICOLON) then
     stream.advance()
@@ -1276,12 +1318,16 @@ function parse_for_statement(stream)
   end
 
   local expr = parse_expression(stream)
-  if not expr then return nil, "Expected expression in for" end
+  if not expr then
+    return nil, "Expected expression in for"
+  end
 
   if stream.is(TOKEN.OF) then
     stream.consume(TOKEN.OF)
     local right = parse_expression(stream)
-    if not right then return nil, "Expected expression after 'of'" end
+    if not right then
+      return nil, "Expected expression after 'of'"
+    end
     stream.consume(TOKEN.RPAREN)
     local body = parse_statement(stream)
     return for_of_statement(expr, right, body)
@@ -1290,7 +1336,9 @@ function parse_for_statement(stream)
   if stream.is(TOKEN.IN) then
     stream.consume(TOKEN.IN)
     local right = parse_expression(stream)
-    if not right then return nil, "Expected expression after 'in'" end
+    if not right then
+      return nil, "Expected expression after 'in'"
+    end
     stream.consume(TOKEN.RPAREN)
     local body = parse_statement(stream)
     return for_in_statement(expr, right, body)
@@ -1318,14 +1366,18 @@ function parse_c_style_for_from_test(stream, init)
   local test
   if not stream.is(TOKEN.SEMICOLON) then
     test = parse_expression(stream)
-    if not test then return nil, "Expected expression in for test" end
+    if not test then
+      return nil, "Expected expression in for test"
+    end
   end
   stream.consume(TOKEN.SEMICOLON)
 
   local update
   if not stream.is(TOKEN.RPAREN) then
     update = parse_expression(stream)
-    if not update then return nil, "Expected expression in for update" end
+    if not update then
+      return nil, "Expected expression in for update"
+    end
   end
   stream.consume(TOKEN.RPAREN)
 
@@ -1341,7 +1393,9 @@ end
 function parse_for_of_from_left(stream, left)
   stream.consume(TOKEN.OF)
   local right = parse_expression(stream)
-  if not right then return nil, "Expected expression" end
+  if not right then
+    return nil, "Expected expression"
+  end
   stream.consume(TOKEN.RPAREN)
   local body = parse_statement(stream)
   return for_of_statement(left, right, body)
@@ -1362,7 +1416,9 @@ function parse_for_in_from_left(stream, left)
   end
   stream.consume(TOKEN.IN)
   local right = parse_expression(stream)
-  if not right then return nil, "Expected expression after 'in'" end
+  if not right then
+    return nil, "Expected expression after 'in'"
+  end
   stream.consume(TOKEN.RPAREN)
   local body = parse_statement(stream)
   return for_in_statement(left, right, body)
@@ -1372,7 +1428,9 @@ end
 function parse_throw_statement(stream)
   stream.consume(TOKEN.THROW)
   local argument = parse_expression(stream)
-  if not argument then return nil, "Expected expression" end
+  if not argument then
+    return nil, "Expected expression"
+  end
   if stream.is(TOKEN.SEMICOLON) then
     stream.advance()
   end
@@ -1443,7 +1501,9 @@ function parse_switch_statement(stream)
   stream.consume(TOKEN.SWITCH)
   stream.consume(TOKEN.LPAREN)
   local discriminant = parse_expression(stream)
-  if not discriminant then return nil, "Expected expression after switch" end
+  if not discriminant then
+    return nil, "Expected expression after switch"
+  end
   stream.consume(TOKEN.RPAREN)
   stream.consume(TOKEN.LBRACE)
 
@@ -1456,7 +1516,9 @@ function parse_switch_statement(stream)
     if stream.is(TOKEN.CASE) then
       stream.advance()
       test = parse_expression(stream)
-      if not test then return nil, "Expected expression after case" end
+      if not test then
+        return nil, "Expected expression after case"
+      end
     elseif stream.is(TOKEN.DEFAULT) then
       if has_default then
         error(string.format("Duplicate default clause at line %d", stream.peek().line), 0)
@@ -1464,19 +1526,30 @@ function parse_switch_statement(stream)
       has_default = true
       stream.advance()
     else
-      error(string.format("Expected case or default, got %s at line %d, col %d",
-        stream.peek().type, stream.peek().line, stream.peek().col), 0)
+      error(
+        string.format(
+          "Expected case or default, got %s at line %d, col %d",
+          stream.peek().type,
+          stream.peek().line,
+          stream.peek().col
+        ),
+        0
+      )
     end
 
     stream.consume(TOKEN.COLON)
 
     local consequent = {}
-    while not stream.is(TOKEN.CASE)
-        and not stream.is(TOKEN.DEFAULT)
-        and not stream.is(TOKEN.RBRACE)
-        and not stream.eof() do
+    while
+      not stream.is(TOKEN.CASE)
+      and not stream.is(TOKEN.DEFAULT)
+      and not stream.is(TOKEN.RBRACE)
+      and not stream.eof()
+    do
       local stmt, err = parse_statement(stream)
-      if not stmt then return nil, err end
+      if not stmt then
+        return nil, err
+      end
       table.insert(consequent, stmt)
     end
 
@@ -1514,7 +1587,9 @@ function parse_parameters(stream)
     while true do
       local param_token = stream.consume(TOKEN.IDENTIFIER)
       table.insert(params, identifier(param_token.value, param_token))
-      if not stream.is(TOKEN.COMMA) then break end
+      if not stream.is(TOKEN.COMMA) then
+        break
+      end
       stream.advance()
     end
   end
@@ -1599,7 +1674,9 @@ end
 -- @param min_precedence (number) Minimum precedence to continue parsing
 function parse_binary_expression(stream, min_precedence)
   local left = parse_unary_expression(stream)
-  if not left then return nil end
+  if not left then
+    return nil
+  end
 
   while true do
     local op_token = stream.peek()
@@ -1613,28 +1690,45 @@ function parse_binary_expression(stream, min_precedence)
     -- Assignment and compound assignment are right-associative: a = b = c parses as a = (b = c).
     -- ** is also right-associative: 2 ** 3 ** 4 parses as 2 ** (3 ** 4).
     -- All other operators are left-associative: a + b + c parses as (a + b) + c.
-    if op == TOKEN.ASSIGN or op == TOKEN.PLUS_ASSIGN or op == TOKEN.MINUS_ASSIGN
-        or op == TOKEN.STAR_ASSIGN or op == TOKEN.STARSTAR_ASSIGN
-        or op == TOKEN.SLASH_ASSIGN or op == TOKEN.PERCENT_ASSIGN
-        or op == TOKEN.BITWISE_AND_ASSIGN or op == TOKEN.BITWISE_OR_ASSIGN
-        or op == TOKEN.BITWISE_XOR_ASSIGN or op == TOKEN.LEFT_SHIFT_ASSIGN
-        or op == TOKEN.RIGHT_SHIFT_ASSIGN or op == TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN then
+    if
+      op == TOKEN.ASSIGN
+      or op == TOKEN.PLUS_ASSIGN
+      or op == TOKEN.MINUS_ASSIGN
+      or op == TOKEN.STAR_ASSIGN
+      or op == TOKEN.STARSTAR_ASSIGN
+      or op == TOKEN.SLASH_ASSIGN
+      or op == TOKEN.PERCENT_ASSIGN
+      or op == TOKEN.BITWISE_AND_ASSIGN
+      or op == TOKEN.BITWISE_OR_ASSIGN
+      or op == TOKEN.BITWISE_XOR_ASSIGN
+      or op == TOKEN.LEFT_SHIFT_ASSIGN
+      or op == TOKEN.RIGHT_SHIFT_ASSIGN
+      or op == TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN
+    then
       stream.advance()
       local right = parse_expression(stream)
-      if not right then return nil end
+      if not right then
+        return nil
+      end
       left = binary_expression(op, left, right)
     elseif op == TOKEN.STARSTAR then
       stream.advance()
       local right = parse_binary_expression(stream, precedence)
-      if not right then return nil end
+      if not right then
+        return nil
+      end
       left = binary_expression(op, left, right)
     elseif op == TOKEN.QUESTION then
       stream.advance()
       local consequent = parse_expression(stream)
-      if not consequent then return nil end
+      if not consequent then
+        return nil
+      end
       stream.consume(TOKEN.COLON)
       local alternate = parse_expression(stream)
-      if not alternate then return nil end
+      if not alternate then
+        return nil
+      end
       left = conditional_expression(left, consequent, alternate)
     else
       stream.advance()
@@ -1642,7 +1736,9 @@ function parse_binary_expression(stream, min_precedence)
       -- bind to the left (they stop the inner parse, letting the outer loop consume them).
       local next_min = precedence + 0.01
       local right = parse_binary_expression(stream, next_min)
-      if not right then return nil end
+      if not right then
+        return nil
+      end
       left = binary_expression(op, left, right)
     end
   end
@@ -1654,27 +1750,43 @@ end
 -- Unary operators have the highest precedence and are right-recursive
 -- (so !!x parses as !(!(x))).
 function parse_unary_expression(stream)
-  if stream.is(TOKEN.NOT) or stream.is(TOKEN.MINUS) or stream.is(TOKEN.PLUS) or stream.is(TOKEN.TILDE) then
+  if
+    stream.is(TOKEN.NOT)
+    or stream.is(TOKEN.MINUS)
+    or stream.is(TOKEN.PLUS)
+    or stream.is(TOKEN.TILDE)
+  then
     local op_token = stream.advance()
     local op = op_token.type
     local argument = parse_unary_expression(stream)
-    if not argument then return nil end
-    local op_str = op == TOKEN.NOT and "!" or op == TOKEN.TILDE and "~" or op == TOKEN.PLUS and "+" or "-"
+    if not argument then
+      return nil
+    end
+    local op_str = op == TOKEN.NOT and "!"
+      or op == TOKEN.TILDE and "~"
+      or op == TOKEN.PLUS and "+"
+      or "-"
     return unary_expression(op_str, argument)
   elseif stream.is(TOKEN.INCREMENT) or stream.is(TOKEN.DECREMENT) then
     local op_token = stream.advance()
     local argument = parse_unary_expression(stream)
-    if not argument then return nil end
+    if not argument then
+      return nil
+    end
     return update_expression(op_token.type, argument, true)
   elseif stream.is(TOKEN.DELETE) then
     stream.advance()
     local argument = parse_unary_expression(stream)
-    if not argument then return nil end
+    if not argument then
+      return nil
+    end
     return delete_expression(argument)
   elseif stream.is(TOKEN.TYPEOF) then
     stream.advance()
     local argument = parse_unary_expression(stream)
-    if not argument then return nil end
+    if not argument then
+      return nil
+    end
     return typeof_expression(argument)
   end
   return parse_primary_expression(stream)
@@ -1686,7 +1798,9 @@ end
 -- Also rejects excluded keywords (this, async, etc.) in expression context.
 function parse_primary_expression(stream)
   local banned_err = check_banned(stream)
-  if banned_err then return nil, banned_err end
+  if banned_err then
+    return nil, banned_err
+  end
 
   local token = stream.peek()
 
@@ -1717,9 +1831,13 @@ function parse_primary_expression(stream)
 
     while true do
       local t = stream.peek_n(n + 1)
-      if t.type == "EOF" then break end
-      if t.type == TOKEN.LPAREN then depth = depth + 1
-      elseif t.type == TOKEN.RPAREN then depth = depth - 1
+      if t.type == "EOF" then
+        break
+      end
+      if t.type == TOKEN.LPAREN then
+        depth = depth + 1
+      elseif t.type == TOKEN.RPAREN then
+        depth = depth - 1
       end
       if depth == 0 then
         if stream.peek_n(n + 2) and stream.peek_n(n + 2).type == TOKEN.ARROW then
@@ -1741,7 +1859,9 @@ function parse_primary_expression(stream)
           else
             return nil, "Arrow function parameters must be identifiers"
           end
-          if not stream.is(TOKEN.COMMA) then break end
+          if not stream.is(TOKEN.COMMA) then
+            break
+          end
           stream.advance()
         end
       end
@@ -1765,8 +1885,8 @@ function parse_primary_expression(stream)
   elseif stream.is(TOKEN.ARROW) then
     return nil, "Unexpected arrow token"
   else
-    return nil, string.format("Unexpected token %s at line %d, col %d",
-      token.type, token.line, token.col)
+    return nil,
+      string.format("Unexpected token %s at line %d, col %d", token.type, token.line, token.col)
   end
 end
 
@@ -1799,7 +1919,9 @@ function parse_postfix(stream, expr)
     elseif stream.is(TOKEN.LBRACKET) then
       stream.advance()
       local prop = parse_expression(stream)
-      if not prop then return nil end
+      if not prop then
+        return nil
+      end
       stream.consume(TOKEN.RBRACKET)
       expr = member_expression(expr, prop, true)
     elseif stream.is(TOKEN.LPAREN) then
@@ -1809,9 +1931,13 @@ function parse_postfix(stream, expr)
       if not stream.is(TOKEN.RPAREN) then
         while true do
           local arg = parse_expression(stream)
-          if not arg then return nil end
+          if not arg then
+            return nil
+          end
           table.insert(args, arg)
-          if not stream.is(TOKEN.COMMA) then break end
+          if not stream.is(TOKEN.COMMA) then
+            break
+          end
           stream.advance()
         end
       end
@@ -1843,7 +1969,7 @@ function parse_identifier_or_call(stream)
   if stream.is(TOKEN.ARROW) then
     stream.advance()
     local body = parse_arrow_function_body(stream)
-    return arrow_function_expression({expr}, body)
+    return arrow_function_expression({ expr }, body)
   end
 
   return parse_postfix(stream, expr)
@@ -1860,9 +1986,13 @@ function parse_call_expression(stream, callee)
   if not stream.is(TOKEN.RPAREN) then
     while true do
       local arg = parse_expression(stream)
-      if not arg then return nil end
+      if not arg then
+        return nil
+      end
       table.insert(arguments, arg)
-      if not stream.is(TOKEN.COMMA) then break end
+      if not stream.is(TOKEN.COMMA) then
+        break
+      end
       stream.advance()
     end
   end
@@ -1879,11 +2009,17 @@ function parse_array_literal(stream)
   if not stream.is(TOKEN.RBRACKET) then
     while true do
       local element = parse_expression(stream)
-      if not element then return nil end
+      if not element then
+        return nil
+      end
       table.insert(elements, element)
-      if not stream.is(TOKEN.COMMA) then break end
+      if not stream.is(TOKEN.COMMA) then
+        break
+      end
       stream.advance()
-      if stream.is(TOKEN.RBRACKET) then break end
+      if stream.is(TOKEN.RBRACKET) then
+        break
+      end
     end
   end
   stream.consume(TOKEN.RBRACKET)
@@ -1912,12 +2048,18 @@ function parse_object_literal(stream)
 
       stream.consume(TOKEN.COLON)
       local value = parse_expression(stream)
-      if not value then return nil end
+      if not value then
+        return nil
+      end
 
       table.insert(properties, property(key, value, false))
-      if not stream.is(TOKEN.COMMA) then break end
+      if not stream.is(TOKEN.COMMA) then
+        break
+      end
       stream.advance()
-      if stream.is(TOKEN.RBRACE) then break end
+      if stream.is(TOKEN.RBRACE) then
+        break
+      end
     end
   end
   stream.consume(TOKEN.RBRACE)

@@ -14,7 +14,7 @@ end)
 
 test("delete obj[key] (statement)", function()
   local code = transpile_ok("delete obj[key];")
-  assert_eq(code, 'rawset(obj, (key) + 1, nil)\n')
+  assert_eq(code, "rawset(obj, (key) + 1, nil)\n")
 end)
 
 test("delete obj['str'] (statement, string computed)", function()
@@ -24,7 +24,7 @@ end)
 
 test("delete arr[0] (statement, numeric index)", function()
   local code = transpile_ok("delete arr[0];")
-  assert_eq(code, 'rawset(arr, (0) + 1, nil)\n')
+  assert_eq(code, "rawset(arr, (0) + 1, nil)\n")
 end)
 
 test("delete a.b.c (nested member)", function()
@@ -64,12 +64,12 @@ end)
 
 test("let r = delete obj[key] (expression, computed)", function()
   local code = expr_code("let r = delete obj[key]")
-  assert_eq(code, 'local r = (rawset(obj, (key) + 1, nil) and true)')
+  assert_eq(code, "local r = (rawset(obj, (key) + 1, nil) and true)")
 end)
 
 test("let r = delete arr[0] (expression, numeric)", function()
   local code = expr_code("let r = delete arr[0]")
-  assert_eq(code, 'local r = (rawset(arr, (0) + 1, nil) and true)')
+  assert_eq(code, "local r = (rawset(arr, (0) + 1, nil) and true)")
 end)
 
 test("let r = delete x (expression, identifier — true)", function()
@@ -119,12 +119,18 @@ end)
 
 test("delete in ternary: delete obj.prop ? 1 : 0", function()
   local code = transpile_ok("let r = delete obj.prop ? 1 : 0;")
-  assert_eq(code, 'local r = (function() if (rawset(obj, "prop", nil) and true) then return 1 else return 0 end end)()\n')
+  assert_eq(
+    code,
+    'local r = (function() if (rawset(obj, "prop", nil) and true) then return 1 else return 0 end end)()\n'
+  )
 end)
 
 test("delete in ternary: flag ? delete obj.prop : delete y", function()
   local code = transpile_ok("let r = flag ? delete obj.prop : delete y;")
-  assert_eq(code, 'local r = (function() if flag then return (rawset(obj, "prop", nil) and true) else return true end end)()\n')
+  assert_eq(
+    code,
+    'local r = (function() if flag then return (rawset(obj, "prop", nil) and true) else return true end end)()\n'
+  )
 end)
 
 test("delete in if condition", function()
@@ -199,7 +205,10 @@ end)
 
 test("delete member in switch case", function()
   local code = transpile_ok("switch (x) { case 1: delete obj.prop; }")
-  assert_eq(code, 'local _ljs_sw = x\nlocal _ljs_matched = false\nfor _ = 1, 1 do\n  if _ljs_matched or _ljs_sw == 1 then\n    _ljs_matched = true\n    rawset(obj, "prop", nil)\n  end\nend\n')
+  assert_eq(
+    code,
+    'local _ljs_sw = x\nlocal _ljs_matched = false\nfor _ = 1, 1 do\n  if _ljs_matched or _ljs_sw == 1 then\n    _ljs_matched = true\n    rawset(obj, "prop", nil)\n  end\nend\n'
+  )
 end)
 
 T.summary()

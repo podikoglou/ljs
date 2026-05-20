@@ -443,7 +443,9 @@ end)
 test("multiple bitwise ops emit _ljs_to_int32 only once", function()
   local code = transpile_ok("let x = a & b; let y = c | d;")
   local count = 0
-  for _ in code:gmatch("local function _ljs_to_int32") do count = count + 1 end
+  for _ in code:gmatch("local function _ljs_to_int32") do
+    count = count + 1
+  end
   assert_eq(count, 1)
 end)
 
@@ -452,7 +454,10 @@ end)
 -- ============================================================================
 
 test("transpile.HELPERS._ljs_to_int32 accessible", function()
-  assert(type(H.transpile.HELPERS._ljs_to_int32) == "string", "expected _ljs_to_int32 helper string")
+  assert(
+    type(H.transpile.HELPERS._ljs_to_int32) == "string",
+    "expected _ljs_to_int32 helper string"
+  )
 end)
 
 test("transpile.HELPERS._ljs_band accessible", function()
@@ -834,7 +839,9 @@ test("XOR swap pattern", function()
     console.log(b);
   ]])
   local lines = {}
-  for l in output:gmatch("[^\n]+") do lines[#lines + 1] = l:gsub("%s+", "") end
+  for l in output:gmatch("[^\n]+") do
+    lines[#lines + 1] = l:gsub("%s+", "")
+  end
   assert_eq(lines[1], "3")
   assert_eq(lines[2], "5")
 end)
@@ -918,7 +925,9 @@ test("toggle a bit with XOR", function()
     console.log(flags);
   ]])
   local lines = {}
-  for l in output:gmatch("[^\n]+") do lines[#lines + 1] = l:gsub("%s+", "") end
+  for l in output:gmatch("[^\n]+") do
+    lines[#lines + 1] = l:gsub("%s+", "")
+  end
   assert_eq(lines[1], "7")
   assert_eq(lines[2], "5")
 end)

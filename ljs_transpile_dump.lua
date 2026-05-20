@@ -3,7 +3,9 @@ local transpile = require("ljs_transpile")
 
 local function read_file(path)
   local f, err = io.open(path, "r")
-  if not f then return nil, err end
+  if not f then
+    return nil, err
+  end
   local content = f:read("*a")
   f:close()
   return content

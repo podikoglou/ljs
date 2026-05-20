@@ -19,13 +19,21 @@ function cg.escape_string(s)
   for i = 1, #s do
     local c = s:sub(i, i)
     local b = string.byte(c)
-    if c == "\\" then out[#out + 1] = "\\\\"
-    elseif c == '"' then out[#out + 1] = '\\"'
-    elseif c == "\n" then out[#out + 1] = "\\n"
-    elseif c == "\r" then out[#out + 1] = "\\r"
-    elseif c == "\t" then out[#out + 1] = "\\t"
-    elseif b < 32 then out[#out + 1] = string.format("\\%03d", b)
-    else out[#out + 1] = c end
+    if c == "\\" then
+      out[#out + 1] = "\\\\"
+    elseif c == '"' then
+      out[#out + 1] = '\\"'
+    elseif c == "\n" then
+      out[#out + 1] = "\\n"
+    elseif c == "\r" then
+      out[#out + 1] = "\\r"
+    elseif c == "\t" then
+      out[#out + 1] = "\\t"
+    elseif b < 32 then
+      out[#out + 1] = string.format("\\%03d", b)
+    else
+      out[#out + 1] = c
+    end
   end
   return table.concat(out)
 end
@@ -60,8 +68,15 @@ end
 -- @param indent (number) Indentation level for declaration and closing end
 -- @return (string) Formatted local function declaration with trailing newline
 function cg.local_fn(name, params, body, indent)
-  return cg.pad(indent) .. "local function " .. name .. "(" .. params .. ")\n"
-    .. body .. cg.pad(indent) .. "end\n"
+  return cg.pad(indent)
+    .. "local function "
+    .. name
+    .. "("
+    .. params
+    .. ")\n"
+    .. body
+    .. cg.pad(indent)
+    .. "end\n"
 end
 
 --- Emit an anonymous function expression.
@@ -70,8 +85,7 @@ end
 -- @param indent (number) Indentation level for the closing end
 -- @return (string) Formatted function expression (no trailing newline)
 function cg.fn_expr(params, body, indent)
-  return "function(" .. params .. ")\n"
-    .. body .. cg.pad(indent) .. "end"
+  return "function(" .. params .. ")\n" .. body .. cg.pad(indent) .. "end"
 end
 
 --- Emit a return statement.
@@ -105,8 +119,7 @@ end
 -- @param indent (number) Indentation level
 -- @return (string) Formatted do block with trailing newline
 function cg.do_block(body, indent)
-  return cg.pad(indent) .. "do\n"
-    .. body .. cg.pad(indent) .. "end\n"
+  return cg.pad(indent) .. "do\n" .. body .. cg.pad(indent) .. "end\n"
 end
 
 --- Emit a while loop statement.
@@ -115,8 +128,7 @@ end
 -- @param indent (number) Indentation level
 -- @return (string) Formatted while loop with trailing newline
 function cg.while_stmt(test, body, indent)
-  return cg.pad(indent) .. "while " .. test .. " do\n"
-    .. body .. cg.pad(indent) .. "end\n"
+  return cg.pad(indent) .. "while " .. test .. " do\n" .. body .. cg.pad(indent) .. "end\n"
 end
 
 --- Emit a repeat...until loop statement.
@@ -125,8 +137,7 @@ end
 -- @param indent (number) Indentation level
 -- @return (string) Formatted repeat...until loop with trailing newline
 function cg.repeat_until(condition, body, indent)
-  return cg.pad(indent) .. "repeat\n"
-    .. body .. cg.pad(indent) .. "until " .. condition .. "\n"
+  return cg.pad(indent) .. "repeat\n" .. body .. cg.pad(indent) .. "until " .. condition .. "\n"
 end
 
 --- Emit a generic for..in loop statement.
@@ -136,8 +147,15 @@ end
 -- @param indent (number) Indentation level
 -- @return (string) Formatted for..in loop with trailing newline
 function cg.for_in_stmt(vars, iter, body, indent)
-  return cg.pad(indent) .. "for " .. vars .. " in " .. iter .. " do\n"
-    .. body .. cg.pad(indent) .. "end\n"
+  return cg.pad(indent)
+    .. "for "
+    .. vars
+    .. " in "
+    .. iter
+    .. " do\n"
+    .. body
+    .. cg.pad(indent)
+    .. "end\n"
 end
 
 --- Emit a numeric for loop statement.
@@ -148,8 +166,17 @@ end
 -- @param indent (number) Indentation level
 -- @return (string) Formatted numeric for loop with trailing newline
 function cg.numeric_for(var, start, stop, body, indent)
-  return cg.pad(indent) .. "for " .. var .. " = " .. start .. ", " .. stop .. " do\n"
-    .. body .. cg.pad(indent) .. "end\n"
+  return cg.pad(indent)
+    .. "for "
+    .. var
+    .. " = "
+    .. start
+    .. ", "
+    .. stop
+    .. " do\n"
+    .. body
+    .. cg.pad(indent)
+    .. "end\n"
 end
 
 --- Emit an if/elseif/else/end statement.
@@ -238,7 +265,9 @@ end
 -- @param expr (string) Operand expression
 -- @return (string) Formatted unary expression
 function cg.unop(op, expr)
-  if op == "not" then return "not " .. expr end
+  if op == "not" then
+    return "not " .. expr
+  end
   return op .. expr
 end
 
@@ -270,7 +299,9 @@ end
 -- @param fields (table) List of {key=string, value=string}
 -- @return (string) Formatted table constructor
 function cg.object(fields)
-  if #fields == 0 then return "{}" end
+  if #fields == 0 then
+    return "{}"
+  end
   local parts = {}
   for _, f in ipairs(fields) do
     parts[#parts + 1] = f.key .. " = " .. f.value
@@ -330,8 +361,7 @@ end
 -- @param alternate (string) Return value if falsy
 -- @return (string) Inline if-return statement
 function cg.inline_if_return(test, consequent, alternate)
-  return "if " .. test .. " then return " .. consequent
-    .. " else return " .. alternate .. " end"
+  return "if " .. test .. " then return " .. consequent .. " else return " .. alternate .. " end"
 end
 
 -- ============================================================================

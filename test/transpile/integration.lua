@@ -1,7 +1,8 @@
 local T = require("ljs_test")
 local H = require("test.helpers.transpile")
 local test, assert_eq = T.test, T.assert_eq
-local transpile_ok, transpile, read_file, run_js = H.transpile_ok, H.transpile, H.read_file, H.run_js
+local transpile_ok, transpile, read_file, run_js =
+  H.transpile_ok, H.transpile, H.read_file, H.run_js
 
 -- ============================================================================
 -- Unit tests — helpers emission
@@ -158,7 +159,9 @@ test("invariant: transpile output is always loadable Lua", function()
     local code = transpile_ok(src)
     local fn, err = load(code)
     if not fn then
-      error("load() failed for: " .. src .. "\n  output: " .. code .. "\n  error: " .. tostring(err))
+      error(
+        "load() failed for: " .. src .. "\n  output: " .. code .. "\n  error: " .. tostring(err)
+      )
     end
   end
 end)

@@ -11,7 +11,7 @@ test("escape_string: plain text", function()
 end)
 
 test("escape_string: special chars", function()
-  assert_eq(cg.escape_string("a\nb\tc\\d\"e"), "a\\nb\\tc\\\\d\\\"e")
+  assert_eq(cg.escape_string('a\nb\tc\\d"e'), 'a\\nb\\tc\\\\d\\"e')
 end)
 
 test("escape_string: control chars", function()
@@ -76,11 +76,11 @@ test("join: empty list", function()
 end)
 
 test("join: single element", function()
-  assert_eq(cg.join({"x"}), "x")
+  assert_eq(cg.join({ "x" }), "x")
 end)
 
 test("join: multiple elements", function()
-  assert_eq(cg.join({"a", "b", "c"}), "a, b, c")
+  assert_eq(cg.join({ "a", "b", "c" }), "a, b, c")
 end)
 
 test("paren", function()
@@ -119,11 +119,11 @@ test("call: no args", function()
 end)
 
 test("call: with args", function()
-  assert_eq(cg.call("f", {"a", "b"}), "f(a, b)")
+  assert_eq(cg.call("f", { "a", "b" }), "f(a, b)")
 end)
 
 test("call: expression callee", function()
-  assert_eq(cg.call("math.floor", {"3.14"}), "math.floor(3.14)")
+  assert_eq(cg.call("math.floor", { "3.14" }), "math.floor(3.14)")
 end)
 
 test("member_dot", function()
@@ -143,7 +143,7 @@ test("object: empty", function()
 end)
 
 test("object: with fields", function()
-  assert_eq(cg.object({{key="a", value="1"}, {key="b", value="2"}}), "{a = 1, b = 2}")
+  assert_eq(cg.object({ { key = "a", value = "1" }, { key = "b", value = "2" } }), "{a = 1, b = 2}")
 end)
 
 test("array: empty", function()
@@ -151,7 +151,7 @@ test("array: empty", function()
 end)
 
 test("array: with elements", function()
-  assert_eq(cg.array({"1", "2", "3"}), "{1, 2, 3}")
+  assert_eq(cg.array({ "1", "2", "3" }), "{1, 2, 3}")
 end)
 
 -- ============================================================================
@@ -175,7 +175,10 @@ test("local_decl: multi-assign", function()
 end)
 
 test("local_fn", function()
-  assert_eq(cg.local_fn("foo", "a, b", "  return a\n", 0), "local function foo(a, b)\n  return a\nend\n")
+  assert_eq(
+    cg.local_fn("foo", "a, b", "  return a\n", 0),
+    "local function foo(a, b)\n  return a\nend\n"
+  )
 end)
 
 test("local_fn: with indent", function()
@@ -213,19 +216,31 @@ test("while_stmt", function()
 end)
 
 test("repeat_until", function()
-  assert_eq(cg.repeat_until("not (x < 10)", "  x = x + 1\n", 0), "repeat\n  x = x + 1\nuntil not (x < 10)\n")
+  assert_eq(
+    cg.repeat_until("not (x < 10)", "  x = x + 1\n", 0),
+    "repeat\n  x = x + 1\nuntil not (x < 10)\n"
+  )
 end)
 
 test("repeat_until indented", function()
-  assert_eq(cg.repeat_until("not done", "    x = x + 1\n", 1), "  repeat\n    x = x + 1\n  until not done\n")
+  assert_eq(
+    cg.repeat_until("not done", "    x = x + 1\n", 1),
+    "  repeat\n    x = x + 1\n  until not done\n"
+  )
 end)
 
 test("for_in_stmt", function()
-  assert_eq(cg.for_in_stmt("k, v", "pairs(t)", "  print(k)\n", 0), "for k, v in pairs(t) do\n  print(k)\nend\n")
+  assert_eq(
+    cg.for_in_stmt("k, v", "pairs(t)", "  print(k)\n", 0),
+    "for k, v in pairs(t) do\n  print(k)\nend\n"
+  )
 end)
 
 test("numeric_for", function()
-  assert_eq(cg.numeric_for("i", "1", "10", "  print(i)\n", 0), "for i = 1, 10 do\n  print(i)\nend\n")
+  assert_eq(
+    cg.numeric_for("i", "1", "10", "  print(i)\n", 0),
+    "for i = 1, 10 do\n  print(i)\nend\n"
+  )
 end)
 
 test("if_stmt: simple", function()
@@ -237,13 +252,19 @@ test("if_stmt: with else", function()
 end)
 
 test("if_stmt: with elseif", function()
-  local elseifs = {{test="y", body="  b()\n"}}
-  assert_eq(cg.if_stmt("x", "  a()\n", elseifs, nil, 0), "if x then\n  a()\nelseif y then\n  b()\nend\n")
+  local elseifs = { { test = "y", body = "  b()\n" } }
+  assert_eq(
+    cg.if_stmt("x", "  a()\n", elseifs, nil, 0),
+    "if x then\n  a()\nelseif y then\n  b()\nend\n"
+  )
 end)
 
 test("if_stmt: with elseif and else", function()
-  local elseifs = {{test="y", body="  b()\n"}}
-  assert_eq(cg.if_stmt("x", "  a()\n", elseifs, "  c()\n", 0), "if x then\n  a()\nelseif y then\n  b()\nelse\n  c()\nend\n")
+  local elseifs = { { test = "y", body = "  b()\n" } }
+  assert_eq(
+    cg.if_stmt("x", "  a()\n", elseifs, "  c()\n", 0),
+    "if x then\n  a()\nelseif y then\n  b()\nelse\n  c()\nend\n"
+  )
 end)
 
 test("if_stmt: with indent", function()
@@ -257,16 +278,22 @@ end)
 test("composition: pcall wrap for try/catch", function()
   local try_body = "    risky()\n"
   local fn = cg.fn_expr("", try_body, 1)
-  local pcall_expr = cg.call("pcall", {fn})
+  local pcall_expr = cg.call("pcall", { fn })
   local decl = cg.local_decl("ok, e", pcall_expr, 0)
   local catch = cg.if_stmt("not ok", "    handleError(e)\n", nil, nil, 0)
-  assert_eq(decl .. catch, "local ok, e = pcall(function()\n    risky()\n  end)\nif not ok then\n    handleError(e)\nend\n")
+  assert_eq(
+    decl .. catch,
+    "local ok, e = pcall(function()\n    risky()\n  end)\nif not ok then\n    handleError(e)\nend\n"
+  )
 end)
 
 test("composition: for..of with ipairs", function()
-  local iter = cg.call("ipairs", {"items"})
+  local iter = cg.call("ipairs", { "items" })
   local body = "    print(item)\n"
-  assert_eq(cg.for_in_stmt("_, item", iter, body, 0), "for _, item in ipairs(items) do\n    print(item)\nend\n")
+  assert_eq(
+    cg.for_in_stmt("_, item", iter, body, 0),
+    "for _, item in ipairs(items) do\n    print(item)\nend\n"
+  )
 end)
 
 -- ============================================================================
@@ -330,26 +357,26 @@ end)
 -- ============================================================================
 
 test("iife: single statement", function()
-  assert_eq(cg.iife({"x = 1"}), "(function() x = 1 end)()")
+  assert_eq(cg.iife({ "x = 1" }), "(function() x = 1 end)()")
 end)
 
 test("iife: multiple statements", function()
   assert_eq(
-    cg.iife({"local _t = x", "x = x + 1", "return _t"}),
+    cg.iife({ "local _t = x", "x = x + 1", "return _t" }),
     "(function() local _t = x; x = x + 1; return _t end)()"
   )
 end)
 
 test("iife: two statements", function()
   assert_eq(
-    cg.iife({"x = _ljs_add(x, 1)", "return x"}),
+    cg.iife({ "x = _ljs_add(x, 1)", "return x" }),
     "(function() x = _ljs_add(x, 1); return x end)()"
   )
 end)
 
 test("iife: with inline_if_return", function()
   assert_eq(
-    cg.iife({cg.inline_if_return("x", "1", "0")}),
+    cg.iife({ cg.inline_if_return("x", "1", "0") }),
     "(function() if x then return 1 else return 0 end end)()"
   )
 end)
@@ -360,18 +387,18 @@ end)
 
 test("composition: prefix ++ IIFE", function()
   local arg = "i"
-  local val = cg.call("_ljs_add", {arg, "1"})
+  local val = cg.call("_ljs_add", { arg, "1" })
   assert_eq(
-    cg.iife({cg.binop("=", arg, val), cg.return_inline(arg)}),
+    cg.iife({ cg.binop("=", arg, val), cg.return_inline(arg) }),
     "(function() i = _ljs_add(i, 1); return i end)()"
   )
 end)
 
 test("composition: postfix ++ IIFE", function()
   local arg = "i"
-  local val = cg.call("_ljs_add", {arg, "1"})
+  local val = cg.call("_ljs_add", { arg, "1" })
   assert_eq(
-    cg.iife({cg.local_inline("_t", arg), cg.binop("=", arg, val), cg.return_inline("_t")}),
+    cg.iife({ cg.local_inline("_t", arg), cg.binop("=", arg, val), cg.return_inline("_t") }),
     "(function() local _t = i; i = _ljs_add(i, 1); return _t end)()"
   )
 end)
@@ -380,14 +407,14 @@ test("composition: prefix -- IIFE", function()
   local arg = "i"
   local val = cg.binop("-", arg, "1")
   assert_eq(
-    cg.iife({cg.binop("=", arg, val), cg.return_inline(arg)}),
+    cg.iife({ cg.binop("=", arg, val), cg.return_inline(arg) }),
     "(function() i = i - 1; return i end)()"
   )
 end)
 
 test("composition: ternary IIFE", function()
   assert_eq(
-    cg.iife({cg.inline_if_return("flag", "42", "0")}),
+    cg.iife({ cg.inline_if_return("flag", "42", "0") }),
     "(function() if flag then return 42 else return 0 end end)()"
   )
 end)

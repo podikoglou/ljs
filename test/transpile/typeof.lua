@@ -38,7 +38,7 @@ test("let r = typeof 42", function()
   assert_eq(code, "local r = _ljs_typeof(42)")
 end)
 
-test("let r = typeof \"hello\"", function()
+test('let r = typeof "hello"', function()
   local code = expr_code('let r = typeof "hello"')
   assert_eq(code, 'local r = _ljs_typeof("hello")')
 end)
@@ -101,22 +101,22 @@ end)
 -- Comparison
 -- ============================================================================
 
-test("typeof x === \"number\" (bare expression)", function()
+test('typeof x === "number" (bare expression)', function()
   local code = expr_code('typeof x === "number"')
   assert_eq(code, '_ljs_typeof(x) == "number"')
 end)
 
-test("typeof x !== \"undefined\" (bare expression)", function()
+test('typeof x !== "undefined" (bare expression)', function()
   local code = expr_code('typeof x !== "undefined"')
   assert_eq(code, '_ljs_typeof(x) ~= "undefined"')
 end)
 
-test("typeof x === \"function\" (bare expression)", function()
+test('typeof x === "function" (bare expression)', function()
   local code = expr_code('typeof x === "function"')
   assert_eq(code, '_ljs_typeof(x) == "function"')
 end)
 
-test("let ok = typeof x === \"number\"", function()
+test('let ok = typeof x === "number"', function()
   local code = expr_code('let ok = typeof x === "number"')
   assert_eq(code, 'local ok = _ljs_typeof(x) == "number"')
 end)
@@ -144,14 +144,20 @@ end)
 -- Ternary
 -- ============================================================================
 
-test("let r = typeof x === \"number\" ? 1 : 0", function()
+test('let r = typeof x === "number" ? 1 : 0', function()
   local code = expr_code('let r = typeof x === "number" ? 1 : 0')
-  assert_eq(code, 'local r = (function() if _ljs_typeof(x) == "number" then return 1 else return 0 end end)()')
+  assert_eq(
+    code,
+    'local r = (function() if _ljs_typeof(x) == "number" then return 1 else return 0 end end)()'
+  )
 end)
 
-test("let r = typeof f === \"function\" ? f() : null", function()
+test('let r = typeof f === "function" ? f() : null', function()
   local code = expr_code('let r = typeof f === "function" ? f() : null')
-  assert_eq(code, "local r = (function() if _ljs_typeof(f) == \"function\" then return f() else return nil end end)()")
+  assert_eq(
+    code,
+    'local r = (function() if _ljs_typeof(f) == "function" then return f() else return nil end end)()'
+  )
 end)
 
 -- ============================================================================
@@ -222,14 +228,14 @@ end)
 
 test("typeof in if condition", function()
   local code = transpile_ok('if (typeof x === "number") { x; }')
-  assert(code:find('if _ljs_typeof'), "expected if _ljs_typeof")
-  assert(code:find('x\n'), "expected body")
-  assert(code:find('end\n'), "expected end")
+  assert(code:find("if _ljs_typeof"), "expected if _ljs_typeof")
+  assert(code:find("x\n"), "expected body")
+  assert(code:find("end\n"), "expected end")
 end)
 
 test("typeof in while condition", function()
   local code = transpile_ok('while (typeof x !== "undefined") { x; }')
-  assert(code:find('while _ljs_typeof'), "expected while _ljs_typeof")
+  assert(code:find("while _ljs_typeof"), "expected while _ljs_typeof")
 end)
 
 test("typeof in return", function()
@@ -270,7 +276,7 @@ end)
 -- Integration — run transpiled Lua and verify typeof results
 -- ============================================================================
 
-test("integration: typeof 42 === \"number\"", function()
+test('integration: typeof 42 === "number"', function()
   local output = run_lua_source([[
 local function _ljs_typeof(x)
   local t = type(x)
@@ -283,7 +289,7 @@ print(_ljs_typeof(42))
   assert_eq(output, "number\n")
 end)
 
-test("integration: typeof \"hello\" === \"string\"", function()
+test('integration: typeof "hello" === "string"', function()
   local output = run_lua_source([[
 local function _ljs_typeof(x)
   local t = type(x)
@@ -296,7 +302,7 @@ print(_ljs_typeof("hello"))
   assert_eq(output, "string\n")
 end)
 
-test("integration: typeof true === \"boolean\"", function()
+test('integration: typeof true === "boolean"', function()
   local output = run_lua_source([[
 local function _ljs_typeof(x)
   local t = type(x)
@@ -309,7 +315,7 @@ print(_ljs_typeof(true))
   assert_eq(output, "boolean\n")
 end)
 
-test("integration: typeof nil === \"undefined\"", function()
+test('integration: typeof nil === "undefined"', function()
   local output = run_lua_source([[
 local function _ljs_typeof(x)
   local t = type(x)
@@ -322,7 +328,7 @@ print(_ljs_typeof(nil))
   assert_eq(output, "undefined\n")
 end)
 
-test("integration: typeof {} === \"object\"", function()
+test('integration: typeof {} === "object"', function()
   local output = run_lua_source([[
 local function _ljs_typeof(x)
   local t = type(x)
@@ -335,7 +341,7 @@ print(_ljs_typeof({}))
   assert_eq(output, "object\n")
 end)
 
-test("integration: typeof function() end === \"function\"", function()
+test('integration: typeof function() end === "function"', function()
   local output = run_lua_source([[
 local function _ljs_typeof(x)
   local t = type(x)
@@ -364,7 +370,7 @@ end
   assert_eq(output, "is number\n")
 end)
 
-test("integration: typeof x !== \"undefined\" pattern", function()
+test('integration: typeof x !== "undefined" pattern', function()
   local output = run_lua_source([[
 local function _ljs_typeof(x)
   local t = type(x)
@@ -390,7 +396,9 @@ if (typeof x === "number") {
 ]])
   assert(code:find("_ljs_typeof"), "expected _ljs_typeof in output")
   local fn, err = load(code)
-  if not fn then error("load failed: " .. tostring(err) .. "\ncode:\n" .. code) end
+  if not fn then
+    error("load failed: " .. tostring(err) .. "\ncode:\n" .. code)
+  end
 end)
 
 T.summary()

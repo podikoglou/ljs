@@ -11,33 +11,57 @@ local tok, assert_tok, assert_tokenize_fail = P.tok, P.assert_tok, P.assert_toke
 
 test("parse for...in with let", function()
   assert_parse_ok("for (let key in obj) { console.log(key); }", {
-    {type = "ForInStatement",
-      left = {type = "VariableDeclaration", kind = "let", declarations = {
-        {type = "VariableDeclarator", name = {type = "Identifier", name = "key"}}
-      }},
-      right = {type = "Identifier", name = "obj"},
-      body = {type = "BlockStatement", body = {
-        {type = "ExpressionStatement", expression = {type = "CallExpression",
-          callee = {type = "MemberExpression", object = {type = "Identifier", name = "console"},
-            property = {type = "Identifier", name = "log"}, computed = false},
-          arguments = {{type = "Identifier", name = "key"}}
-        }}
-      }}
-    }
+    {
+      type = "ForInStatement",
+      left = {
+        type = "VariableDeclaration",
+        kind = "let",
+        declarations = {
+          { type = "VariableDeclarator", name = { type = "Identifier", name = "key" } },
+        },
+      },
+      right = { type = "Identifier", name = "obj" },
+      body = {
+        type = "BlockStatement",
+        body = {
+          {
+            type = "ExpressionStatement",
+            expression = {
+              type = "CallExpression",
+              callee = {
+                type = "MemberExpression",
+                object = { type = "Identifier", name = "console" },
+                property = { type = "Identifier", name = "log" },
+                computed = false,
+              },
+              arguments = { { type = "Identifier", name = "key" } },
+            },
+          },
+        },
+      },
+    },
   })
 end)
 
 test("parse for...in with const", function()
   assert_parse_ok("for (const k in obj) { k; }", {
-    {type = "ForInStatement",
-      left = {type = "VariableDeclaration", kind = "const", declarations = {
-        {type = "VariableDeclarator", name = {type = "Identifier", name = "k"}}
-      }},
-      right = {type = "Identifier", name = "obj"},
-      body = {type = "BlockStatement", body = {
-        {type = "ExpressionStatement", expression = {type = "Identifier", name = "k"}}
-      }}
-    }
+    {
+      type = "ForInStatement",
+      left = {
+        type = "VariableDeclaration",
+        kind = "const",
+        declarations = {
+          { type = "VariableDeclarator", name = { type = "Identifier", name = "k" } },
+        },
+      },
+      right = { type = "Identifier", name = "obj" },
+      body = {
+        type = "BlockStatement",
+        body = {
+          { type = "ExpressionStatement", expression = { type = "Identifier", name = "k" } },
+        },
+      },
+    },
   })
 end)
 
@@ -262,29 +286,45 @@ end)
 
 test("parse for...of still works (regression)", function()
   assert_parse_ok("for (let x of arr) { x; }", {
-    {type = "ForOfStatement",
-      left = {type = "VariableDeclaration", kind = "let", declarations = {
-        {type = "VariableDeclarator", name = {type = "Identifier", name = "x"}}
-      }},
-      right = {type = "Identifier", name = "arr"},
-      body = {type = "BlockStatement", body = {
-        {type = "ExpressionStatement", expression = {type = "Identifier", name = "x"}}
-      }}
-    }
+    {
+      type = "ForOfStatement",
+      left = {
+        type = "VariableDeclaration",
+        kind = "let",
+        declarations = {
+          { type = "VariableDeclarator", name = { type = "Identifier", name = "x" } },
+        },
+      },
+      right = { type = "Identifier", name = "arr" },
+      body = {
+        type = "BlockStatement",
+        body = {
+          { type = "ExpressionStatement", expression = { type = "Identifier", name = "x" } },
+        },
+      },
+    },
   })
 end)
 
 test("for-of with const still works (regression)", function()
   assert_parse_ok("for (const x of arr) { x; }", {
-    {type = "ForOfStatement",
-      left = {type = "VariableDeclaration", kind = "const", declarations = {
-        {type = "VariableDeclarator", name = {type = "Identifier", name = "x"}}
-      }},
-      right = {type = "Identifier", name = "arr"},
-      body = {type = "BlockStatement", body = {
-        {type = "ExpressionStatement", expression = {type = "Identifier", name = "x"}}
-      }}
-    }
+    {
+      type = "ForOfStatement",
+      left = {
+        type = "VariableDeclaration",
+        kind = "const",
+        declarations = {
+          { type = "VariableDeclarator", name = { type = "Identifier", name = "x" } },
+        },
+      },
+      right = { type = "Identifier", name = "arr" },
+      body = {
+        type = "BlockStatement",
+        body = {
+          { type = "ExpressionStatement", expression = { type = "Identifier", name = "x" } },
+        },
+      },
+    },
   })
 end)
 
@@ -353,44 +393,81 @@ end)
 
 test("parse x++ as if condition", function()
   assert_parse_ok("if (x++) { y; }", {
-    {type = "IfStatement",
-      test = {type = "UpdateExpression", operator = "++",
-        argument = {type = "Identifier", name = "x"}, prefix = false},
-      consequent = {type = "BlockStatement", body = {
-        {type = "ExpressionStatement", expression = {type = "Identifier", name = "y"}}
-      }}}
+    {
+      type = "IfStatement",
+      test = {
+        type = "UpdateExpression",
+        operator = "++",
+        argument = { type = "Identifier", name = "x" },
+        prefix = false,
+      },
+      consequent = {
+        type = "BlockStatement",
+        body = {
+          { type = "ExpressionStatement", expression = { type = "Identifier", name = "y" } },
+        },
+      },
+    },
   })
 end)
 
 test("parse let x = y++ (as variable init)", function()
   assert_parse_ok("let x = y++;", {
-    {type = "VariableDeclaration", kind = "let", declarations = {
-      {type = "VariableDeclarator",
-        name = {type = "Identifier", name = "x"},
-        init = {type = "UpdateExpression", operator = "++",
-          argument = {type = "Identifier", name = "y"}, prefix = false}}
-    }}
+    {
+      type = "VariableDeclaration",
+      kind = "let",
+      declarations = {
+        {
+          type = "VariableDeclarator",
+          name = { type = "Identifier", name = "x" },
+          init = {
+            type = "UpdateExpression",
+            operator = "++",
+            argument = { type = "Identifier", name = "y" },
+            prefix = false,
+          },
+        },
+      },
+    },
   })
 end)
 
 test("parse f(x++) as call argument", function()
   assert_parse_ok("f(x++);", {
-    {type = "ExpressionStatement", expression = {type = "CallExpression",
-      callee = {type = "Identifier", name = "f"},
-      arguments = {
-        {type = "UpdateExpression", operator = "++",
-          argument = {type = "Identifier", name = "x"}, prefix = false}
-      }}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "CallExpression",
+        callee = { type = "Identifier", name = "f" },
+        arguments = {
+          {
+            type = "UpdateExpression",
+            operator = "++",
+            argument = { type = "Identifier", name = "x" },
+            prefix = false,
+          },
+        },
+      },
+    },
   })
 end)
 
 test("parse arr[x++] as computed property", function()
   assert_parse_ok("arr[x++];", {
-    {type = "ExpressionStatement", expression = {type = "MemberExpression",
-      object = {type = "Identifier", name = "arr"},
-      property = {type = "UpdateExpression", operator = "++",
-        argument = {type = "Identifier", name = "x"}, prefix = false},
-      computed = true}}
+    {
+      type = "ExpressionStatement",
+      expression = {
+        type = "MemberExpression",
+        object = { type = "Identifier", name = "arr" },
+        property = {
+          type = "UpdateExpression",
+          operator = "++",
+          argument = { type = "Identifier", name = "x" },
+          prefix = false,
+        },
+        computed = true,
+      },
+    },
   })
 end)
 

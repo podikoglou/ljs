@@ -41,102 +41,132 @@ end)
 
 test("parse minimal switch with one case + break", function()
   assert_parse_ok("switch (x) { case 1: break; }", {
-    {type = "SwitchStatement",
-      discriminant = {type = "Identifier", name = "x"},
+    {
+      type = "SwitchStatement",
+      discriminant = { type = "Identifier", name = "x" },
       cases = {
-        {type = "SwitchCase",
-          test = {type = "NumberLiteral", value = 1},
+        {
+          type = "SwitchCase",
+          test = { type = "NumberLiteral", value = 1 },
           consequent = {
-            {type = "BreakStatement"}
-          }}
-      }}
+            { type = "BreakStatement" },
+          },
+        },
+      },
+    },
   })
 end)
 
 test("parse switch with default only", function()
   assert_parse_ok("switch (x) { default: y; }", {
-    {type = "SwitchStatement",
-      discriminant = {type = "Identifier", name = "x"},
+    {
+      type = "SwitchStatement",
+      discriminant = { type = "Identifier", name = "x" },
       cases = {
-        {type = "SwitchCase",
+        {
+          type = "SwitchCase",
           test = nil,
           consequent = {
-            {type = "ExpressionStatement", expression = {type = "Identifier", name = "y"}}
-          }}
-      }}
+            { type = "ExpressionStatement", expression = { type = "Identifier", name = "y" } },
+          },
+        },
+      },
+    },
   })
 end)
 
 test("parse empty switch body", function()
   assert_parse_ok("switch (x) {}", {
-    {type = "SwitchStatement",
-      discriminant = {type = "Identifier", name = "x"},
-      cases = {}}
+    {
+      type = "SwitchStatement",
+      discriminant = { type = "Identifier", name = "x" },
+      cases = {},
+    },
   })
 end)
 
 test("parse multiple cases with break", function()
   assert_parse_ok("switch (x) { case 1: a; break; case 2: b; break; }", {
-    {type = "SwitchStatement",
-      discriminant = {type = "Identifier", name = "x"},
+    {
+      type = "SwitchStatement",
+      discriminant = { type = "Identifier", name = "x" },
       cases = {
-        {type = "SwitchCase",
-          test = {type = "NumberLiteral", value = 1},
+        {
+          type = "SwitchCase",
+          test = { type = "NumberLiteral", value = 1 },
           consequent = {
-            {type = "ExpressionStatement", expression = {type = "Identifier", name = "a"}},
-            {type = "BreakStatement"}
-          }},
-        {type = "SwitchCase",
-          test = {type = "NumberLiteral", value = 2},
+            { type = "ExpressionStatement", expression = { type = "Identifier", name = "a" } },
+            { type = "BreakStatement" },
+          },
+        },
+        {
+          type = "SwitchCase",
+          test = { type = "NumberLiteral", value = 2 },
           consequent = {
-            {type = "ExpressionStatement", expression = {type = "Identifier", name = "b"}},
-            {type = "BreakStatement"}
-          }}
-      }}
+            { type = "ExpressionStatement", expression = { type = "Identifier", name = "b" } },
+            { type = "BreakStatement" },
+          },
+        },
+      },
+    },
   })
 end)
 
 test("parse case fallthrough (empty consequent)", function()
   assert_parse_ok("switch (x) { case 1: case 2: break; }", {
-    {type = "SwitchStatement",
-      discriminant = {type = "Identifier", name = "x"},
+    {
+      type = "SwitchStatement",
+      discriminant = { type = "Identifier", name = "x" },
       cases = {
-        {type = "SwitchCase",
-          test = {type = "NumberLiteral", value = 1},
-          consequent = {}},
-        {type = "SwitchCase",
-          test = {type = "NumberLiteral", value = 2},
+        {
+          type = "SwitchCase",
+          test = { type = "NumberLiteral", value = 1 },
+          consequent = {},
+        },
+        {
+          type = "SwitchCase",
+          test = { type = "NumberLiteral", value = 2 },
           consequent = {
-            {type = "BreakStatement"}
-          }}
-      }}
+            { type = "BreakStatement" },
+          },
+        },
+      },
+    },
   })
 end)
 
 test("parse case + default + case (default in middle)", function()
   assert_parse_ok("switch (x) { case 1: a; break; default: b; break; case 2: c; break; }", {
-    {type = "SwitchStatement",
-      discriminant = {type = "Identifier", name = "x"},
+    {
+      type = "SwitchStatement",
+      discriminant = { type = "Identifier", name = "x" },
       cases = {
-        {type = "SwitchCase",
-          test = {type = "NumberLiteral", value = 1},
+        {
+          type = "SwitchCase",
+          test = { type = "NumberLiteral", value = 1 },
           consequent = {
-            {type = "ExpressionStatement", expression = {type = "Identifier", name = "a"}},
-            {type = "BreakStatement"}
-          }},
-        {type = "SwitchCase",
+            { type = "ExpressionStatement", expression = { type = "Identifier", name = "a" } },
+            { type = "BreakStatement" },
+          },
+        },
+        {
+          type = "SwitchCase",
           test = nil,
           consequent = {
-            {type = "ExpressionStatement", expression = {type = "Identifier", name = "b"}},
-            {type = "BreakStatement"}
-          }},
-        {type = "SwitchCase",
-          test = {type = "NumberLiteral", value = 2},
+            { type = "ExpressionStatement", expression = { type = "Identifier", name = "b" } },
+            { type = "BreakStatement" },
+          },
+        },
+        {
+          type = "SwitchCase",
+          test = { type = "NumberLiteral", value = 2 },
           consequent = {
-            {type = "ExpressionStatement", expression = {type = "Identifier", name = "c"}},
-            {type = "BreakStatement"}
-          }}
-      }}
+            { type = "ExpressionStatement", expression = { type = "Identifier", name = "c" } },
+            { type = "BreakStatement" },
+          },
+        },
+      },
+    },
   })
 end)
 
@@ -255,25 +285,29 @@ end)
 
 test("parse case with empty body at end of switch", function()
   assert_parse_ok("switch (x) { case 1: }", {
-    {type = "SwitchStatement",
-      discriminant = {type = "Identifier", name = "x"},
+    {
+      type = "SwitchStatement",
+      discriminant = { type = "Identifier", name = "x" },
       cases = {
-        {type = "SwitchCase",
-          test = {type = "NumberLiteral", value = 1},
-          consequent = {}}
-      }}
+        {
+          type = "SwitchCase",
+          test = { type = "NumberLiteral", value = 1 },
+          consequent = {},
+        },
+      },
+    },
   })
 end)
 
 test("parse case with empty default at end", function()
   assert_parse_ok("switch (x) { default: }", {
-    {type = "SwitchStatement",
-      discriminant = {type = "Identifier", name = "x"},
+    {
+      type = "SwitchStatement",
+      discriminant = { type = "Identifier", name = "x" },
       cases = {
-        {type = "SwitchCase",
-          test = nil,
-          consequent = {}}
-      }}
+        { type = "SwitchCase", test = nil, consequent = {} },
+      },
+    },
   })
 end)
 
@@ -297,21 +331,25 @@ end)
 
 test("parse bare break", function()
   assert_parse_ok("break;", {
-    {type = "BreakStatement"}
+    { type = "BreakStatement" },
   })
 end)
 
 test("parse break without semicolon before }", function()
   assert_parse_ok("switch (x) { case 1: break }", {
-    {type = "SwitchStatement",
-      discriminant = {type = "Identifier", name = "x"},
+    {
+      type = "SwitchStatement",
+      discriminant = { type = "Identifier", name = "x" },
       cases = {
-        {type = "SwitchCase",
-          test = {type = "NumberLiteral", value = 1},
+        {
+          type = "SwitchCase",
+          test = { type = "NumberLiteral", value = 1 },
           consequent = {
-            {type = "BreakStatement"}
-          }}
-      }}
+            { type = "BreakStatement" },
+          },
+        },
+      },
+    },
   })
 end)
 
@@ -337,17 +375,19 @@ end)
 
 test("parse bare continue", function()
   assert_parse_ok("continue;", {
-    {type = "ContinueStatement"}
+    { type = "ContinueStatement" },
   })
 end)
 
 test("parse continue without semicolon before }", function()
   assert_parse_ok("while (x) { continue }", {
-    {type = "WhileStatement",
-      test = {type = "Identifier", name = "x"},
-      body = {type = "BlockStatement", body = {
-        {type = "ContinueStatement"}
-      }}}
+    {
+      type = "WhileStatement",
+      test = { type = "Identifier", name = "x" },
+      body = { type = "BlockStatement", body = {
+        { type = "ContinueStatement" },
+      } },
+    },
   })
 end)
 
@@ -408,7 +448,8 @@ test("parse continue in nested loops (inner and outer)", function()
 end)
 
 test("parse continue mixed with break in switch inside loop", function()
-  local ast = ljs.parse("while (x) { switch (a) { case 1: continue; case 2: break; default: continue; } }")
+  local ast =
+    ljs.parse("while (x) { switch (a) { case 1: continue; case 2: break; default: continue; } }")
   local sw = ast.body[1].body.body[1]
   assert_eq(sw.cases[1].consequent[1].type, "ContinueStatement")
   assert_eq(sw.cases[2].consequent[1].type, "BreakStatement")
@@ -502,45 +543,62 @@ end
 
 test("parse_tokens: minimal switch", function()
   local tokens = {
-    tok_constructor(TK.SWITCH, "switch"), tok_constructor(TK.LPAREN), tok_constructor(TK.IDENTIFIER, "x"), tok_constructor(TK.RPAREN),
+    tok_constructor(TK.SWITCH, "switch"),
+    tok_constructor(TK.LPAREN),
+    tok_constructor(TK.IDENTIFIER, "x"),
+    tok_constructor(TK.RPAREN),
     tok_constructor(TK.LBRACE),
-    tok_constructor(TK.CASE, "case"), tok_constructor(TK.NUMBER, 1), tok_constructor(TK.COLON),
-    tok_constructor(TK.BREAK, "break"), tok_constructor(TK.SEMICOLON),
+    tok_constructor(TK.CASE, "case"),
+    tok_constructor(TK.NUMBER, 1),
+    tok_constructor(TK.COLON),
+    tok_constructor(TK.BREAK, "break"),
+    tok_constructor(TK.SEMICOLON),
     tok_constructor(TK.RBRACE),
     tok_constructor(TK.EOF),
   }
   local ast = ljs.parse_tokens(tokens)
-  assert_table_eq(ast, {type = "Program", body = {
-    {type = "SwitchStatement",
-      discriminant = {type = "Identifier", name = "x"},
-      cases = {
-        {type = "SwitchCase",
-          test = {type = "NumberLiteral", value = 1},
-          consequent = {
-            {type = "BreakStatement"}
-          }}
-      }}
-  }})
+  assert_table_eq(ast, {
+    type = "Program",
+    body = {
+      {
+        type = "SwitchStatement",
+        discriminant = { type = "Identifier", name = "x" },
+        cases = {
+          {
+            type = "SwitchCase",
+            test = { type = "NumberLiteral", value = 1 },
+            consequent = {
+              { type = "BreakStatement" },
+            },
+          },
+        },
+      },
+    },
+  })
 end)
 
 test("parse_tokens: break statement", function()
   local tokens = {
-    tok_constructor(TK.BREAK, "break"), tok_constructor(TK.SEMICOLON), tok_constructor(TK.EOF),
+    tok_constructor(TK.BREAK, "break"),
+    tok_constructor(TK.SEMICOLON),
+    tok_constructor(TK.EOF),
   }
   local ast = ljs.parse_tokens(tokens)
-  assert_table_eq(ast, {type = "Program", body = {
-    {type = "BreakStatement"}
-  }})
+  assert_table_eq(ast, { type = "Program", body = {
+    { type = "BreakStatement" },
+  } })
 end)
 
 test("parse_tokens: continue statement", function()
   local tokens = {
-    tok_constructor(TK.CONTINUE, "continue"), tok_constructor(TK.SEMICOLON), tok_constructor(TK.EOF),
+    tok_constructor(TK.CONTINUE, "continue"),
+    tok_constructor(TK.SEMICOLON),
+    tok_constructor(TK.EOF),
   }
   local ast = ljs.parse_tokens(tokens)
-  assert_table_eq(ast, {type = "Program", body = {
-    {type = "ContinueStatement"}
-  }})
+  assert_table_eq(ast, { type = "Program", body = {
+    { type = "ContinueStatement" },
+  } })
 end)
 
 T.summary()
