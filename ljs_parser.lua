@@ -183,6 +183,7 @@ local function tokenize(source)
   local col = 1
   local len = #source
 
+  --- @return string|nil
   local function current()
     return pos <= len and source:sub(pos, pos) or nil
   end

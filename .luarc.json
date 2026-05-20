@@ -4,9 +4,7 @@
   "diagnostics.neededFileStatus": {
     "need-check-nil": "None"
   },
-  "diagnostics.severity": {
-    "undefined-field": "Hint"
-  },
+
   "workspace.checkThirdParty": false,
   "type.weakUnionCheck": true,
   "type.weakNilCheck": true
