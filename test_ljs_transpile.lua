@@ -206,6 +206,85 @@ test("unary + in binary context", function()
 end)
 
 -- ============================================================================
+-- Unit tests — exponentiation (**)
+-- ============================================================================
+
+test("exponentiation ** maps to ^", function()
+  assert_eq(expr_code("2 ** 3"), "2 ^ 3")
+end)
+
+test("exponentiation **= desugars", function()
+  assert_eq(expr_code("x **= 2"), "x = x ^ 2")
+end)
+
+test("exponentiation **= on member expression", function()
+  assert_eq(expr_code("obj.x **= 2"), "obj.x = obj.x ^ 2")
+end)
+
+test("exponentiation **= on computed member", function()
+  assert_eq(expr_code("arr[0] **= 2"), "arr[(0) + 1] = arr[(0) + 1] ^ 2")
+end)
+
+test("exponentiation chained right-assoc", function()
+  assert_eq(expr_code("2 ** 3 ** 4"), "2 ^ 3 ^ 4")
+end)
+
+test("exponentiation no helper emitted", function()
+  local code = transpile_ok("let x = 2 ** 3;")
+  assert(not code:find("_ljs_pow"), "expected no _ljs_pow helper")
+end)
+
+-- ============================================================================
+-- Integration tests — exponentiation (**)
+-- ============================================================================
+
+test("2 ** 3 = 8", function()
+  local output = run_js("console.log(2 ** 3);")
+  assert_eq(tonumber(output:match("[%d.]+")), 8)
+end)
+
+test("2 ** 0.5 ≈ sqrt(2)", function()
+  local output = run_js("console.log(2 ** 0.5);")
+  local val = tonumber(output:match("[%d.]+"))
+  assert(val and math.abs(val - 1.4142135623731) < 1e-6, "expected sqrt(2), got " .. tostring(val))
+end)
+
+test("2 ** 3 ** 2 = 512 (right-assoc)", function()
+  local output = run_js("console.log(2 ** 3 ** 2);")
+  assert_eq(tonumber(output:match("[%d.]+")), 512)
+end)
+
+test("**= compound assignment", function()
+  local output = run_js([[
+    let x = 2;
+    x **= 3;
+    console.log(x);
+  ]])
+  assert_eq(tonumber(output:match("[%d.]+")), 8)
+end)
+
+test("2 ** -1 = 0.5", function()
+  local output = run_js("console.log(2 ** -1);")
+  local val = tonumber(output:match("[%d.]+"))
+  assert(val and math.abs(val - 0.5) < 1e-6, "expected 0.5, got " .. tostring(val))
+end)
+
+test("exponentiation with multiplication", function()
+  local output = run_js("console.log(2 * 3 ** 2);")
+  assert_eq(tonumber(output:match("[%d.]+")), 18)
+end)
+
+test("exponentiation in function body", function()
+  local output = run_js([[
+    function power(base, exp) {
+      return base ** exp;
+    }
+    console.log(power(2, 10));
+  ]])
+  assert_eq(tonumber(output:match("[%d.]+")), 1024)
+end)
+
+-- ============================================================================
 -- Unit tests — bitwise NOT (~)
 -- ============================================================================
 
