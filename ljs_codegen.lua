@@ -93,6 +93,15 @@ function cg.expr_stmt(expr, indent)
   return cg.pad(indent) .. expr .. "\n"
 end
 
+--- Emit a do...end block for scoping.
+-- @param body (string) Block body (pre-formatted)
+-- @param indent (number) Indentation level
+-- @return (string) Formatted do block with trailing newline
+function cg.do_block(body, indent)
+  return cg.pad(indent) .. "do\n"
+    .. body .. cg.pad(indent) .. "end\n"
+end
+
 --- Emit a while loop statement.
 -- @param test (string) Loop condition expression
 -- @param body (string) Loop body (pre-formatted)
