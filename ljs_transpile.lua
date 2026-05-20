@@ -83,6 +83,13 @@ HELPERS._ljs_usr = [[local function _ljs_usr(a, b)
   return math.floor(a / 2^b)
 end]]
 
+HELPERS._ljs_typeof = [[local function _ljs_typeof(x)
+  local t = type(x)
+  if t == "nil" then return "undefined"
+  elseif t == "table" then return "object"
+  else return t end
+end]]
+
 -- ============================================================================
 -- Section 3: Pass 1 — Analysis (scope tracker, helper detection)
 -- ============================================================================
