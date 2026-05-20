@@ -126,6 +126,7 @@ test("parse BinaryExpression all operators", function()
   }
   for _, tc in ipairs(ops) do
     local ast = ljs.parse(tc[1])
+    assert(ast)
     assert_table_eq(ast.body[1].expression.operator, tc[2], "operator for " .. tc[1])
   end
 end)

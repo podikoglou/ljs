@@ -201,6 +201,7 @@ end)
 
 test("parse ternary in return", function()
   local ast = ljs.parse("function f(x) { return x ? 1 : 0; }")
+  assert(ast)
   local ret = ast.body[1].body.body[1]
   assert_eq(ret.type, "ReturnStatement")
   assert_eq(ret.argument.type, "ConditionalExpression")
@@ -288,6 +289,7 @@ end)
 
 test("parse ternary in for-loop init", function()
   local ast = ljs.parse("for (let i = x ? 0 : 1; i < 10; i += 1) {}")
+  assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForStatement")
   assert_eq(f.init.type, "VariableDeclaration")

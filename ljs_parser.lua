@@ -209,8 +209,11 @@ local function tokenize(source)
   end
 
   local function skip_whitespace()
-    while current() do
+    while true do
       local c = current()
+      if not c then
+        break
+      end
       if c:match("%s") then
         advance()
       else

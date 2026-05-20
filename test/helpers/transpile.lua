@@ -42,9 +42,16 @@ end
 local function run_lua_source(code)
   local tmp = os.tmpname()
   local f = io.open(tmp, "w")
+  if not f then
+    error("cannot open temp file: " .. tmp)
+  end
   f:write(code)
   f:close()
   local pipe = io.popen("lua " .. tmp .. " 2>&1", "r")
+  if not pipe then
+    os.remove(tmp)
+    error("cannot popen lua")
+  end
   local output = pipe:read("*a")
   pipe:close()
   os.remove(tmp)
