@@ -286,6 +286,10 @@ local function analyze_node(node, meta, scopes)
   elseif t == "DeleteExpression" then
     analyze_node(node.argument, meta, scopes)
 
+  elseif t == "TypeofExpression" then
+    meta.needed_helpers["_ljs_typeof"] = true
+    analyze_node(node.argument, meta, scopes)
+
   elseif t == "ConditionalExpression" then
     analyze_node(node.test, meta, scopes)
     analyze_node(node.consequent, meta, scopes)
@@ -761,6 +765,10 @@ gen.DeleteExpression = function(node, indent, scopes)
   return "true"
 end
 
+gen.TypeofExpression = function(node, indent, scopes)
+  return cg.call("_ljs_typeof", {emit(node.argument, indent, scopes)})
+end
+
 gen.UpdateExpression = function(node, indent, scopes)
   local arg = emit(node.argument, indent, scopes)
   local val
@@ -844,6 +852,10 @@ gen_stmt.DeleteExpression = function(node, indent, scopes)
   if obj then
     return cg.expr_stmt(cg.call("rawset", {obj, key, cg.nil_val()}), indent)
   end
+  return ""
+end
+
+gen_stmt.TypeofExpression = function(node, indent, scopes)
   return ""
 end
 
