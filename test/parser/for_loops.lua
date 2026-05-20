@@ -1,0 +1,401 @@
+local T = require("ljs_test")
+local P = require("test.helpers.parser")
+local ljs = require("ljs_parser")
+local test, assert_eq, assert_table_eq = T.test, T.assert_eq, T.assert_table_eq
+local assert_parse_ok, assert_parse_fail = P.assert_parse_ok, P.assert_parse_fail
+local tok, assert_tok, assert_tokenize_fail = P.tok, P.assert_tok, P.assert_tokenize_fail
+
+-- ============================================================================
+-- for...in tests
+-- ============================================================================
+
+test("parse for...in with let", function()
+  assert_parse_ok("for (let key in obj) { console.log(key); }", {
+    {type = "ForInStatement",
+      left = {type = "VariableDeclaration", kind = "let", declarations = {
+        {type = "VariableDeclarator", name = {type = "Identifier", name = "key"}}
+      }},
+      right = {type = "Identifier", name = "obj"},
+      body = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "CallExpression",
+          callee = {type = "MemberExpression", object = {type = "Identifier", name = "console"},
+            property = {type = "Identifier", name = "log"}, computed = false},
+          arguments = {{type = "Identifier", name = "key"}}
+        }}
+      }}
+    }
+  })
+end)
+
+test("parse for...in with const", function()
+  assert_parse_ok("for (const k in obj) { k; }", {
+    {type = "ForInStatement",
+      left = {type = "VariableDeclaration", kind = "const", declarations = {
+        {type = "VariableDeclarator", name = {type = "Identifier", name = "k"}}
+      }},
+      right = {type = "Identifier", name = "obj"},
+      body = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "k"}}
+      }}
+    }
+  })
+end)
+
+test("parse for...in with var (normalized to let)", function()
+  local ast = ljs.parse("for (var k in obj) { k; }")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForInStatement")
+  assert_eq(f.left.type, "VariableDeclaration")
+  assert_eq(f.left.kind, "let")
+  assert_eq(f.left.declarations[1].name.name, "k")
+  assert_eq(f.right.name, "obj")
+end)
+
+test("parse for...in with expression left (no declaration)", function()
+  local ast = ljs.parse("for (key in obj) { key; }")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForInStatement")
+  assert_eq(f.left.type, "Identifier")
+  assert_eq(f.left.name, "key")
+  assert_eq(f.right.name, "obj")
+end)
+
+test("parse for...in without body braces", function()
+  local ast = ljs.parse("for (let k in obj) f(k);")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForInStatement")
+  assert_eq(f.body.type, "ExpressionStatement")
+end)
+
+test("parse for...in with object literal right", function()
+  local ast = ljs.parse("for (let k in {a: 1, b: 2}) { k; }")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForInStatement")
+  assert_eq(f.right.type, "ObjectExpression")
+  assert_eq(#f.right.properties, 2)
+end)
+
+test("parse for...in with member expression right", function()
+  local ast = ljs.parse("for (let k in obj.prop) { k; }")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForInStatement")
+  assert_eq(f.right.type, "MemberExpression")
+end)
+
+test("parse for...in with computed member expression right", function()
+  local ast = ljs.parse("for (let k in obj[key]) { k; }")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForInStatement")
+  assert_eq(f.right.type, "MemberExpression")
+  assert_eq(f.right.computed, true)
+end)
+
+test("parse nested for...in", function()
+  local ast = ljs.parse("for (let k in obj) { for (let j in arr) { x; } }")
+  local outer = ast.body[1]
+  assert_eq(outer.type, "ForInStatement")
+  local inner = outer.body.body[1]
+  assert_eq(inner.type, "ForInStatement")
+end)
+
+test("parse for...in body uses key with bracket access", function()
+  local ast = ljs.parse("for (let k in obj) { obj[k]; }")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForInStatement")
+  local expr = f.body.body[1].expression
+  assert_eq(expr.type, "MemberExpression")
+  assert_eq(expr.computed, true)
+  assert_eq(expr.property.name, "k")
+end)
+
+-- for...in error cases
+
+test("error: for-in with multiple declarators", function()
+  assert_parse_fail("for (let x, y in obj) { }", "single variable")
+end)
+
+test("error: for-in with initializer", function()
+  assert_parse_fail("for (let x = 1 in obj) { }", "initializer")
+end)
+
+test("error: for-in with const and initializer", function()
+  assert_parse_fail("for (const x = 1 in obj) { }", "initializer")
+end)
+
+test("error: for-in missing right expression", function()
+  assert_parse_fail("for (let x in) { }", nil)
+end)
+
+test("error: for-in with in as variable name", function()
+  assert_parse_fail("for (let in in obj) { }", nil)
+end)
+
+test("error: let in = 5 (in is keyword)", function()
+  assert_parse_fail("let in = 5", nil)
+end)
+
+test("error: for-in missing body", function()
+  local ast = ljs.parse("for (let x in obj) ")
+  assert_eq(ast.body[1].type, "ForInStatement")
+  assert_eq(ast.body[1].body, nil)
+end)
+
+-- ============================================================================
+-- C-style for(;;) tests
+-- ============================================================================
+
+test("parse for(;;) infinite loop", function()
+  local ast = ljs.parse("for (;;) { x; }")
+  assert_eq(ast.body[1].type, "ForStatement")
+  assert_eq(ast.body[1].init, nil)
+  assert_eq(ast.body[1].test, nil)
+  assert_eq(ast.body[1].update, nil)
+  assert_eq(ast.body[1].body.type, "BlockStatement")
+end)
+
+test("parse for with full clauses", function()
+  local ast = ljs.parse("for (let i = 0; i < 10; i = i + 1) { x; }")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForStatement")
+  assert_eq(f.init.type, "VariableDeclaration")
+  assert_eq(f.init.kind, "let")
+  assert_eq(f.init.declarations[1].name.name, "i")
+  assert_eq(f.init.declarations[1].init.value, 0)
+  assert_eq(f.test.type, "BinaryExpression")
+  assert_eq(f.test.operator, "<")
+  assert_eq(f.update.type, "BinaryExpression")
+  assert_eq(f.update.operator, "=")
+end)
+
+test("parse for with expression init", function()
+  local ast = ljs.parse("for (i = 0; i < 10; i = i + 1) { x; }")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForStatement")
+  assert_eq(f.init.type, "ExpressionStatement")
+  assert_eq(f.init.expression.type, "BinaryExpression")
+  assert_eq(f.init.expression.operator, "=")
+  assert_eq(f.init.expression.left.name, "i")
+end)
+
+test("parse for with only init + test", function()
+  local ast = ljs.parse("for (let x = 1; x < 5; ) { x; }")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForStatement")
+  assert_eq(f.init.type, "VariableDeclaration")
+  assert_eq(f.test.type, "BinaryExpression")
+  assert_eq(f.update, nil)
+end)
+
+test("parse for with only test + update", function()
+  local ast = ljs.parse("for (; x < 10; x = x + 1) { y; }")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForStatement")
+  assert_eq(f.init, nil)
+  assert_eq(f.test.type, "BinaryExpression")
+  assert_eq(f.update.type, "BinaryExpression")
+end)
+
+test("parse for with only update", function()
+  local ast = ljs.parse("for (;; x = x + 1) { y; }")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForStatement")
+  assert_eq(f.init, nil)
+  assert_eq(f.test, nil)
+  assert_eq(f.update.type, "BinaryExpression")
+end)
+
+test("parse for with only init", function()
+  local ast = ljs.parse("for (let x = 1; ; ) { x; }")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForStatement")
+  assert_eq(f.init.type, "VariableDeclaration")
+  assert_eq(f.test, nil)
+  assert_eq(f.update, nil)
+end)
+
+test("parse for with only test (while-like)", function()
+  local ast = ljs.parse("for (; x < 10; ) { y; }")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForStatement")
+  assert_eq(f.init, nil)
+  assert_eq(f.test.type, "BinaryExpression")
+  assert_eq(f.update, nil)
+end)
+
+test("parse for without body braces", function()
+  local ast = ljs.parse("for (;;) x;")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForStatement")
+  assert_eq(f.body.type, "ExpressionStatement")
+end)
+
+test("parse nested for loops", function()
+  local ast = ljs.parse("for (;;) { for (;;) { x; } }")
+  local outer = ast.body[1]
+  assert_eq(outer.type, "ForStatement")
+  assert_eq(outer.body.type, "BlockStatement")
+  local inner = outer.body.body[1]
+  assert_eq(inner.type, "ForStatement")
+end)
+
+test("parse for with const init", function()
+  local ast = ljs.parse("for (const x = 1; x < 5; x = x + 1) { x; }")
+  local f = ast.body[1]
+  assert_eq(f.init.kind, "const")
+end)
+
+test("parse for with logical test", function()
+  local ast = ljs.parse("for (; a > 0 && b < 10; ) { x; }")
+  local f = ast.body[1]
+  assert_eq(f.test.type, "BinaryExpression")
+  assert_eq(f.test.operator, "&&")
+end)
+
+test("parse for with multiple declarators in init", function()
+  local ast = ljs.parse("for (let i = 0, j = 10; i < j; i = i + 1) { x; }")
+  local f = ast.body[1]
+  assert_eq(f.init.type, "VariableDeclaration")
+  assert_eq(#f.init.declarations, 2)
+  assert_eq(f.init.declarations[1].name.name, "i")
+  assert_eq(f.init.declarations[2].name.name, "j")
+end)
+
+test("parse for...of still works (regression)", function()
+  assert_parse_ok("for (let x of arr) { x; }", {
+    {type = "ForOfStatement",
+      left = {type = "VariableDeclaration", kind = "let", declarations = {
+        {type = "VariableDeclarator", name = {type = "Identifier", name = "x"}}
+      }},
+      right = {type = "Identifier", name = "arr"},
+      body = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "x"}}
+      }}
+    }
+  })
+end)
+
+test("for-of with const still works (regression)", function()
+  assert_parse_ok("for (const x of arr) { x; }", {
+    {type = "ForOfStatement",
+      left = {type = "VariableDeclaration", kind = "const", declarations = {
+        {type = "VariableDeclarator", name = {type = "Identifier", name = "x"}}
+      }},
+      right = {type = "Identifier", name = "arr"},
+      body = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "x"}}
+      }}
+    }
+  })
+end)
+
+-- ============================================================================
+-- C-style for error cases
+-- ============================================================================
+
+test("error: for missing body", function()
+  local ast = ljs.parse("for (;;) ")
+  assert_eq(ast.body[1].type, "ForStatement")
+  assert_eq(ast.body[1].body, nil)
+end)
+
+test("error: for missing closing paren", function()
+  assert_parse_fail("for (; ; ", "Expected")
+end)
+
+test("error: for missing open paren", function()
+  assert_parse_fail("for ; ; ) { }", "(")
+end)
+
+test("error: for with let in test position", function()
+  assert_parse_fail("for (; let x = 1; ) { }", nil)
+end)
+
+test("error: for with extra semicolons (four)", function()
+  assert_parse_fail("for (;;;) { }", nil)
+end)
+
+test("error: for() with no contents", function()
+  assert_parse_fail("for () { }", nil)
+end)
+
+test("error: for with expression but no semicolon or of", function()
+  assert_parse_fail("for (x) { }", nil)
+end)
+
+test("parse for with var init (normalized to let)", function()
+  local ast = ljs.parse("for (var i = 0; i < 3; i = i + 1) { x; }")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForStatement")
+  assert_eq(f.init.type, "VariableDeclaration")
+  assert_eq(f.init.kind, "let")
+  assert_eq(f.init.declarations[1].name.name, "i")
+end)
+
+test("parse for with i++ update", function()
+  local ast = ljs.parse("for (let i = 0; i < 10; i++) {}")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForStatement")
+  assert_eq(f.update.type, "UpdateExpression")
+  assert_eq(f.update.operator, "++")
+  assert_eq(f.update.prefix, false)
+  assert_eq(f.update.argument.name, "i")
+end)
+
+test("parse for with --i update", function()
+  local ast = ljs.parse("for (let i = 10; i > 0; --i) {}")
+  local f = ast.body[1]
+  assert_eq(f.type, "ForStatement")
+  assert_eq(f.update.type, "UpdateExpression")
+  assert_eq(f.update.operator, "--")
+  assert_eq(f.update.prefix, true)
+  assert_eq(f.update.argument.name, "i")
+end)
+
+test("parse x++ as if condition", function()
+  assert_parse_ok("if (x++) { y; }", {
+    {type = "IfStatement",
+      test = {type = "UpdateExpression", operator = "++",
+        argument = {type = "Identifier", name = "x"}, prefix = false},
+      consequent = {type = "BlockStatement", body = {
+        {type = "ExpressionStatement", expression = {type = "Identifier", name = "y"}}
+      }}}
+  })
+end)
+
+test("parse let x = y++ (as variable init)", function()
+  assert_parse_ok("let x = y++;", {
+    {type = "VariableDeclaration", kind = "let", declarations = {
+      {type = "VariableDeclarator",
+        name = {type = "Identifier", name = "x"},
+        init = {type = "UpdateExpression", operator = "++",
+          argument = {type = "Identifier", name = "y"}, prefix = false}}
+    }}
+  })
+end)
+
+test("parse f(x++) as call argument", function()
+  assert_parse_ok("f(x++);", {
+    {type = "ExpressionStatement", expression = {type = "CallExpression",
+      callee = {type = "Identifier", name = "f"},
+      arguments = {
+        {type = "UpdateExpression", operator = "++",
+          argument = {type = "Identifier", name = "x"}, prefix = false}
+      }}}
+  })
+end)
+
+test("parse arr[x++] as computed property", function()
+  assert_parse_ok("arr[x++];", {
+    {type = "ExpressionStatement", expression = {type = "MemberExpression",
+      object = {type = "Identifier", name = "arr"},
+      property = {type = "UpdateExpression", operator = "++",
+        argument = {type = "Identifier", name = "x"}, prefix = false},
+      computed = true}}
+  })
+end)
+
+test("error: for with only one semicolon", function()
+  assert_parse_fail("for (; ) { }", nil)
+end)
+
+T.summary()
