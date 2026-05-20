@@ -1609,7 +1609,7 @@ function parse_binary_expression(stream, min_precedence)
       stream.advance()
       -- Left-associative: parse right at precedence+0.5 so same-level ops
       -- bind to the left (they stop the inner parse, letting the outer loop consume them).
-      local next_min = precedence + 0.5
+      local next_min = precedence + 0.01
       local right = parse_binary_expression(stream, next_min)
       if not right then return nil end
       left = binary_expression(op, left, right)
