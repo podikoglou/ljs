@@ -221,4 +221,127 @@ test("composition: for..of with ipairs", function()
   assert_eq(cg.for_in_stmt("_, item", iter, body, 0), "for _, item in ipairs(items) do\n    print(item)\nend\n")
 end)
 
+-- ============================================================================
+-- Goto and labels
+-- ============================================================================
+
+test("goto_stmt: no indent", function()
+  assert_eq(cg.goto_stmt("_continue", 0), "goto _continue\n")
+end)
+
+test("goto_stmt: with indent", function()
+  assert_eq(cg.goto_stmt("_continue", 1), "  goto _continue\n")
+end)
+
+test("goto_stmt: deep indent", function()
+  assert_eq(cg.goto_stmt("_continue", 3), "      goto _continue\n")
+end)
+
+test("label: no indent", function()
+  assert_eq(cg.label("_continue", 0), "::_continue::\n")
+end)
+
+test("label: with indent", function()
+  assert_eq(cg.label("_continue", 1), "  ::_continue::\n")
+end)
+
+test("label: deep indent", function()
+  assert_eq(cg.label("_continue", 3), "      ::_continue::\n")
+end)
+
+-- ============================================================================
+-- Inline statements
+-- ============================================================================
+
+test("local_inline", function()
+  assert_eq(cg.local_inline("_t", "x"), "local _t = x")
+end)
+
+test("local_inline: with expression", function()
+  assert_eq(cg.local_inline("_t", "obj.x"), "local _t = obj.x")
+end)
+
+test("return_inline", function()
+  assert_eq(cg.return_inline("x"), "return x")
+end)
+
+test("return_inline: expression", function()
+  assert_eq(cg.return_inline("_t"), "return _t")
+end)
+
+test("inline_if_return", function()
+  assert_eq(cg.inline_if_return("x", "1", "0"), "if x then return 1 else return 0 end")
+end)
+
+test("inline_if_return: with expressions", function()
+  assert_eq(cg.inline_if_return("a > b", "a", "b"), "if a > b then return a else return b end")
+end)
+
+-- ============================================================================
+-- IIFE
+-- ============================================================================
+
+test("iife: single statement", function()
+  assert_eq(cg.iife({"x = 1"}), "(function() x = 1 end)()")
+end)
+
+test("iife: multiple statements", function()
+  assert_eq(
+    cg.iife({"local _t = x", "x = x + 1", "return _t"}),
+    "(function() local _t = x; x = x + 1; return _t end)()"
+  )
+end)
+
+test("iife: two statements", function()
+  assert_eq(
+    cg.iife({"x = _ljs_add(x, 1)", "return x"}),
+    "(function() x = _ljs_add(x, 1); return x end)()"
+  )
+end)
+
+test("iife: with inline_if_return", function()
+  assert_eq(
+    cg.iife({cg.inline_if_return("x", "1", "0")}),
+    "(function() if x then return 1 else return 0 end end)()"
+  )
+end)
+
+-- ============================================================================
+-- Composition: update expression patterns
+-- ============================================================================
+
+test("composition: prefix ++ IIFE", function()
+  local arg = "i"
+  local val = cg.call("_ljs_add", {arg, "1"})
+  assert_eq(
+    cg.iife({cg.binop("=", arg, val), cg.return_inline(arg)}),
+    "(function() i = _ljs_add(i, 1); return i end)()"
+  )
+end)
+
+test("composition: postfix ++ IIFE", function()
+  local arg = "i"
+  local val = cg.call("_ljs_add", {arg, "1"})
+  assert_eq(
+    cg.iife({cg.local_inline("_t", arg), cg.binop("=", arg, val), cg.return_inline("_t")}),
+    "(function() local _t = i; i = _ljs_add(i, 1); return _t end)()"
+  )
+end)
+
+test("composition: prefix -- IIFE", function()
+  local arg = "i"
+  local val = cg.binop("-", arg, "1")
+  assert_eq(
+    cg.iife({cg.binop("=", arg, val), cg.return_inline(arg)}),
+    "(function() i = i - 1; return i end)()"
+  )
+end)
+
+test("composition: ternary IIFE", function()
+  assert_eq(
+    cg.iife({cg.inline_if_return("flag", "42", "0")}),
+    "(function() if flag then return 42 else return 0 end end)()"
+  )
+end)
+
 T.summary()
