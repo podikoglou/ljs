@@ -224,6 +224,7 @@ local function analyze_node(node, meta, scopes)
   elseif t == "TryStatement" then
     analyze_node(node.block, meta, scopes)
     if node.handler then analyze_node(node.handler, meta, scopes) end
+    if node.finalizer then analyze_node(node.finalizer, meta, scopes) end
 
   elseif t == "SwitchStatement" then
     analyze_node(node.discriminant, meta, scopes)
@@ -619,16 +620,43 @@ end
 -- === Exception handling ===
 
 gen.TryStatement = function(node, indent, scopes)
-  local param = node.handler.param.name
-  local try_body = emit(node.block, indent, scopes)
-  scope_push(scopes)
-  scope_declare(scopes, param)
-  local catch_body = emit(node.handler.body, indent, scopes)
-  scope_pop(scopes)
-  local pcall_fn = cg.fn_expr("", try_body, indent)
+  local try_body = emit(node.block, indent + 1, scopes)
+
+  local param = node.handler and node.handler.param.name or nil
+  local catch_body = nil
+  if param then
+    scope_push(scopes)
+    scope_declare(scopes, param)
+    catch_body = emit(node.handler.body, indent + 1, scopes)
+    scope_pop(scopes)
+  end
+
+  local finalizer_body = nil
+  if node.finalizer then
+    finalizer_body = emit(node.finalizer, indent + 1, scopes)
+  end
+
+  local pcall_fn = cg.fn_expr("", try_body, indent + 1)
   local pcall_expr = cg.call("pcall", {pcall_fn})
-  return cg.local_decl("ok, " .. param, pcall_expr, indent)
-    .. cg.if_stmt("not ok", catch_body, nil, nil, indent)
+
+  if node.finalizer and not node.handler then
+    local names = "_ljs_ok, _ljs_err"
+    local pcall_line = cg.local_decl(names, pcall_expr, indent)
+    local finally_block = finalizer_body
+    local rethrow = cg.if_stmt("not _ljs_ok",
+      cg.expr_stmt(cg.call("error", {"_ljs_err"}), indent + 2),
+      nil, nil, indent)
+    return pcall_line .. finally_block .. rethrow
+  end
+
+  if node.finalizer and node.handler then
+    local pcall_line = cg.local_decl("ok, " .. param, pcall_expr, indent)
+    local catch_block = cg.if_stmt("not ok", catch_body, nil, nil, indent)
+    return pcall_line .. catch_block .. finalizer_body
+  end
+
+  local pcall_line = cg.local_decl("ok, " .. param, pcall_expr, indent)
+  return pcall_line .. cg.if_stmt("not ok", catch_body, nil, nil, indent)
 end
 
 -- === Expressions ===
