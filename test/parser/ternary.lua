@@ -1,12 +1,10 @@
 local T = require("ljs_test")
 local P = require("test.helpers.parser")
+local A = require("test.helpers.ast")
 local test, assert_eq, assert_table_eq = T.test, T.assert_eq, T.assert_table_eq
 local assert_parse_ok, assert_parse_fail = P.assert_parse_ok, P.assert_parse_fail
 local tok, assert_tok, assert_tokenize_fail = P.tok, P.assert_tok, P.assert_tokenize_fail
 local ljs = P.ljs
-
--- TERNARY OPERATOR TESTS
--- ============================================================================
 
 test("tokenize ?", function()
   assert_tok("x ? 1 : 0", 2, "?")
@@ -14,188 +12,61 @@ end)
 
 test("parse basic ternary", function()
   assert_parse_ok("x ? 1 : 0;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "ConditionalExpression",
-        test = { type = "Identifier", name = "x" },
-        consequent = { type = "NumberLiteral", value = 1 },
-        alternate = { type = "NumberLiteral", value = 0 },
-      },
-    },
+    A.expr_stmt(A.ternary(A.id("x"), A.num(1), A.num(0))),
   })
 end)
 
 test("parse nested ternary in consequent", function()
   assert_parse_ok("a ? b ? 1 : 2 : 3;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "ConditionalExpression",
-        test = { type = "Identifier", name = "a" },
-        consequent = {
-          type = "ConditionalExpression",
-          test = { type = "Identifier", name = "b" },
-          consequent = { type = "NumberLiteral", value = 1 },
-          alternate = { type = "NumberLiteral", value = 2 },
-        },
-        alternate = { type = "NumberLiteral", value = 3 },
-      },
-    },
+    A.expr_stmt(A.ternary(A.id("a"), A.ternary(A.id("b"), A.num(1), A.num(2)), A.num(3))),
   })
 end)
 
 test("parse nested ternary in alternate", function()
   assert_parse_ok("a ? 1 : b ? 2 : 3;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "ConditionalExpression",
-        test = { type = "Identifier", name = "a" },
-        consequent = { type = "NumberLiteral", value = 1 },
-        alternate = {
-          type = "ConditionalExpression",
-          test = { type = "Identifier", name = "b" },
-          consequent = { type = "NumberLiteral", value = 2 },
-          alternate = { type = "NumberLiteral", value = 3 },
-        },
-      },
-    },
+    A.expr_stmt(A.ternary(A.id("a"), A.num(1), A.ternary(A.id("b"), A.num(2), A.num(3)))),
   })
 end)
 
 test("parse ternary precedence: || binds tighter than ?", function()
   assert_parse_ok("a || b ? 1 : 0;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "ConditionalExpression",
-        test = {
-          type = "BinaryExpression",
-          operator = "||",
-          left = { type = "Identifier", name = "a" },
-          right = { type = "Identifier", name = "b" },
-        },
-        consequent = { type = "NumberLiteral", value = 1 },
-        alternate = { type = "NumberLiteral", value = 0 },
-      },
-    },
+    A.expr_stmt(A.ternary(A.bin("||", A.id("a"), A.id("b")), A.num(1), A.num(0))),
   })
 end)
 
 test("parse ternary precedence: && binds tighter than ?", function()
   assert_parse_ok("a && b ? 1 : 0;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "ConditionalExpression",
-        test = {
-          type = "BinaryExpression",
-          operator = "&&",
-          left = { type = "Identifier", name = "a" },
-          right = { type = "Identifier", name = "b" },
-        },
-        consequent = { type = "NumberLiteral", value = 1 },
-        alternate = { type = "NumberLiteral", value = 0 },
-      },
-    },
+    A.expr_stmt(A.ternary(A.bin("&&", A.id("a"), A.id("b")), A.num(1), A.num(0))),
   })
 end)
 
 test("parse ternary precedence: || inside consequent", function()
   assert_parse_ok("a ? b || c : d;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "ConditionalExpression",
-        test = { type = "Identifier", name = "a" },
-        consequent = {
-          type = "BinaryExpression",
-          operator = "||",
-          left = { type = "Identifier", name = "b" },
-          right = { type = "Identifier", name = "c" },
-        },
-        alternate = { type = "Identifier", name = "d" },
-      },
-    },
+    A.expr_stmt(A.ternary(A.id("a"), A.bin("||", A.id("b"), A.id("c")), A.id("d"))),
   })
 end)
 
 test("parse ternary precedence: assignment has lower precedence", function()
   assert_parse_ok("x = a ? 1 : 0;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "BinaryExpression",
-        operator = "=",
-        left = { type = "Identifier", name = "x" },
-        right = {
-          type = "ConditionalExpression",
-          test = { type = "Identifier", name = "a" },
-          consequent = { type = "NumberLiteral", value = 1 },
-          alternate = { type = "NumberLiteral", value = 0 },
-        },
-      },
-    },
+    A.expr_stmt(A.bin("=", A.id("x"), A.ternary(A.id("a"), A.num(1), A.num(0)))),
   })
 end)
 
 test("parse ternary with assignment in consequent", function()
   assert_parse_ok("a ? x = 1 : 0;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "ConditionalExpression",
-        test = { type = "Identifier", name = "a" },
-        consequent = {
-          type = "BinaryExpression",
-          operator = "=",
-          left = { type = "Identifier", name = "x" },
-          right = { type = "NumberLiteral", value = 1 },
-        },
-        alternate = { type = "NumberLiteral", value = 0 },
-      },
-    },
+    A.expr_stmt(A.ternary(A.id("a"), A.bin("=", A.id("x"), A.num(1)), A.num(0))),
   })
 end)
 
 test("parse ternary with assignment in alternate", function()
   assert_parse_ok("a ? 1 : x = 0;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "ConditionalExpression",
-        test = { type = "Identifier", name = "a" },
-        consequent = { type = "NumberLiteral", value = 1 },
-        alternate = {
-          type = "BinaryExpression",
-          operator = "=",
-          left = { type = "Identifier", name = "x" },
-          right = { type = "NumberLiteral", value = 0 },
-        },
-      },
-    },
+    A.expr_stmt(A.ternary(A.id("a"), A.num(1), A.bin("=", A.id("x"), A.num(0)))),
   })
 end)
 
 test("parse ternary in variable init", function()
   assert_parse_ok("let x = a ? 1 : 0;", {
-    {
-      type = "VariableDeclaration",
-      kind = "let",
-      declarations = {
-        {
-          type = "VariableDeclarator",
-          name = { type = "Identifier", name = "x" },
-          init = {
-            type = "ConditionalExpression",
-            test = { type = "Identifier", name = "a" },
-            consequent = { type = "NumberLiteral", value = 1 },
-            alternate = { type = "NumberLiteral", value = 0 },
-          },
-        },
-      },
-    },
+    A.let("x", A.ternary(A.id("a"), A.num(1), A.num(0))),
   })
 end)
 
@@ -212,78 +83,19 @@ end)
 
 test("parse ternary in function args", function()
   assert_parse_ok("f(x ? 1 : 0);", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "CallExpression",
-        callee = { type = "Identifier", name = "f" },
-        arguments = {
-          {
-            type = "ConditionalExpression",
-            test = { type = "Identifier", name = "x" },
-            consequent = { type = "NumberLiteral", value = 1 },
-            alternate = { type = "NumberLiteral", value = 0 },
-          },
-        },
-      },
-    },
+    A.expr_stmt(A.call(A.id("f"), { A.ternary(A.id("x"), A.num(1), A.num(0)) })),
   })
 end)
 
 test("parse ternary in object value", function()
   assert_parse_ok("let obj = {a: x ? 1 : 0};", {
-    {
-      type = "VariableDeclaration",
-      kind = "let",
-      declarations = {
-        {
-          type = "VariableDeclarator",
-          name = { type = "Identifier", name = "obj" },
-          init = {
-            type = "ObjectExpression",
-            properties = {
-              {
-                type = "Property",
-                key = { type = "Identifier", name = "a" },
-                value = {
-                  type = "ConditionalExpression",
-                  test = { type = "Identifier", name = "x" },
-                  consequent = { type = "NumberLiteral", value = 1 },
-                  alternate = { type = "NumberLiteral", value = 0 },
-                },
-                computed = false,
-              },
-            },
-          },
-        },
-      },
-    },
+    A.let("obj", A.obj({ A.prop(A.id("a"), A.ternary(A.id("x"), A.num(1), A.num(0))) })),
   })
 end)
 
 test("parse ternary in array element", function()
   assert_parse_ok("let arr = [x ? 1 : 0];", {
-    {
-      type = "VariableDeclaration",
-      kind = "let",
-      declarations = {
-        {
-          type = "VariableDeclarator",
-          name = { type = "Identifier", name = "arr" },
-          init = {
-            type = "ArrayExpression",
-            elements = {
-              {
-                type = "ConditionalExpression",
-                test = { type = "Identifier", name = "x" },
-                consequent = { type = "NumberLiteral", value = 1 },
-                alternate = { type = "NumberLiteral", value = 0 },
-              },
-            },
-          },
-        },
-      },
-    },
+    A.let("arr", A.arr({ A.ternary(A.id("x"), A.num(1), A.num(0)) })),
   })
 end)
 
@@ -299,187 +111,67 @@ end)
 
 test("parse ternary as expression statement", function()
   assert_parse_ok("x ? f() : g();", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "ConditionalExpression",
-        test = { type = "Identifier", name = "x" },
-        consequent = {
-          type = "CallExpression",
-          callee = { type = "Identifier", name = "f" },
-          arguments = {},
-        },
-        alternate = {
-          type = "CallExpression",
-          callee = { type = "Identifier", name = "g" },
-          arguments = {},
-        },
-      },
-    },
+    A.expr_stmt(A.ternary(A.id("x"), A.call(A.id("f"), {}), A.call(A.id("g"), {}))),
   })
 end)
 
 test("parse ternary with member expressions", function()
   assert_parse_ok("a ? obj.x : arr[0];", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "ConditionalExpression",
-        test = { type = "Identifier", name = "a" },
-        consequent = {
-          type = "MemberExpression",
-          object = { type = "Identifier", name = "obj" },
-          property = { type = "Identifier", name = "x" },
-          computed = false,
-        },
-        alternate = {
-          type = "MemberExpression",
-          object = { type = "Identifier", name = "arr" },
-          property = { type = "NumberLiteral", value = 0 },
-          computed = true,
-        },
-      },
-    },
+    A.expr_stmt(
+      A.ternary(A.id("a"), A.member(A.id("obj"), A.id("x")), A.member_c(A.id("arr"), A.num(0)))
+    ),
   })
 end)
 
 test("parse ternary with unary", function()
   assert_parse_ok("a ? !b : -c;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "ConditionalExpression",
-        test = { type = "Identifier", name = "a" },
-        consequent = {
-          type = "UnaryExpression",
-          operator = "!",
-          argument = { type = "Identifier", name = "b" },
-        },
-        alternate = {
-          type = "UnaryExpression",
-          operator = "-",
-          argument = { type = "Identifier", name = "c" },
-        },
-      },
-    },
+    A.expr_stmt(A.ternary(A.id("a"), A.una("!", A.id("b")), A.una("-", A.id("c")))),
   })
 end)
 
 test("parse ternary with compound assignment in branches", function()
   assert_parse_ok("a ? x += 1 : x -= 1;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "ConditionalExpression",
-        test = { type = "Identifier", name = "a" },
-        consequent = {
-          type = "BinaryExpression",
-          operator = "+=",
-          left = { type = "Identifier", name = "x" },
-          right = { type = "NumberLiteral", value = 1 },
-        },
-        alternate = {
-          type = "BinaryExpression",
-          operator = "-=",
-          left = { type = "Identifier", name = "x" },
-          right = { type = "NumberLiteral", value = 1 },
-        },
-      },
-    },
+    A.expr_stmt(
+      A.ternary(A.id("a"), A.bin("+=", A.id("x"), A.num(1)), A.bin("-=", A.id("x"), A.num(1)))
+    ),
   })
 end)
 
 test("parse ternary with arithmetic in branches", function()
   assert_parse_ok("a + b ? c * d : e / f;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "ConditionalExpression",
-        test = {
-          type = "BinaryExpression",
-          operator = "+",
-          left = { type = "Identifier", name = "a" },
-          right = { type = "Identifier", name = "b" },
-        },
-        consequent = {
-          type = "BinaryExpression",
-          operator = "*",
-          left = { type = "Identifier", name = "c" },
-          right = { type = "Identifier", name = "d" },
-        },
-        alternate = {
-          type = "BinaryExpression",
-          operator = "/",
-          left = { type = "Identifier", name = "e" },
-          right = { type = "Identifier", name = "f" },
-        },
-      },
-    },
+    A.expr_stmt(
+      A.ternary(
+        A.bin("+", A.id("a"), A.id("b")),
+        A.bin("*", A.id("c"), A.id("d")),
+        A.bin("/", A.id("e"), A.id("f"))
+      )
+    ),
   })
 end)
 
 test("parse parenthesized ternary condition", function()
   assert_parse_ok("(a || b) ? 1 : 0;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "ConditionalExpression",
-        test = {
-          type = "BinaryExpression",
-          operator = "||",
-          left = { type = "Identifier", name = "a" },
-          right = { type = "Identifier", name = "b" },
-        },
-        consequent = { type = "NumberLiteral", value = 1 },
-        alternate = { type = "NumberLiteral", value = 0 },
-      },
-    },
+    A.expr_stmt(A.ternary(A.bin("||", A.id("a"), A.id("b")), A.num(1), A.num(0))),
   })
 end)
 
 test("parse ternary with string and boolean branches", function()
   assert_parse_ok("x ? 'yes' : false;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "ConditionalExpression",
-        test = { type = "Identifier", name = "x" },
-        consequent = { type = "StringLiteral", value = "yes" },
-        alternate = { type = "BooleanLiteral", value = false },
-      },
-    },
+    A.expr_stmt(A.ternary(A.id("x"), A.str("yes"), A.bool(false))),
   })
 end)
 
 test("parse ternary with null alternate", function()
   assert_parse_ok("x ? y : null;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "ConditionalExpression",
-        test = { type = "Identifier", name = "x" },
-        consequent = { type = "Identifier", name = "y" },
-        alternate = { type = "NullLiteral" },
-      },
-    },
+    A.expr_stmt(A.ternary(A.id("x"), A.id("y"), A.null())),
   })
 end)
 
 test("parse ternary with undefined alternate", function()
   assert_parse_ok("x ? y : undefined;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "ConditionalExpression",
-        test = { type = "Identifier", name = "x" },
-        consequent = { type = "Identifier", name = "y" },
-        alternate = { type = "UndefinedLiteral" },
-      },
-    },
+    A.expr_stmt(A.ternary(A.id("x"), A.id("y"), A.undef())),
   })
 end)
-
--- Negative tests
 
 test("parse error: missing colon", function()
   assert_parse_fail("a ? 1", "Expected :")
@@ -503,339 +195,107 @@ end)
 
 test("CallExpression no args", function()
   assert_parse_ok("f();", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "CallExpression",
-        callee = { type = "Identifier", name = "f" },
-        arguments = {},
-      },
-    },
+    A.expr_stmt(A.call(A.id("f"), {})),
   })
 end)
 
 test("parse CallExpression with args", function()
   assert_parse_ok("f(a, b);", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "CallExpression",
-        callee = { type = "Identifier", name = "f" },
-        arguments = {
-          { type = "Identifier", name = "a" },
-          { type = "Identifier", name = "b" },
-        },
-      },
-    },
+    A.expr_stmt(A.call(A.id("f"), { A.id("a"), A.id("b") })),
   })
 end)
 
 test("parse MemberExpression dot", function()
   assert_parse_ok("obj.prop;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "MemberExpression",
-        object = { type = "Identifier", name = "obj" },
-        property = { type = "Identifier", name = "prop" },
-        computed = false,
-      },
-    },
+    A.expr_stmt(A.member(A.id("obj"), A.id("prop"))),
   })
 end)
 
 test("parse MemberExpression bracket", function()
   assert_parse_ok("obj[prop];", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "MemberExpression",
-        object = { type = "Identifier", name = "obj" },
-        property = { type = "Identifier", name = "prop" },
-        computed = true,
-      },
-    },
+    A.expr_stmt(A.member_c(A.id("obj"), A.id("prop"))),
   })
 end)
 
 test("parse chained calls: obj.method().another()", function()
   assert_parse_ok("obj.method().another();", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "CallExpression",
-        callee = {
-          type = "MemberExpression",
-          object = {
-            type = "CallExpression",
-            callee = {
-              type = "MemberExpression",
-              object = { type = "Identifier", name = "obj" },
-              property = { type = "Identifier", name = "method" },
-              computed = false,
-            },
-            arguments = {},
-          },
-          property = { type = "Identifier", name = "another" },
-          computed = false,
-        },
-        arguments = {},
-      },
-    },
+    A.expr_stmt(
+      A.call(A.member(A.call(A.member(A.id("obj"), A.id("method")), {}), A.id("another")), {})
+    ),
   })
 end)
 
 test("parse chained members: a.b.c.d", function()
   assert_parse_ok("a.b.c.d;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "MemberExpression",
-        object = {
-          type = "MemberExpression",
-          object = {
-            type = "MemberExpression",
-            object = { type = "Identifier", name = "a" },
-            property = { type = "Identifier", name = "b" },
-            computed = false,
-          },
-          property = { type = "Identifier", name = "c" },
-          computed = false,
-        },
-        property = { type = "Identifier", name = "d" },
-        computed = false,
-      },
-    },
+    A.expr_stmt(A.member(A.member(A.member(A.id("a"), A.id("b")), A.id("c")), A.id("d"))),
   })
 end)
 
 test("parse ArrayExpression non-empty", function()
   assert_parse_ok("[1, 2, 3];", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "ArrayExpression",
-        elements = {
-          { type = "NumberLiteral", value = 1 },
-          { type = "NumberLiteral", value = 2 },
-          { type = "NumberLiteral", value = 3 },
-        },
-      },
-    },
+    A.expr_stmt(A.arr({ A.num(1), A.num(2), A.num(3) })),
   })
 end)
 
 test("parse ArrayExpression empty", function()
   assert_parse_ok("[];", {
-    { type = "ExpressionStatement", expression = { type = "ArrayExpression", elements = {} } },
+    A.expr_stmt(A.arr({})),
   })
 end)
 
 test("parse ObjectExpression non-empty", function()
   assert_parse_ok("let o = {a: 1, b: 2};", {
-    {
-      type = "VariableDeclaration",
-      kind = "let",
-      declarations = {
-        {
-          type = "VariableDeclarator",
-          name = { type = "Identifier", name = "o" },
-          init = {
-            type = "ObjectExpression",
-            properties = {
-              {
-                type = "Property",
-                key = { type = "Identifier", name = "a" },
-                value = { type = "NumberLiteral", value = 1 },
-                computed = false,
-              },
-              {
-                type = "Property",
-                key = { type = "Identifier", name = "b" },
-                value = { type = "NumberLiteral", value = 2 },
-                computed = false,
-              },
-            },
-          },
-        },
-      },
-    },
+    A.let("o", A.obj({ A.prop(A.id("a"), A.num(1)), A.prop(A.id("b"), A.num(2)) })),
   })
 end)
 
 test("parse ObjectExpression empty", function()
   assert_parse_ok("let o = {};", {
-    {
-      type = "VariableDeclaration",
-      kind = "let",
-      declarations = {
-        {
-          type = "VariableDeclarator",
-          name = { type = "Identifier", name = "o" },
-          init = { type = "ObjectExpression", properties = {} },
-        },
-      },
-    },
+    A.let("o", A.obj({})),
   })
 end)
 
 test("parse anonymous FunctionExpression", function()
   assert_parse_ok("let f = function(x) { return x; };", {
-    {
-      type = "VariableDeclaration",
-      kind = "let",
-      declarations = {
-        {
-          type = "VariableDeclarator",
-          name = { type = "Identifier", name = "f" },
-          init = {
-            type = "FunctionExpression",
-            params = {
-              { type = "Identifier", name = "x" },
-            },
-            body = {
-              type = "BlockStatement",
-              body = {
-                { type = "ReturnStatement", argument = { type = "Identifier", name = "x" } },
-              },
-            },
-          },
-        },
-      },
-    },
+    A.let("f", A.func_expr({ A.id("x") }, A.block({ A.ret(A.id("x")) }))),
   })
 end)
 
 test("parse named FunctionExpression", function()
   assert_parse_ok("let f = function fact(n) { return n; };", {
-    {
-      type = "VariableDeclaration",
-      kind = "let",
-      declarations = {
-        {
-          type = "VariableDeclarator",
-          name = { type = "Identifier", name = "f" },
-          init = {
-            type = "FunctionExpression",
-            name = "fact",
-            params = {
-              { type = "Identifier", name = "n" },
-            },
-            body = {
-              type = "BlockStatement",
-              body = {
-                { type = "ReturnStatement", argument = { type = "Identifier", name = "n" } },
-              },
-            },
-          },
-        },
-      },
-    },
+    A.let("f", A.func_expr("fact", { A.id("n") }, A.block({ A.ret(A.id("n")) }))),
   })
 end)
 
 test("parse arrow function: single param expression body", function()
   assert_parse_ok("x => x + 1;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "ArrowFunctionExpression",
-        params = { { type = "Identifier", name = "x" } },
-        body = {
-          type = "BlockStatement",
-          body = {
-            {
-              type = "ReturnStatement",
-              argument = {
-                type = "BinaryExpression",
-                operator = "+",
-                left = { type = "Identifier", name = "x" },
-                right = { type = "NumberLiteral", value = 1 },
-              },
-            },
-          },
-        },
-      },
-    },
+    A.expr_stmt(A.arrow({ A.id("x") }, A.block({ A.ret(A.bin("+", A.id("x"), A.num(1))) }))),
   })
 end)
 
 test("parse arrow function: multi param", function()
   assert_parse_ok("(a, b) => a + b;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "ArrowFunctionExpression",
-        params = {
-          { type = "Identifier", name = "a" },
-          { type = "Identifier", name = "b" },
-        },
-        body = {
-          type = "BlockStatement",
-          body = {
-            {
-              type = "ReturnStatement",
-              argument = {
-                type = "BinaryExpression",
-                operator = "+",
-                left = { type = "Identifier", name = "a" },
-                right = { type = "Identifier", name = "b" },
-              },
-            },
-          },
-        },
-      },
-    },
+    A.expr_stmt(
+      A.arrow({ A.id("a"), A.id("b") }, A.block({ A.ret(A.bin("+", A.id("a"), A.id("b"))) }))
+    ),
   })
 end)
 
 test("parse arrow function: block body", function()
   assert_parse_ok("(x) => { return x; };", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "ArrowFunctionExpression",
-        params = { { type = "Identifier", name = "x" } },
-        body = {
-          type = "BlockStatement",
-          body = {
-            { type = "ReturnStatement", argument = { type = "Identifier", name = "x" } },
-          },
-        },
-      },
-    },
+    A.expr_stmt(A.arrow({ A.id("x") }, A.block({ A.ret(A.id("x")) }))),
   })
 end)
 
 test("parse parenthesized expression", function()
   assert_parse_ok("(1 + 2);", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "BinaryExpression",
-        operator = "+",
-        left = { type = "NumberLiteral", value = 1 },
-        right = { type = "NumberLiteral", value = 2 },
-      },
-    },
+    A.expr_stmt(A.bin("+", A.num(1), A.num(2))),
   })
 end)
 
 test("parse console.log", function()
   assert_parse_ok('console.log("hello");', {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "CallExpression",
-        callee = {
-          type = "MemberExpression",
-          object = { type = "Identifier", name = "console" },
-          property = { type = "Identifier", name = "log" },
-          computed = false,
-        },
-        arguments = { { type = "StringLiteral", value = "hello" } },
-      },
-    },
+    A.expr_stmt(A.call(A.member(A.id("console"), A.id("log")), { A.str("hello") })),
   })
 end)
 
