@@ -430,7 +430,7 @@ gen.WhileStatement = function(node, indent, scopes)
   local test_code = emit(node.test, indent, scopes)
   local body = emit(node.body, indent, scopes)
   if has_continue(node.body) then
-    body = body .. cg.pad(indent + 1) .. "::_continue::\n"
+    body = body .. cg.label("_continue", indent + 1)
   end
   return cg.while_stmt(test_code, body, indent)
 end
@@ -446,7 +446,7 @@ gen.ForOfStatement = function(node, indent, scopes)
   scope_declare(scopes, var_name)
   local body = emit(node.body, indent, scopes)
   if has_continue(node.body) then
-    body = body .. cg.pad(indent + 1) .. "::_continue::\n"
+    body = body .. cg.label("_continue", indent + 1)
   end
   scope_pop(scopes)
   local iter = cg.call("ipairs", {emit(node.right, indent, scopes)})
@@ -464,7 +464,7 @@ gen.ForInStatement = function(node, indent, scopes)
   scope_declare(scopes, var_name)
   local body = emit(node.body, indent, scopes)
   if has_continue(node.body) then
-    body = body .. cg.pad(indent + 1) .. "::_continue::\n"
+    body = body .. cg.label("_continue", indent + 1)
   end
   scope_pop(scopes)
   local iter = cg.call("pairs", {emit(node.right, indent, scopes)})
@@ -485,7 +485,7 @@ gen.ForStatement = function(node, indent, scopes)
   end
   local body = emit(node.body, indent, scopes)
   if has_continue(node.body) then
-    body = body .. cg.pad(indent + 1) .. "::_continue::\n"
+    body = body .. cg.label("_continue", indent + 1)
   end
   if node.update then
     local stmt_fn = gen_stmt[node.update.type]
@@ -528,7 +528,7 @@ gen.BreakStatement = function(node, indent, scopes)
 end
 
 gen.ContinueStatement = function(node, indent, scopes)
-  return cg.pad(indent) .. "goto _continue\n"
+  return cg.goto_stmt("_continue", indent)
 end
 
 -- === Exception handling ===
@@ -592,25 +592,23 @@ end
 
 gen.UpdateExpression = function(node, indent, scopes)
   local arg = emit(node.argument, indent, scopes)
+  local val
   if node.operator == "++" then
-    local add = cg.call("_ljs_add", {arg, "1"})
-    if node.prefix then
-      return "(function() " .. arg .. " = " .. add .. "; return " .. arg .. " end)()"
-    end
-    return "(function() local _t = " .. arg .. "; " .. arg .. " = " .. add .. "; return _t end)()"
+    val = cg.call("_ljs_add", {arg, "1"})
+  else
+    val = cg.binop("-", arg, "1")
   end
-  local sub = arg .. " - 1"
   if node.prefix then
-    return "(function() " .. arg .. " = " .. sub .. "; return " .. arg .. " end)()"
+    return cg.iife({cg.binop("=", arg, val), cg.return_inline(arg)})
   end
-  return "(function() local _t = " .. arg .. "; " .. arg .. " = " .. sub .. "; return _t end)()"
+  return cg.iife({cg.local_inline("_t", arg), cg.binop("=", arg, val), cg.return_inline("_t")})
 end
 
 gen.ConditionalExpression = function(node, indent, scopes)
   local test_code = emit(node.test, indent, scopes)
   local cons_code = emit(node.consequent, indent, scopes)
   local alt_code = emit(node.alternate, indent, scopes)
-  return "(function() if " .. test_code .. " then return " .. cons_code .. " else return " .. alt_code .. " end end)()"
+  return cg.iife({cg.inline_if_return(test_code, cons_code, alt_code)})
 end
 
 gen.CallExpression = function(node, indent, scopes)
@@ -643,7 +641,7 @@ gen.ObjectExpression = function(node, indent, scopes)
     if prop.key.type == "Identifier" then
       key = prop.key.name
     else
-      key = "[\"" .. cg.escape_string(prop.key.value) .. "\"]"
+      key = "[" .. cg.string(prop.key.value) .. "]"
     end
     fields[#fields + 1] = { key = key, value = emit(prop.value, indent, scopes) }
   end
@@ -661,13 +659,13 @@ end
 gen_stmt.UpdateExpression = function(node, indent, scopes)
   local arg = emit(node.argument, indent, scopes)
   if node.operator == "++" then
-    return cg.expr_stmt(arg .. " = " .. cg.call("_ljs_add", {arg, "1"}), indent)
+    return cg.expr_stmt(cg.binop("=", arg, cg.call("_ljs_add", {arg, "1"})), indent)
   end
-  return cg.expr_stmt(arg .. " = " .. arg .. " - 1", indent)
+  return cg.expr_stmt(cg.binop("=", arg, cg.binop("-", arg, "1")), indent)
 end
 
 gen_stmt.ConditionalExpression = function(node, indent, scopes)
-  return cg.pad(indent) .. ";" .. emit(node, indent, scopes) .. "\n"
+  return cg.expr_stmt(";" .. emit(node, indent, scopes), indent)
 end
 
 -- === Top-level generate ===
