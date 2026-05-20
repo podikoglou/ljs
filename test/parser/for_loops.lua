@@ -1,67 +1,32 @@
 local T = require("ljs_test")
 local P = require("test.helpers.parser")
 local ljs = require("ljs_parser")
+local A = require("test.helpers.ast")
 local test, assert_eq, assert_table_eq = T.test, T.assert_eq, T.assert_table_eq
 local assert_parse_ok, assert_parse_fail = P.assert_parse_ok, P.assert_parse_fail
 local tok, assert_tok, assert_tokenize_fail = P.tok, P.assert_tok, P.assert_tokenize_fail
 
--- ============================================================================
--- for...in tests
--- ============================================================================
-
 test("parse for...in with let", function()
   assert_parse_ok("for (let key in obj) { console.log(key); }", {
-    {
-      type = "ForInStatement",
-      left = {
-        type = "VariableDeclaration",
-        kind = "let",
-        declarations = {
-          { type = "VariableDeclarator", name = { type = "Identifier", name = "key" } },
-        },
-      },
-      right = { type = "Identifier", name = "obj" },
-      body = {
-        type = "BlockStatement",
-        body = {
-          {
-            type = "ExpressionStatement",
-            expression = {
-              type = "CallExpression",
-              callee = {
-                type = "MemberExpression",
-                object = { type = "Identifier", name = "console" },
-                property = { type = "Identifier", name = "log" },
-                computed = false,
-              },
-              arguments = { { type = "Identifier", name = "key" } },
-            },
-          },
-        },
-      },
-    },
+    A.for_in(
+      A.let("key"),
+      A.id("obj"),
+      A.block({
+        A.expr_stmt(A.call(A.member(A.id("console"), A.id("log")), { A.id("key") })),
+      })
+    ),
   })
 end)
 
 test("parse for...in with const", function()
   assert_parse_ok("for (const k in obj) { k; }", {
-    {
-      type = "ForInStatement",
-      left = {
-        type = "VariableDeclaration",
-        kind = "const",
-        declarations = {
-          { type = "VariableDeclarator", name = { type = "Identifier", name = "k" } },
-        },
-      },
-      right = { type = "Identifier", name = "obj" },
-      body = {
-        type = "BlockStatement",
-        body = {
-          { type = "ExpressionStatement", expression = { type = "Identifier", name = "k" } },
-        },
-      },
-    },
+    A.for_in(
+      A.const("k"),
+      A.id("obj"),
+      A.block({
+        A.expr_stmt(A.id("k")),
+      })
+    ),
   })
 end)
 
@@ -140,8 +105,6 @@ test("parse for...in body uses key with bracket access", function()
   assert_eq(expr.property.name, "k")
 end)
 
--- for...in error cases
-
 test("error: for-in with multiple declarators", function()
   assert_parse_fail("for (let x, y in obj) { }", "single variable")
 end)
@@ -169,10 +132,6 @@ end)
 test("error: for-in missing body", function()
   assert_parse_fail("for (let x in obj) ", "Expected statement")
 end)
-
--- ============================================================================
--- C-style for(;;) tests
--- ============================================================================
 
 test("parse for(;;) infinite loop", function()
   local ast = ljs.parse("for (;;) { x; }")
@@ -305,51 +264,27 @@ end)
 
 test("parse for...of still works (regression)", function()
   assert_parse_ok("for (let x of arr) { x; }", {
-    {
-      type = "ForOfStatement",
-      left = {
-        type = "VariableDeclaration",
-        kind = "let",
-        declarations = {
-          { type = "VariableDeclarator", name = { type = "Identifier", name = "x" } },
-        },
-      },
-      right = { type = "Identifier", name = "arr" },
-      body = {
-        type = "BlockStatement",
-        body = {
-          { type = "ExpressionStatement", expression = { type = "Identifier", name = "x" } },
-        },
-      },
-    },
+    A.for_of(
+      A.let("x"),
+      A.id("arr"),
+      A.block({
+        A.expr_stmt(A.id("x")),
+      })
+    ),
   })
 end)
 
 test("for-of with const still works (regression)", function()
   assert_parse_ok("for (const x of arr) { x; }", {
-    {
-      type = "ForOfStatement",
-      left = {
-        type = "VariableDeclaration",
-        kind = "const",
-        declarations = {
-          { type = "VariableDeclarator", name = { type = "Identifier", name = "x" } },
-        },
-      },
-      right = { type = "Identifier", name = "arr" },
-      body = {
-        type = "BlockStatement",
-        body = {
-          { type = "ExpressionStatement", expression = { type = "Identifier", name = "x" } },
-        },
-      },
-    },
+    A.for_of(
+      A.const("x"),
+      A.id("arr"),
+      A.block({
+        A.expr_stmt(A.id("x")),
+      })
+    ),
   })
 end)
-
--- ============================================================================
--- C-style for error cases
--- ============================================================================
 
 test("error: for missing body", function()
   assert_parse_fail("for (;;) ", "Expected statement")
@@ -413,81 +348,32 @@ end)
 
 test("parse x++ as if condition", function()
   assert_parse_ok("if (x++) { y; }", {
-    {
-      type = "IfStatement",
-      test = {
-        type = "UpdateExpression",
-        operator = "++",
-        argument = { type = "Identifier", name = "x" },
-        prefix = false,
-      },
-      consequent = {
-        type = "BlockStatement",
-        body = {
-          { type = "ExpressionStatement", expression = { type = "Identifier", name = "y" } },
-        },
-      },
-    },
+    A.if_(
+      A.update("++", A.id("x"), false),
+      A.block({
+        A.expr_stmt(A.id("y")),
+      })
+    ),
   })
 end)
 
 test("parse let x = y++ (as variable init)", function()
   assert_parse_ok("let x = y++;", {
-    {
-      type = "VariableDeclaration",
-      kind = "let",
-      declarations = {
-        {
-          type = "VariableDeclarator",
-          name = { type = "Identifier", name = "x" },
-          init = {
-            type = "UpdateExpression",
-            operator = "++",
-            argument = { type = "Identifier", name = "y" },
-            prefix = false,
-          },
-        },
-      },
-    },
+    A.let("x", A.update("++", A.id("y"), false)),
   })
 end)
 
 test("parse f(x++) as call argument", function()
   assert_parse_ok("f(x++);", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "CallExpression",
-        callee = { type = "Identifier", name = "f" },
-        arguments = {
-          {
-            type = "UpdateExpression",
-            operator = "++",
-            argument = { type = "Identifier", name = "x" },
-            prefix = false,
-          },
-        },
-      },
-    },
+    A.expr_stmt(A.call(A.id("f"), {
+      A.update("++", A.id("x"), false),
+    })),
   })
 end)
 
 test("parse arr[x++] as computed property", function()
   assert_parse_ok("arr[x++];", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "MemberExpression",
-        object = { type = "Identifier", name = "arr" },
-        property = {
-          type = "UpdateExpression",
-          operator = "++",
-          argument = { type = "Identifier", name = "x" },
-          prefix = false,
-        },
-        computed = true,
-      },
-    },
+    A.expr_stmt(A.member_c(A.id("arr"), A.update("++", A.id("x"), false))),
   })
 end)
 
