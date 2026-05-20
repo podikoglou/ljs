@@ -1,52 +1,25 @@
 local T = require("ljs_test")
 local P = require("test.helpers.parser")
 local ljs = require("ljs_parser")
+local A = require("test.helpers.ast")
 local test, assert_eq, assert_table_eq = T.test, T.assert_eq, T.assert_table_eq
 local assert_parse_ok, assert_parse_fail = P.assert_parse_ok, P.assert_parse_fail
 
--- ============================================================================
--- Basic 'in' operator parsing
--- ============================================================================
-
 test("parse string in object", function()
   assert_parse_ok('"x" in obj;', {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "BinaryExpression",
-        operator = "in",
-        left = { type = "StringLiteral", value = "x" },
-        right = { type = "Identifier", name = "obj" },
-      },
-    },
+    A.expr_stmt(A.bin("in", A.str("x"), A.id("obj"))),
   })
 end)
 
 test("parse variable in object", function()
   assert_parse_ok("key in obj;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "BinaryExpression",
-        operator = "in",
-        left = { type = "Identifier", name = "key" },
-        right = { type = "Identifier", name = "obj" },
-      },
-    },
+    A.expr_stmt(A.bin("in", A.id("key"), A.id("obj"))),
   })
 end)
 
 test("parse number in array", function()
   assert_parse_ok("0 in arr;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "BinaryExpression",
-        operator = "in",
-        left = { type = "NumberLiteral", value = 0 },
-        right = { type = "Identifier", name = "arr" },
-      },
-    },
+    A.expr_stmt(A.bin("in", A.num(0), A.id("arr"))),
   })
 end)
 
@@ -78,94 +51,29 @@ test("parse object literal as right operand", function()
   assert_eq(expr.right.type, "ObjectExpression")
 end)
 
--- ============================================================================
--- Precedence and associativity
--- ============================================================================
-
 test("in at precedence 3 (same as ===), left-associative", function()
   assert_parse_ok('"x" in obj === true;', {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "BinaryExpression",
-        operator = "===",
-        left = {
-          type = "BinaryExpression",
-          operator = "in",
-          left = { type = "StringLiteral", value = "x" },
-          right = { type = "Identifier", name = "obj" },
-        },
-        right = { type = "BooleanLiteral", value = true },
-      },
-    },
+    A.expr_stmt(A.bin("===", A.bin("in", A.str("x"), A.id("obj")), A.bool(true))),
   })
 end)
 
 test("in + is left-associative: a in b in c", function()
   assert_parse_ok("a in b in c;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "BinaryExpression",
-        operator = "in",
-        left = {
-          type = "BinaryExpression",
-          operator = "in",
-          left = { type = "Identifier", name = "a" },
-          right = { type = "Identifier", name = "b" },
-        },
-        right = { type = "Identifier", name = "c" },
-      },
-    },
+    A.expr_stmt(A.bin("in", A.bin("in", A.id("a"), A.id("b")), A.id("c"))),
   })
 end)
 
 test("+ binds tighter than in", function()
   assert_parse_ok('1 + "x" in obj;', {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "BinaryExpression",
-        operator = "in",
-        left = {
-          type = "BinaryExpression",
-          operator = "+",
-          left = { type = "NumberLiteral", value = 1 },
-          right = { type = "StringLiteral", value = "x" },
-        },
-        right = { type = "Identifier", name = "obj" },
-      },
-    },
+    A.expr_stmt(A.bin("in", A.bin("+", A.num(1), A.str("x")), A.id("obj"))),
   })
 end)
 
 test("in in && expression", function()
   assert_parse_ok('"x" in a && "y" in b;', {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "BinaryExpression",
-        operator = "&&",
-        left = {
-          type = "BinaryExpression",
-          operator = "in",
-          left = { type = "StringLiteral", value = "x" },
-          right = { type = "Identifier", name = "a" },
-        },
-        right = {
-          type = "BinaryExpression",
-          operator = "in",
-          left = { type = "StringLiteral", value = "y" },
-          right = { type = "Identifier", name = "b" },
-        },
-      },
-    },
+    A.expr_stmt(A.bin("&&", A.bin("in", A.str("x"), A.id("a")), A.bin("in", A.str("y"), A.id("b")))),
   })
 end)
-
--- ============================================================================
--- in operator in various expression contexts
--- ============================================================================
 
 test("in in if condition", function()
   local ast = ljs.parse('if ("x" in obj) { y; }')
@@ -178,73 +86,25 @@ end)
 
 test("in in ternary", function()
   assert_parse_ok('"x" in obj ? 1 : 0;', {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "ConditionalExpression",
-        test = {
-          type = "BinaryExpression",
-          operator = "in",
-          left = { type = "StringLiteral", value = "x" },
-          right = { type = "Identifier", name = "obj" },
-        },
-        consequent = { type = "NumberLiteral", value = 1 },
-        alternate = { type = "NumberLiteral", value = 0 },
-      },
-    },
+    A.expr_stmt(A.ternary(A.bin("in", A.str("x"), A.id("obj")), A.num(1), A.num(0))),
   })
 end)
 
 test("in in variable init", function()
   assert_parse_ok('let has = "x" in obj;', {
-    {
-      type = "VariableDeclaration",
-      kind = "let",
-      declarations = {
-        {
-          type = "VariableDeclarator",
-          name = { type = "Identifier", name = "has" },
-          init = {
-            type = "BinaryExpression",
-            operator = "in",
-            left = { type = "StringLiteral", value = "x" },
-            right = { type = "Identifier", name = "obj" },
-          },
-        },
-      },
-    },
+    A.let("has", A.bin("in", A.str("x"), A.id("obj"))),
   })
 end)
 
 test("in negated", function()
   assert_parse_ok('!("x" in obj);', {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "UnaryExpression",
-        operator = "!",
-        argument = {
-          type = "BinaryExpression",
-          operator = "in",
-          left = { type = "StringLiteral", value = "x" },
-          right = { type = "Identifier", name = "obj" },
-        },
-      },
-    },
+    A.expr_stmt(A.una("!", A.bin("in", A.str("x"), A.id("obj")))),
   })
 end)
 
 test("in in parenthesized expression", function()
   assert_parse_ok('("x" in obj);', {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "BinaryExpression",
-        operator = "in",
-        left = { type = "StringLiteral", value = "x" },
-        right = { type = "Identifier", name = "obj" },
-      },
-    },
+    A.expr_stmt(A.bin("in", A.str("x"), A.id("obj"))),
   })
 end)
 
@@ -262,10 +122,6 @@ test("in in return statement", function()
   assert_eq(ret.type, "ReturnStatement")
   assert_eq(ret.argument.operator, "in")
 end)
-
--- ============================================================================
--- for...in disambiguation (regression)
--- ============================================================================
 
 test("for (key in obj) is still ForInStatement", function()
   local ast = ljs.parse("for (key in obj) { key; }")
@@ -313,10 +169,6 @@ end)
 test("for-in with const and initializer still errors", function()
   assert_parse_fail("for (const x = 1 in obj) { }", "initializer")
 end)
-
--- ============================================================================
--- Error cases
--- ============================================================================
 
 test("error: bare in keyword in expression position", function()
   assert_parse_fail("in;", nil)
