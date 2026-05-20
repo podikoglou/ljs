@@ -1,13 +1,10 @@
 local T = require("ljs_test")
 local P = require("test.helpers.parser")
 local ljs = require("ljs_parser")
+local A = require("test.helpers.ast")
 local test, assert_eq = T.test, T.assert_eq
 local assert_tok, assert_parse_ok, assert_parse_fail =
   P.assert_tok, P.assert_parse_ok, P.assert_parse_fail
-
--- ============================================================================
--- DO...WHILE TESTS
--- ============================================================================
 
 test("tokenize: 'do' not confused with identifier prefix", function()
   assert_tok("doSomething", 1, "Identifier", "doSomething")
@@ -15,44 +12,16 @@ end)
 
 test("parse do...while basic with braces", function()
   assert_parse_ok("do { y; } while (x);", {
-    {
-      type = "DoWhileStatement",
-      body = {
-        type = "BlockStatement",
-        body = {
-          { type = "ExpressionStatement", expression = { type = "Identifier", name = "y" } },
-        },
-      },
-      test = { type = "Identifier", name = "x" },
-    },
+    A.do_while(A.block({ A.expr_stmt(A.id("y")) }), A.id("x")),
   })
 end)
 
 test("parse do...while without braces", function()
   assert_parse_ok("do y = y + 1; while (x < 10);", {
-    {
-      type = "DoWhileStatement",
-      body = {
-        type = "ExpressionStatement",
-        expression = {
-          type = "BinaryExpression",
-          operator = "=",
-          left = { type = "Identifier", name = "y" },
-          right = {
-            type = "BinaryExpression",
-            operator = "+",
-            left = { type = "Identifier", name = "y" },
-            right = { type = "NumberLiteral", value = 1 },
-          },
-        },
-      },
-      test = {
-        type = "BinaryExpression",
-        operator = "<",
-        left = { type = "Identifier", name = "x" },
-        right = { type = "NumberLiteral", value = 10 },
-      },
-    },
+    A.do_while(
+      A.expr_stmt(A.bin("=", A.id("y"), A.bin("+", A.id("y"), A.num(1)))),
+      A.bin("<", A.id("x"), A.num(10))
+    ),
   })
 end)
 
@@ -89,20 +58,7 @@ end)
 
 test("parse do...while with unary negation test", function()
   assert_parse_ok("do { y; } while (!done);", {
-    {
-      type = "DoWhileStatement",
-      body = {
-        type = "BlockStatement",
-        body = {
-          { type = "ExpressionStatement", expression = { type = "Identifier", name = "y" } },
-        },
-      },
-      test = {
-        type = "UnaryExpression",
-        operator = "!",
-        argument = { type = "Identifier", name = "done" },
-      },
-    },
+    A.do_while(A.block({ A.expr_stmt(A.id("y")) }), A.una("!", A.id("done"))),
   })
 end)
 
@@ -226,24 +182,10 @@ end)
 
 test("parse do...while body is update expression", function()
   assert_parse_ok("do x++; while (y < 10);", {
-    {
-      type = "DoWhileStatement",
-      body = {
-        type = "ExpressionStatement",
-        expression = {
-          type = "UpdateExpression",
-          operator = "++",
-          prefix = false,
-          argument = { type = "Identifier", name = "x" },
-        },
-      },
-      test = {
-        type = "BinaryExpression",
-        operator = "<",
-        left = { type = "Identifier", name = "y" },
-        right = { type = "NumberLiteral", value = 10 },
-      },
-    },
+    A.do_while(
+      A.expr_stmt(A.update("++", A.id("x"), false)),
+      A.bin("<", A.id("y"), A.num(10))
+    ),
   })
 end)
 
@@ -321,8 +263,6 @@ test("parse do...while with compound assignment test", function()
   assert_eq(dw.test.operator, "-=")
 end)
 
--- do...while negative tests
-
 test("parse error: do...while missing while keyword", function()
   assert_parse_fail("do { x; }", "while")
 end)
@@ -369,35 +309,13 @@ end)
 
 test("parse for...of", function()
   assert_parse_ok("for (let x of arr) { console.log(x); }", {
-    {
-      type = "ForOfStatement",
-      left = {
-        type = "VariableDeclaration",
-        kind = "let",
-        declarations = {
-          { type = "VariableDeclarator", name = { type = "Identifier", name = "x" } },
-        },
-      },
-      right = { type = "Identifier", name = "arr" },
-      body = {
-        type = "BlockStatement",
-        body = {
-          {
-            type = "ExpressionStatement",
-            expression = {
-              type = "CallExpression",
-              callee = {
-                type = "MemberExpression",
-                object = { type = "Identifier", name = "console" },
-                property = { type = "Identifier", name = "log" },
-                computed = false,
-              },
-              arguments = { { type = "Identifier", name = "x" } },
-            },
-          },
-        },
-      },
-    },
+    A.for_of(
+      A.var_decl("let", { A.declarator(A.id("x")) }),
+      A.id("arr"),
+      A.block({
+        A.expr_stmt(A.call(A.member(A.id("console"), A.id("log")), { A.id("x") })),
+      })
+    ),
   })
 end)
 
