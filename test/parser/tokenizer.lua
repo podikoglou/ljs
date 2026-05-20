@@ -286,4 +286,75 @@ test("tokenize * *= maximal munch: * *=", function()
   assert_eq(tokens[2].type, "*=")
 end)
 
+-- ============================================================================
+-- INVARIANT: tokenize() always returns a stream ending with EOF
+-- Contract: the parser assumes EOF-terminated streams (stream.eof() checks
+-- peek().type == TOKEN.EOF). If tokenize ever returns a stream without a
+-- trailing EOF, the parser could read past the array bounds.
+-- Catches: accidental removal of the EOF-emission logic at the end of tokenize().
+
+test("invariant: tokenize always ends with EOF", function()
+  local sources = {
+    "", "42", "let x = 1;", "  \n  \t  ", "// comment\n",
+    "a + b * c", "function f() { return 1; }", "1 + 2; 3 - 4;",
+    '"hello"', "[]", "{}", "true false null undefined",
+  }
+  for _, src in ipairs(sources) do
+    local tokens = ljs.tokenize(src)
+    assert(tokens and #tokens > 0, "expected tokens for: " .. src)
+    assert_eq(tokens[#tokens].type, "EOF", "last token must be EOF for: " .. src)
+  end
+end)
+
+-- ============================================================================
+-- INVARIANT: every token has valid line (>=1) and col (>=1)
+-- Contract: error messages in the parser use token.line and token.col.
+-- If positions are ever zero or nil, error messages become misleading.
+-- Catches: off-by-one bugs in the line/col tracking inside advance().
+
+test("invariant: all tokens have valid positions", function()
+  local sources = {
+    "let x = 1;\nlet y = 2;",
+    "/* comment */\nfoo",
+    "  \n  \n  a",
+    '"hello\\nworld"',
+    "a + b\n* c",
+  }
+  for _, src in ipairs(sources) do
+    local tokens = ljs.tokenize(src)
+    if not tokens then goto continue end
+    for i, t in ipairs(tokens) do
+      assert(t.line >= 1, string.format("token %d has line=%s in: %s", i, tostring(t.line), src))
+      assert(t.col >= 1, string.format("token %d has col=%s in: %s", i, tostring(t.col), src))
+    end
+    ::continue::
+  end
+end)
+
+-- ============================================================================
+-- String escape completeness: \r, \b, \f are defined in the tokenizer
+-- switch but never tested. If the escape table entries were removed or
+-- mistyped, strings with these chars would silently produce wrong values.
+
+test("tokenize escape \\r", function()
+  assert_tok('"a\\rb"', 1, "String", "a\rb")
+end)
+
+test("tokenize escape \\b", function()
+  assert_tok('"a\\bb"', 1, "String", "a\bb")
+end)
+
+test("tokenize escape \\f", function()
+  assert_tok('"a\\fb"', 1, "String", "a\fb")
+end)
+
+-- ============================================================================
+-- Unterminated multi-line comment: the tokenizer has a specific error path
+-- for /* without */. If this path breaks, the tokenizer might loop forever
+-- or silently produce wrong tokens.
+
+test("tokenize error: unterminated multi-line comment", function()
+  assert_tokenize_fail("/* never ends", "Unterminated")
+end)
+
 T.summary()
