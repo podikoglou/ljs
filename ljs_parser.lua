@@ -253,20 +253,24 @@ local function tokenize(source)
     while current() do
       if skip_single_line_comment() then
         skip_whitespace()
-      elseif skip_multi_line_comment() then
-        skip_whitespace()
       else
-        break
+        local ok, err = skip_multi_line_comment()
+        if not ok then
+          if err then return false, err end
+          break
+        end
+        skip_whitespace()
       end
     end
+    return true
   end
 
-  local function make_token(type, value)
+  local function make_token(type, value, p_line, p_col)
     return {
       type = type,
       value = value,
-      line = line,
-      col = col,
+      line = p_line or line,
+      col = p_col or col,
     }
   end
 
@@ -284,7 +288,8 @@ local function tokenize(source)
   end
 
   while pos <= len do
-    skip_trivia()
+    local ok, err = skip_trivia()
+    if not ok then return nil, err end
     if pos > len then break end
 
     local c = current()
@@ -306,13 +311,13 @@ local function tokenize(source)
       local text = source:sub(start_pos, pos - 1)
       local token_type = KEYWORDS[text] or TOKEN.IDENTIFIER
       if token_type == TOKEN.BOOLEAN then
-        table.insert(tokens, make_token(TOKEN.BOOLEAN, text == "true"))
+        table.insert(tokens, make_token(TOKEN.BOOLEAN, text == "true", line, start_col))
       elseif token_type == TOKEN.NULL then
-        table.insert(tokens, make_token(TOKEN.NULL, nil))
+        table.insert(tokens, make_token(TOKEN.NULL, nil, line, start_col))
       elseif token_type == TOKEN.UNDEFINED then
-        table.insert(tokens, make_token(TOKEN.UNDEFINED, nil))
+        table.insert(tokens, make_token(TOKEN.UNDEFINED, nil, line, start_col))
       else
-        table.insert(tokens, make_token(token_type, text))
+        table.insert(tokens, make_token(token_type, text, line, start_col))
       end
 
     -- Numbers: integer and float. Dots only start fractional part if followed
@@ -346,7 +351,7 @@ local function tokenize(source)
       if not num then
         return nil, string.format("Invalid number literal at line %d, col %d", line, start_col)
       end
-      table.insert(tokens, make_token(TOKEN.NUMBER, num))
+      table.insert(tokens, make_token(TOKEN.NUMBER, num, line, start_col))
 
     -- Strings: double or single quoted with escape sequences.
     -- Newlines inside strings are errors (no template literals).
@@ -394,7 +399,7 @@ local function tokenize(source)
         return nil, string.format("Unterminated string literal at line %d, col %d", line, start_col)
       end
       local str = table.concat(chars, "")
-      table.insert(tokens, make_token(TOKEN.STRING, str))
+      table.insert(tokens, make_token(TOKEN.STRING, str, line, start_col))
 
     -- Punctuation and operators.
     -- Order matters: multi-char tokens must be checked before single-char
