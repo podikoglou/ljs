@@ -8,23 +8,9 @@ bash run_tests.sh
 
 All tests must pass (exit code 0). The test runner automatically discovers and runs all test files in `test/` subdirectories.
 
-## Test file locations and naming
+## Test structure
 
-Tests are organized by module:
-
-- **Parser tests** — `test/parser/*.lua`
-  - One file per feature (e.g., `test/parser/tokenizer.lua`, `test/parser/expressions.lua`)
-  - Naming: lowercase with underscores (e.g., `for_loops.lua`, `do_while.lua`)
-
-- **Transpile tests** — `test/transpile/*.lua`
-  - One file per feature (e.g., `test/transpile/basics.lua`, `test/transpile/switch.lua`)
-  - Naming: lowercase with underscores (e.g., `control_flow.lua`, `objects_arrays.lua`)
-
-- **Codegen tests** — `test/codegen.lua`
-
-- **Test helpers** — `test/helpers/*.lua`
-  - `test/helpers/parser.lua` — parser test utilities (e.g., `assert_parse_ok`, `assert_tok`)
-  - `test/helpers/transpile.lua` — transpile test utilities (e.g., `transpile_ok`, `run_js`)
+Tests live under `test/` organized by module (parser, transpile, codegen). One file per feature, lowercase with underscores. Helpers are in `test/helpers/` — parser utilities (`assert_parse_ok`, `assert_tok`) and transpile utilities (`transpile_ok`, `run_js`).
 
 ## Adding a new JS feature
 
