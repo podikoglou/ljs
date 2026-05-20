@@ -571,8 +571,12 @@ test("error: delete this (this is banned)", function()
   assert_parse_fail("delete this;", nil)
 end)
 
-test("error: delete typeof x (typeof is banned)", function()
-  assert_parse_fail("delete typeof x;", nil)
+test("parse delete typeof x (typeof is now a valid unary operator)", function()
+  assert_parse_ok("delete typeof x;", {
+    {type = "ExpressionStatement", expression = {type = "DeleteExpression",
+      argument = {type = "TypeofExpression",
+        argument = {type = "Identifier", name = "x"}}}}
+  })
 end)
 
 -- delete as statement without semicolon (ASI)

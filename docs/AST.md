@@ -214,6 +214,17 @@ The `~` (bitwise NOT) operator coerces its operand to a 32-bit integer via `ToIn
 
 **Source:** `delete obj.prop`, `delete arr[i]`, `delete x`
 
+### TypeofExpression
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"TypeofExpression"` | |
+| `argument` | `node` | The expression to check the type of |
+
+`typeof` is a unary prefix keyword operator with the same precedence as other unary operators (6). It is right-recursive: `typeof typeof x` parses as `typeof (typeof x)`.
+
+**Source:** `typeof x`, `typeof 42`, `typeof obj.prop`, `typeof f()`
+
 ### UpdateExpression
 
 | Field | Type | Description |

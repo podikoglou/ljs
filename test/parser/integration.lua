@@ -17,10 +17,6 @@ test("error: async is not supported", function()
   assert_parse_fail("async function f() {}", "'async'")
 end)
 
-test("error: typeof is not supported", function()
-  assert_parse_fail("typeof x", "'typeof'")
-end)
-
 test("error: instanceof is not supported", function()
   assert_parse_fail("instanceof x", "'instanceof'")
 end)
@@ -387,7 +383,6 @@ test("error return convention: nil + 'parse error:' prefix", function()
   local cases = {
     "this.x",
     "async function f() {}",
-    "typeof x",
     "1 == 2",
     "++;",
     "5++;",

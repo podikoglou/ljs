@@ -5,7 +5,7 @@
 -- arithmetic/comparison/logical/assignment operators, if/else, while, for...of,
 -- throw/try/catch, console.log, member access, method calls, comments.
 --
--- Excluded (errors): this, async/await, typeof, instanceof, == (use ===),
+-- Excluded (errors): this, async/await, instanceof, == (use ===),
 -- regex literals, prototypal inheritance, Promises.
 --
 -- Usage:
@@ -764,6 +764,12 @@ local function delete_expression(argument)
   return { type = "DeleteExpression", argument = argument }
 end
 
+--- @param argument (table) The operand AST expression
+--- @return table {type="TypeofExpression", argument}
+local function typeof_expression(argument)
+  return { type = "TypeofExpression", argument = argument }
+end
+
 --- @param test (table) Condition expression
 --- @param consequent (table) Expression if truthy
 --- @param alternate (table) Expression if falsy
@@ -1063,7 +1069,6 @@ local BANNED_KEYWORDS = {
   [TOKEN.THIS] = "this",
   [TOKEN.ASYNC] = "async",
   [TOKEN.AWAIT] = "await",
-  [TOKEN.TYPEOF] = "typeof",
   [TOKEN.INSTANCEOF] = "instanceof",
 }
 
@@ -1666,6 +1671,11 @@ function parse_unary_expression(stream)
     local argument = parse_unary_expression(stream)
     if not argument then return nil end
     return delete_expression(argument)
+  elseif stream.is(TOKEN.TYPEOF) then
+    stream.advance()
+    local argument = parse_unary_expression(stream)
+    if not argument then return nil end
+    return typeof_expression(argument)
   end
   return parse_primary_expression(stream)
 end
