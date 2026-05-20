@@ -159,6 +159,10 @@ local function analyze_node(node, meta, scopes)
     analyze_node(node.test, meta, scopes)
     analyze_node(node.body, meta, scopes)
 
+  elseif t == "DoWhileStatement" then
+    analyze_node(node.body, meta, scopes)
+    analyze_node(node.test, meta, scopes)
+
   elseif t == "TryStatement" then
     analyze_node(node.block, meta, scopes)
     if node.handler then analyze_node(node.handler, meta, scopes) end
@@ -433,6 +437,16 @@ gen.WhileStatement = function(node, indent, scopes)
     body = body .. cg.label("_continue", indent + 1)
   end
   return cg.while_stmt(test_code, body, indent)
+end
+
+gen.DoWhileStatement = function(node, indent, scopes)
+  local test_code = emit(node.test, indent, scopes)
+  local body = emit(node.body, indent, scopes)
+  if has_continue(node.body) then
+    body = body .. cg.label("_continue", indent + 1)
+  end
+  local negated = cg.unop("not", "(" .. test_code .. ")")
+  return cg.repeat_until(negated, body, indent)
 end
 
 gen.ForOfStatement = function(node, indent, scopes)
