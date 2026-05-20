@@ -1,5 +1,5 @@
 pre-commit:
   jobs:
     - name: tests
-      glob: "{ljs_parser.lua,ljs_transpile.lua,ljs_codegen.lua,ljs_test.lua,test_ljs_*.lua}"
+      glob: "{ljs_parser.lua,ljs_transpile.lua,ljs_codegen.lua,ljs_test.lua,test/**/*.lua}"
       run: bash run_tests.sh
