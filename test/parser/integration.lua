@@ -1,5 +1,6 @@
 local T = require("ljs_test")
 local P = require("test.helpers.parser")
+local A = require("test.helpers.ast")
 local test, assert_eq, assert_table_eq = T.test, T.assert_eq, T.assert_table_eq
 local assert_parse_ok, assert_parse_fail = P.assert_parse_ok, P.assert_parse_fail
 local tok_from_source, assert_tok, assert_tokenize_fail =
@@ -116,20 +117,7 @@ end)
 
 test("operator precedence: 1 + 2 * 3", function()
   assert_parse_ok("1 + 2 * 3;", {
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "BinaryExpression",
-        operator = "+",
-        left = { type = "NumberLiteral", value = 1 },
-        right = {
-          type = "BinaryExpression",
-          operator = "*",
-          left = { type = "NumberLiteral", value = 2 },
-          right = { type = "NumberLiteral", value = 3 },
-        },
-      },
-    },
+    A.expr_stmt(A.bin("+", A.num(1), A.bin("*", A.num(2), A.num(3)))),
   })
 end)
 
@@ -139,198 +127,63 @@ end)
 
 test("integration: full program with multiple statements", function()
   assert_parse_ok("let x = 10;\nlet y = 20;\nconsole.log(x + y);", {
-    {
-      type = "VariableDeclaration",
-      kind = "let",
-      declarations = {
-        {
-          type = "VariableDeclarator",
-          name = { type = "Identifier", name = "x" },
-          init = { type = "NumberLiteral", value = 10 },
-        },
-      },
-    },
-    {
-      type = "VariableDeclaration",
-      kind = "let",
-      declarations = {
-        {
-          type = "VariableDeclarator",
-          name = { type = "Identifier", name = "y" },
-          init = { type = "NumberLiteral", value = 20 },
-        },
-      },
-    },
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "CallExpression",
-        callee = {
-          type = "MemberExpression",
-          object = { type = "Identifier", name = "console" },
-          property = { type = "Identifier", name = "log" },
-          computed = false,
-        },
-        arguments = {
-          {
-            type = "BinaryExpression",
-            operator = "+",
-            left = { type = "Identifier", name = "x" },
-            right = { type = "Identifier", name = "y" },
-          },
-        },
-      },
-    },
+    A.let("x", A.num(10)),
+    A.let("y", A.num(20)),
+    A.expr_stmt(
+      A.call(A.member(A.id("console"), A.id("log")), { A.bin("+", A.id("x"), A.id("y")) })
+    ),
   })
 end)
 
 test("integration: function with control flow", function()
   assert_parse_ok("function abs(n) { if (n < 0) { return -n; } else { return n; } }", {
-    {
-      type = "FunctionDeclaration",
-      name = "abs",
-      params = { { type = "Identifier", name = "n" } },
-      body = {
-        type = "BlockStatement",
-        body = {
-          {
-            type = "IfStatement",
-            test = {
-              type = "BinaryExpression",
-              operator = "<",
-              left = { type = "Identifier", name = "n" },
-              right = { type = "NumberLiteral", value = 0 },
-            },
-            consequent = {
-              type = "BlockStatement",
-              body = {
-                {
-                  type = "ReturnStatement",
-                  argument = {
-                    type = "UnaryExpression",
-                    operator = "-",
-                    argument = { type = "Identifier", name = "n" },
-                  },
-                },
-              },
-            },
-            alternate = {
-              type = "BlockStatement",
-              body = {
-                { type = "ReturnStatement", argument = { type = "Identifier", name = "n" } },
-              },
-            },
-          },
-        },
-      },
-    },
+    A.func(
+      "abs",
+      { A.id("n") },
+      A.block({
+        A.if_(
+          A.bin("<", A.id("n"), A.num(0)),
+          A.block({ A.ret(A.una("-", A.id("n"))) }),
+          A.block({ A.ret(A.id("n")) })
+        ),
+      })
+    ),
   })
 end)
 
 test("integration: object methods and calls", function()
   assert_parse_ok("let obj = {a: 1}; obj.a;", {
-    {
-      type = "VariableDeclaration",
-      kind = "let",
-      declarations = {
-        {
-          type = "VariableDeclarator",
-          name = { type = "Identifier", name = "obj" },
-          init = {
-            type = "ObjectExpression",
-            properties = {
-              {
-                type = "Property",
-                key = { type = "Identifier", name = "a" },
-                value = { type = "NumberLiteral", value = 1 },
-                computed = false,
-              },
-            },
-          },
-        },
-      },
-    },
-    {
-      type = "ExpressionStatement",
-      expression = {
-        type = "MemberExpression",
-        object = { type = "Identifier", name = "obj" },
-        property = { type = "Identifier", name = "a" },
-        computed = false,
-      },
-    },
+    A.let("obj", A.obj({ A.prop(A.id("a"), A.num(1)) })),
+    A.expr_stmt(A.member(A.id("obj"), A.id("a"))),
   })
 end)
 
 test("integration: complex chained expression with arrow functions", function()
   assert_parse_ok("let result = arr.filter(x => x > 0).map(x => x * 2);", {
-    {
-      type = "VariableDeclaration",
-      kind = "let",
-      declarations = {
+    A.let(
+      "result",
+      A.call(
+        A.member(
+          A.call(A.member(A.id("arr"), A.id("filter")), {
+            A.arrow(
+              { A.id("x") },
+              A.block({
+                A.ret(A.bin(">", A.id("x"), A.num(0))),
+              })
+            ),
+          }),
+          A.id("map")
+        ),
         {
-          type = "VariableDeclarator",
-          name = { type = "Identifier", name = "result" },
-          init = {
-            type = "CallExpression",
-            callee = {
-              type = "MemberExpression",
-              object = {
-                type = "CallExpression",
-                callee = {
-                  type = "MemberExpression",
-                  object = { type = "Identifier", name = "arr" },
-                  property = { type = "Identifier", name = "filter" },
-                  computed = false,
-                },
-                arguments = {
-                  {
-                    type = "ArrowFunctionExpression",
-                    params = { { type = "Identifier", name = "x" } },
-                    body = {
-                      type = "BlockStatement",
-                      body = {
-                        {
-                          type = "ReturnStatement",
-                          argument = {
-                            type = "BinaryExpression",
-                            operator = ">",
-                            left = { type = "Identifier", name = "x" },
-                            right = { type = "NumberLiteral", value = 0 },
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-              property = { type = "Identifier", name = "map" },
-              computed = false,
-            },
-            arguments = {
-              {
-                type = "ArrowFunctionExpression",
-                params = { { type = "Identifier", name = "x" } },
-                body = {
-                  type = "BlockStatement",
-                  body = {
-                    {
-                      type = "ReturnStatement",
-                      argument = {
-                        type = "BinaryExpression",
-                        operator = "*",
-                        left = { type = "Identifier", name = "x" },
-                        right = { type = "NumberLiteral", value = 2 },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+          A.arrow(
+            { A.id("x") },
+            A.block({
+              A.ret(A.bin("*", A.id("x"), A.num(2))),
+            })
+          ),
+        }
+      )
+    ),
   })
 end)
 
@@ -357,22 +210,12 @@ test("parse_tokens: let declaration", function()
     tok(TK.EOF),
   }
   local ast = ljs.parse_tokens(tokens)
-  assert_table_eq(ast, {
-    type = "Program",
-    body = {
-      {
-        type = "VariableDeclaration",
-        kind = "let",
-        declarations = {
-          {
-            type = "VariableDeclarator",
-            name = { type = "Identifier", name = "x" },
-            init = { type = "NumberLiteral", value = 42 },
-          },
-        },
-      },
-    },
-  })
+  assert_table_eq(
+    ast,
+    A.program({
+      A.let("x", A.num(42)),
+    })
+  )
 end)
 
 test("parse_tokens: if/else", function()
@@ -393,27 +236,12 @@ test("parse_tokens: if/else", function()
     tok(TK.EOF),
   }
   local ast = ljs.parse_tokens(tokens)
-  assert_table_eq(ast, {
-    type = "Program",
-    body = {
-      {
-        type = "IfStatement",
-        test = { type = "Identifier", name = "x" },
-        consequent = {
-          type = "BlockStatement",
-          body = {
-            { type = "ExpressionStatement", expression = { type = "Identifier", name = "y" } },
-          },
-        },
-        alternate = {
-          type = "BlockStatement",
-          body = {
-            { type = "ExpressionStatement", expression = { type = "Identifier", name = "z" } },
-          },
-        },
-      },
-    },
-  })
+  assert_table_eq(
+    ast,
+    A.program({
+      A.if_(A.id("x"), A.block({ A.expr_stmt(A.id("y")) }), A.block({ A.expr_stmt(A.id("z")) })),
+    })
+  )
 end)
 
 test("parse_tokens: binary expression with precedence", function()
@@ -427,25 +255,12 @@ test("parse_tokens: binary expression with precedence", function()
     tok(TK.EOF),
   }
   local ast = ljs.parse_tokens(tokens)
-  assert_table_eq(ast, {
-    type = "Program",
-    body = {
-      {
-        type = "ExpressionStatement",
-        expression = {
-          type = "BinaryExpression",
-          operator = "+",
-          left = { type = "NumberLiteral", value = 1 },
-          right = {
-            type = "BinaryExpression",
-            operator = "*",
-            left = { type = "NumberLiteral", value = 2 },
-            right = { type = "NumberLiteral", value = 3 },
-          },
-        },
-      },
-    },
-  })
+  assert_table_eq(
+    ast,
+    A.program({
+      A.expr_stmt(A.bin("+", A.num(1), A.bin("*", A.num(2), A.num(3)))),
+    })
+  )
 end)
 
 test("parse_tokens: error on unexpected token", function()
@@ -460,7 +275,7 @@ end)
 
 test("parse_tokens: empty program", function()
   local ast = ljs.parse_tokens({ tok(TK.EOF) })
-  assert_table_eq(ast, { type = "Program", body = {} })
+  assert_table_eq(ast, A.program({}))
 end)
 
 test("parse_tokens: compound assignment x += 1", function()
@@ -472,20 +287,12 @@ test("parse_tokens: compound assignment x += 1", function()
     tok(TK.EOF),
   }
   local ast = ljs.parse_tokens(tokens)
-  assert_table_eq(ast, {
-    type = "Program",
-    body = {
-      {
-        type = "ExpressionStatement",
-        expression = {
-          type = "BinaryExpression",
-          operator = "+=",
-          left = { type = "Identifier", name = "x" },
-          right = { type = "NumberLiteral", value = 1 },
-        },
-      },
-    },
-  })
+  assert_table_eq(
+    ast,
+    A.program({
+      A.expr_stmt(A.bin("+=", A.id("x"), A.num(1))),
+    })
+  )
 end)
 
 test("parse_tokens: ternary x ? 1 : 0", function()
@@ -499,20 +306,12 @@ test("parse_tokens: ternary x ? 1 : 0", function()
     tok(TK.EOF),
   }
   local ast = ljs.parse_tokens(tokens)
-  assert_table_eq(ast, {
-    type = "Program",
-    body = {
-      {
-        type = "ExpressionStatement",
-        expression = {
-          type = "ConditionalExpression",
-          test = { type = "Identifier", name = "x" },
-          consequent = { type = "NumberLiteral", value = 1 },
-          alternate = { type = "NumberLiteral", value = 0 },
-        },
-      },
-    },
-  })
+  assert_table_eq(
+    ast,
+    A.program({
+      A.expr_stmt(A.ternary(A.id("x"), A.num(1), A.num(0))),
+    })
+  )
 end)
 
 test("parse_tokens: do...while with braces", function()
@@ -530,21 +329,12 @@ test("parse_tokens: do...while with braces", function()
     tok(TK.EOF),
   }
   local ast = ljs.parse_tokens(tokens)
-  assert_table_eq(ast, {
-    type = "Program",
-    body = {
-      {
-        type = "DoWhileStatement",
-        body = {
-          type = "BlockStatement",
-          body = {
-            { type = "ExpressionStatement", expression = { type = "Identifier", name = "x" } },
-          },
-        },
-        test = { type = "Identifier", name = "y" },
-      },
-    },
-  })
+  assert_table_eq(
+    ast,
+    A.program({
+      A.do_while(A.block({ A.expr_stmt(A.id("x")) }), A.id("y")),
+    })
+  )
 end)
 
 test("parse_tokens: do...while without braces", function()
@@ -559,16 +349,12 @@ test("parse_tokens: do...while without braces", function()
     tok(TK.EOF),
   }
   local ast = ljs.parse_tokens(tokens)
-  assert_table_eq(ast, {
-    type = "Program",
-    body = {
-      {
-        type = "DoWhileStatement",
-        body = { type = "ExpressionStatement", expression = { type = "Identifier", name = "x" } },
-        test = { type = "Identifier", name = "y" },
-      },
-    },
-  })
+  assert_table_eq(
+    ast,
+    A.program({
+      A.do_while(A.expr_stmt(A.id("x")), A.id("y")),
+    })
+  )
 end)
 
 -- ============================================================================
