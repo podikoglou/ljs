@@ -791,6 +791,14 @@ gen.BinaryExpression = function(node, indent, scopes)
     return cg.binop("=", left, cg.call("_ljs_shr", { left, right }))
   elseif op == ">>>=" then
     return cg.binop("=", left, cg.call("_ljs_usr", { left, right }))
+  elseif op == "in" then
+    local key_code
+    if node.left.type == "StringLiteral" then
+      key_code = left
+    else
+      key_code = cg.binop("+", cg.paren(left), "1")
+    end
+    return cg.binop("~=", cg.call("rawget", { right, key_code }), cg.nil_val())
   else
     return cg.binop(op, left, right)
   end
