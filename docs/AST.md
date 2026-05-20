@@ -172,15 +172,17 @@ Expression bodies are desugared: `x => x + 1` becomes a `BlockStatement` contain
 
 | Precedence | Operators | Associativity |
 |-----------|-----------|--------------|
+| 5.5 | `**` | Right |
 | 5 | `*` `/` `%` | Left |
 | 4 | `+` `-` | Left |
 | 3 | `===` `!==` `<` `>` `<=` `>=` | Left |
 | 2 | `&&` | Left |
 | 1 | `\|\|` | Left |
 | 0.75 | `? :` (ternary) | Right |
-| 0.5 | `=` `+=` `-=` `*=` `/=` `%=` | Right |
+| 0.5 | `=` `+=` `-=` `*=` `/=` `%=` `**=` | Right |
 
 Assignment (`=`) and compound assignment operators are right-associative: `a = b = c` parses as `a = (b = c)`; `x += y += 1` parses as `x += (y += 1)`.  
+`**` (exponentiation) is also right-associative: `2 ** 3 ** 4` parses as `2 ** (3 ** 4)`.  
 All other binary operators are left-associative: `1 + 2 + 3` parses as `(1 + 2) + 3`.
 
 ### UnaryExpression
