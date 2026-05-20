@@ -136,7 +136,7 @@ test("tokenize keywords", function()
 end)
 
 test("tokenize operators", function()
-  local src = "+ - * / % === !== < > <= >= && || = ! ~ ++ -- += -= *= /= %="
+  local src = "+ - * / % === !== < > <= >= && || = ! ~ ++ -- += -= *= /= %= ** **="
   assert_tok(src, 1, "+")
   assert_tok(src, 2, "-")
   assert_tok(src, 3, "*")
@@ -160,6 +160,8 @@ test("tokenize operators", function()
   assert_tok(src, 21, "*=")
   assert_tok(src, 22, "/=")
   assert_tok(src, 23, "%=")
+  assert_tok(src, 24, "**")
+  assert_tok(src, 25, "**=")
 end)
 
 test("tokenize punctuation", function()
@@ -275,6 +277,52 @@ test("tokenize ---= maximal munch: -- -=", function()
   local tokens = ljs.tokenize("---=")
   assert_eq(tokens[1].type, "--")
   assert_eq(tokens[2].type, "-=")
+end)
+
+test("tokenize ** (exponentiation)", function()
+  local tokens = ljs.tokenize("**")
+  assert_eq(tokens[1].type, "**")
+end)
+
+test("tokenize **= (exponentiation assignment)", function()
+  local tokens = ljs.tokenize("**=")
+  assert_eq(tokens[1].type, "**=")
+end)
+
+test("tokenize *** maximal munch: ** *", function()
+  local tokens = ljs.tokenize("***")
+  assert_eq(tokens[1].type, "**")
+  assert_eq(tokens[2].type, "*")
+end)
+
+test("tokenize **** maximal munch: ** **", function()
+  local tokens = ljs.tokenize("****")
+  assert_eq(tokens[1].type, "**")
+  assert_eq(tokens[2].type, "**")
+end)
+
+test("tokenize ***= maximal munch: ** *=", function()
+  local tokens = ljs.tokenize("***=")
+  assert_eq(tokens[1].type, "**")
+  assert_eq(tokens[2].type, "*=")
+end)
+
+test("tokenize * * with space is not **", function()
+  local tokens = ljs.tokenize("* *")
+  assert_eq(tokens[1].type, "*")
+  assert_eq(tokens[2].type, "*")
+end)
+
+test("tokenize ** = with space is not **=", function()
+  local tokens = ljs.tokenize("** =")
+  assert_eq(tokens[1].type, "**")
+  assert_eq(tokens[2].type, "=")
+end)
+
+test("tokenize * *= maximal munch: * *=", function()
+  local tokens = ljs.tokenize("* *=")
+  assert_eq(tokens[1].type, "*")
+  assert_eq(tokens[2].type, "*=")
 end)
 
 -- ============================================================================
@@ -1225,11 +1273,344 @@ test("parse BinaryExpression all operators", function()
     {"1 >= 2;", ">="},
     {"true && false;", "&&"},
     {"true || false;", "||"},
+    {"2 ** 3;", "**"},
   }
   for _, tc in ipairs(ops) do
     local ast = ljs.parse(tc[1])
     assert_table_eq(ast.body[1].expression.operator, tc[2], "operator for " .. tc[1])
   end
+end)
+
+test("parse BinaryExpression **", function()
+  assert_parse_ok("2 ** 3;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "**",
+      left = {type = "NumberLiteral", value = 2},
+      right = {type = "NumberLiteral", value = 3}}
+    }
+  })
+end)
+
+test("parse ** with variable operands", function()
+  assert_parse_ok("x ** y;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "**",
+      left = {type = "Identifier", name = "x"},
+      right = {type = "Identifier", name = "y"}}
+    }
+  })
+end)
+
+test("parse ** right-associative: 2 ** 3 ** 4", function()
+  assert_parse_ok("2 ** 3 ** 4;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "**",
+      left = {type = "NumberLiteral", value = 2},
+      right = {type = "BinaryExpression", operator = "**",
+        left = {type = "NumberLiteral", value = 3},
+        right = {type = "NumberLiteral", value = 4}}}
+    }
+  })
+end)
+
+test("parse ** right-associative three-deep", function()
+  assert_parse_ok("a ** b ** c ** d;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "**",
+      left = {type = "Identifier", name = "a"},
+      right = {type = "BinaryExpression", operator = "**",
+        left = {type = "Identifier", name = "b"},
+        right = {type = "BinaryExpression", operator = "**",
+          left = {type = "Identifier", name = "c"},
+          right = {type = "Identifier", name = "d"}}}}
+    }
+  })
+end)
+
+test("parse compound **=", function()
+  assert_parse_ok("x **= 2;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "**=",
+      left = {type = "Identifier", name = "x"},
+      right = {type = "NumberLiteral", value = 2}}
+    }
+  })
+end)
+
+test("parse **= on member expression", function()
+  assert_parse_ok("obj.x **= 2;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "**=",
+      left = {type = "MemberExpression",
+        object = {type = "Identifier", name = "obj"},
+        property = {type = "Identifier", name = "x"},
+        computed = false},
+      right = {type = "NumberLiteral", value = 2}}
+    }
+  })
+end)
+
+test("parse **= on computed member", function()
+  assert_parse_ok("arr[i] **= 2;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "**=",
+      left = {type = "MemberExpression",
+        object = {type = "Identifier", name = "arr"},
+        property = {type = "Identifier", name = "i"},
+        computed = true},
+      right = {type = "NumberLiteral", value = 2}}
+    }
+  })
+end)
+
+test("parse **= right-associative: x **= y **= 2", function()
+  assert_parse_ok("x **= y **= 2;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "**=",
+      left = {type = "Identifier", name = "x"},
+      right = {type = "BinaryExpression", operator = "**=",
+        left = {type = "Identifier", name = "y"},
+        right = {type = "NumberLiteral", value = 2}}}
+    }
+  })
+end)
+
+test("parse precedence: ** tighter than * (right)", function()
+  assert_parse_ok("2 * 3 ** 2;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "*",
+      left = {type = "NumberLiteral", value = 2},
+      right = {type = "BinaryExpression", operator = "**",
+        left = {type = "NumberLiteral", value = 3},
+        right = {type = "NumberLiteral", value = 2}}}
+    }
+  })
+end)
+
+test("parse precedence: ** tighter than * (left)", function()
+  assert_parse_ok("2 ** 3 * 4;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "*",
+      left = {type = "BinaryExpression", operator = "**",
+        left = {type = "NumberLiteral", value = 2},
+        right = {type = "NumberLiteral", value = 3}},
+      right = {type = "NumberLiteral", value = 4}}
+    }
+  })
+end)
+
+test("parse precedence: ** tighter than /", function()
+  assert_parse_ok("8 / 2 ** 3;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "/",
+      left = {type = "NumberLiteral", value = 8},
+      right = {type = "BinaryExpression", operator = "**",
+        left = {type = "NumberLiteral", value = 2},
+        right = {type = "NumberLiteral", value = 3}}}
+    }
+  })
+end)
+
+test("parse precedence: ** tighter than %", function()
+  assert_parse_ok("10 % 3 ** 2;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "%",
+      left = {type = "NumberLiteral", value = 10},
+      right = {type = "BinaryExpression", operator = "**",
+        left = {type = "NumberLiteral", value = 3},
+        right = {type = "NumberLiteral", value = 2}}}
+    }
+  })
+end)
+
+test("parse precedence: ** tighter than +", function()
+  assert_parse_ok("1 + 2 ** 3;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "+",
+      left = {type = "NumberLiteral", value = 1},
+      right = {type = "BinaryExpression", operator = "**",
+        left = {type = "NumberLiteral", value = 2},
+        right = {type = "NumberLiteral", value = 3}}}
+    }
+  })
+end)
+
+test("parse precedence: ** tighter than comparison", function()
+  assert_parse_ok("2 ** 3 > 5;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = ">",
+      left = {type = "BinaryExpression", operator = "**",
+        left = {type = "NumberLiteral", value = 2},
+        right = {type = "NumberLiteral", value = 3}},
+      right = {type = "NumberLiteral", value = 5}}
+    }
+  })
+end)
+
+test("parse precedence: ** tighter than &&", function()
+  assert_parse_ok("a ** b && c;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "&&",
+      left = {type = "BinaryExpression", operator = "**",
+        left = {type = "Identifier", name = "a"},
+        right = {type = "Identifier", name = "b"}},
+      right = {type = "Identifier", name = "c"}}
+    }
+  })
+end)
+
+test("parse precedence: ** tighter than ||", function()
+  assert_parse_ok("a ** b || c;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "||",
+      left = {type = "BinaryExpression", operator = "**",
+        left = {type = "Identifier", name = "a"},
+        right = {type = "Identifier", name = "b"}},
+      right = {type = "Identifier", name = "c"}}
+    }
+  })
+end)
+
+test("parse -2 ** 3 (unary minus before **)", function()
+  assert_parse_ok("-2 ** 3;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "**",
+      left = {type = "UnaryExpression", operator = "-",
+        argument = {type = "NumberLiteral", value = 2}},
+      right = {type = "NumberLiteral", value = 3}}
+    }
+  })
+end)
+
+test("parse !a ** b (unary not before **)", function()
+  assert_parse_ok("!a ** b;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "**",
+      left = {type = "UnaryExpression", operator = "!",
+        argument = {type = "Identifier", name = "a"}},
+      right = {type = "Identifier", name = "b"}}
+    }
+  })
+end)
+
+test("parse +a ** b (unary plus before **)", function()
+  assert_parse_ok("+a ** b;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "**",
+      left = {type = "UnaryExpression", operator = "+",
+        argument = {type = "Identifier", name = "a"}},
+      right = {type = "Identifier", name = "b"}}
+    }
+  })
+end)
+
+test("parse ~a ** b (bitwise not before **)", function()
+  assert_parse_ok("~a ** b;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "**",
+      left = {type = "UnaryExpression", operator = "~",
+        argument = {type = "Identifier", name = "a"}},
+      right = {type = "Identifier", name = "b"}}
+    }
+  })
+end)
+
+test("parse -(2 ** 3) (parens override unary)", function()
+  assert_parse_ok("-(2 ** 3);", {
+    {type = "ExpressionStatement", expression = {type = "UnaryExpression", operator = "-",
+      argument = {type = "BinaryExpression", operator = "**",
+        left = {type = "NumberLiteral", value = 2},
+        right = {type = "NumberLiteral", value = 3}}}
+    }
+  })
+end)
+
+test("parse 2 ** -3 (unary in exponent)", function()
+  assert_parse_ok("2 ** -3;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "**",
+      left = {type = "NumberLiteral", value = 2},
+      right = {type = "UnaryExpression", operator = "-",
+        argument = {type = "NumberLiteral", value = 3}}}
+    }
+  })
+end)
+
+test("parse ++x ** 2 (prefix increment before **)", function()
+  assert_parse_ok("++x ** 2;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "**",
+      left = {type = "UpdateExpression", operator = "++",
+        argument = {type = "Identifier", name = "x"}, prefix = true},
+      right = {type = "NumberLiteral", value = 2}}
+    }
+  })
+end)
+
+test("parse x++ ** 2 (postfix before **)", function()
+  assert_parse_ok("x++ ** 2;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "**",
+      left = {type = "UpdateExpression", operator = "++",
+        argument = {type = "Identifier", name = "x"}, prefix = false},
+      right = {type = "NumberLiteral", value = 2}}
+    }
+  })
+end)
+
+test("parse 2 ** x++ (postfix in exponent)", function()
+  assert_parse_ok("2 ** x++;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "**",
+      left = {type = "NumberLiteral", value = 2},
+      right = {type = "UpdateExpression", operator = "++",
+        argument = {type = "Identifier", name = "x"}, prefix = false}}
+    }
+  })
+end)
+
+test("parse ** in assignment RHS", function()
+  assert_parse_ok("x = 2 ** 3;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "=",
+      left = {type = "Identifier", name = "x"},
+      right = {type = "BinaryExpression", operator = "**",
+        left = {type = "NumberLiteral", value = 2},
+        right = {type = "NumberLiteral", value = 3}}}
+    }
+  })
+end)
+
+test("parse ** in ternary test", function()
+  assert_parse_ok("a ** b ? 1 : 0;", {
+    {type = "ExpressionStatement", expression = {type = "ConditionalExpression",
+      test = {type = "BinaryExpression", operator = "**",
+        left = {type = "Identifier", name = "a"},
+        right = {type = "Identifier", name = "b"}},
+      consequent = {type = "NumberLiteral", value = 1},
+      alternate = {type = "NumberLiteral", value = 0}}
+    }
+  })
+end)
+
+test("parse ** in ternary branch", function()
+  assert_parse_ok("c ? 2 ** 3 : 4;", {
+    {type = "ExpressionStatement", expression = {type = "ConditionalExpression",
+      test = {type = "Identifier", name = "c"},
+      consequent = {type = "BinaryExpression", operator = "**",
+        left = {type = "NumberLiteral", value = 2},
+        right = {type = "NumberLiteral", value = 3}},
+      alternate = {type = "NumberLiteral", value = 4}}
+    }
+  })
+end)
+
+test("parse **= with + on RHS", function()
+  assert_parse_ok("x **= 1 + 2;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "**=",
+      left = {type = "Identifier", name = "x"},
+      right = {type = "BinaryExpression", operator = "+",
+        left = {type = "NumberLiteral", value = 1},
+        right = {type = "NumberLiteral", value = 2}}}
+    }
+  })
+end)
+
+test("parse (x + 1) ** 2 (complex base)", function()
+  assert_parse_ok("(x + 1) ** 2;", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "**",
+      left = {type = "BinaryExpression", operator = "+",
+        left = {type = "Identifier", name = "x"},
+        right = {type = "NumberLiteral", value = 1}},
+      right = {type = "NumberLiteral", value = 2}}
+    }
+  })
+end)
+
+test("parse 2 ** (x + 1) (complex exponent)", function()
+  assert_parse_ok("2 ** (x + 1);", {
+    {type = "ExpressionStatement", expression = {type = "BinaryExpression", operator = "**",
+      left = {type = "NumberLiteral", value = 2},
+      right = {type = "BinaryExpression", operator = "+",
+        left = {type = "Identifier", name = "x"},
+        right = {type = "NumberLiteral", value = 1}}}
+    }
+  })
 end)
 
 test("parse UnaryExpression !", function()
@@ -2539,6 +2920,34 @@ end)
 
 test("error: += at end of input", function()
   assert_parse_fail("x +=", nil)
+end)
+
+test("error: ** without left operand", function()
+  assert_parse_fail("** 3;", nil)
+end)
+
+test("error: ** without right operand", function()
+  assert_parse_fail("2 **;", nil)
+end)
+
+test("error: ** at end of input", function()
+  assert_parse_fail("2 **", nil)
+end)
+
+test("error: **= without left operand", function()
+  assert_parse_fail("**= 2;", nil)
+end)
+
+test("error: **= without right operand", function()
+  assert_parse_fail("x **= ;", nil)
+end)
+
+test("error: **= at end of input", function()
+  assert_parse_fail("x **=", nil)
+end)
+
+test("error: * * 3 (two separate stars is not **)", function()
+  assert_parse_fail("2 * * 3;", nil)
 end)
 
 test("operator precedence: 1 + 2 * 3", function()
