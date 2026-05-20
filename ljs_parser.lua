@@ -81,6 +81,13 @@ local TOKEN = {
   -- Logical
   AND = "&&",
   OR = "||",
+  -- Bitwise binary
+  BITWISE_AND = "&",
+  BITWISE_OR = "|",
+  BITWISE_XOR = "^",
+  LEFT_SHIFT = "<<",
+  RIGHT_SHIFT = ">>",
+  UNSIGNED_RIGHT_SHIFT = ">>>",
   -- Assignment
   ASSIGN = "=",
   -- Compound assignment
@@ -90,6 +97,12 @@ local TOKEN = {
   STARSTAR_ASSIGN = "**=",
   SLASH_ASSIGN = "/=",
   PERCENT_ASSIGN = "%=",
+  BITWISE_AND_ASSIGN = "&=",
+  BITWISE_OR_ASSIGN = "|=",
+  BITWISE_XOR_ASSIGN = "^=",
+  LEFT_SHIFT_ASSIGN = "<<=",
+  RIGHT_SHIFT_ASSIGN = ">>=",
+  UNSIGNED_RIGHT_SHIFT_ASSIGN = ">>>=",
   -- Unary
   NOT = "!",
   TILDE = "~",
@@ -497,8 +510,22 @@ local function tokenize(source)
     elseif c == "~" then
       table.insert(tokens, make_token(TOKEN.TILDE))
       advance()
+    elseif c == "^" then
+      if lookahead(2) == "^=" then
+        table.insert(tokens, make_token(TOKEN.BITWISE_XOR_ASSIGN))
+        advance(2)
+      else
+        table.insert(tokens, make_token(TOKEN.BITWISE_XOR))
+        advance()
+      end
     elseif c == "<" then
-      if lookahead(2) == "<=" then
+      if source:sub(pos, pos + 2) == "<<=" then
+        table.insert(tokens, make_token(TOKEN.LEFT_SHIFT_ASSIGN))
+        advance(3)
+      elseif lookahead(2) == "<<" then
+        table.insert(tokens, make_token(TOKEN.LEFT_SHIFT))
+        advance(2)
+      elseif lookahead(2) == "<=" then
         table.insert(tokens, make_token(TOKEN.LTE))
         advance(2)
       else
@@ -506,7 +533,19 @@ local function tokenize(source)
         advance()
       end
     elseif c == ">" then
-      if lookahead(2) == ">=" then
+      if source:sub(pos, pos + 3) == ">>>=" then
+        table.insert(tokens, make_token(TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN))
+        advance(4)
+      elseif source:sub(pos, pos + 2) == ">>>" then
+        table.insert(tokens, make_token(TOKEN.UNSIGNED_RIGHT_SHIFT))
+        advance(3)
+      elseif source:sub(pos, pos + 2) == ">>=" then
+        table.insert(tokens, make_token(TOKEN.RIGHT_SHIFT_ASSIGN))
+        advance(3)
+      elseif lookahead(2) == ">>" then
+        table.insert(tokens, make_token(TOKEN.RIGHT_SHIFT))
+        advance(2)
+      elseif lookahead(2) == ">=" then
         table.insert(tokens, make_token(TOKEN.GTE))
         advance(2)
       else
@@ -518,15 +557,23 @@ local function tokenize(source)
       if lookahead(2) == "&&" then
         table.insert(tokens, make_token(TOKEN.AND))
         advance(2)
+      elseif lookahead(2) == "&=" then
+        table.insert(tokens, make_token(TOKEN.BITWISE_AND_ASSIGN))
+        advance(2)
       else
-        return nil, string.format("Unexpected character '%s' at line %d, col %d", c, line, col)
+        table.insert(tokens, make_token(TOKEN.BITWISE_AND))
+        advance()
       end
     elseif c == "|" then
       if lookahead(2) == "||" then
         table.insert(tokens, make_token(TOKEN.OR))
         advance(2)
+      elseif lookahead(2) == "|=" then
+        table.insert(tokens, make_token(TOKEN.BITWISE_OR_ASSIGN))
+        advance(2)
       else
-        return nil, string.format("Unexpected character '%s' at line %d, col %d", c, line, col)
+        table.insert(tokens, make_token(TOKEN.BITWISE_OR))
+        advance()
       end
 
     else
@@ -679,7 +726,7 @@ local function undefined_literal(token)
   return { type = "UndefinedLiteral" }
 end
 
---- @param operator (string) One of: + - * / % ** === !== < > <= >= && || = += -= *= /= %= **=
+--- @param operator (string) One of: + - * / % ** === !== < > <= >= && || = += -= *= /= %= **= & | ^ << >> >>> &= |= ^= <<= >>= >>>=
 --- @param left (table) Left-hand AST expression
 --- @param right (table) Right-hand AST expression
 --- @return table {type="BinaryExpression", operator, left, right}
@@ -1456,10 +1503,14 @@ end
 --   5.5 ** (exponentiation, right-associative)
 --   5   * / %
 --   4   + -
+--   3.5 << >> >>> (bitwise shifts)
 --   3   === !== < > <= >=
+--   2.75 & (bitwise AND)
+--   2.5 ^ (bitwise XOR)
+--   2.25 | (bitwise OR)
 --   2   &&
 --   1   ||
---   0.5 = += -= *= /= %= **= (assignment and compound assignment, right-associative)
+--   0.5 = += -= *= /= %= **= &= |= ^= <<= >>= >>>= (assignment, right-associative)
 --
 -- All binary operators except assignment, compound assignment, and ** are left-associative.
 
@@ -1472,12 +1523,18 @@ local PRECEDENCE = {
   [TOKEN.PERCENT] = 5,
   [TOKEN.PLUS] = 4,
   [TOKEN.MINUS] = 4,
+  [TOKEN.LEFT_SHIFT] = 3.5,
+  [TOKEN.RIGHT_SHIFT] = 3.5,
+  [TOKEN.UNSIGNED_RIGHT_SHIFT] = 3.5,
   [TOKEN.EQ] = 3,
   [TOKEN.NEQ] = 3,
   [TOKEN.LT] = 3,
   [TOKEN.GT] = 3,
   [TOKEN.LTE] = 3,
   [TOKEN.GTE] = 3,
+  [TOKEN.BITWISE_AND] = 2.75,
+  [TOKEN.BITWISE_XOR] = 2.5,
+  [TOKEN.BITWISE_OR] = 2.25,
   [TOKEN.AND] = 2,
   [TOKEN.OR] = 1,
   [TOKEN.QUESTION] = 0.75,
@@ -1488,6 +1545,12 @@ local PRECEDENCE = {
   [TOKEN.STARSTAR_ASSIGN] = 0.5,
   [TOKEN.SLASH_ASSIGN] = 0.5,
   [TOKEN.PERCENT_ASSIGN] = 0.5,
+  [TOKEN.BITWISE_AND_ASSIGN] = 0.5,
+  [TOKEN.BITWISE_OR_ASSIGN] = 0.5,
+  [TOKEN.BITWISE_XOR_ASSIGN] = 0.5,
+  [TOKEN.LEFT_SHIFT_ASSIGN] = 0.5,
+  [TOKEN.RIGHT_SHIFT_ASSIGN] = 0.5,
+  [TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN] = 0.5,
 }
 
 --- Entry point for expression parsing. Starts at minimum precedence 0.
@@ -1521,7 +1584,10 @@ function parse_binary_expression(stream, min_precedence)
     -- All other operators are left-associative: a + b + c parses as (a + b) + c.
     if op == TOKEN.ASSIGN or op == TOKEN.PLUS_ASSIGN or op == TOKEN.MINUS_ASSIGN
         or op == TOKEN.STAR_ASSIGN or op == TOKEN.STARSTAR_ASSIGN
-        or op == TOKEN.SLASH_ASSIGN or op == TOKEN.PERCENT_ASSIGN then
+        or op == TOKEN.SLASH_ASSIGN or op == TOKEN.PERCENT_ASSIGN
+        or op == TOKEN.BITWISE_AND_ASSIGN or op == TOKEN.BITWISE_OR_ASSIGN
+        or op == TOKEN.BITWISE_XOR_ASSIGN or op == TOKEN.LEFT_SHIFT_ASSIGN
+        or op == TOKEN.RIGHT_SHIFT_ASSIGN or op == TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN then
       stream.advance()
       local right = parse_expression(stream)
       if not right then return nil end
