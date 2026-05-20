@@ -566,6 +566,10 @@ gen.BinaryExpression = function(node, indent, scopes)
     return cg.binop("=", left, right)
   elseif op == "+=" then
     return cg.binop("=", left, cg.call("_ljs_add", {left, right}))
+  elseif op == "**" then
+    return cg.binop("^", left, right)
+  elseif op == "**=" then
+    return cg.binop("=", left, cg.binop("^", left, right))
   elseif op == "-=" or op == "*=" or op == "/=" or op == "%=" then
     local base_op = op:sub(1, 1)
     return cg.binop("=", left, cg.binop(base_op, left, right))
