@@ -103,6 +103,16 @@ function cg.while_stmt(test, body, indent)
     .. body .. cg.pad(indent) .. "end\n"
 end
 
+--- Emit a repeat...until loop statement.
+-- @param condition (string) Loop exit condition (loop stops when condition is true)
+-- @param body (string) Loop body (pre-formatted)
+-- @param indent (number) Indentation level
+-- @return (string) Formatted repeat...until loop with trailing newline
+function cg.repeat_until(condition, body, indent)
+  return cg.pad(indent) .. "repeat\n"
+    .. body .. cg.pad(indent) .. "until " .. condition .. "\n"
+end
+
 --- Emit a generic for..in loop statement.
 -- @param vars (string) Comma-separated variable names
 -- @param iter (string) Iterator expression
