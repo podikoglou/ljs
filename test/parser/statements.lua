@@ -39,19 +39,19 @@ end)
 
 test("parse function declaration", function()
   assert_parse_ok("function add(a, b) { return a + b; }", {
-    A.func("add", A.ids("a", "b"), A.block({
-      A.ret(A.bin("+", A.id("a"), A.id("b"))),
-    })),
+    A.func(
+      "add",
+      A.ids("a", "b"),
+      A.block({
+        A.ret(A.bin("+", A.id("a"), A.id("b"))),
+      })
+    ),
   })
 end)
 
 test("parse if/else", function()
   assert_parse_ok("if (x) { y; } else { z; }", {
-    A.if_(
-      A.id("x"),
-      A.block({ A.expr_stmt(A.id("y")) }),
-      A.block({ A.expr_stmt(A.id("z")) })
-    ),
+    A.if_(A.id("x"), A.block({ A.expr_stmt(A.id("y")) }), A.block({ A.expr_stmt(A.id("z")) })),
   })
 end)
 
@@ -63,12 +63,12 @@ end)
 
 test("parse empty source produces empty Program", function()
   local ast = P.ljs.parse("")
-  assert_table_eq(ast, { type = "Program", body = {} })
+  assert_table_eq(ast, A.program({}))
 end)
 
 test("parse whitespace-only source produces empty Program", function()
   local ast = P.ljs.parse("   \n  \t  \n  ")
-  assert_table_eq(ast, { type = "Program", body = {} })
+  assert_table_eq(ast, A.program({}))
 end)
 
 test("parse var multi-declarator normalizes to let", function()
