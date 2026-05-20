@@ -203,6 +203,17 @@ Unary operators have the highest precedence (6) and are right-recursive: `!!x` p
 
 The `~` (bitwise NOT) operator coerces its operand to a 32-bit integer via `ToInt32`, then computes `-(x+1)`. The transpiler emits a runtime helper `_ljs_bnot` that simulates this using pure math (`math.floor` + modular arithmetic).
 
+### DeleteExpression
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"DeleteExpression"` | |
+| `argument` | `node` | The expression to delete |
+
+`delete` is a unary prefix keyword operator with the same precedence as other unary operators (6). It is right-recursive: `delete delete x` parses as `delete (delete x)`.
+
+**Source:** `delete obj.prop`, `delete arr[i]`, `delete x`
+
 ### UpdateExpression
 
 | Field | Type | Description |
