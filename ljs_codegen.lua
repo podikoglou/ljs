@@ -245,4 +245,64 @@ function cg.array(elems)
   return "{" .. table.concat(elems, ", ") .. "}"
 end
 
+-- ============================================================================
+-- Goto and labels
+-- ============================================================================
+
+--- Emit a goto statement.
+-- @param label (string) Label name
+-- @param indent (number) Indentation level
+-- @return (string) Formatted goto statement with trailing newline
+function cg.goto_stmt(label, indent)
+  return cg.pad(indent) .. "goto " .. label .. "\n"
+end
+
+--- Emit a goto label.
+-- @param name (string) Label name
+-- @param indent (number) Indentation level
+-- @return (string) Formatted label with trailing newline
+function cg.label(name, indent)
+  return cg.pad(indent) .. "::" .. name .. "::\n"
+end
+
+-- ============================================================================
+-- Inline statements (for IIFE bodies)
+-- ============================================================================
+
+--- Emit a local declaration as an inline statement (no trailing newline).
+-- @param name (string) Variable name
+-- @param init (string) Initializer expression
+-- @return (string) Inline local declaration
+function cg.local_inline(name, init)
+  return "local " .. name .. " = " .. init
+end
+
+--- Emit a return as an inline statement (no trailing newline).
+-- @param expr (string) Return expression
+-- @return (string) Inline return statement
+function cg.return_inline(expr)
+  return "return " .. expr
+end
+
+--- Emit an inline if-return-else-return-end statement (for IIFE bodies).
+-- @param test (string) Condition expression
+-- @param consequent (string) Return value if truthy
+-- @param alternate (string) Return value if falsy
+-- @return (string) Inline if-return statement
+function cg.inline_if_return(test, consequent, alternate)
+  return "if " .. test .. " then return " .. consequent
+    .. " else return " .. alternate .. " end"
+end
+
+-- ============================================================================
+-- Compound: IIFE
+-- ============================================================================
+
+--- Emit an immediately-invoked function expression (IIFE).
+-- @param stmts (table) List of inline statement strings
+-- @return (string) Formatted IIFE expression
+function cg.iife(stmts)
+  return "(function() " .. table.concat(stmts, "; ") .. " end)()"
+end
+
 return cg
