@@ -4,7 +4,7 @@ Lua libraries that parse a well-defined subset of JavaScript into a Lua table-ba
 
 This is a tiny codebase (~8k lines). No need for subagents or careful file loading — just read the relevant file, make the change, run the tests.
 
-Tests: `bash run_tests.sh`
+Tests: `make test`
 
 For architecture and layer boundaries, see docs/ARCHITECTURE.md
 For AST node reference, see docs/AST.md
