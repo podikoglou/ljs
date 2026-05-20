@@ -2,7 +2,7 @@
 -- Parses a well-defined subset of JavaScript into a Lua table-based AST.
 --
 -- Supported: let/const/var, functions, arrow functions, objects, arrays,
--- arithmetic/comparison/logical/assignment operators, if/else, while, for...of,
+-- arithmetic/comparison/logical/assignment operators, in operator, if/else, while, for...of,
 -- throw/try/catch, console.log, member access, method calls, comments.
 --
 -- Excluded (errors): this, async/await, instanceof, == (use ===),
@@ -760,7 +760,7 @@ local function undefined_literal(token)
   return { type = "UndefinedLiteral" }
 end
 
---- @param operator (string) One of: + - * / % ** === !== < > <= >= && || = += -= *= /= %= **= & | ^ << >> >>> &= |= ^= <<= >>= >>>=
+--- @param operator (string) One of: + - * / % ** === !== < > <= >= && || in = += -= *= /= %= **= & | ^ << >> >>> &= |= ^= <<= >>= >>>=
 --- @param left (table) Left-hand AST expression
 --- @param right (table) Right-hand AST expression
 --- @return table {type="BinaryExpression", operator, left, right}
@@ -1648,7 +1648,7 @@ end
 --   5   * / %
 --   4   + -
 --   3.5 << >> >>> (bitwise shifts)
---   3   === !== < > <= >=
+--   3   === !== < > <= >= in
 --   2.75 & (bitwise AND)
 --   2.5 ^ (bitwise XOR)
 --   2.25 | (bitwise OR)
