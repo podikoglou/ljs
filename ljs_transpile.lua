@@ -736,7 +736,7 @@ gen.MemberExpression = function(node, indent, scopes)
     if node.property.type == "StringLiteral" then
       return cg.member_index(obj, emit(node.property, indent, scopes))
     end
-    return cg.member_index(obj, "(" .. emit(node.property, indent, scopes) .. ") + 1")
+    return cg.member_index(obj, cg.binop("+", cg.paren(emit(node.property, indent, scopes)), "1"))
   end
   return cg.member_dot(obj, node.property.name)
 end
@@ -750,7 +750,7 @@ gen.ObjectExpression = function(node, indent, scopes)
     if prop.key.type == "Identifier" then
       key = prop.key.name
     else
-      key = "[" .. cg.string(prop.key.value) .. "]"
+      key = cg.bracket_key(cg.string(prop.key.value))
     end
     fields[#fields + 1] = { key = key, value = emit(prop.value, indent, scopes) }
   end
@@ -774,7 +774,7 @@ gen_stmt.UpdateExpression = function(node, indent, scopes)
 end
 
 gen_stmt.ConditionalExpression = function(node, indent, scopes)
-  return cg.expr_stmt(";" .. emit(node, indent, scopes), indent)
+  return cg.expr_stmt(emit(node, indent, scopes), indent)
 end
 
 -- === Top-level generate ===

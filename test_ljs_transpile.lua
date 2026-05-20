@@ -1369,11 +1369,11 @@ end)
 -- ============================================================================
 
 test("ternary basic", function()
-  assert_eq(expr_code("x ? 1 : 0"), ";(function() if x then return 1 else return 0 end end)()")
+  assert_eq(expr_code("x ? 1 : 0"), "(function() if x then return 1 else return 0 end end)()")
 end)
 
 test("ternary falsy consequent correctness", function()
-  assert_eq(expr_code("true ? false : 0"), ";(function() if true then return false else return 0 end end)()")
+  assert_eq(expr_code("true ? false : 0"), "(function() if true then return false else return 0 end end)()")
 end)
 
 test("ternary in variable init", function()

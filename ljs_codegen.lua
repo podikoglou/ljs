@@ -194,6 +194,20 @@ function cg.ident(name)
   return name
 end
 
+--- Emit a parenthesized expression.
+-- @param expr (string) Inner expression
+-- @return (string) Parenthesized expression
+function cg.paren(expr)
+  return "(" .. expr .. ")"
+end
+
+--- Emit a bracket key for use inside a table constructor.
+-- @param expr (string) Key expression
+-- @return (string) Bracketed key, e.g. ["key"]
+function cg.bracket_key(expr)
+  return "[" .. expr .. "]"
+end
+
 --- Emit a binary operation expression.
 -- @param op (string) Operator string
 -- @param left (string) Left operand expression
