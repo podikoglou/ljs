@@ -112,6 +112,7 @@ local TOKEN = {
   DECREMENT = "--",
   -- Arrow function
   ARROW = "=>",
+  NEW = "new",
 
   UNDEFINED = "Undefined",
   DELETE = "delete",
@@ -160,6 +161,7 @@ local KEYWORDS = {
   ["await"] = TOKEN.AWAIT,
   ["typeof"] = TOKEN.TYPEOF,
   ["instanceof"] = TOKEN.INSTANCEOF,
+  ["new"] = TOKEN.NEW,
 }
 
 -- ============================================================================
@@ -800,6 +802,10 @@ local function typeof_expression(argument)
   return { type = "TypeofExpression", argument = argument }
 end
 
+local function new_expression(callee, arguments)
+  return { type = "NewExpression", callee = callee, arguments = arguments }
+end
+
 --- @param test (table) Condition expression
 --- @param consequent (table) Expression if truthy
 --- @param alternate (table) Expression if falsy
@@ -1103,7 +1109,6 @@ end
 local BANNED_KEYWORDS = {
   [TOKEN.ASYNC] = "async",
   [TOKEN.AWAIT] = "await",
-  [TOKEN.INSTANCEOF] = "instanceof",
 }
 
 --- Check if the current token is a banned keyword and return an error message.
@@ -1681,6 +1686,7 @@ local PRECEDENCE = {
   [TOKEN.LTE] = 3,
   [TOKEN.GTE] = 3,
   [TOKEN.IN] = 3,
+  [TOKEN.INSTANCEOF] = 3,
   [TOKEN.BITWISE_AND] = 2.75,
   [TOKEN.BITWISE_XOR] = 2.5,
   [TOKEN.BITWISE_OR] = 2.25,
@@ -1838,6 +1844,53 @@ function parse_unary_expression(stream)
       return nil
     end
     return typeof_expression(argument)
+  elseif stream.is(TOKEN.NEW) then
+    stream.advance()
+    if stream.is(TOKEN.NEW) then
+      local inner = parse_unary_expression(stream)
+      if not inner then
+        return nil
+      end
+      return parse_postfix(stream, inner)
+    end
+    local callee = parse_primary_expression(stream)
+    if not callee then
+      return nil
+    end
+    while stream.is(TOKEN.DOT) or stream.is(TOKEN.LBRACKET) do
+      if stream.is(TOKEN.DOT) then
+        stream.advance()
+        local prop_token = stream.consume(TOKEN.IDENTIFIER)
+        callee = member_expression(callee, identifier(prop_token.value, prop_token), false)
+      else
+        stream.advance()
+        local prop = parse_expression(stream)
+        if not prop then
+          return nil
+        end
+        stream.consume(TOKEN.RBRACKET)
+        callee = member_expression(callee, prop, true)
+      end
+    end
+    local args = {}
+    if stream.is(TOKEN.LPAREN) then
+      stream.advance()
+      if not stream.is(TOKEN.RPAREN) then
+        while true do
+          local arg = parse_expression(stream)
+          if not arg then
+            return nil
+          end
+          table.insert(args, arg)
+          if not stream.is(TOKEN.COMMA) then
+            break
+          end
+          stream.advance()
+        end
+      end
+      stream.consume(TOKEN.RPAREN)
+    end
+    return parse_postfix(stream, new_expression(callee, args))
   end
   return parse_primary_expression(stream)
 end
@@ -2126,7 +2179,13 @@ function parse_object_literal(stream)
         if not body then
           return nil, "Expected block after method shorthand parameters"
         end
-        local fn = { type = "FunctionExpression", name = key.name, params = params, body = body }
+        local fn = {
+          type = "FunctionExpression",
+          name = key.name,
+          params = params,
+          body = body,
+          is_method = true,
+        }
         table.insert(properties, property(key, fn, false))
       elseif key_is_identifier and (stream.is(TOKEN.COMMA) or stream.is(TOKEN.RBRACE)) then
         table.insert(properties, property(key, identifier(key.name, key), false))

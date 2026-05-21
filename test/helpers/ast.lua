@@ -130,6 +130,16 @@ A.func_expr = function(params_or_name, body_or_params, body_or_nil)
   }
 end
 
+A.method_expr = function(name, params, body)
+  return {
+    type = "FunctionExpression",
+    name = name,
+    params = params,
+    body = body,
+    is_method = true,
+  }
+end
+
 A.arrow = function(params, body)
   return { type = "ArrowFunctionExpression", params = params, body = body }
 end

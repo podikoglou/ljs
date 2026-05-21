@@ -575,8 +575,7 @@ test("error: typeof await x (await is banned)", function()
   assert_parse_fail("typeof await x;", nil)
 end)
 
--- typeof instanceof is still banned
-test("error: typeof instanceof x (instanceof is banned)", function()
+test("error: typeof instanceof x (instanceof needs left operand)", function()
   assert_parse_fail("typeof instanceof x;", nil)
 end)
 

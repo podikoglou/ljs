@@ -21,10 +21,6 @@ test("error: async is not supported", function()
   assert_parse_fail("async function f() {}", "'async'")
 end)
 
-test("error: instanceof is not supported", function()
-  assert_parse_fail("instanceof x", "'instanceof'")
-end)
-
 test("error: == rejected by tokenizer", function()
   assert_parse_fail("1 == 2", "Use ===")
 end)

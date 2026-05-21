@@ -13,7 +13,7 @@ test("method shorthand: no params", function()
     A.let(
       "o",
       A.obj({
-        A.prop(A.id("foo"), A.func_expr("foo", {}, A.block({}))),
+        A.prop(A.id("foo"), A.method_expr("foo", {}, A.block({}))),
       })
     ),
   })
@@ -26,7 +26,7 @@ test("method shorthand: one param", function()
       A.obj({
         A.prop(
           A.id("greet"),
-          A.func_expr(
+          A.method_expr(
             "greet",
             A.ids("name"),
             A.block({
@@ -46,7 +46,7 @@ test("method shorthand: multiple params", function()
       A.obj({
         A.prop(
           A.id("add"),
-          A.func_expr(
+          A.method_expr(
             "add",
             A.ids("a", "b"),
             A.block({
@@ -66,7 +66,7 @@ test("method shorthand: complex body", function()
       A.obj({
         A.prop(
           A.id("calc"),
-          A.func_expr(
+          A.method_expr(
             "calc",
             A.ids("n"),
             A.block({
@@ -85,8 +85,8 @@ test("method shorthand: multiple methods", function()
     A.let(
       "o",
       A.obj({
-        A.prop(A.id("a"), A.func_expr("a", {}, A.block({}))),
-        A.prop(A.id("b"), A.func_expr("b", A.ids("x"), A.block({}))),
+        A.prop(A.id("a"), A.method_expr("a", {}, A.block({}))),
+        A.prop(A.id("b"), A.method_expr("b", A.ids("x"), A.block({}))),
       })
     ),
   })
@@ -100,7 +100,7 @@ test("method shorthand: mixed with regular properties", function()
         A.prop(A.id("x"), A.num(1)),
         A.prop(
           A.id("foo"),
-          A.func_expr(
+          A.method_expr(
             "foo",
             {},
             A.block({
@@ -119,7 +119,7 @@ test("method shorthand: trailing comma", function()
     A.let(
       "o",
       A.obj({
-        A.prop(A.id("foo"), A.func_expr("foo", {}, A.block({}))),
+        A.prop(A.id("foo"), A.method_expr("foo", {}, A.block({}))),
       })
     ),
   })
@@ -133,7 +133,7 @@ test("method shorthand: method with arrow function value", function()
         A.prop(A.id("a"), A.num(1)),
         A.prop(
           A.id("go"),
-          A.func_expr(
+          A.method_expr(
             "go",
             A.ids("x"),
             A.block({
@@ -203,7 +203,7 @@ test("shorthand property: mixed with method shorthand", function()
       "o",
       A.obj({
         A.prop(A.id("x"), A.id("x")),
-        A.prop(A.id("foo"), A.func_expr("foo", {}, A.block({}))),
+        A.prop(A.id("foo"), A.method_expr("foo", {}, A.block({}))),
       })
     ),
   })
@@ -218,7 +218,7 @@ test("shorthand property: all three forms combined", function()
         A.prop(A.id("b"), A.id("b")),
         A.prop(
           A.id("c"),
-          A.func_expr(
+          A.method_expr(
             "c",
             {},
             A.block({
