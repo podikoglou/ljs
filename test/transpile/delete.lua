@@ -34,7 +34,10 @@ end)
 
 test("delete getObj().prop (call result member)", function()
   local code = transpile_ok("delete getObj().prop;")
-  assert_eq(code, 'local function _ljs_call(fn, ...)\n  return fn(nil, ...)\nend\n\nrawset(_ljs_call(getObj), "prop", nil)\n')
+  assert_eq(
+    code,
+    'local function _ljs_call(fn, ...)\n  return fn(nil, ...)\nend\n\nrawset(_ljs_call(getObj), "prop", nil)\n'
+  )
 end)
 
 test("delete x (identifier, statement — emits nothing)", function()
@@ -145,7 +148,10 @@ end)
 
 test("delete in return statement", function()
   local code = transpile_ok("function f() { return delete obj.prop; }")
-  assert_eq(code, 'local function f(_ljs_this)\n  return (rawset(obj, "prop", nil) and true)\nend\n')
+  assert_eq(
+    code,
+    'local function f(_ljs_this)\n  local _ljs_arrow_this = _ljs_this\n  return (rawset(obj, "prop", nil) and true)\nend\n'
+  )
 end)
 
 test("delete in throw statement", function()
