@@ -497,12 +497,16 @@ gen.NullLiteral = function()
   return cg.nil_val()
 end
 
+gen.UndefinedLiteral = function()
+  return cg.nil_val()
+end
+
 gen.Identifier = function(node)
   return cg.ident(node.name)
 end
 
 gen.ThisExpression = function()
-  return "_ljs_this"
+  return "_ljs_arrow_this"
 end
 
 -- === Statements ===
@@ -523,10 +527,7 @@ gen.VariableDeclaration = function(node, indent, scopes)
     if not init then
       out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
     elseif init.type == "ArrowFunctionExpression" or init.type == "FunctionExpression" then
-      local params = {}
-      if init.type ~= "ArrowFunctionExpression" then
-        params[#params + 1] = "_ljs_this"
-      end
+      local params = { "_ljs_this" }
       for _, p in ipairs(init.params) do
         params[#params + 1] = p.name
       end
@@ -535,6 +536,8 @@ gen.VariableDeclaration = function(node, indent, scopes)
         scope_declare(scopes, p.name)
       end
       local body = emit(init.body, indent, scopes)
+      local save_src = init.type == "ArrowFunctionExpression" and "_ljs_arrow_this" or "_ljs_this"
+      body = cg.local_decl("_ljs_arrow_this", save_src, indent + 1) .. body
       scope_pop(scopes)
       out[#out + 1] = cg.local_fn(decl.name.name, cg.join(params), body, indent)
     else
@@ -566,6 +569,7 @@ gen.FunctionDeclaration = function(node, indent, scopes)
     scope_declare(scopes, p.name)
   end
   local body = emit(node.body, indent, scopes)
+  body = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. body
   scope_pop(scopes)
   return cg.local_fn(node.name, cg.join(params), body, indent)
 end
@@ -583,12 +587,13 @@ gen.FunctionExpression = function(node, indent, scopes)
     scope_declare(scopes, p.name)
   end
   local body = emit(node.body, indent, scopes)
+  body = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. body
   scope_pop(scopes)
   return cg.fn_expr(cg.join(params), body, indent)
 end
 
 gen.ArrowFunctionExpression = function(node, indent, scopes)
-  local params = {}
+  local params = { "_ljs_this" }
   for _, p in ipairs(node.params) do
     params[#params + 1] = p.name
   end
@@ -597,6 +602,7 @@ gen.ArrowFunctionExpression = function(node, indent, scopes)
     scope_declare(scopes, p.name)
   end
   local body = emit(node.body, indent, scopes)
+  body = cg.local_decl("_ljs_arrow_this", "_ljs_arrow_this", indent + 1) .. body
   scope_pop(scopes)
   return cg.fn_expr(cg.join(params), body, indent)
 end
