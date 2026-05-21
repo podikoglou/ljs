@@ -9,17 +9,17 @@ local transpile_ok, expr_code, run_js = H.transpile_ok, H.expr_code, H.run_js
 
 test("empty object", function()
   local code = expr_code("({});")
-  assert_eq(code, "{}")
+  assert_eq(code, "_ljs_object({})")
 end)
 
 test("object with identifier keys", function()
   local code = expr_code("({a: 1, b: 2});")
-  assert_eq(code, "{a = 1, b = 2}")
+  assert_eq(code, "_ljs_object({a = 1, b = 2})")
 end)
 
 test("object with string keys", function()
   local code = expr_code('({"key": 1});')
-  assert_eq(code, '{["key"] = 1}')
+  assert_eq(code, '_ljs_object({["key"] = 1})')
 end)
 
 test("empty array", function()
@@ -74,17 +74,17 @@ end)
 
 test("method shorthand with params transpiles correctly", function()
   local code = transpile_ok("let o = { add(a, b) { return a + b; } };")
-  assert(code:find("add = function%(a, b%)"), "expected add = function(a, b)")
+  assert(code:find("add = function%(_ljs_this, a, b%)"), "expected add = function(_ljs_this, a, b)")
 end)
 
 test("shorthand property transpiles to key = key", function()
   local code = expr_code("({x});")
-  assert_eq(code, "{x = x}")
+  assert_eq(code, "_ljs_object({x = x})")
 end)
 
 test("multiple shorthand properties", function()
   local code = expr_code("({x, y});")
-  assert_eq(code, "{x = x, y = y}")
+  assert_eq(code, "_ljs_object({x = x, y = y})")
 end)
 
 test("mixed regular, shorthand, and method", function()
