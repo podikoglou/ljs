@@ -11,8 +11,10 @@ local TK = ljs.TOKEN
 -- PARSER TESTS - ERROR CASES
 -- ============================================================================
 
-test("error: this is not supported", function()
-  assert_parse_fail("this.x", "'this'")
+test("this keyword is now supported", function()
+  assert_parse_ok("this.x;", {
+    A.expr_stmt(A.member(A.this_(), A.id("x"))),
+  })
 end)
 
 test("error: async is not supported", function()
@@ -365,7 +367,6 @@ end)
 
 test("error return convention: nil + 'parse error:' prefix", function()
   local cases = {
-    "this.x",
     "async function f() {}",
     "1 == 2",
     "++;",

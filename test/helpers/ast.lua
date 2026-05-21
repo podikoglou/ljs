@@ -20,6 +20,10 @@ A.undef = function()
   return { type = "UndefinedLiteral" }
 end
 
+A.this_ = function()
+  return { type = "ThisExpression" }
+end
+
 A.id = function(name)
   return { type = "Identifier", name = name }
 end

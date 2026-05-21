@@ -484,6 +484,10 @@ gen.Identifier = function(node)
   return cg.ident(node.name)
 end
 
+gen.ThisExpression = function()
+  return "_ljs_this"
+end
+
 -- === Statements ===
 
 gen.ExpressionStatement = function(node, indent, scopes)

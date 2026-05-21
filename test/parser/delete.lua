@@ -386,10 +386,10 @@ test("parse (delete x) + y", function()
 end)
 
 -- delete with this/typeof/async/await (banned keywords after delete)
--- Note: error messages from check_banned are swallowed by parse_unary_expression,
--- same as for all unary operators (e.g. !this also gives "parse error: nil")
-test("error: delete this (this is banned)", function()
-  assert_parse_fail("delete this;", nil)
+test("delete this (this is now a valid expression)", function()
+  assert_parse_ok("delete this;", {
+    A.expr_stmt(A.del(A.this_())),
+  })
 end)
 
 test("parse delete typeof x (typeof is now a valid unary operator)", function()

@@ -789,6 +789,11 @@ local function delete_expression(argument)
   return { type = "DeleteExpression", argument = argument }
 end
 
+--- @return table {type="ThisExpression"}
+local function this_expression()
+  return { type = "ThisExpression" }
+end
+
 --- @param argument (table) The operand AST expression
 --- @return table {type="TypeofExpression", argument}
 local function typeof_expression(argument)
@@ -1096,7 +1101,6 @@ end
 -- ============================================================================
 
 local BANNED_KEYWORDS = {
-  [TOKEN.THIS] = "this",
   [TOKEN.ASYNC] = "async",
   [TOKEN.AWAIT] = "await",
   [TOKEN.INSTANCEOF] = "instanceof",
@@ -1865,6 +1869,9 @@ function parse_primary_expression(stream)
   elseif stream.is(TOKEN.UNDEFINED) then
     stream.advance()
     return undefined_literal(token)
+  elseif stream.is(TOKEN.THIS) then
+    stream.advance()
+    return parse_postfix(stream, this_expression())
   elseif stream.is(TOKEN.IDENTIFIER) then
     return parse_identifier_or_call(stream)
   -- Parenthesized expression OR arrow function with parenthesized params.

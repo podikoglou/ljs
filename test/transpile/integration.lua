@@ -172,7 +172,6 @@ end)
 
 test("invariant: transpile_source returns nil, err for invalid JS", function()
   local cases = {
-    "this.x",
     "async function f() {}",
     "1 == 2",
   }
@@ -181,6 +180,11 @@ test("invariant: transpile_source returns nil, err for invalid JS", function()
     assert(code == nil, "expected nil for: " .. src)
     assert(err ~= nil, "expected error message for: " .. src)
   end
+end)
+
+test("this keyword is now supported", function()
+  local code = transpile_ok("this;")
+  assert(code:find("_ljs_this"), "expected _ljs_this in output")
 end)
 
 T.summary()

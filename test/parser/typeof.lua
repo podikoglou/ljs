@@ -559,9 +559,10 @@ test("error: typeof followed by comma", function()
   assert_parse_fail("typeof , x;", nil)
 end)
 
--- typeof this is still banned (this is banned keyword)
-test("error: typeof this (this is banned)", function()
-  assert_parse_fail("typeof this;", nil)
+test("typeof this (this is now a valid expression)", function()
+  assert_parse_ok("typeof this;", {
+    A.expr_stmt(A.typeof_(A.this_())),
+  })
 end)
 
 -- typeof async is still banned
