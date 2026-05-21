@@ -9,12 +9,18 @@ local transpile_ok = H.transpile_ok
 
 test("function declaration", function()
   local code = transpile_ok("function foo(a, b) { return a; }")
-  assert_eq(code, "local function foo(a, b)\n  return a\nend\n")
+  assert_eq(
+    code,
+    "local function foo(_ljs_this, a, b)\n  local _ljs_arrow_this = _ljs_this\n  return a\nend\n"
+  )
 end)
 
 test("arrow function in variable", function()
   local code = transpile_ok("const f = (x) => { return x; };")
-  assert_eq(code, "local function f(x)\n  return x\nend\n")
+  assert_eq(
+    code,
+    "local function f(_ljs_this, x)\n  local _ljs_arrow_this = _ljs_arrow_this\n  return x\nend\n"
+  )
 end)
 
 test("arrow expression body", function()
