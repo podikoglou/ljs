@@ -34,7 +34,7 @@ end)
 
 test("delete getObj().prop (call result member)", function()
   local code = transpile_ok("delete getObj().prop;")
-  assert_eq(code, 'rawset(getObj(), "prop", nil)\n')
+  assert_eq(code, 'local function _ljs_call(fn, ...)\n  return fn(nil, ...)\nend\n\nrawset(_ljs_call(getObj), "prop", nil)\n')
 end)
 
 test("delete x (identifier, statement — emits nothing)", function()
@@ -54,7 +54,7 @@ end)
 
 test("delete f() (call, statement — emits nothing)", function()
   local code = transpile_ok("delete f();")
-  assert_eq(code, "")
+  assert_eq(code, "local function _ljs_call(fn, ...)\n  return fn(nil, ...)\nend\n\n")
 end)
 
 test("let r = delete obj.prop (expression context)", function()
@@ -145,7 +145,7 @@ end)
 
 test("delete in return statement", function()
   local code = transpile_ok("function f() { return delete obj.prop; }")
-  assert_eq(code, 'local function f()\n  return (rawset(obj, "prop", nil) and true)\nend\n')
+  assert_eq(code, 'local function f(_ljs_this)\n  return (rawset(obj, "prop", nil) and true)\nend\n')
 end)
 
 test("delete in throw statement", function()
@@ -160,7 +160,7 @@ end)
 
 test("delete in object value", function()
   local code = expr_code("({a: delete obj.prop})")
-  assert_eq(code, '{a = (rawset(obj, "prop", nil) and true)}')
+  assert_eq(code, '_ljs_object({a = (rawset(obj, "prop", nil) and true)})')
 end)
 
 test("!delete x (unary NOT of delete)", function()
