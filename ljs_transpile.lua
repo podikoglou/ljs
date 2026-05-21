@@ -118,7 +118,7 @@ end]]
 
 HELPERS._ljs_new = [[local function _ljs_new(ctor, ...)
   local proto = ctor.prototype
-  local instance = _ljs_object_create(nil, proto)
+  local instance = setmetatable({}, {__index = proto})
   local result = ctor(instance, ...)
   if type(result) == "table" then
     return result

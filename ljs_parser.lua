@@ -1853,10 +1853,15 @@ function parse_unary_expression(stream)
       end
       return parse_postfix(stream, inner)
     end
-    local callee = parse_primary_expression(stream)
-    if not callee then
-      return nil
+    local banned_err = check_banned(stream)
+    if banned_err then
+      return nil, banned_err
     end
+    local token = stream.consume(TOKEN.IDENTIFIER)
+    if not token then
+      return nil, "Expected identifier after new"
+    end
+    local callee = identifier(token.value, token)
     while stream.is(TOKEN.DOT) or stream.is(TOKEN.LBRACKET) do
       if stream.is(TOKEN.DOT) then
         stream.advance()
