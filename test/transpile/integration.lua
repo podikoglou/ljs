@@ -38,7 +38,7 @@ end)
 test("shadowed console.log does not emit helper", function()
   local code = transpile_ok("let console = {}; console.log(x);")
   assert(not code:find("_ljs_log"), "shadowed console.log should not use helper")
-  assert(code:find("console%.log"), "should emit plain member call")
+  assert(code:find("_ljs_call_member"), "should emit _ljs_call_member for shadowed member call")
 end)
 
 -- ============================================================================
@@ -184,7 +184,7 @@ end)
 
 test("this keyword is now supported", function()
   local code = transpile_ok("this;")
-  assert(code:find("_ljs_this"), "expected _ljs_this in output")
+  assert(code:find("_ljs_arrow_this"), "expected _ljs_arrow_this in output")
 end)
 
 T.summary()
