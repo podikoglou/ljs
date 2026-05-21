@@ -82,7 +82,10 @@ end]]
 HELPERS._ljs_typeof = [[local function _ljs_typeof(x)
   local t = type(x)
   if t == "nil" then return "undefined"
-  elseif t == "table" then return "object"
+  elseif t == "table" then
+    local mt = getmetatable(x)
+    if mt and mt.__call then return "function" end
+    return "object"
   else return t end
 end]]
 
@@ -100,6 +103,47 @@ end]]
 
 HELPERS._ljs_object_create = [[local function _ljs_object_create(_ljs_this, proto)
   return setmetatable({}, {__index = proto})
+end]]
+
+HELPERS._ljs_ctor = [[local function _ljs_ctor(fn)
+  local ctor = {}
+  ctor.prototype = {}
+  ctor.prototype.constructor = ctor
+  return setmetatable(ctor, {
+    __call = function(_, ...)
+      return fn(...)
+    end,
+  })
+end]]
+
+HELPERS._ljs_new = [[local function _ljs_new(ctor, ...)
+  local proto = ctor.prototype
+  local instance = _ljs_object_create(nil, proto)
+  local result = ctor(instance, ...)
+  if type(result) == "table" then
+    return result
+  end
+  return instance
+end]]
+
+HELPERS._ljs_instanceof = [[local function _ljs_instanceof(value, ctor)
+  if type(value) ~= "table" then
+    return false
+  end
+  local target = ctor.prototype
+  if target == nil then
+    return false
+  end
+  local proto = getmetatable(value)
+  if proto then proto = proto.__index end
+  while proto ~= nil do
+    if proto == target then
+      return true
+    end
+    local mt = getmetatable(proto)
+    proto = mt and mt.__index
+  end
+  return false
 end]]
 
 -- ============================================================================
@@ -309,6 +353,9 @@ local function analyze_node(node, meta, scopes)
       meta.needed_helpers["_ljs_shr"] = true
     elseif op == ">>>" or op == ">>>=" then
       meta.needed_helpers["_ljs_usr"] = true
+    elseif op == "instanceof" then
+      meta.needed_helpers["_ljs_instanceof"] = true
+      meta.needed_helpers["_ljs_ctor"] = true
     end
     analyze_node(node.left, meta, scopes)
     analyze_node(node.right, meta, scopes)
@@ -340,6 +387,13 @@ local function analyze_node(node, meta, scopes)
     else
       meta.needed_helpers["_ljs_call"] = true
     end
+    analyze_node(node.callee, meta, scopes)
+    for _, arg in ipairs(node.arguments) do
+      analyze_node(arg, meta, scopes)
+    end
+  elseif t == "NewExpression" then
+    meta.needed_helpers["_ljs_new"] = true
+    meta.needed_helpers["_ljs_ctor"] = true
     analyze_node(node.callee, meta, scopes)
     for _, arg in ipairs(node.arguments) do
       analyze_node(arg, meta, scopes)
@@ -535,7 +589,15 @@ gen.VariableDeclaration = function(node, indent, scopes)
       local save_src = init.type == "ArrowFunctionExpression" and "_ljs_arrow_this" or "_ljs_this"
       body = cg.local_decl("_ljs_arrow_this", save_src, indent + 1) .. body
       scope_pop(scopes)
-      out[#out + 1] = cg.local_fn(decl.name.name, cg.join(params), body, indent)
+      if init.type == "FunctionExpression" and not init.is_method then
+        out[#out + 1] = cg.local_decl(
+          decl.name.name,
+          cg.call("_ljs_ctor", { cg.fn_expr(cg.join(params), body, indent) }),
+          indent
+        )
+      else
+        out[#out + 1] = cg.local_fn(decl.name.name, cg.join(params), body, indent)
+      end
     else
       out[#out + 1] = cg.local_decl(decl.name.name, emit(init, indent, scopes), indent)
     end
@@ -567,7 +629,11 @@ gen.FunctionDeclaration = function(node, indent, scopes)
   local body = emit(node.body, indent, scopes)
   body = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. body
   scope_pop(scopes)
-  return cg.local_fn(node.name, cg.join(params), body, indent)
+  return cg.local_decl(
+    node.name,
+    cg.call("_ljs_ctor", { cg.fn_expr(cg.join(params), body, indent) }),
+    indent
+  )
 end
 
 gen.FunctionExpression = function(node, indent, scopes)
@@ -585,7 +651,11 @@ gen.FunctionExpression = function(node, indent, scopes)
   local body = emit(node.body, indent, scopes)
   body = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. body
   scope_pop(scopes)
-  return cg.fn_expr(cg.join(params), body, indent)
+  local fn = cg.fn_expr(cg.join(params), body, indent)
+  if node.is_method then
+    return fn
+  end
+  return cg.call("_ljs_ctor", { fn })
 end
 
 gen.ArrowFunctionExpression = function(node, indent, scopes)
@@ -829,6 +899,8 @@ gen.BinaryExpression = function(node, indent, scopes)
     return cg.binop("=", left, cg.call("_ljs_shr", { left, right }))
   elseif op == ">>>=" then
     return cg.binop("=", left, cg.call("_ljs_usr", { left, right }))
+  elseif op == "instanceof" then
+    return cg.call("_ljs_instanceof", { left, right })
   elseif op == "in" then
     local key_code
     if node.left.type == "StringLiteral" then
@@ -943,6 +1015,14 @@ gen.CallExpression = function(node, indent, scopes)
   return cg.call("_ljs_call", call_args)
 end
 
+gen.NewExpression = function(node, indent, scopes)
+  local args = { emit(node.callee, indent, scopes) }
+  for _, a in ipairs(node.arguments) do
+    args[#args + 1] = emit(a, indent, scopes)
+  end
+  return cg.call("_ljs_new", args)
+end
+
 gen.MemberExpression = function(node, indent, scopes)
   local obj = emit(node.object, indent, scopes)
   if node.computed then
@@ -1020,6 +1100,9 @@ local function generate(ast, meta)
   end
   meta.needed_helpers["_ljs_object"] = true
   meta.needed_helpers["_ljs_object_create"] = true
+  meta.needed_helpers["_ljs_ctor"] = true
+  meta.needed_helpers["_ljs_new"] = true
+  meta.needed_helpers["_ljs_instanceof"] = true
   local scopes = {}
   local code = emit(ast, 0, scopes)
   local helper_parts = {}
@@ -1041,7 +1124,9 @@ local function generate(ast, meta)
     prefix = prefix .. "\n\n"
   end
   local runtime_init = [[
-local Object = _ljs_object({})
+local Object = _ljs_ctor(function(_ljs_this)
+  return _ljs_this
+end)
 Object.create = _ljs_object_create
 
 local console = _ljs_object({})

@@ -20,7 +20,7 @@ end)
 
 test("Object and console helpers always emitted", function()
   local code = H.transpile_ok("let x = 1;")
-  assert(code:find("local Object = _ljs_object"), "expected Object init")
+  assert(code:find("local Object = _ljs_ctor"), "expected Object init")
   assert(code:find("local console = _ljs_object"), "expected console init")
 end)
 

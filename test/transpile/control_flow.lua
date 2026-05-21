@@ -9,7 +9,10 @@ local transpile_ok = H.transpile_ok
 
 test("function declaration", function()
   local code = transpile_ok("function foo(a, b) { return a; }")
-  assert(code:find("local function foo(_ljs_this, a, b)", 1, true), "expected function foo")
+  assert(
+    code:find("local foo = _ljs_ctor(function(_ljs_this, a, b)", 1, true),
+    "expected _ljs_ctor wrapping foo"
+  )
   assert(code:find("local _ljs_arrow_this = _ljs_this", 1, true), "expected _ljs_arrow_this init")
   assert(code:find("return a", 1, true), "expected return a")
 end)
@@ -127,7 +130,7 @@ end)
 test("for with expression init transpiles correctly", function()
   local code = transpile_ok("for (i = 0; i < 5; i = i + 1) { x; }")
   assert(code:find("i = 0"), "expected 'i = 0' (no local)")
-  assert(not code:find("local i"), "no local for expression init")
+  assert(not code:find("local i ="), "no local for expression init")
   assert(code:find("while i < 5 do"), "expected 'while i < 5 do'")
 end)
 
@@ -192,7 +195,7 @@ end)
 
 test("for(;;) scoping: expression init does not use local", function()
   local code = transpile_ok("for (i = 0; i < 1; i = i + 1) { x; }")
-  assert(not code:find("local i"), "no local for expression init")
+  assert(not code:find("local i ="), "no local for expression init")
   assert(code:find("i = 0"), "expected bare 'i = 0'")
 end)
 

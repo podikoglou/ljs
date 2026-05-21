@@ -44,7 +44,7 @@ end)
 
 test("function declaration gets _ljs_this param", function()
   local code = transpile_ok("function f(x) { return x; }")
-  assert(code:find("function f%(_ljs_this, x%)"), "expected _ljs_this in function declaration")
+  assert(code:find("function%(_ljs_this, x%)"), "expected _ljs_this in function declaration")
 end)
 
 test("_ljs_call helper emitted when call exists", function()
