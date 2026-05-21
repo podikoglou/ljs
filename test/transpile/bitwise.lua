@@ -491,7 +491,7 @@ end)
 test("bitwise AND as statement", function()
   local code = transpile_ok("a & b;")
   assert(code:find("_ljs_band"), "expected _ljs_band in statement form")
-  assert(not code:find("function%("), "no IIFE in statement form")
+  assert(not code:find("%(function%("), "no IIFE in statement form")
 end)
 
 test("compound &= as statement", function()

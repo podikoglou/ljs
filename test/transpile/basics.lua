@@ -8,53 +8,43 @@ local transpile_ok, expr_code, run_js = H.transpile_ok, H.expr_code, H.run_js
 -- ============================================================================
 
 test("NumberLiteral", function()
-  local code = transpile_ok("42;")
-  assert_eq(code, "42\n")
+  assert_eq(expr_code("42;"), "42")
 end)
 
 test("NumberLiteral float", function()
-  local code = transpile_ok("3.14;")
-  assert_eq(code, "3.14\n")
+  assert_eq(expr_code("3.14;"), "3.14")
 end)
 
 test("NumberLiteral hex 0xFF", function()
-  local code = transpile_ok("0xFF;")
-  assert_eq(code, "255\n")
+  assert_eq(expr_code("0xFF;"), "255")
 end)
 
 test("NumberLiteral hex 0x1a", function()
-  local code = transpile_ok("0x1a;")
-  assert_eq(code, "26\n")
+  assert_eq(expr_code("0x1a;"), "26")
 end)
 
 test("NumberLiteral hex 0X0F", function()
-  local code = transpile_ok("0X0F;")
-  assert_eq(code, "15\n")
+  assert_eq(expr_code("0X0F;"), "15")
 end)
 
 test("NumberLiteral hex in variable", function()
-  local code = transpile_ok("let x = 0xFF;")
-  assert_eq(code, "local x = 255\n")
+  assert_eq(expr_code("let x = 0xFF;"), "local x = 255")
 end)
 
 test("StringLiteral", function()
-  local code = transpile_ok('"hello";')
-  assert_eq(code, '"hello"\n')
+  assert_eq(expr_code('"hello";'), '"hello"')
 end)
 
 test("BooleanLiteral true", function()
-  local code = transpile_ok("true;")
-  assert_eq(code, "true\n")
+  assert_eq(expr_code("true;"), "true")
 end)
 
 test("BooleanLiteral false", function()
-  local code = transpile_ok("false;")
-  assert_eq(code, "false\n")
+  assert_eq(expr_code("false;"), "false")
 end)
 
 test("NullLiteral", function()
-  local code = transpile_ok("null;")
-  assert_eq(code, "nil\n")
+  assert_eq(expr_code("null;"), "nil")
 end)
 
 -- ============================================================================
@@ -62,28 +52,24 @@ end)
 -- ============================================================================
 
 test("Identifier", function()
-  local code = transpile_ok("x;")
-  assert_eq(code, "x\n")
+  assert_eq(expr_code("x;"), "x")
 end)
 
 test("let with init", function()
-  local code = transpile_ok("let x = 42;")
-  assert_eq(code, "local x = 42\n")
+  assert_eq(expr_code("let x = 42;"), "local x = 42")
 end)
 
 test("let without init", function()
-  local code = transpile_ok("let x;")
-  assert_eq(code, "local x\n")
+  assert_eq(expr_code("let x;"), "local x")
 end)
 
 test("const maps to local", function()
-  local code = transpile_ok("const x = 1;")
-  assert_eq(code, "local x = 1\n")
+  assert_eq(expr_code("const x = 1;"), "local x = 1")
 end)
 
 test("multiple declarators", function()
   local code = transpile_ok("let a = 1, b = 2;")
-  assert_eq(code, "local a = 1\nlocal b = 2\n")
+  assert(code:find("local a = 1\nlocal b = 2\n", 1, true), "expected local a = 1; local b = 2")
 end)
 
 -- ============================================================================

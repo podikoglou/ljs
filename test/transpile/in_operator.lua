@@ -7,24 +7,24 @@ local expr_code, run_js = H.expr_code, H.run_js
 -- Unit tests — 'in' operator transpilation
 -- ============================================================================
 
-test('"x" in obj transpiles to (rawget(obj, "x") ~= nil)', function()
-  assert_eq(expr_code('"x" in obj'), '(rawget(obj, "x") ~= nil)')
+test('"x" in obj transpiles to (obj["x"] ~= nil)', function()
+  assert_eq(expr_code('"x" in obj'), '(obj["x"] ~= nil)')
 end)
 
-test("0 in arr transpiles to (rawget(arr, (0) + 1) ~= nil)", function()
-  assert_eq(expr_code("0 in arr"), "(rawget(arr, (0) + 1) ~= nil)")
+test("0 in arr transpiles to (arr[(0) + 1] ~= nil)", function()
+  assert_eq(expr_code("0 in arr"), "(arr[(0) + 1] ~= nil)")
 end)
 
-test("n in arr transpiles to (rawget(arr, (n) + 1) ~= nil)", function()
-  assert_eq(expr_code("n in arr"), "(rawget(arr, (n) + 1) ~= nil)")
+test("n in arr transpiles to (arr[(n) + 1] ~= nil)", function()
+  assert_eq(expr_code("n in arr"), "(arr[(n) + 1] ~= nil)")
 end)
 
-test('"x" in obj.prop transpiles to (rawget(obj.prop, "x") ~= nil)', function()
-  assert_eq(expr_code('"x" in obj.prop'), '(rawget(obj.prop, "x") ~= nil)')
+test('"x" in obj.prop transpiles to (obj.prop["x"] ~= nil)', function()
+  assert_eq(expr_code('"x" in obj.prop'), '(obj.prop["x"] ~= nil)')
 end)
 
-test("key in obj transpiles to (rawget(obj, (key) + 1) ~= nil)", function()
-  assert_eq(expr_code("key in obj"), "(rawget(obj, (key) + 1) ~= nil)")
+test("key in obj transpiles to (obj[(key) + 1] ~= nil)", function()
+  assert_eq(expr_code("key in obj"), "(obj[(key) + 1] ~= nil)")
 end)
 
 -- ============================================================================

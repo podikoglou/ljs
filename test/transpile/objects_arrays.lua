@@ -51,15 +51,24 @@ end)
 -- Unit tests — console.log
 -- ============================================================================
 
-test("console.log uses helper", function()
+test("console.log routes through _ljs_call_member", function()
   local code = transpile_ok("console.log(x);")
-  assert(code:find("_ljs_log%(x%)"), "expected _ljs_log(x)")
-  assert(code:find("local function _ljs_log"), "expected _ljs_log helper definition")
+  assert(
+    code:find('_ljs_call_member(console, "log", x)', 1, true),
+    'expected _ljs_call_member(console, "log", x)'
+  )
+  assert(
+    code:find("local function _ljs_call_member"),
+    "expected _ljs_call_member helper definition"
+  )
 end)
 
-test("console.log with multiple args", function()
+test("console.log with multiple args routes through _ljs_call_member", function()
   local code = transpile_ok('console.log("a", "b");')
-  assert(code:find('_ljs_log%("a", "b"%)'), "expected _ljs_log with multiple args")
+  assert(
+    code:find('_ljs_call_member(console, "log", "a", "b")', 1, true),
+    "expected _ljs_call_member with multiple args"
+  )
 end)
 
 -- ============================================================================

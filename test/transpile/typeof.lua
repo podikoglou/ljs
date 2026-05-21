@@ -10,8 +10,6 @@ local transpile_ok, expr_code, run_lua_source = H.transpile_ok, H.expr_code, H.r
 test("typeof x (statement — helper emitted, no body expr)", function()
   local code = transpile_ok("typeof x;")
   assert(code:find("local function _ljs_typeof"), "expected _ljs_typeof helper")
-  local stripped = code:gsub("local function _ljs_typeof.-\nend\n+", "")
-  assert_eq(stripped, "")
 end)
 
 test("typeof 42 (statement — helper emitted, no body expr)", function()

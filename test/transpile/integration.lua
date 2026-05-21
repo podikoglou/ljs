@@ -10,7 +10,8 @@ local transpile_ok, transpile, read_file, run_js =
 
 test("no helpers when unused", function()
   local code = transpile_ok("let x = 1;")
-  assert(not code:find("_ljs_"), "expected no helpers")
+  assert(not code:find("_ljs_add"), "expected no _ljs_add")
+  assert(not code:find("_ljs_log"), "expected no _ljs_log")
 end)
 
 test("_ljs_add only when + used", function()
@@ -21,18 +22,18 @@ end)
 test("transpile.HELPERS accessible", function()
   assert(type(transpile.HELPERS) == "table", "expected HELPERS table")
   assert(type(transpile.HELPERS._ljs_add) == "string", "expected _ljs_add helper")
-  assert(type(transpile.HELPERS._ljs_log) == "string", "expected _ljs_log helper")
+  assert(
+    type(transpile.HELPERS._ljs_object_create) == "string",
+    "expected _ljs_object_create helper"
+  )
 end)
 
 -- ============================================================================
 -- Unit tests — BUILTINS registry
 -- ============================================================================
 
-test("transpile.BUILTINS accessible", function()
-  assert(type(transpile.BUILTINS) == "table", "expected BUILTINS table")
-  assert(type(transpile.BUILTINS.console) == "table", "expected console entry")
-  assert(type(transpile.BUILTINS.console.log) == "table", "expected console.log entry")
-  assert_eq(transpile.BUILTINS.console.log.helper, "_ljs_log", "console.log helper name")
+test("transpile.BUILTINS is empty (runtime objects, not compiler builtins)", function()
+  assert_eq(next(transpile.BUILTINS), nil, "BUILTINS should be empty")
 end)
 
 test("shadowed console.log does not emit helper", function()

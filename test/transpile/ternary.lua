@@ -20,8 +20,10 @@ test("ternary falsy consequent correctness", function()
 end)
 
 test("ternary in variable init", function()
-  local code = transpile_ok("let x = a ? 1 : 0;")
-  assert_eq(code, "local x = (function() if a then return 1 else return 0 end end)()\n")
+  assert_eq(
+    expr_code("let x = a ? 1 : 0;"),
+    "local x = (function() if a then return 1 else return 0 end end)()"
+  )
 end)
 
 test("ternary nested", function()

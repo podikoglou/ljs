@@ -21,10 +21,6 @@ HELPERS._ljs_add = [[local function _ljs_add(a, b)
   return a + b
 end]]
 
-HELPERS._ljs_log = [[local function _ljs_log(...)
-  print(...)
-end]]
-
 HELPERS._ljs_bnot = [[local function _ljs_bnot(x)
   return -_ljs_to_int32(x) - 1
 end]]
@@ -102,15 +98,15 @@ HELPERS._ljs_object = [[local function _ljs_object(t)
   return t
 end]]
 
+HELPERS._ljs_object_create = [[local function _ljs_object_create(_ljs_this, proto)
+  return setmetatable({}, {__index = proto})
+end]]
+
 -- ============================================================================
 -- Section 3: Pass 1 — Analysis (scope tracker, helper detection)
 -- ============================================================================
 
-local BUILTINS = {
-  console = {
-    log = { helper = "_ljs_log" },
-  },
-}
+local BUILTINS = {}
 
 local function scope_push(scopes)
   scopes[#scopes + 1] = {}
@@ -476,7 +472,7 @@ gen.Program = function(node, indent, scopes)
   scope_push(scopes)
   local code = emit_body(node.body, indent, scopes)
   scope_pop(scopes)
-  return code
+  return cg.local_decl("_ljs_arrow_this", "nil", 0) .. code
 end
 
 -- === Literals ===
@@ -840,7 +836,8 @@ gen.BinaryExpression = function(node, indent, scopes)
     else
       key_code = cg.binop("+", cg.paren(left), "1")
     end
-    return cg.paren(cg.binop("~=", cg.call("rawget", { right, key_code }), cg.nil_val()))
+    local right_expr = right:sub(1, 1) == "{" and cg.paren(right) or right
+    return cg.paren(cg.binop("~=", cg.member_index(right_expr, key_code), cg.nil_val()))
   else
     return cg.binop(op, left, right)
   end
@@ -1021,6 +1018,8 @@ local function generate(ast, meta)
   then
     meta.needed_helpers["_ljs_to_int32"] = true
   end
+  meta.needed_helpers["_ljs_object"] = true
+  meta.needed_helpers["_ljs_object_create"] = true
   local scopes = {}
   local code = emit(ast, 0, scopes)
   local helper_parts = {}
@@ -1041,7 +1040,17 @@ local function generate(ast, meta)
   if #prefix > 0 then
     prefix = prefix .. "\n\n"
   end
-  return prefix .. code
+  local runtime_init = [[
+local Object = _ljs_object({})
+Object.create = _ljs_object_create
+
+local console = _ljs_object({})
+console.log = function(_ljs_this, ...)
+  print(...)
+end
+
+]]
+  return prefix .. runtime_init .. code
 end
 
 -- ============================================================================

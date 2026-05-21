@@ -37,13 +37,13 @@ end)
 
 test("i++ as statement emits plain assignment", function()
   local code = transpile_ok("i++;")
-  assert(not code:find("function%("), "no IIFE in statement form")
+  assert(not code:find("%(function%("), "no IIFE in statement form")
   assert(code:find("i = _ljs_add%(i, 1%)"), "expected plain assignment")
 end)
 
 test("--i as statement emits plain assignment", function()
   local code = transpile_ok("--i;")
-  assert(not code:find("function%("), "no IIFE in statement form")
+  assert(not code:find("%(function%("), "no IIFE in statement form")
   assert(code:find("i = i %- 1"), "expected plain assignment")
 end)
 

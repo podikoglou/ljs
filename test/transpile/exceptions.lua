@@ -9,7 +9,7 @@ local transpile_ok, run_js = H.transpile_ok, H.run_js
 
 test("throw", function()
   local code = transpile_ok('throw "error";')
-  assert_eq(code, 'error("error", 0)\n')
+  assert(code:find('error("error", 0)', 1, true), "expected error call")
 end)
 
 test("try/catch", function()
