@@ -90,6 +90,18 @@ HELPERS._ljs_typeof = [[local function _ljs_typeof(x)
   else return t end
 end]]
 
+HELPERS._ljs_call = [[local function _ljs_call(fn, ...)
+  return fn(nil, ...)
+end]]
+
+HELPERS._ljs_call_member = [[local function _ljs_call_member(obj, key, ...)
+  return obj[key](obj, ...)
+end]]
+
+HELPERS._ljs_object = [[local function _ljs_object(t)
+  return t
+end]]
+
 -- ============================================================================
 -- Section 3: Pass 1 — Analysis (scope tracker, helper detection)
 -- ============================================================================
@@ -327,6 +339,10 @@ local function analyze_node(node, meta, scopes)
     local builtin = lookup_builtin(node, scopes)
     if builtin then
       meta.needed_helpers[builtin.helper] = true
+    elseif node.callee.type == "MemberExpression" then
+      meta.needed_helpers["_ljs_call_member"] = true
+    else
+      meta.needed_helpers["_ljs_call"] = true
     end
     analyze_node(node.callee, meta, scopes)
     for _, arg in ipairs(node.arguments) do
@@ -338,6 +354,7 @@ local function analyze_node(node, meta, scopes)
       analyze_node(node.property, meta, scopes)
     end
   elseif t == "ObjectExpression" then
+    meta.needed_helpers["_ljs_object"] = true
     for _, prop in ipairs(node.properties) do
       analyze_node(prop.value, meta, scopes)
     end
@@ -507,6 +524,9 @@ gen.VariableDeclaration = function(node, indent, scopes)
       out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
     elseif init.type == "ArrowFunctionExpression" or init.type == "FunctionExpression" then
       local params = {}
+      if init.type ~= "ArrowFunctionExpression" then
+        params[#params + 1] = "_ljs_this"
+      end
       for _, p in ipairs(init.params) do
         params[#params + 1] = p.name
       end
@@ -537,7 +557,7 @@ end
 
 gen.FunctionDeclaration = function(node, indent, scopes)
   scope_declare(scopes, node.name)
-  local params = {}
+  local params = { "_ljs_this" }
   for _, p in ipairs(node.params) do
     params[#params + 1] = p.name
   end
@@ -551,7 +571,7 @@ gen.FunctionDeclaration = function(node, indent, scopes)
 end
 
 gen.FunctionExpression = function(node, indent, scopes)
-  local params = {}
+  local params = { "_ljs_this" }
   for _, p in ipairs(node.params) do
     params[#params + 1] = p.name
   end
@@ -567,7 +587,19 @@ gen.FunctionExpression = function(node, indent, scopes)
   return cg.fn_expr(cg.join(params), body, indent)
 end
 
-gen.ArrowFunctionExpression = gen.FunctionExpression
+gen.ArrowFunctionExpression = function(node, indent, scopes)
+  local params = {}
+  for _, p in ipairs(node.params) do
+    params[#params + 1] = p.name
+  end
+  scope_push(scopes)
+  for _, p in ipairs(node.params) do
+    scope_declare(scopes, p.name)
+  end
+  local body = emit(node.body, indent, scopes)
+  scope_pop(scopes)
+  return cg.fn_expr(cg.join(params), body, indent)
+end
 
 -- === Control flow ===
 
@@ -876,11 +908,36 @@ gen.CallExpression = function(node, indent, scopes)
   for _, a in ipairs(node.arguments) do
     args[#args + 1] = emit(a, indent, scopes)
   end
+
   local builtin = lookup_builtin(node, scopes)
   if builtin then
     return cg.call(builtin.helper, args)
   end
-  return cg.call(emit(node.callee, indent, scopes), args)
+
+  if node.callee.type == "MemberExpression" then
+    local obj_expr = emit(node.callee.object, indent, scopes)
+    local key_expr
+    if node.callee.computed then
+      if node.callee.property.type == "StringLiteral" then
+        key_expr = emit(node.callee.property, indent, scopes)
+      else
+        key_expr = cg.binop("+", cg.paren(emit(node.callee.property, indent, scopes)), "1")
+      end
+    else
+      key_expr = cg.string(node.callee.property.name)
+    end
+    local call_args = { obj_expr, key_expr }
+    for _, a in ipairs(args) do
+      call_args[#call_args + 1] = a
+    end
+    return cg.call("_ljs_call_member", call_args)
+  end
+
+  local call_args = { emit(node.callee, indent, scopes) }
+  for _, a in ipairs(args) do
+    call_args[#call_args + 1] = a
+  end
+  return cg.call("_ljs_call", call_args)
 end
 
 gen.MemberExpression = function(node, indent, scopes)
@@ -907,7 +964,7 @@ gen.ObjectExpression = function(node, indent, scopes)
     end
     fields[#fields + 1] = { key = key, value = emit(prop.value, indent, scopes) }
   end
-  return cg.object(fields)
+  return cg.call("_ljs_object", { cg.object(fields) })
 end
 
 gen.ArrayExpression = function(node, indent, scopes)
