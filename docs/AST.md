@@ -78,6 +78,16 @@ Escape sequences (`\n`, `\t`, `\\`, etc.) are resolved during tokenization.
 
 **Source:** `undefined`
 
+### ThisExpression
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"ThisExpression"` | |
+
+**Source:** `this`
+
+Represents the `this` keyword. Binds to the calling context at runtime: the receiver object in member calls, or undefined in direct calls.
+
 ---
 
 ## Identifiers
