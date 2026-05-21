@@ -64,6 +64,10 @@ A.call = function(callee, args)
   return { type = "CallExpression", callee = callee, arguments = args }
 end
 
+A.new_expr = function(callee, args)
+  return { type = "NewExpression", callee = callee, arguments = args }
+end
+
 A.member = function(obj, prop)
   return { type = "MemberExpression", object = obj, property = prop, computed = false }
 end
