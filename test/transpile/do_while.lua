@@ -65,7 +65,7 @@ end)
 
 test("do-while with call expression condition", function()
   local code = transpile_ok("do { y; } while (shouldContinue());")
-  assert(code:find("until not %(shouldContinue%(%)%)"), "expected until not (shouldContinue())")
+  assert(code:find("until not %(_ljs_call%(shouldContinue%)%)"), "expected until not (_ljs_call(shouldContinue))")
 end)
 
 test("do-while with member expression condition", function()
