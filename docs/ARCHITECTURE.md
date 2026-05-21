@@ -50,3 +50,33 @@ All JS functions follow a hidden-this calling convention:
 - **Object literals** (`{a: 1}`): compile to `_ljs_object({a = 1})`, which currently returns the table as-is but establishes a factory boundary for future prototype support.
 
 Reserved prefix: `_ljs_*` is reserved for compiler/runtime internals.
+
+## Prototypes
+
+Objects created via `Object.create(proto)` have a prototype chain implemented using Lua metatables (`__index`). Property reads walk the chain automatically. Property writes always set own properties (Lua default, no `__newindex` needed). `delete` uses `rawset` to remove own properties without affecting the prototype.
+
+**Prototype creation:**
+- `Object.create(proto)` → `_ljs_object_create(Object, proto)` → `setmetatable({}, {__index = proto})`
+- Object literals (`{a: 1}`) produce plain tables via `_ljs_object({a = 1})` — no default `Object.prototype` inheritance yet.
+
+**Property access semantics:**
+- Inherited read: walks `__index` chain. ✓
+- Own write shadows: sets on own table. ✓
+- `delete`: removes own only, reveals inherited. ✓
+- `in`: walks chain (changed from `rawget` to normal table access). ✓
+- Method calls: `_ljs_call_member(obj, key, ...)` → `obj[key](obj, ...)`. `obj[key]` walks `__index`; `obj` is always the original receiver. ✓
+
+**Known gaps:**
+- `for...in` does not walk prototype chain (Lua `pairs()` only sees own properties). A `_ljs_pairs` iterator is deferred.
+- Object literals do not inherit from `Object.prototype` by default. `{}.toString()` is not yet available.
+- nil/null confusion: Lua tables cannot store `nil` as a value. Properties set to `null` are indistinguishable from missing properties.
+- Multi-level `__index` chaining is correct for prototype inheritance but may conflict with future metatable-based getters/descriptors. Migration to explicit `_ljs_get`/`_ljs_set` helpers is expected when descriptors are added.
+
+## Runtime objects
+
+Standard library globals (`Object`, `console`) are real JS objects created in a runtime initialization block emitted between helpers and user code. They are not compiler special cases. Members like `Object.create` and `console.log` are ordinary JS functions stored on these objects, accessed via normal `_ljs_call_member` dispatch.
+
+To add a new standard library function:
+1. Define a JS-ABI helper (`function(_ljs_this, ...)`) in `HELPERS`
+2. Assign it to the runtime object in the init block
+3. No transpiler changes required
