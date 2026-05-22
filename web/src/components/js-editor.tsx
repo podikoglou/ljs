@@ -3,6 +3,7 @@ import CodeMirror from "@uiw/react-codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { flexokiDark } from "../theme/flexoki";
 import Panel from "./panel";
+import Button from "./button";
 
 const cmSetup = {
   lineNumbers: true,
@@ -28,14 +29,7 @@ export default function JsEditor({ source, onSourceChange, ready, onRun, action 
       label="JavaScript"
       action={
         action ?? (
-          <button
-            type="button"
-            disabled={!ready}
-            onClick={onRun}
-            className="bg-primary/20 px-3 py-0.5 text-xs text-primary hover:bg-primary/30 disabled:opacity-50"
-          >
-            Run
-          </button>
+          <Button disabled={!ready} onClick={onRun}>Run</Button>
         )
       }
     >
