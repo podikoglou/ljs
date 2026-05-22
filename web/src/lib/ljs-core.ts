@@ -29,7 +29,7 @@ export async function transpile(
         error(err)
       end
     `);
-    return { code: code ?? null, error: null };
+    return { code: typeof code === "string" ? code : null, error: null };
   } catch (err: unknown) {
     return { code: null, error: err instanceof Error ? err.message : String(err) };
   }
