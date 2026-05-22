@@ -62,7 +62,7 @@ body {
   color: var(--color-base-200);
 }
 
-:root {
-  --separator-border: var(--color-base-800);
+html:root {
+  --separator-border: var(--color-primary);
   --focus-border: var(--color-primary);
 }
