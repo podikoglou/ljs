@@ -8,7 +8,7 @@ local eval_js, exec_js, transpile_js = R.eval_js, R.exec_js, R.transpile_js
 -- ============================================================================
 
 test("push returns new length", function()
-  assert_eq(exec_js("let a = [1, 2, 3]; return a.push(4);"), 4)
+  assert_eq(exec_js("return [1, 2, 3].push(4);"), 4)
 end)
 
 test("push appends element", function()
@@ -18,7 +18,7 @@ test("push appends element", function()
 end)
 
 test("push with multiple args", function()
-  assert_eq(exec_js("let a = [1]; a.push(2, 3); return a.length;"), 3)
+  assert_eq(exec_js("return [1].push(2, 3);"), 3)
 end)
 
 -- ============================================================================
@@ -26,7 +26,7 @@ end)
 -- ============================================================================
 
 test("pop returns last element", function()
-  assert_eq(exec_js("let a = [10, 20, 30]; return a.pop();"), 30)
+  assert_eq(exec_js("return [10, 20, 30].pop();"), 30)
 end)
 
 test("pop reduces length", function()
@@ -36,7 +36,7 @@ test("pop reduces length", function()
 end)
 
 test("pop on empty returns nil", function()
-  assert_eq(exec_js("let a = []; return a.pop();"), nil)
+  assert_eq(exec_js("return [].pop();"), nil)
 end)
 
 -- ============================================================================
@@ -63,11 +63,11 @@ end)
 -- ============================================================================
 
 test("toString on empty object", function()
-  assert_eq(exec_js("let o = {}; return o.toString();"), "[object Object]")
+  assert_eq(exec_js("return ({}).toString();"), "[object Object]")
 end)
 
 test("toString on object with properties", function()
-  assert_eq(exec_js("let o = {a: 1}; return o.toString();"), "[object Object]")
+  assert_eq(exec_js("return ({a: 1}).toString();"), "[object Object]")
 end)
 
 -- ============================================================================
@@ -75,11 +75,11 @@ end)
 -- ============================================================================
 
 test("hasOwnProperty true for own key", function()
-  assert_eq(exec_js("let o = {a: 1}; return o.hasOwnProperty('a');"), true)
+  assert_eq(exec_js("return ({a: 1}).hasOwnProperty('a');"), true)
 end)
 
 test("hasOwnProperty false for missing key", function()
-  assert_eq(exec_js("let o = {a: 1}; return o.hasOwnProperty('b');"), false)
+  assert_eq(exec_js("return ({a: 1}).hasOwnProperty('b');"), false)
 end)
 
 -- ============================================================================
@@ -90,8 +90,7 @@ test("Object.create inherits properties", function()
   assert_eq(
     exec_js([[
     let proto = { greet: function() { return "hi"; } };
-    let child = Object.create(proto);
-    return child.greet();
+    return Object.create(proto).greet();
   ]]),
     "hi"
   )
@@ -102,11 +101,11 @@ end)
 -- ============================================================================
 
 test("Function.prototype.call", function()
-  assert_eq(exec_js("let f = function() { return this.x; }; return f.call({x: 42});"), 42)
+  assert_eq(exec_js("return (function() { return this.x; }).call({x: 42});"), 42)
 end)
 
 test("Function.prototype.apply", function()
-  assert_eq(exec_js("let f = function(a, b) { return a + b; }; return f.apply(null, [3, 4]);"), 7)
+  assert_eq(exec_js("return (function(a, b) { return a + b; }).apply(null, [3, 4]);"), 7)
 end)
 
 -- ============================================================================
