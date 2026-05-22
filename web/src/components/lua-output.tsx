@@ -36,6 +36,7 @@ export default function LuaOutput({ code }: LuaOutputProps) {
     <div className="flex min-h-0">
       <Panel label="Lua">
         <CodeMirror
+          className="h-full"
           ref={cmRef}
           value={initialValue}
           height="100%"

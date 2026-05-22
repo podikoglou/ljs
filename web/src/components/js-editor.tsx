@@ -42,6 +42,7 @@ export default function JsEditor({ source, onSourceChange, ready, onRun, action 
         }
       >
         <CodeMirror
+          className="h-full"
           value={source}
           height="100%"
           theme={flexokiDark}
