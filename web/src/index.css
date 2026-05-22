@@ -1,0 +1,79 @@
+/* Flexoki — an inky color scheme for prose and code */
+/* Copyright (c) 2023 Steph Ango — MIT License */
+/* https://github.com/kepano/flexoki */
+
+@import "tailwindcss";
+
+@theme {
+  --color-black: #100f0f;
+  --color-paper: #fffcf0;
+  --color-base-50: #f2f0e5;
+  --color-base-100: #e6e4d9;
+  --color-base-150: #dad8ce;
+  --color-base-200: #cecdc3;
+  --color-base-300: #b7b5ac;
+  --color-base-400: #9f9d96;
+  --color-base-500: #878580;
+  --color-base-600: #6f6e69;
+  --color-base-700: #575653;
+  --color-base-800: #403e3c;
+  --color-base-850: #343331;
+  --color-base-900: #282726;
+  --color-base-950: #1c1b1a;
+  --color-red-600: #af3029;
+  --color-orange-600: #bc5215;
+  --color-yellow-600: #ad8301;
+  --color-green-600: #66800b;
+  --color-cyan-600: #24837b;
+  --color-blue-600: #205ea6;
+  --color-purple-600: #5e409d;
+  --color-magenta-600: #a02f6f;
+  --color-red-400: #d14d41;
+  --color-orange-400: #da702c;
+  --color-yellow-400: #d0a215;
+  --color-green-400: #879a39;
+  --color-cyan-400: #3aa99f;
+  --color-blue-400: #4385be;
+  --color-purple-400: #8b7ec8;
+  --color-magenta-400: #ce5d97;
+  --color-primary: #3aa99f;
+  --color-primary-600: #24837b;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  background: var(--color-black);
+  color: var(--color-base-200);
+}
+
+html:root {
+  --separator-border: var(--color-primary);
+  --focus-border: var(--color-primary);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-base-950);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-base-700);
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-base-600);
+}
