@@ -32,7 +32,7 @@ export default function JsEditor({ source, onSourceChange, ready, onRun, action 
             type="button"
             disabled={!ready}
             onClick={onRun}
-            className="bg-base-850 px-3 py-0.5 text-xs text-base-300 hover:text-base-200 disabled:opacity-50"
+            className="bg-primary/20 px-3 py-0.5 text-xs text-primary hover:bg-primary/30 disabled:opacity-50"
           >
             Run
           </button>

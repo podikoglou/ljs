@@ -36,6 +36,8 @@
   --color-blue-400: #4385be;
   --color-purple-400: #8b7ec8;
   --color-magenta-400: #ce5d97;
+  --color-primary: #3aa99f;
+  --color-primary-600: #24837b;
 }
 
 *,
@@ -61,6 +63,6 @@ body {
 }
 
 :root {
-  --separator-border: var(--color-base-850);
-  --focus-border: var(--color-base-700);
+  --separator-border: var(--color-base-800);
+  --focus-border: var(--color-primary);
 }
