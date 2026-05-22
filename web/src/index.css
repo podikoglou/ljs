@@ -50,6 +50,7 @@ body,
 
 body {
   font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
   background: var(--color-black);
   color: var(--color-base-200);
 }
