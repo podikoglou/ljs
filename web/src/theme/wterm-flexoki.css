@@ -1,0 +1,30 @@
+.wterm.theme-flexoki {
+  --term-fg: #cecdc3;
+  --term-bg: #100f0f;
+  --term-cursor: #cecdc3;
+
+  --term-color-0: #100f0f;
+  --term-color-1: #d14d41;
+  --term-color-2: #879a39;
+  --term-color-3: #d0a215;
+  --term-color-4: #4385be;
+  --term-color-5: #ce5d97;
+  --term-color-6: #3aa99f;
+  --term-color-7: #cecdc3;
+  --term-color-8: #6f6e69;
+  --term-color-9: #af3029;
+  --term-color-10: #66800b;
+  --term-color-11: #ad8301;
+  --term-color-12: #205ea6;
+  --term-color-13: #a02f6f;
+  --term-color-14: #24837b;
+  --term-color-15: #f2f0e5;
+
+  --term-font-family: "JetBrains Mono", monospace;
+  --term-font-size: 12px;
+  --term-line-height: 1.4;
+
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
