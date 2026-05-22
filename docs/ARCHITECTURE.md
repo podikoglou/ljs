@@ -29,7 +29,7 @@ If you find yourself writing `.. "goto "` or `.. "(function()"` in the transpile
 
 ### Supported
 
-Variables (`let`/`const`; `var` normalized to `let`), functions, arrow functions (expression bodies desugared to `BlockStatement` wrapping `ReturnStatement`), `this` keyword (with correct lexical binding for arrow functions), objects, arrays, arithmetic (`+` `-` `*` `/` `%`), exponentiation (`**`, right-associative), strict equality (`===`/`!==`; `==` rejected at tokenizer level), comparison (`<` `>` `<=` `>=`), `in`, `instanceof`, bitwise (`&` `|` `^` `<<` `>>` `>>>`), logical (`&&` `||`), ternary (`? :`), assignment (`=`), compound assignment (`+=` `-=` `*=` `/=` `%=` `**=` `&=` `|=` `^=` `<<=` `>>=` `>>>=`), unary (`!` `-` `+` `~`), `delete`, `typeof`, update (`++`/`--`, prefix and postfix), hex literals (`0xFF`, `0X1A`), `new`, `if`/`else`, `while`, `do...while`, `for...of`, `for...in`, `for(;;)` (C-style for with optional init/test/update), `switch`/`case`/`default`/`break`, `continue`, `throw`, `try`/`catch`, `return`, `console.log` (parsed as regular `CallExpression` with `MemberExpression` callee), constructors (`new Foo()`), `instanceof`, `typeof` on constructors returns `"function"`, `class` declarations and expressions with `extends`, `super()` (constructor) and `super.method()` (method), `static` methods.
+Variables (`let`/`const`; `var` normalized to `let`), functions, arrow functions (expression bodies desugared to `BlockStatement` wrapping `ReturnStatement`), `this` keyword (with correct lexical binding for arrow functions), objects, arrays (with `Array.prototype.push`/`pop`), arithmetic (`+` `-` `*` `/` `%`), exponentiation (`**`, right-associative), strict equality (`===`/`!==`; `==` rejected at tokenizer level), comparison (`<` `>` `<=` `>=`), `in`, `instanceof`, bitwise (`&` `|` `^` `<<` `>>` `>>>`), logical (`&&` `||`), ternary (`? :`), assignment (`=`), compound assignment (`+=` `-=` `*=` `/=` `%=` `**=` `&=` `|=` `^=` `<<=` `>>=` `>>>=`), unary (`!` `-` `+` `~`), `delete`, `typeof`, update (`++`/`--`, prefix and postfix), hex literals (`0xFF`, `0X1A`), `new`, `if`/`else`, `while`, `do...while`, `for...of`, `for...in`, `for(;;)` (C-style for with optional init/test/update), `switch`/`case`/`default`/`break`, `continue`, `throw`, `try`/`catch`, `return`, `console.log` (parsed as regular `CallExpression` with `MemberExpression` callee), constructors (`new Foo()`), `instanceof`, `typeof` on constructors returns `"function"`, `class` declarations and expressions with `extends`, `super()` (constructor) and `super.method()` (method), `static` methods, `Object.prototype.toString`/`hasOwnProperty`/`valueOf`, `Array.prototype.push`/`pop`, `Function.prototype.call`/`apply`.
 
 ### Rejected (parse error)
 
@@ -38,8 +38,8 @@ Variables (`let`/`const`; `var` normalized to `let`), functions, arrow functions
 ### Known gaps
 
 - **`typeof null`**: Returns `"undefined"` instead of `"object"`. The transpiler maps JS `null` → Lua `nil`, which `_ljs_typeof` maps to `"undefined"`. All other `typeof` results match JS semantics.
-- **`f instanceof Object`**: Returns `false` because instances don't inherit from `Object.prototype`. No default prototype chain from `Object.prototype` to user constructors yet.
-- **`console.log.prototype`**: Crashes in Lua — `console.log` is a bare Lua function, not a callable table. Only `_ljs_ctor`-wrapped functions support property access.
+- **`f instanceof Object`**: Returns `false` for instances of user-defined constructors. `_ljs_ctor`-created prototypes inherit from `_ljs_object_prototype`, but `Object.prototype` identity checks (e.g., `Foo.prototype === Object.prototype`) return `false`.
+- **`console.log.prototype`**: Returns `nil` — `console.log` is wrapped in `_ljs_fn` (a callable table with `Function.prototype` chain), not `_ljs_ctor`. It has `.call` and `.apply` but no `.prototype`.
 
 ### Runtime call ABI
 
@@ -49,7 +49,8 @@ All JS functions follow a hidden-this calling convention:
 - **Lexical `this`**: Every function body begins with `local _ljs_arrow_this = _ljs_this` (for regular functions) or `local _ljs_arrow_this = _ljs_arrow_this` (for arrow functions). Arrow functions capture the enclosing scope's `_ljs_arrow_this` via closure, matching JS semantics.
 - **Direct calls** (`f(a, b)`): compile to `_ljs_call(f, a, b)`, which passes `nil` as `_ljs_this`.
 - **Member calls** (`obj.m(a, b)`): compile to `_ljs_call_member(obj, "m", a, b)`, which resolves `obj["m"]` and calls it with `obj` as `_ljs_this`.
-- **Object literals** (`{a: 1}`): compile to `_ljs_object({a = 1})`, which currently returns the table as-is but establishes a factory boundary for future prototype support.
+- **Object literals** (`{a: 1}`): compile to `_ljs_object({a = 1})`, which wraps the table with `__index = _ljs_object_prototype` so all objects inherit from `Object.prototype`.
+- **Array literals** (`[1, 2, 3]`): compile to `_ljs_new(Array, 1, 2, 3)`, producing proper Array instances with `.length`, `.push()`, `.pop()` via `Array.prototype`.
 
 Reserved prefix: `_ljs_*` is reserved for compiler/runtime internals.
 
@@ -59,7 +60,8 @@ Objects created via `Object.create(proto)` have a prototype chain implemented us
 
 **Prototype creation:**
 - `Object.create(proto)` → `_ljs_object_create(Object, proto)` → `setmetatable({}, {__index = proto})`
-- Object literals (`{a: 1}`) produce plain tables via `_ljs_object({a = 1})` — no default `Object.prototype` inheritance yet.
+- Object literals (`{a: 1}`) produce `_ljs_object({a = 1})` → `setmetatable({a = 1}, {__index = _ljs_object_prototype})`
+- Array literals (`[1, 2, 3]`) produce `_ljs_new(Array, 1, 2, 3)` → Array instance with `Array.prototype` chain
 
 **Property access semantics:**
 - Inherited read: walks `__index` chain. ✓
@@ -70,17 +72,21 @@ Objects created via `Object.create(proto)` have a prototype chain implemented us
 
 **Known gaps:**
 - `for...in` does not walk prototype chain (Lua `pairs()` only sees own properties). A `_ljs_pairs` iterator is deferred.
-- Object literals do not inherit from `Object.prototype` by default. `{}.toString()` is not yet available.
 - nil/null confusion: Lua tables cannot store `nil` as a value. Properties set to `null` are indistinguishable from missing properties.
 - Multi-level `__index` chaining is correct for prototype inheritance but may conflict with future metatable-based getters/descriptors. Migration to explicit `_ljs_get`/`_ljs_set` helpers is expected when descriptors are added.
 
 ## Constructors
 
-Functions (`FunctionDeclaration`, `FunctionExpression`) are wrapped in `_ljs_ctor`, which returns a callable table with a `.prototype` property. Arrow functions and method shorthand are NOT wrapped.
+Functions (`FunctionDeclaration`, `FunctionExpression`) are wrapped in `_ljs_ctor`, which returns a callable table with a `.prototype` property inheriting from `_ljs_object_prototype`. Arrow functions and method shorthand are wrapped in `_ljs_fn` (callable table without `.prototype` but with `Function.prototype` chain).
+
+**`_ljs_fn(fn)`:**
+- Returns a callable table with `__call` metamethod delegating to `fn`
+- Has `__index = _ljs_function_prototype` so `.call` and `.apply` are available
+- Used for arrow functions, method shorthand, and any function that doesn't need `.prototype`
 
 **`_ljs_ctor(fn)`:**
-- Creates a table with own key `.prototype = { constructor = ctor }`
-- Sets `__call` metamethod to delegate to the original function
+- Builds on `_ljs_fn`: creates callable table with `__call` + `__index = Function.prototype`
+- Adds `.prototype = setmetatable({ constructor = ctor }, { __index = _ljs_object_prototype })` as own key
 - `type(ctor)` is `"table"`, but `_ljs_typeof` detects `__call` and returns `"function"`
 
 **`new Foo(args)`:**
@@ -94,11 +100,13 @@ Functions (`FunctionDeclaration`, `FunctionExpression`) are wrapped in `_ljs_cto
 
 **Method shorthand (`is_method` flag):**
 - `{ m() {} }` creates `FunctionExpression` with `is_method = true`
-- Skips `_ljs_ctor` wrapping — methods don't need `.prototype`
+- Wrapped in `_ljs_fn` (not `_ljs_ctor`) — methods get `.call`/`.apply` but no `.prototype`
 
 **Runtime constructors:**
-- `Object` is wrapped in `_ljs_ctor`, making it callable and giving it `.prototype`
-- `console` is NOT wrapped — it's a plain object
+- `Object` is wrapped in `_ljs_ctor`, making it callable with `.prototype = _ljs_object_prototype`
+- `Array` is wrapped in `_ljs_ctor` with `.prototype.push`, `.prototype.pop`
+- `Function` is wrapped in `_ljs_ctor` with `.prototype = _ljs_function_prototype` (`.call`, `.apply`)
+- `console` is wrapped in `_ljs_object` (not `_ljs_ctor`) — plain object with `Object.prototype` chain
 
 ## Class syntax
 
@@ -135,7 +143,18 @@ Functions (`FunctionDeclaration`, `FunctionExpression`) are wrapped in `_ljs_cto
 
 ## Runtime objects
 
-Standard library globals (`Object`, `console`) are real JS objects created in a runtime initialization block emitted between helpers and user code. They are not compiler special cases. Members like `Object.create` and `console.log` are ordinary JS functions stored on these objects, accessed via normal `_ljs_call_member` dispatch.
+Standard library globals (`Object`, `Array`, `Function`, `console`) are real JS objects created in a runtime initialization block emitted between helpers and user code. They are not compiler special cases.
+
+**Prototype infrastructure:**
+- `_ljs_object_prototype` — root prototype declared before helpers, populated with `toString`, `hasOwnProperty`, `valueOf` during runtime init. Assigned to `Object.prototype`.
+- `_ljs_function_prototype` — root function prototype declared before helpers, populated with `call`, `apply` during runtime init. Assigned to `Function.prototype`.
+- All `_ljs_ctor`-created prototypes inherit from `_ljs_object_prototype` via `__index`.
+- All `_ljs_fn`-wrapped functions inherit from `_ljs_function_prototype` via `__index`.
+- All `_ljs_object`-wrapped objects inherit from `_ljs_object_prototype` via `__index`.
+- All `_ljs_new`-created instances inherit from their constructor's prototype, which inherits from `_ljs_object_prototype`.
+
+**Variable declaration pattern:**
+- Functions assigned to variables use `local x; x = _ljs_fn(...)` instead of `local x = _ljs_fn(...)` to work around a Lua 5.5 closure upvalue issue where the function's self-reference would resolve to `nil`.
 
 To add a new standard library function:
 1. Define a JS-ABI helper (`function(_ljs_this, ...)`) in `HELPERS`
