@@ -16,7 +16,8 @@ export default function App() {
   const [jsSource, setJsSource] = useState(DEFAULT_CODE)
   const [luaOutput, setLuaOutput] = useState('')
   const [consoleOutput, setConsoleOutput] = useState<string[]>([])
-  const [error, setError] = useState<string | null>(null)
+  const [transpileError, setTranspileError] = useState<string | null>(null)
+  const [runError, setRunError] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -27,10 +28,10 @@ export default function App() {
         .then((result) => {
           if (result.code !== null) {
             setLuaOutput(result.code)
-            setError(null)
+            setTranspileError(null)
           } else {
             setLuaOutput('')
-            setError(result.error)
+            setTranspileError(result.error)
           }
           setReady(true)
         })
@@ -44,16 +45,16 @@ export default function App() {
     setConsoleOutput([])
     run(jsSource).then((result: RunResult) => {
       setConsoleOutput(result.output)
-      if (result.error) setError(result.error)
-      else setError(null)
+      if (result.error) setRunError(result.error)
+      else setRunError(null)
     })
   }, [jsSource])
 
   return (
     <div className="grid h-full grid-cols-2 grid-rows-[1fr_auto]">
       <JsEditor source={jsSource} onSourceChange={setJsSource} ready={ready} onRun={handleRun} />
-      <LuaOutput code={luaOutput} />
-      <Console error={error} lines={consoleOutput} />
+      <LuaOutput code={luaOutput} error={transpileError} />
+      <Console error={runError} lines={consoleOutput} />
     </div>
   )
 }
