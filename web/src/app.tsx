@@ -6,6 +6,7 @@ import { lua } from '@codemirror/legacy-modes/mode/lua'
 import { flexokiDark } from './theme/flexoki'
 import { transpile, run, type RunResult } from './lib/ljs'
 import Panel from './components/panel'
+import Console from './components/console'
 
 const DEFAULT_CODE = `function greet(name) {
   return "Hello, " + name + "!";
@@ -98,17 +99,7 @@ export default function App() {
           />
         </Panel>
       </div>
-      <div className="col-span-2 flex min-h-[160px] flex-col border-t border-base-850">
-        <div className="shrink-0 border-b border-base-850 px-3 py-1">
-          <span className="text-xs text-base-400">Console</span>
-        </div>
-        <div className="flex-1 overflow-auto bg-base-950 p-3 font-mono text-xs leading-relaxed text-base-300">
-          {error && <div className="text-red-400">{error}</div>}
-          {consoleOutput.map((line, i) => (
-            <div key={i}>{line}</div>
-          ))}
-        </div>
-      </div>
+      <Console error={error} lines={consoleOutput} />
     </div>
   )
 }
