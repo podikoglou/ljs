@@ -64,17 +64,18 @@ test("function expression wrapped in _ljs_ctor", function()
   assert(code:find("_ljs_ctor(function", nil, true), "expected _ljs_ctor wrapping")
 end)
 
-test("method shorthand NOT wrapped in _ljs_ctor", function()
+test("method shorthand wrapped in _ljs_fn not _ljs_ctor", function()
   local code = H.transpile_ok("let o = { m() { return 1; } };")
-  assert(code:find("m = function(_ljs_this)", nil, true), "expected bare function for method")
+  assert(
+    code:find("m = _ljs_fn(function(_ljs_this)", nil, true),
+    "expected _ljs_fn wrapping for method"
+  )
+  assert(not code:find("m = _ljs_ctor("), "should NOT be _ljs_ctor wrapped")
 end)
 
-test("arrow function NOT wrapped in _ljs_ctor", function()
+test("arrow function wrapped in _ljs_fn not _ljs_ctor", function()
   local code = H.transpile_ok("let f = (x) => x + 1;")
-  assert(
-    code:find("local _ljs_arrow_this = _ljs_arrow_this", nil, true),
-    "expected arrow this binding"
-  )
+  assert(code:find("local f\nf = _ljs_fn(", nil, true), "expected arrow wrapped in _ljs_fn")
 end)
 
 -- ============================================================================

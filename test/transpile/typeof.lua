@@ -248,7 +248,7 @@ end)
 
 test("typeof in array element", function()
   local code = expr_code("[typeof x]")
-  assert_eq(code, "{_ljs_typeof(x)}")
+  assert_eq(code, "_ljs_new(Array, _ljs_typeof(x))")
 end)
 
 test("typeof in object value", function()

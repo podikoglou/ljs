@@ -98,22 +98,26 @@ HELPERS._ljs_call_member = [[local function _ljs_call_member(obj, key, ...)
 end]]
 
 HELPERS._ljs_object = [[local function _ljs_object(t)
-  return t
+  return setmetatable(t, { __index = _ljs_object_prototype })
 end]]
 
 HELPERS._ljs_object_create = [[local function _ljs_object_create(_ljs_this, proto)
   return setmetatable({}, {__index = proto})
 end]]
 
-HELPERS._ljs_ctor = [[local function _ljs_ctor(fn)
-  local ctor = {}
-  ctor.prototype = {}
-  ctor.prototype.constructor = ctor
-  return setmetatable(ctor, {
+HELPERS._ljs_fn = [[local function _ljs_fn(fn)
+  return setmetatable({}, {
     __call = function(_, ...)
       return fn(...)
     end,
+    __index = _ljs_function_prototype,
   })
+end]]
+
+HELPERS._ljs_ctor = [[local function _ljs_ctor(fn)
+  local ctor = _ljs_fn(fn)
+  ctor.prototype = setmetatable({ constructor = ctor }, { __index = _ljs_object_prototype })
+  return ctor
 end]]
 
 HELPERS._ljs_new = [[local function _ljs_new(ctor, ...)
@@ -646,13 +650,25 @@ gen.VariableDeclaration = function(node, indent, scopes)
       body = cg.local_decl("_ljs_arrow_this", save_src, indent + 1) .. body
       scope_pop(scopes)
       if init.type == "FunctionExpression" and not init.is_method then
-        out[#out + 1] = cg.local_decl(
-          decl.name.name,
-          cg.call("_ljs_ctor", { cg.fn_expr(cg.join(params), body, indent) }),
+        out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
+        out[#out + 1] = cg.expr_stmt(
+          cg.binop(
+            "=",
+            decl.name.name,
+            cg.call("_ljs_ctor", { cg.fn_expr(cg.join(params), body, indent) })
+          ),
           indent
         )
       else
-        out[#out + 1] = cg.local_fn(decl.name.name, cg.join(params), body, indent)
+        out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
+        out[#out + 1] = cg.expr_stmt(
+          cg.binop(
+            "=",
+            decl.name.name,
+            cg.call("_ljs_fn", { cg.fn_expr(cg.join(params), body, indent) })
+          ),
+          indent
+        )
       end
     else
       out[#out + 1] = cg.local_decl(decl.name.name, emit(init, indent, scopes), indent)
@@ -965,7 +981,7 @@ gen.FunctionExpression = function(node, indent, scopes)
   scope_pop(scopes)
   local fn = cg.fn_expr(cg.join(params), body, indent)
   if node.is_method then
-    return fn
+    return cg.call("_ljs_fn", { fn })
   end
   return cg.call("_ljs_ctor", { fn })
 end
@@ -982,7 +998,8 @@ gen.ArrowFunctionExpression = function(node, indent, scopes)
   local body = emit(node.body, indent, scopes)
   body = cg.local_decl("_ljs_arrow_this", "_ljs_arrow_this", indent + 1) .. body
   scope_pop(scopes)
-  return cg.fn_expr(cg.join(params), body, indent)
+  local fn = cg.fn_expr(cg.join(params), body, indent)
+  return cg.call("_ljs_fn", { fn })
 end
 
 -- === Control flow ===
@@ -1406,11 +1423,11 @@ gen.ObjectExpression = function(node, indent, scopes)
 end
 
 gen.ArrayExpression = function(node, indent, scopes)
-  local elems = {}
+  local args = { "Array" }
   for _, e in ipairs(node.elements) do
-    elems[#elems + 1] = emit(e, indent, scopes)
+    args[#args + 1] = emit(e, indent, scopes)
   end
-  return cg.array(elems)
+  return cg.call("_ljs_new", args)
 end
 
 -- === Statement emission for IIFE-returning expressions ===
@@ -1456,6 +1473,7 @@ local function generate(ast, meta)
   end
   meta.needed_helpers["_ljs_object"] = true
   meta.needed_helpers["_ljs_object_create"] = true
+  meta.needed_helpers["_ljs_fn"] = true
   meta.needed_helpers["_ljs_ctor"] = true
   meta.needed_helpers["_ljs_new"] = true
   meta.needed_helpers["_ljs_instanceof"] = true
@@ -1465,9 +1483,12 @@ local function generate(ast, meta)
   if meta.needed_helpers["_ljs_to_int32"] then
     helper_parts[#helper_parts + 1] = HELPERS["_ljs_to_int32"]
   end
+  if meta.needed_helpers["_ljs_fn"] then
+    helper_parts[#helper_parts + 1] = HELPERS["_ljs_fn"]
+  end
   local rest = {}
   for name, _ in pairs(meta.needed_helpers) do
-    if name ~= "_ljs_to_int32" then
+    if name ~= "_ljs_to_int32" and name ~= "_ljs_fn" then
       rest[#rest + 1] = HELPERS[name]
     end
   end
@@ -1479,11 +1500,59 @@ local function generate(ast, meta)
   if #prefix > 0 then
     prefix = prefix .. "\n\n"
   end
+  local proto_decl = "local _ljs_object_prototype = {}\n\nlocal _ljs_function_prototype = {}\n\n"
   local runtime_init = [[
+_ljs_object_prototype.toString = function(_ljs_this)
+  return "[object Object]"
+end
+_ljs_object_prototype.hasOwnProperty = function(_ljs_this, key)
+  return rawget(_ljs_this, key) ~= nil
+end
+_ljs_object_prototype.valueOf = function(_ljs_this)
+  return _ljs_this
+end
+
 local Object = _ljs_ctor(function(_ljs_this)
   return _ljs_this
 end)
+Object.prototype = _ljs_object_prototype
 Object.create = _ljs_object_create
+
+_ljs_function_prototype.call = function(_ljs_this, thisArg, ...)
+  return _ljs_this(thisArg, ...)
+end
+_ljs_function_prototype.apply = function(_ljs_this, thisArg, args)
+  if args == nil then
+    return _ljs_this(thisArg)
+  end
+  return _ljs_this(thisArg, unpack(args, 1, args.length))
+end
+
+local Function = _ljs_ctor(nil)
+Function.prototype = _ljs_function_prototype
+
+local Array = _ljs_ctor(function(_ljs_this, ...)
+  local n = select("#", ...)
+  for i = 1, n do
+    _ljs_this[i] = select(i, ...)
+  end
+  _ljs_this.length = n
+end)
+Array.prototype.push = function(_ljs_this, ...)
+  local n = select("#", ...)
+  for i = 1, n do
+    _ljs_this[_ljs_this.length + i] = select(i, ...)
+  end
+  _ljs_this.length = _ljs_this.length + n
+  return _ljs_this.length
+end
+Array.prototype.pop = function(_ljs_this)
+  if _ljs_this.length == 0 then return nil end
+  local val = _ljs_this[_ljs_this.length]
+  _ljs_this[_ljs_this.length] = nil
+  _ljs_this.length = _ljs_this.length - 1
+  return val
+end
 
 local console = _ljs_object({})
 console.log = function(_ljs_this, ...)
@@ -1491,7 +1560,7 @@ console.log = function(_ljs_this, ...)
 end
 
 ]]
-  return prefix .. runtime_init .. code
+  return proto_decl .. prefix .. runtime_init .. code
 end
 
 -- ============================================================================

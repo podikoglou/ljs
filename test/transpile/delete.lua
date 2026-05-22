@@ -170,7 +170,7 @@ end)
 
 test("delete in array element", function()
   local code = expr_code("[delete obj.prop]")
-  assert_eq(code, '{(rawset(obj, "prop", nil) and true)}')
+  assert_eq(code, '_ljs_new(Array, (rawset(obj, "prop", nil) and true))')
 end)
 
 test("delete in object value", function()

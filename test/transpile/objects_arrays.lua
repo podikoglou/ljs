@@ -24,12 +24,12 @@ end)
 
 test("empty array", function()
   local code = expr_code("[]")
-  assert_eq(code, "{}")
+  assert_eq(code, "_ljs_new(Array)")
 end)
 
 test("array with elements", function()
   local code = expr_code("[1, 2, 3]")
-  assert_eq(code, "{1, 2, 3}")
+  assert_eq(code, "_ljs_new(Array, 1, 2, 3)")
 end)
 
 test("dot access", function()
@@ -77,13 +77,16 @@ end)
 
 test("method shorthand transpiles to function value", function()
   local code = transpile_ok("let o = { foo() { return 1; } };")
-  assert(code:find("foo = function"), "expected foo = function")
+  assert(code:find("foo = _ljs_fn(function", 1, true), "expected foo = _ljs_fn(function")
   assert(code:find("return 1"), "expected return 1")
 end)
 
 test("method shorthand with params transpiles correctly", function()
   local code = transpile_ok("let o = { add(a, b) { return a + b; } };")
-  assert(code:find("add = function%(_ljs_this, a, b%)"), "expected add = function(_ljs_this, a, b)")
+  assert(
+    code:find("add = _ljs_fn(function(_ljs_this, a, b)", 1, true),
+    "expected add = _ljs_fn(function(_ljs_this, a, b)"
+  )
 end)
 
 test("shorthand property transpiles to key = key", function()
@@ -100,7 +103,7 @@ test("mixed regular, shorthand, and method", function()
   local code = transpile_ok("let o = { a: 1, b, c() { return 3; } };")
   assert(code:find("a = 1"), "expected a = 1")
   assert(code:find("b = b"), "expected b = b")
-  assert(code:find("c = function"), "expected c = function")
+  assert(code:find("c = _ljs_fn(function", 1, true), "expected c = _ljs_fn(function")
 end)
 
 -- ============================================================================

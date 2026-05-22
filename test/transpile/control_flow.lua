@@ -19,7 +19,10 @@ end)
 
 test("arrow function in variable", function()
   local code = transpile_ok("const f = (x) => { return x; };")
-  assert(code:find("local function f(_ljs_this, x)", 1, true), "expected function f")
+  assert(
+    code:find("local f\nf = _ljs_fn(function(_ljs_this, x)", 1, true),
+    "expected _ljs_fn wrapped arrow"
+  )
   assert(
     code:find("local _ljs_arrow_this = _ljs_arrow_this", 1, true),
     "expected _ljs_arrow_this init"
@@ -28,7 +31,7 @@ end)
 
 test("arrow expression body", function()
   local code = transpile_ok("const f = (x) => x + 1;")
-  assert(code:find("local function f"), "expected local function f")
+  assert(code:find("local f\nf = _ljs_fn(", 1, true), "expected _ljs_fn wrapping")
 end)
 
 -- ============================================================================
