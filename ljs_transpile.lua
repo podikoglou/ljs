@@ -593,11 +593,26 @@ local function collect_if_chain(node, indent, scopes)
   return test, body, elseifs, else_body
 end
 
+local _eval_mode = false
+
 -- === Program ===
 
 gen.Program = function(node, indent, scopes)
   scope_push(scopes)
-  local code = emit_body(node.body, indent, scopes)
+  local body = node.body
+
+  if _eval_mode and #body > 0 and body[#body].type == "ExpressionStatement" then
+    local code = ""
+    for i = 1, #body - 1 do
+      code = code .. emit(body[i], indent, scopes)
+    end
+    local last_expr = emit(body[#body].expression, indent, scopes)
+    code = code .. cg.return_expr(last_expr, indent)
+    scope_pop(scopes)
+    return cg.local_decl("_ljs_arrow_this", "nil", 0) .. code
+  end
+
+  local code = emit_body(body, indent, scopes)
   scope_pop(scopes)
   return cg.local_decl("_ljs_arrow_this", "nil", 0) .. code
 end
@@ -1471,7 +1486,9 @@ end
 
 -- === Top-level generate ===
 
-local function generate(ast, meta)
+local function generate(ast, meta, opts)
+  opts = opts or {}
+  _eval_mode = (opts.mode == "eval")
   class_super_stack = {}
   if
     meta.needed_helpers["_ljs_bnot"]
@@ -1528,23 +1545,25 @@ end
 
 --- Transpile a parsed JS AST into Lua source code.
 -- @param ast (table) AST from parser.parse()
+-- @param opts (table|nil) Options table; opts.mode = "script" (default) or "eval"
 -- @return (string) Lua source code
-function ljs_transpile.transpile(ast)
+function ljs_transpile.transpile(ast, opts)
   local meta = analyze(ast)
-  return generate(ast, meta)
+  return generate(ast, meta, opts)
 end
 
 --- Parse JS source and transpile to Lua in one step.
 -- @param source (string) JavaScript source code
+-- @param opts (table|nil) Options table; opts.mode = "script" (default) or "eval"
 -- @return (string|nil) Lua source code, or nil on error
 -- @return (string|nil) Error message, or nil on success
-function ljs_transpile.transpile_source(source)
+function ljs_transpile.transpile_source(source, opts)
   local parser = require("ljs_parser")
   local ast, err = parser.parse(source)
   if not ast then
     return nil, err
   end
-  return ljs_transpile.transpile(ast)
+  return ljs_transpile.transpile(ast, opts)
 end
 
 ljs_transpile.BUILTINS = BUILTINS

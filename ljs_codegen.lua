@@ -114,6 +114,14 @@ function cg.expr_stmt(expr, indent)
   return cg.pad(indent) .. expr .. "\n"
 end
 
+--- Emit a return-from-expression statement (used in eval mode).
+-- @param expr (string) Expression code
+-- @param indent (number) Indentation level
+-- @return (string) Formatted return statement with trailing newline
+function cg.return_expr(expr, indent)
+  return cg.pad(indent) .. "return " .. expr .. "\n"
+end
+
 --- Emit a do...end block for scoping.
 -- @param body (string) Block body (pre-formatted)
 -- @param indent (number) Indentation level
