@@ -1525,7 +1525,8 @@ _ljs_function_prototype.apply = function(_ljs_this, thisArg, args)
   if args == nil then
     return _ljs_this(thisArg)
   end
-  return _ljs_this(thisArg, unpack(args, 1, args.length))
+  local _unpack = unpack or table.unpack
+  return _ljs_this(thisArg, _unpack(args, 1, args.length))
 end
 
 local Function = _ljs_ctor(nil)
