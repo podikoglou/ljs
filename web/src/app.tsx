@@ -14,6 +14,19 @@ console.log(greet("world"));
 console.log(1 + 2);
 `;
 
+function loadSizes(key: string, fallback: number[]) {
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveSizes(key: string, sizes: number[]) {
+  localStorage.setItem(key, JSON.stringify(sizes));
+}
+
 export default function App() {
   const [jsSource, setJsSource] = useState(DEFAULT_CODE);
   const [luaOutput, setLuaOutput] = useState("");
@@ -52,8 +65,8 @@ export default function App() {
   }, [jsSource]);
 
   return (
-    <Allotment vertical defaultSizes={[70, 30]}>
-      <Allotment>
+    <Allotment vertical defaultSizes={loadSizes("allotment-vertical", [70, 30])} onChange={(s) => saveSizes("allotment-vertical", s)}>
+      <Allotment defaultSizes={loadSizes("allotment-horizontal", [50, 50])} onChange={(s) => saveSizes("allotment-horizontal", s)}>
         <JsEditor source={jsSource} onSourceChange={setJsSource} ready={ready} onRun={handleRun} />
         <LuaOutput code={luaOutput} error={transpileError} />
       </Allotment>
