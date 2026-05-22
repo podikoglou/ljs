@@ -17,9 +17,10 @@ const luaExtensions = [StreamLanguage.define(lua)]
 
 interface LuaOutputProps {
   code: string
+  error?: string | null
 }
 
-export default function LuaOutput({ code }: LuaOutputProps) {
+export default function LuaOutput({ code, error }: LuaOutputProps) {
   const cmRef = useRef<ReactCodeMirrorRef>(null)
   const [initialValue] = useState(code)
 
@@ -35,6 +36,11 @@ export default function LuaOutput({ code }: LuaOutputProps) {
   return (
     <div className="flex min-h-0">
       <Panel label="Lua">
+        {error && (
+          <div className="shrink-0 border-b border-base-850 bg-base-950 px-3 py-1 text-xs text-red-400">
+            {error}
+          </div>
+        )}
         <CodeMirror
           className="h-full"
           ref={cmRef}
