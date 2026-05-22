@@ -52,7 +52,7 @@ export default function App() {
   }, [jsSource]);
 
   return (
-    <Allotment vertical>
+    <Allotment vertical defaultSizes={[70, 30]}>
       <Allotment>
         <JsEditor source={jsSource} onSourceChange={setJsSource} ready={ready} onRun={handleRun} />
         <LuaOutput code={luaOutput} error={transpileError} />
