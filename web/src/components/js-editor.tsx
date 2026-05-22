@@ -1,8 +1,6 @@
-import type { ReactNode } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { javascript } from "@codemirror/lang-javascript";
 import { flexokiDark } from "../theme/flexoki";
-import Button from "./button";
 
 const cmSetup = {
   lineNumbers: true,
@@ -17,14 +15,11 @@ const cmSetup = {
 interface JsEditorProps {
   source: string;
   onSourceChange: (source: string) => void;
-  ready: boolean;
-  onRun: () => void;
-  action?: ReactNode;
 }
 
-export default function JsEditor({ source, onSourceChange, ready, onRun, action }: JsEditorProps) {
+export default function JsEditor({ source, onSourceChange }: JsEditorProps) {
   return (
-    <div className="relative h-full min-h-0 border-r border-base-850">
+    <div className="h-full min-h-0 border-r border-base-850">
       <CodeMirror
         className="h-full"
         value={source}
@@ -34,13 +29,6 @@ export default function JsEditor({ source, onSourceChange, ready, onRun, action 
         onChange={onSourceChange}
         basicSetup={cmSetup}
       />
-      <div className="absolute right-2 top-2">
-        {action ?? (
-          <Button disabled={!ready} onClick={onRun}>
-            Run
-          </Button>
-        )}
-      </div>
     </div>
   );
 }

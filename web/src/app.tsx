@@ -5,6 +5,7 @@ import { transpile, run, type RunResult } from "./lib/ljs";
 import JsEditor from "./components/js-editor";
 import LuaOutput from "./components/lua-output";
 import Console from "./components/console";
+import Button from "./components/button";
 
 const DEFAULT_CODE = `function greet(name) {
   return "Hello, " + name + "!";
@@ -65,19 +66,26 @@ export default function App() {
   }, [jsSource]);
 
   return (
-    <Allotment
-      vertical
-      defaultSizes={loadSizes("allotment-vertical", [70, 30])}
-      onChange={(s) => saveSizes("allotment-vertical", s)}
-    >
-      <Allotment
-        defaultSizes={loadSizes("allotment-horizontal", [50, 50])}
-        onChange={(s) => saveSizes("allotment-horizontal", s)}
-      >
-        <JsEditor source={jsSource} onSourceChange={setJsSource} ready={ready} onRun={handleRun} />
-        <LuaOutput code={luaOutput} error={transpileError} />
-      </Allotment>
-      <Console error={runError} lines={consoleOutput} />
-    </Allotment>
+    <div className="flex h-full flex-col">
+      <div className="flex shrink-0 items-center border-b border-base-850 px-3 py-0.5">
+        <Button disabled={!ready} onClick={handleRun}>Run</Button>
+      </div>
+      <div className="min-h-0 flex-1">
+        <Allotment
+          vertical
+          defaultSizes={loadSizes("allotment-vertical", [70, 30])}
+          onChange={(s) => saveSizes("allotment-vertical", s)}
+        >
+          <Allotment
+            defaultSizes={loadSizes("allotment-horizontal", [50, 50])}
+            onChange={(s) => saveSizes("allotment-horizontal", s)}
+          >
+            <JsEditor source={jsSource} onSourceChange={setJsSource} />
+            <LuaOutput code={luaOutput} error={transpileError} />
+          </Allotment>
+          <Console error={runError} lines={consoleOutput} />
+        </Allotment>
+      </div>
+    </div>
   );
 }
