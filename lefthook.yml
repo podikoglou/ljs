@@ -1,5 +1,9 @@
 pre-commit:
   jobs:
+    - name: oxfmt
+      glob: "*.{js,ts,jsx,tsx}"
+      run: oxfmt --write {staged_files}
+
     - name: stylua
       glob: "*.lua"
       run: stylua --check {staged_files}
