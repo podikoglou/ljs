@@ -156,7 +156,12 @@ Standard library globals (`Object`, `Array`, `Function`, `console`) are real JS 
 **Variable declaration pattern:**
 - Functions assigned to variables use `local x; x = _ljs_fn(...)` instead of `local x = _ljs_fn(...)` to work around a Lua 5.5 closure upvalue issue where the function's self-reference would resolve to `nil`.
 
-To add a new standard library function:
-1. Define a JS-ABI helper (`function(_ljs_this, ...)`) in `HELPERS`
-2. Assign it to the runtime object in the init block
-3. No transpiler changes required
+To add a new standard library function (e.g. `Array.prototype.forEach`, `String.prototype.trim`):
+1. Define the function in the runtime init block as a method on the target prototype or object
+2. Use the JS-ABI convention: `function(_ljs_this, ...)` for all methods
+3. No transpiler changes required — member calls compile to `_ljs_call_member(obj, key, ...)` which resolves the method at runtime via the prototype chain
+
+Internal operator/expression helpers (e.g. `_ljs_add`, `_ljs_ctor`, `_ljs_bnot`) follow a different pattern:
+1. Define the helper in the `HELPERS` table (used for conditional emission via `needed_helpers` analysis)
+2. Add tracking in `analyze_node()` to set `meta.needed_helpers[helper_name] = true` when the relevant AST node is encountered
+3. The helper is automatically emitted in the output when needed
