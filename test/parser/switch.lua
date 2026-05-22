@@ -555,5 +555,3 @@ test("parse_tokens: continue statement", function()
     })
   )
 end)
-
-T.summary()

@@ -268,5 +268,3 @@ test("compound += emits _ljs_add helper definition", function()
   local code = transpile_ok("x += 1;")
   assert(code:find("_ljs_add"), "expected _ljs_add helper in output")
 end)
-
-T.summary()

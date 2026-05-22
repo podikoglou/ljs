@@ -522,5 +522,3 @@ test("parse for with i += 1 update", function()
   assert_eq(f.update.left.name, "i")
   assert_eq(f.update.right.value, 1)
 end)
-
-T.summary()

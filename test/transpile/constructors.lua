@@ -286,5 +286,3 @@ test("'in' operator walks prototype chain from constructor", function()
   ]])
   assert_eq(out, "true\n")
 end)
-
-T.summary()

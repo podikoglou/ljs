@@ -5,12 +5,18 @@ local expr_code, run_js = H.expr_code, H.run_js
 
 test("_ljs_ctor wrapping for class", function()
   local code = H.transpile_ok("class Foo {}")
-  assert(code:find("local Foo = _ljs_ctor(function(_ljs_this)", nil, true), "expected _ljs_ctor wrapping")
+  assert(
+    code:find("local Foo = _ljs_ctor(function(_ljs_this)", nil, true),
+    "expected _ljs_ctor wrapping"
+  )
 end)
 
 test("constructor body emitted", function()
   local code = H.transpile_ok("class Foo { constructor(x) { this.x = x; } }")
-  assert(code:find("local Foo = _ljs_ctor(function(_ljs_this, x)", nil, true), "expected ctor with params")
+  assert(
+    code:find("local Foo = _ljs_ctor(function(_ljs_this, x)", nil, true),
+    "expected ctor with params"
+  )
   assert(code:find("_ljs_arrow_this%.x"), "expected this.x assignment")
 end)
 
@@ -27,7 +33,10 @@ end)
 
 test("extends sets up prototype chain", function()
   local code = H.transpile_ok("class Dog extends Animal {}")
-  assert(code:find("Dog%.prototype = _ljs_object_create%(nil, Animal%.prototype%)"), "expected prototype chain setup")
+  assert(
+    code:find("Dog%.prototype = _ljs_object_create%(nil, Animal%.prototype%)"),
+    "expected prototype chain setup"
+  )
 end)
 
 test("extends restores constructor", function()
@@ -48,8 +57,8 @@ end)
 
 test("super.method() uses _ljs_super_call", function()
   local code = H.transpile_ok("class Dog extends Animal { speak() { return super.speak(); } }")
-  assert(code:find('_ljs_super_call'), "expected _ljs_super_call")
-  assert(code:find('Animal%.prototype'), "expected parent prototype reference")
+  assert(code:find("_ljs_super_call"), "expected _ljs_super_call")
+  assert(code:find("Animal%.prototype"), "expected parent prototype reference")
 end)
 
 test("super.prop property access", function()
@@ -221,5 +230,3 @@ test("class with no methods — instance is object", function()
   ]])
   assert_eq(out, "object\n")
 end)
-
-T.summary()

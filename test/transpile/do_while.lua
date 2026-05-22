@@ -374,5 +374,3 @@ test("do-while integration: break and continue together", function()
   ]])
   assert_eq(output:gsub("%s+", ""), "12456")
 end)
-
-T.summary()

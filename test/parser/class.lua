@@ -50,18 +50,37 @@ test("class Foo { method() { return 1; } } — method definition", function()
   })
 end)
 
-test("class Foo { constructor(x) { this.x = x; } method() { return this.x; } } — constructor + method", function()
-  assert_parse_ok("class Foo { constructor(x) { this.x = x; } method() { return this.x; } }", {
-    class_decl("Foo", nil, {
-      method_def("constructor", A.id("constructor"), ctor_fn({ A.id("x") }, A.block({
-        A.expr_stmt(A.bin("=", A.member(A.this_(), A.id("x")), A.id("x"))),
-      })), false),
-      method_def("method", A.id("method"), method_fn({}, A.block({
-        A.ret(A.member(A.this_(), A.id("x"))),
-      })), false),
-    }),
-  })
-end)
+test(
+  "class Foo { constructor(x) { this.x = x; } method() { return this.x; } } — constructor + method",
+  function()
+    assert_parse_ok("class Foo { constructor(x) { this.x = x; } method() { return this.x; } }", {
+      class_decl("Foo", nil, {
+        method_def(
+          "constructor",
+          A.id("constructor"),
+          ctor_fn(
+            { A.id("x") },
+            A.block({
+              A.expr_stmt(A.bin("=", A.member(A.this_(), A.id("x")), A.id("x"))),
+            })
+          ),
+          false
+        ),
+        method_def(
+          "method",
+          A.id("method"),
+          method_fn(
+            {},
+            A.block({
+              A.ret(A.member(A.this_(), A.id("x"))),
+            })
+          ),
+          false
+        ),
+      }),
+    })
+  end
+)
 
 test("class Foo { a() {} b() {} } — multiple methods", function()
   assert_parse_ok("class Foo { a() {} b() {} }", {
@@ -101,15 +120,18 @@ test("class Foo { static a() {} b() {} } — static and non-static mixed", funct
   })
 end)
 
-test("class Foo { constructor() {} static create() { return 1; } method() {} } — all three types", function()
-  assert_parse_ok("class Foo { constructor() {} static create() { return 1; } method() {} }", {
-    class_decl("Foo", nil, {
-      method_def("constructor", A.id("constructor"), ctor_fn({}, A.block({})), false),
-      method_def("method", A.id("create"), method_fn({}, A.block({ A.ret(A.num(1)) })), true),
-      method_def("method", A.id("method"), method_fn({}, A.block({})), false),
-    }),
-  })
-end)
+test(
+  "class Foo { constructor() {} static create() { return 1; } method() {} } — all three types",
+  function()
+    assert_parse_ok("class Foo { constructor() {} static create() { return 1; } method() {} }", {
+      class_decl("Foo", nil, {
+        method_def("constructor", A.id("constructor"), ctor_fn({}, A.block({})), false),
+        method_def("method", A.id("create"), method_fn({}, A.block({ A.ret(A.num(1)) })), true),
+        method_def("method", A.id("method"), method_fn({}, A.block({})), false),
+      }),
+    })
+  end
+)
 
 test("super() — SuperExpression as callee of CallExpression", function()
   assert_parse_ok("super();", {
@@ -132,13 +154,7 @@ end)
 test("super.method().another() — chained calls on super", function()
   assert_parse_ok("super.method().another();", {
     A.expr_stmt(
-      A.call(
-        A.member(
-          A.call(A.member(super_expr(), A.id("method")), {}),
-          A.id("another")
-        ),
-        {}
-      )
+      A.call(A.member(A.call(A.member(super_expr(), A.id("method")), {}), A.id("another")), {})
     ),
   })
 end)
@@ -161,7 +177,7 @@ test("let F = class extends Bar {} — anonymous class expression with extends",
   })
 end)
 
-test("class Foo { \"my method\"() {} } — method with string key", function()
+test('class Foo { "my method"() {} } — method with string key', function()
   assert_parse_ok('class Foo { "my method"() {} }', {
     class_decl("Foo", nil, {
       method_def("method", A.str("my method"), method_fn({}, A.block({})), false),
@@ -184,5 +200,3 @@ end)
 test("class Foo { 42 } — invalid method name — error", function()
   assert_parse_fail("class Foo { 42 }", "Expected class body")
 end)
-
-T.summary()

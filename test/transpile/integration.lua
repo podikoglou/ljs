@@ -187,5 +187,3 @@ test("this keyword is now supported", function()
   local code = transpile_ok("this;")
   assert(code:find("_ljs_arrow_this"), "expected _ljs_arrow_this in output")
 end)
-
-T.summary()

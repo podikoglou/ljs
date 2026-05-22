@@ -182,10 +182,7 @@ end)
 
 test("parse do...while body is update expression", function()
   assert_parse_ok("do x++; while (y < 10);", {
-    A.do_while(
-      A.expr_stmt(A.update("++", A.id("x"), false)),
-      A.bin("<", A.id("y"), A.num(10))
-    ),
+    A.do_while(A.expr_stmt(A.update("++", A.id("x"), false)), A.bin("<", A.id("y"), A.num(10))),
   })
 end)
 
@@ -318,5 +315,3 @@ test("parse for...of", function()
     ),
   })
 end)
-
-T.summary()

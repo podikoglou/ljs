@@ -120,5 +120,3 @@ end)
 test("new without identifier — error", function()
   assert_parse_fail("new 42;", "Expected Identifier")
 end)
-
-T.summary()

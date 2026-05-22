@@ -96,5 +96,3 @@ test("for...in loop still works alongside in operator", function()
   ]])
   assert_eq(out, "2\n")
 end)
-
-T.summary()

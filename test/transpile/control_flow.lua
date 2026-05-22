@@ -207,5 +207,3 @@ test("for(;;) var init transpiles same as let", function()
   assert(code:find("local i = 0"), "var normalized to local")
   assert(code:find("while i < 3 do"), "expected while condition")
 end)
-
-T.summary()

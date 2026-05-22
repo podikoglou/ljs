@@ -71,7 +71,9 @@ end)
 
 test("in in && expression", function()
   assert_parse_ok('"x" in a && "y" in b;', {
-    A.expr_stmt(A.bin("&&", A.bin("in", A.str("x"), A.id("a")), A.bin("in", A.str("y"), A.id("b")))),
+    A.expr_stmt(
+      A.bin("&&", A.bin("in", A.str("x"), A.id("a")), A.bin("in", A.str("y"), A.id("b")))
+    ),
   })
 end)
 
@@ -181,5 +183,3 @@ end)
 test("error: in without right operand", function()
   assert_parse_fail('"x" in;', nil)
 end)
-
-T.summary()

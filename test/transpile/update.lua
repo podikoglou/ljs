@@ -105,5 +105,3 @@ test("prefix ++i returns new value", function()
   ]])
   assert_eq(output:gsub("%s+", ""), "6")
 end)
-
-T.summary()

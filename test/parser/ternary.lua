@@ -298,5 +298,3 @@ test("parse console.log", function()
     A.expr_stmt(A.call(A.member(A.id("console"), A.id("log")), { A.str("hello") })),
   })
 end)
-
-T.summary()

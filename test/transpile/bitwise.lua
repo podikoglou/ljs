@@ -941,5 +941,3 @@ test("~~5.7 truncates to int after refactor", function()
   local output = run_js("console.log(~~5.7);")
   assert_eq(output:gsub("%s+", ""), "5")
 end)
-
-T.summary()

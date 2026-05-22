@@ -43,5 +43,3 @@ test("this in return statement", function()
     A.func("f", {}, A.block({ A.ret(A.this_()) })),
   })
 end)
-
-T.summary()

@@ -121,5 +121,3 @@ test("new emits _ljs_new", function()
   local code = transpile_js("new Array(1, 2);")
   assert(code:find("_ljs_new"), "expected _ljs_new in output")
 end)
-
-T.summary()

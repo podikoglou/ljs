@@ -165,5 +165,3 @@ test("switch integration: switch inside while with break", function()
   assert(output:find("other"), "expected other for i=0")
   assert(output:find("one"), "expected one for i=1")
 end)
-
-T.summary()

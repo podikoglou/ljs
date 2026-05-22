@@ -107,5 +107,3 @@ test("try/catch/finally integration: empty finally block", function()
   ]])
   assert(output:find("1"), "expected 1")
 end)
-
-T.summary()

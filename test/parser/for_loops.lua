@@ -380,5 +380,3 @@ end)
 test("error: for with only one semicolon", function()
   assert_parse_fail("for (; ) { }", nil)
 end)
-
-T.summary()

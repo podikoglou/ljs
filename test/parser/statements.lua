@@ -79,5 +79,3 @@ test("parse var multi-declarator normalizes to let", function()
     }),
   })
 end)
-
-T.summary()

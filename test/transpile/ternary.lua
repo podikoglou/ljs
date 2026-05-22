@@ -86,5 +86,3 @@ test("ternary integration: side effects in taken branch do execute", function()
   )
   assert_eq(output:gsub("%s+", ""), "1")
 end)
-
-T.summary()

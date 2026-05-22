@@ -124,5 +124,3 @@ test("console.log with multiple args", function()
   local out = run_js('console.log("a", "b");')
   assert(out:find("a") and out:find("b"))
 end)
-
-T.summary()

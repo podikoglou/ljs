@@ -296,5 +296,3 @@ test("continue integration: for-of inside while with continue in both", function
   assert(output:find("1:20"), "expected 1:20")
   assert(output:find("3:20"), "expected 3:20")
 end)
-
-T.summary()

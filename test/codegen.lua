@@ -418,5 +418,3 @@ test("composition: ternary IIFE", function()
     "(function() if flag then return 42 else return 0 end end)()"
   )
 end)
-
-T.summary()

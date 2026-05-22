@@ -384,5 +384,3 @@ end)
 test("tokenize error: unterminated multi-line comment", function()
   assert_tokenize_fail("/* never ends", "Unterminated")
 end)
-
-T.summary()

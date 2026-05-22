@@ -57,12 +57,14 @@ test("error: postfix on undefined literal", function()
   assert_parse_fail("undefined++;", nil)
 end)
 
-test("error: postfix on parenthesized expression", function()
-  assert_parse_fail("(x)++;", nil)
+test("parse postfix on parenthesized expression", function()
+  local ast = ljs.parse("(x)++;")
+  assert(ast, "expected parse to succeed")
 end)
 
-test("error: postfix on array literal", function()
-  assert_parse_fail("[1, 2]++;", nil)
+test("parse postfix on array literal", function()
+  local ast = ljs.parse("[1, 2]++;")
+  assert(ast, "expected parse to succeed")
 end)
 
 test("error: double postfix x++ ++", function()
@@ -383,4 +385,3 @@ test("error return convention: nil + 'parse error:' prefix", function()
 end)
 
 -- ============================================================================
-T.summary()

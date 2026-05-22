@@ -443,5 +443,3 @@ test("parse -x++ (unary minus on postfix)", function()
     A.expr_stmt(A.una("-", A.update("++", A.id("x"), false))),
   })
 end)
-
-T.summary()

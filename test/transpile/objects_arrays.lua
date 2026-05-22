@@ -138,5 +138,3 @@ test("method shorthand mixed with shorthand property", function()
   local cleaned = output:gsub("%s+", "")
   assert_eq(cleaned, "worldhelloworld")
 end)
-
-T.summary()

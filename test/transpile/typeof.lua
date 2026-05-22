@@ -398,5 +398,3 @@ if (typeof x === "number") {
     error("load failed: " .. tostring(err) .. "\ncode:\n" .. code)
   end
 end)
-
-T.summary()

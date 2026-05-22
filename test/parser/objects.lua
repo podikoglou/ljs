@@ -306,5 +306,3 @@ test("key:value with function expression still works", function()
     ),
   })
 end)
-
-T.summary()

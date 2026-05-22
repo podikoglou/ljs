@@ -226,5 +226,3 @@ test("delete member in switch case", function()
   assert(code:find('rawset(obj, "prop", nil)', 1, true), "expected rawset in case")
   assert(code:find("_ljs_sw == 1", 1, true), "expected case comparison")
 end)
-
-T.summary()

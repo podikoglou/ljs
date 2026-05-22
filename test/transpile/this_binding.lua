@@ -153,5 +153,3 @@ test("this in nested object method binds to inner object", function()
   ]])
   assert_eq(output:gsub("%s+", ""), "99")
 end)
-
-T.summary()
