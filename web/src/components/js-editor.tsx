@@ -1,8 +1,8 @@
-import type { ReactNode } from 'react'
-import CodeMirror from '@uiw/react-codemirror'
-import { javascript } from '@codemirror/lang-javascript'
-import { flexokiDark } from '../theme/flexoki'
-import Panel from './panel'
+import type { ReactNode } from "react";
+import CodeMirror from "@uiw/react-codemirror";
+import { javascript } from "@codemirror/lang-javascript";
+import { flexokiDark } from "../theme/flexoki";
+import Panel from "./panel";
 
 const cmSetup = {
   lineNumbers: true,
@@ -12,15 +12,15 @@ const cmSetup = {
   highlightActiveLineGutter: false,
   closeBrackets: true,
   indentOnInput: true,
-}
+};
 
 interface JsEditorProps {
-  source: string
-  onSourceChange: (source: string) => void
-  ready: boolean
-  onRun: () => void
-  error?: string | null
-  action?: ReactNode
+  source: string;
+  onSourceChange: (source: string) => void;
+  ready: boolean;
+  onRun: () => void;
+  error?: string | null;
+  action?: ReactNode;
 }
 
 export default function JsEditor({ source, onSourceChange, ready, onRun, action }: JsEditorProps) {
@@ -52,5 +52,5 @@ export default function JsEditor({ source, onSourceChange, ready, onRun, action 
         />
       </Panel>
     </div>
-  )
+  );
 }

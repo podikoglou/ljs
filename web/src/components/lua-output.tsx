@@ -1,8 +1,8 @@
-import CodeMirror from '@uiw/react-codemirror'
-import { StreamLanguage } from '@codemirror/language'
-import { lua } from '@codemirror/legacy-modes/mode/lua'
-import { flexokiDark } from '../theme/flexoki'
-import Panel from './panel'
+import CodeMirror from "@uiw/react-codemirror";
+import { StreamLanguage } from "@codemirror/language";
+import { lua } from "@codemirror/legacy-modes/mode/lua";
+import { flexokiDark } from "../theme/flexoki";
+import Panel from "./panel";
 
 const cmSetup = {
   lineNumbers: true,
@@ -10,13 +10,13 @@ const cmSetup = {
   bracketMatching: true,
   foldGutter: false,
   highlightActiveLineGutter: false,
-}
+};
 
-const luaExtensions = [StreamLanguage.define(lua)]
+const luaExtensions = [StreamLanguage.define(lua)];
 
 interface LuaOutputProps {
-  code: string
-  error?: string | null
+  code: string;
+  error?: string | null;
 }
 
 export default function LuaOutput({ code, error }: LuaOutputProps) {
@@ -39,5 +39,5 @@ export default function LuaOutput({ code, error }: LuaOutputProps) {
         />
       </Panel>
     </div>
-  )
+  );
 }

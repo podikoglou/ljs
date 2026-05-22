@@ -1,8 +1,8 @@
-import Panel from './panel'
+import Panel from "./panel";
 
 interface ConsoleProps {
-  lines: string[]
-  error: string | null
+  lines: string[];
+  error: string | null;
 }
 
 export default function Console({ lines, error }: ConsoleProps) {
@@ -15,5 +15,5 @@ export default function Console({ lines, error }: ConsoleProps) {
         ))}
       </div>
     </Panel>
-  )
+  );
 }

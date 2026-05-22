@@ -1,10 +1,10 @@
-import type { ReactNode } from 'react'
+import type { ReactNode } from "react";
 
 interface PanelProps {
-  label: string
-  action?: ReactNode
-  children: ReactNode
-  className?: string
+  label: string;
+  action?: ReactNode;
+  children: ReactNode;
+  className?: string;
 }
 
 export default function Panel({ label, action, children, className }: PanelProps) {
@@ -16,5 +16,5 @@ export default function Panel({ label, action, children, className }: PanelProps
       </div>
       <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
     </div>
-  )
+  );
 }
