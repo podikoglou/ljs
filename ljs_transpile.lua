@@ -146,6 +146,12 @@ HELPERS._ljs_instanceof = [[local function _ljs_instanceof(value, ctor)
   return false
 end]]
 
+HELPERS._ljs_super_call = [[local function _ljs_super_call(proto, key, this_val, ...)
+  return proto[key](this_val, ...)
+end]]
+
+local class_super_stack = {}
+
 -- ============================================================================
 -- Section 3: Pass 1 — Analysis (scope tracker, helper detection)
 -- ============================================================================
@@ -412,6 +418,56 @@ local function analyze_node(node, meta, scopes)
     for _, elem in ipairs(node.elements) do
       analyze_node(elem, meta, scopes)
     end
+  elseif t == "ClassDeclaration" then
+    scope_declare(scopes, node.name)
+    meta.needed_helpers["_ljs_ctor"] = true
+    meta.needed_helpers["_ljs_object_create"] = true
+    if node.superClass then
+      analyze_node(node.superClass, meta, scopes)
+    end
+    scope_push(scopes)
+    scope_declare(scopes, node.name)
+    for _, m in ipairs(node.body) do
+      if m.kind == "constructor" then
+        scope_push(scopes)
+        for _, p in ipairs(m.value.params) do
+          scope_declare(scopes, p.name)
+        end
+        analyze_node(m.value.body, meta, scopes)
+        scope_pop(scopes)
+      else
+        scope_push(scopes)
+        for _, p in ipairs(m.value.params) do
+          scope_declare(scopes, p.name)
+        end
+        analyze_node(m.value.body, meta, scopes)
+        scope_pop(scopes)
+      end
+    end
+    scope_pop(scopes)
+  elseif t == "ClassExpression" then
+    meta.needed_helpers["_ljs_ctor"] = true
+    meta.needed_helpers["_ljs_object_create"] = true
+    if node.superClass then
+      analyze_node(node.superClass, meta, scopes)
+    end
+    scope_push(scopes)
+    if node.name then
+      scope_declare(scopes, node.name)
+    end
+    for _, m in ipairs(node.body) do
+      scope_push(scopes)
+      for _, p in ipairs(m.value.params) do
+        scope_declare(scopes, p.name)
+      end
+      analyze_node(m.value.body, meta, scopes)
+      scope_pop(scopes)
+    end
+    scope_pop(scopes)
+  elseif t == "MethodDefinition" then
+    analyze_node(node.value, meta, scopes)
+  elseif t == "SuperExpression" then
+    meta.needed_helpers["_ljs_super_call"] = true
   end
 end
 
@@ -634,6 +690,276 @@ gen.FunctionDeclaration = function(node, indent, scopes)
     cg.call("_ljs_ctor", { cg.fn_expr(cg.join(params), body, indent) }),
     indent
   )
+end
+
+gen.ClassDeclaration = function(node, indent, scopes)
+  scope_declare(scopes, node.name)
+
+  local class_name = node.name
+  local has_super = node.superClass ~= nil
+  local super_code = has_super and emit(node.superClass, indent, scopes) or nil
+
+  if has_super then
+    class_super_stack[#class_super_stack + 1] = super_code
+  end
+
+  local constructor_method = nil
+  local methods = {}
+  local statics = {}
+
+  for _, m in ipairs(node.body) do
+    if m.kind == "constructor" then
+      constructor_method = m
+    elseif m.static then
+      statics[#statics + 1] = m
+    else
+      methods[#methods + 1] = m
+    end
+  end
+
+  local params
+  local body_code
+
+  if constructor_method then
+    params = { "_ljs_this" }
+    for _, p in ipairs(constructor_method.value.params) do
+      params[#params + 1] = p.name
+    end
+    scope_push(scopes)
+    for _, p in ipairs(constructor_method.value.params) do
+      scope_declare(scopes, p.name)
+    end
+    body_code = emit(constructor_method.value.body, indent, scopes)
+    body_code = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. body_code
+    scope_pop(scopes)
+  elseif has_super then
+    params = { "_ljs_this", "..." }
+    body_code = cg.expr_stmt(
+      cg.call(super_code, { "_ljs_arrow_this", "..." }),
+      indent + 1
+    )
+    body_code = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. body_code
+  else
+    params = { "_ljs_this" }
+    body_code = ""
+  end
+
+  local ctor_fn = cg.fn_expr(cg.join(params), body_code, indent)
+  local out = cg.local_decl(class_name, cg.call("_ljs_ctor", { ctor_fn }), indent)
+
+  if has_super then
+    local proto_setup = cg.expr_stmt(
+      cg.binop("=",
+        cg.member_dot(class_name, "prototype"),
+        cg.call("_ljs_object_create", { cg.nil_val(), cg.member_dot(super_code, "prototype") })
+      ),
+      indent
+    )
+    out = out .. proto_setup
+    out = out .. cg.expr_stmt(
+      cg.binop("=",
+        cg.member_dot(cg.member_dot(class_name, "prototype"), "constructor"),
+        class_name
+      ),
+      indent
+    )
+  end
+
+  for _, m in ipairs(methods) do
+    local m_params = { "_ljs_this" }
+    for _, p in ipairs(m.value.params) do
+      m_params[#m_params + 1] = p.name
+    end
+    scope_push(scopes)
+    for _, p in ipairs(m.value.params) do
+      scope_declare(scopes, p.name)
+    end
+    local m_body = emit(m.value.body, indent, scopes)
+    m_body = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. m_body
+    scope_pop(scopes)
+    local m_fn = cg.fn_expr(cg.join(m_params), m_body, indent)
+    local key_str
+    if m.key.type == "Identifier" then
+      key_str = cg.string(m.key.name)
+    else
+      key_str = cg.string(m.key.value)
+    end
+    out = out .. cg.expr_stmt(
+      cg.binop("=",
+        cg.member_index(cg.member_dot(class_name, "prototype"), key_str),
+        m_fn
+      ),
+      indent
+    )
+  end
+
+  for _, m in ipairs(statics) do
+    local m_params = { "_ljs_this" }
+    for _, p in ipairs(m.value.params) do
+      m_params[#m_params + 1] = p.name
+    end
+    scope_push(scopes)
+    for _, p in ipairs(m.value.params) do
+      scope_declare(scopes, p.name)
+    end
+    local m_body = emit(m.value.body, indent, scopes)
+    m_body = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. m_body
+    scope_pop(scopes)
+    local m_fn = cg.fn_expr(cg.join(m_params), m_body, indent)
+    local key_str
+    if m.key.type == "Identifier" then
+      key_str = cg.string(m.key.name)
+    else
+      key_str = cg.string(m.key.value)
+    end
+    out = out .. cg.expr_stmt(
+      cg.binop("=",
+        cg.member_index(class_name, key_str),
+        m_fn
+      ),
+      indent
+    )
+  end
+
+  if has_super then
+    class_super_stack[#class_super_stack] = nil
+  end
+
+  return out
+end
+
+gen.ClassExpression = function(node, indent, scopes)
+  local class_name = node.name or "_ljs_class"
+  local has_super = node.superClass ~= nil
+  local super_code = has_super and emit(node.superClass, indent, scopes) or nil
+
+  if has_super then
+    class_super_stack[#class_super_stack + 1] = super_code
+  end
+
+  local constructor_method = nil
+  local methods = {}
+  local statics = {}
+
+  for _, m in ipairs(node.body) do
+    if m.kind == "constructor" then
+      constructor_method = m
+    elseif m.static then
+      statics[#statics + 1] = m
+    else
+      methods[#methods + 1] = m
+    end
+  end
+
+  local params
+  local body_code
+
+  if constructor_method then
+    params = { "_ljs_this" }
+    for _, p in ipairs(constructor_method.value.params) do
+      params[#params + 1] = p.name
+    end
+    scope_push(scopes)
+    if node.name then
+      scope_declare(scopes, node.name)
+    end
+    for _, p in ipairs(constructor_method.value.params) do
+      scope_declare(scopes, p.name)
+    end
+    body_code = emit(constructor_method.value.body, indent, scopes)
+    body_code = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. body_code
+    scope_pop(scopes)
+  elseif has_super then
+    params = { "_ljs_this", "..." }
+    body_code = cg.expr_stmt(
+      cg.call(super_code, { "_ljs_arrow_this", "..." }),
+      indent + 1
+    )
+    body_code = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. body_code
+  else
+    params = { "_ljs_this" }
+    body_code = ""
+  end
+
+  local ctor_fn = cg.fn_expr(cg.join(params), body_code, indent)
+
+  local iife_stmts = {}
+  iife_stmts[#iife_stmts + 1] = cg.local_inline(class_name, cg.call("_ljs_ctor", { ctor_fn }))
+
+  if has_super then
+    iife_stmts[#iife_stmts + 1] = cg.binop("=",
+      cg.member_dot(class_name, "prototype"),
+      cg.call("_ljs_object_create", { cg.nil_val(), cg.member_dot(super_code, "prototype") })
+    )
+    iife_stmts[#iife_stmts + 1] = cg.binop("=",
+      cg.member_dot(cg.member_dot(class_name, "prototype"), "constructor"),
+      class_name
+    )
+  end
+
+  for _, m in ipairs(methods) do
+    local m_params = { "_ljs_this" }
+    for _, p in ipairs(m.value.params) do
+      m_params[#m_params + 1] = p.name
+    end
+    scope_push(scopes)
+    if node.name then
+      scope_declare(scopes, node.name)
+    end
+    for _, p in ipairs(m.value.params) do
+      scope_declare(scopes, p.name)
+    end
+    local m_body = emit(m.value.body, indent, scopes)
+    m_body = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. m_body
+    scope_pop(scopes)
+    local m_fn = cg.fn_expr(cg.join(m_params), m_body, indent)
+    local key_str
+    if m.key.type == "Identifier" then
+      key_str = cg.string(m.key.name)
+    else
+      key_str = cg.string(m.key.value)
+    end
+    iife_stmts[#iife_stmts + 1] = cg.binop("=",
+      cg.member_index(cg.member_dot(class_name, "prototype"), key_str),
+      m_fn
+    )
+  end
+
+  for _, m in ipairs(statics) do
+    local m_params = { "_ljs_this" }
+    for _, p in ipairs(m.value.params) do
+      m_params[#m_params + 1] = p.name
+    end
+    scope_push(scopes)
+    if node.name then
+      scope_declare(scopes, node.name)
+    end
+    for _, p in ipairs(m.value.params) do
+      scope_declare(scopes, p.name)
+    end
+    local m_body = emit(m.value.body, indent, scopes)
+    m_body = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. m_body
+    scope_pop(scopes)
+    local m_fn = cg.fn_expr(cg.join(m_params), m_body, indent)
+    local key_str
+    if m.key.type == "Identifier" then
+      key_str = cg.string(m.key.name)
+    else
+      key_str = cg.string(m.key.value)
+    end
+    iife_stmts[#iife_stmts + 1] = cg.binop("=",
+      cg.member_index(class_name, key_str),
+      m_fn
+    )
+  end
+
+  iife_stmts[#iife_stmts + 1] = cg.return_inline(class_name)
+
+  if has_super then
+    class_super_stack[#class_super_stack] = nil
+  end
+
+  return cg.iife(iife_stmts)
 end
 
 gen.FunctionExpression = function(node, indent, scopes)
@@ -984,9 +1310,38 @@ gen.CallExpression = function(node, indent, scopes)
     args[#args + 1] = emit(a, indent, scopes)
   end
 
+  if node.callee.type == "SuperExpression" then
+    local super_parent = class_super_stack[#class_super_stack]
+    local call_args = { "_ljs_arrow_this" }
+    for _, a in ipairs(args) do
+      call_args[#call_args + 1] = a
+    end
+    return cg.call(super_parent, call_args)
+  end
+
   local builtin = lookup_builtin(node, scopes)
   if builtin then
     return cg.call(builtin.helper, args)
+  end
+
+  if node.callee.type == "MemberExpression" and node.callee.object.type == "SuperExpression" then
+    local super_parent = class_super_stack[#class_super_stack]
+    local proto = cg.member_dot(super_parent, "prototype")
+    local key_expr
+    if node.callee.computed then
+      if node.callee.property.type == "StringLiteral" then
+        key_expr = emit(node.callee.property, indent, scopes)
+      else
+        key_expr = cg.binop("+", cg.paren(emit(node.callee.property, indent, scopes)), "1")
+      end
+    else
+      key_expr = cg.string(node.callee.property.name)
+    end
+    local call_args = { proto, key_expr, "_ljs_arrow_this" }
+    for _, a in ipairs(args) do
+      call_args[#call_args + 1] = a
+    end
+    return cg.call("_ljs_super_call", call_args)
   end
 
   if node.callee.type == "MemberExpression" then
@@ -1024,6 +1379,17 @@ gen.NewExpression = function(node, indent, scopes)
 end
 
 gen.MemberExpression = function(node, indent, scopes)
+  if node.object.type == "SuperExpression" then
+    local super_parent = class_super_stack[#class_super_stack]
+    local proto = cg.member_dot(super_parent, "prototype")
+    if node.computed then
+      if node.property.type == "StringLiteral" then
+        return cg.member_index(proto, emit(node.property, indent, scopes))
+      end
+      return cg.member_index(proto, cg.binop("+", cg.paren(emit(node.property, indent, scopes)), "1"))
+    end
+    return cg.member_dot(proto, node.property.name)
+  end
   local obj = emit(node.object, indent, scopes)
   if node.computed then
     if node.property.type == "StringLiteral" then
