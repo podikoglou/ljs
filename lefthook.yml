@@ -4,6 +4,10 @@ pre-commit:
       glob: "*.{js,ts,jsx,tsx}"
       run: oxfmt --write {staged_files}
 
+    - name: oxlint
+      glob: "web/**/*.{js,ts,jsx,tsx}"
+      run: cd web && bun run lint
+
     - name: stylua
       glob: "*.lua"
       run: stylua --check {staged_files}
