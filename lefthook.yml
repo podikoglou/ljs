@@ -8,6 +8,10 @@ pre-commit:
       glob: "web/**/*.{js,ts,jsx,tsx}"
       run: cd web && bun run lint
 
+    - name: web tests
+      glob: "web/**/*.{js,ts,jsx,tsx}"
+      run: cd web && bun run test
+
     - name: stylua
       glob: "*.lua"
       run: stylua --check {staged_files}
