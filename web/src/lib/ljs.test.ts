@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'bun:test'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { transpile, run, setVM, type LuaVM, type RunResult } from './ljs-core'
 
 class StubVM implements LuaVM {
