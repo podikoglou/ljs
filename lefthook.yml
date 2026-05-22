@@ -1,8 +1,8 @@
 pre-commit:
   jobs:
     - name: oxfmt
-      glob: "*.{js,ts,jsx,tsx}"
-      run: oxfmt --write {staged_files}
+      glob: "web/**/*.{js,ts,jsx,tsx}"
+      run: cd web && bun run fmt
 
     - name: oxlint
       glob: "web/**/*.{js,ts,jsx,tsx}"
