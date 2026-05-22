@@ -1,8 +1,13 @@
 import CodeMirror from "@uiw/react-codemirror";
 import { StreamLanguage } from "@codemirror/language";
 import { lua } from "@codemirror/legacy-modes/mode/lua";
+import { EditorView } from "@codemirror/view";
 import { flexokiDark } from "../theme/flexoki";
 import Panel from "./panel";
+
+const scrollbar = EditorView.theme({
+  ".cm-scroller": { overflow: "auto" },
+});
 
 const cmSetup = {
   lineNumbers: true,
@@ -12,7 +17,7 @@ const cmSetup = {
   highlightActiveLineGutter: false,
 };
 
-const luaExtensions = [StreamLanguage.define(lua)];
+const luaExtensions = [StreamLanguage.define(lua), scrollbar];
 
 interface LuaOutputProps {
   code: string;
