@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Allotment } from "allotment";
+import { useHotkeys } from "react-hotkeys-hook";
 import "allotment/dist/style.css";
 import { transpile, run, type RunResult } from "./lib/ljs";
 import JsEditor from "./components/js-editor";
@@ -65,10 +66,19 @@ export default function App() {
     });
   }, [jsSource]);
 
+  useHotkeys(
+    "ctrl+enter",
+    handleRun,
+    { enabled: false, enableOnFormTags: true, enableOnContentEditable: true },
+    [handleRun],
+  );
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex shrink-0 items-center border-b border-base-850 px-3 py-0.5">
-        <Button disabled={!ready} onClick={handleRun}>Run</Button>
+        <Button disabled={!ready} onClick={handleRun}>
+          Run
+        </Button>
       </div>
       <div className="min-h-0 flex-1">
         <Allotment
@@ -80,7 +90,7 @@ export default function App() {
             defaultSizes={loadSizes("allotment-horizontal", [50, 50])}
             onChange={(s) => saveSizes("allotment-horizontal", s)}
           >
-            <JsEditor source={jsSource} onSourceChange={setJsSource} />
+            <JsEditor source={jsSource} onSourceChange={setJsSource} onRun={handleRun} />
             <LuaOutput code={luaOutput} error={transpileError} />
           </Allotment>
           <Console error={runError} lines={consoleOutput} />
