@@ -13,7 +13,7 @@ export default function Panel({ label, action, children }: PanelProps) {
         <span className="text-xs text-base-400">{label}</span>
         {action}
       </div>
-      <div className="min-h-0 flex-1 grid overflow-hidden">{children}</div>
+      <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
     </div>
   )
 }
