@@ -59,3 +59,8 @@ body {
   background: var(--color-black);
   color: var(--color-base-200);
 }
+
+:root {
+  --separator-border: #343331;
+  --focus-border: #575653;
+}

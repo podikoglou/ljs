@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Allotment } from "allotment";
+import "allotment/dist/style.css";
 import { transpile, run, type RunResult } from "./lib/ljs";
 import JsEditor from "./components/js-editor";
 import LuaOutput from "./components/lua-output";
@@ -50,10 +52,12 @@ export default function App() {
   }, [jsSource]);
 
   return (
-    <div className="grid h-full grid-cols-2 grid-rows-[1fr_auto]">
-      <JsEditor source={jsSource} onSourceChange={setJsSource} ready={ready} onRun={handleRun} />
-      <LuaOutput code={luaOutput} error={transpileError} />
+    <Allotment vertical>
+      <Allotment>
+        <JsEditor source={jsSource} onSourceChange={setJsSource} ready={ready} onRun={handleRun} />
+        <LuaOutput code={luaOutput} error={transpileError} />
+      </Allotment>
       <Console error={runError} lines={consoleOutput} />
-    </div>
+    </Allotment>
   );
 }
