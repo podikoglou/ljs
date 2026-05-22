@@ -50,7 +50,7 @@ export default function App() {
         }
         setReady(true);
       });
-    }, 300);
+    }, 150);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
