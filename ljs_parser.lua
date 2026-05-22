@@ -113,6 +113,10 @@ local TOKEN = {
   -- Arrow function
   ARROW = "=>",
   NEW = "new",
+  CLASS = "class",
+  EXTENDS = "extends",
+  SUPER = "super",
+  STATIC = "static",
 
   UNDEFINED = "Undefined",
   DELETE = "delete",
@@ -162,6 +166,10 @@ local KEYWORDS = {
   ["typeof"] = TOKEN.TYPEOF,
   ["instanceof"] = TOKEN.INSTANCEOF,
   ["new"] = TOKEN.NEW,
+  ["class"] = TOKEN.CLASS,
+  ["extends"] = TOKEN.EXTENDS,
+  ["super"] = TOKEN.SUPER,
+  ["static"] = TOKEN.STATIC,
 }
 
 -- ============================================================================
@@ -806,6 +814,22 @@ local function new_expression(callee, arguments)
   return { type = "NewExpression", callee = callee, arguments = arguments }
 end
 
+local function class_declaration(name, superClass, body)
+  return { type = "ClassDeclaration", name = name, superClass = superClass, body = body }
+end
+
+local function class_expression(name, superClass, body)
+  return { type = "ClassExpression", name = name, superClass = superClass, body = body }
+end
+
+local function method_definition(kind, key, value, static_flag)
+  return { type = "MethodDefinition", kind = kind, key = key, value = value, static = static_flag }
+end
+
+local function super_expression()
+  return { type = "SuperExpression" }
+end
+
 --- @param test (table) Condition expression
 --- @param consequent (table) Expression if truthy
 --- @param alternate (table) Expression if falsy
@@ -1149,6 +1173,8 @@ function parse_statement(stream)
     return parse_try_statement(stream)
   elseif stream.is(TOKEN.FUNCTION) then
     return parse_function_declaration(stream)
+  elseif stream.is(TOKEN.CLASS) then
+    return parse_class_declaration(stream)
   elseif stream.is(TOKEN.RETURN) then
     return parse_return_statement(stream)
   elseif stream.is(TOKEN.SWITCH) then
@@ -1526,6 +1552,98 @@ function parse_function_declaration(stream)
     return nil, "Expected block after function parameters"
   end
   return function_declaration(name, params, body)
+end
+
+function parse_class_body(stream)
+  stream.consume(TOKEN.LBRACE)
+  local methods = {}
+  while not stream.is(TOKEN.RBRACE) and not stream.eof() do
+    local is_static = false
+    if stream.is(TOKEN.STATIC) then
+      local next_tok = stream.peek_n(2)
+      if next_tok and next_tok.type ~= TOKEN.LPAREN then
+        stream.advance()
+        is_static = true
+      end
+    end
+    local key
+    local kind = "method"
+    if stream.is(TOKEN.IDENTIFIER) then
+      local key_token = stream.advance()
+      key = identifier(key_token.value, key_token)
+      if key_token.value == "constructor" then
+        kind = "constructor"
+      end
+    elseif stream.is(TOKEN.STRING) then
+      local key_token = stream.advance()
+      key = string_literal(key_token.value, key_token)
+    else
+      return nil, "Expected method name in class body"
+    end
+    stream.consume(TOKEN.LPAREN)
+    local params = parse_parameters(stream)
+    stream.consume(TOKEN.RPAREN)
+    local body = parse_block_statement(stream)
+    if not body then
+      return nil, "Expected block after method parameters"
+    end
+    local fn = {
+      type = "FunctionExpression",
+      params = params,
+      body = body,
+      is_method = true,
+    }
+    if kind == "constructor" then
+      fn.is_method = false
+    end
+    table.insert(methods, method_definition(kind, key, fn, is_static))
+  end
+  stream.consume(TOKEN.RBRACE)
+  return methods
+end
+
+function parse_class_declaration(stream)
+  stream.consume(TOKEN.CLASS)
+  local name_token = stream.consume(TOKEN.IDENTIFIER)
+  local name = name_token.value
+  local superClass = nil
+  if stream.is(TOKEN.EXTENDS) then
+    stream.advance()
+    superClass = parse_expression(stream)
+    if not superClass then
+      return nil, "Expected expression after extends"
+    end
+  end
+  local body = parse_class_body(stream)
+  if not body then
+    return nil, "Expected class body"
+  end
+  return class_declaration(name, superClass, body)
+end
+
+function parse_class_expression(stream)
+  stream.consume(TOKEN.CLASS)
+  local name = nil
+  if stream.is(TOKEN.IDENTIFIER) then
+    local next_tok = stream.peek_n(2)
+    if next_tok and next_tok.type ~= TOKEN.LPAREN then
+      local name_token = stream.advance()
+      name = name_token.value
+    end
+  end
+  local superClass = nil
+  if stream.is(TOKEN.EXTENDS) then
+    stream.advance()
+    superClass = parse_expression(stream)
+    if not superClass then
+      return nil, "Expected expression after extends"
+    end
+  end
+  local body = parse_class_body(stream)
+  if not body then
+    return nil, "Expected class body"
+  end
+  return class_expression(name, superClass, body)
 end
 
 --- Parse return: return expression?;
@@ -1930,6 +2048,9 @@ function parse_primary_expression(stream)
   elseif stream.is(TOKEN.THIS) then
     stream.advance()
     return parse_postfix(stream, this_expression())
+  elseif stream.is(TOKEN.SUPER) then
+    stream.advance()
+    return parse_postfix(stream, super_expression())
   elseif stream.is(TOKEN.IDENTIFIER) then
     return parse_identifier_or_call(stream)
   -- Parenthesized expression OR arrow function with parenthesized params.
@@ -1998,6 +2119,8 @@ function parse_primary_expression(stream)
     return parse_function_expression(stream)
   elseif stream.is(TOKEN.ARROW) then
     return nil, "Unexpected arrow token"
+  elseif stream.is(TOKEN.CLASS) then
+    return parse_class_expression(stream)
   else
     return nil,
       string.format("Unexpected token %s at line %d, col %d", token.type, token.line, token.col)
