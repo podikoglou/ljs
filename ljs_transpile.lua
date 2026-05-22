@@ -2,6 +2,19 @@ local ljs_transpile = {}
 
 local cg = require("ljs_codegen")
 
+local function read_runtime(name)
+  local info = debug.getinfo(1, "S")
+  local dir = info.source:gsub("^@", ""):match("^(.*/)")
+  local path = dir .. "ljs_runtime/" .. name .. ".lua"
+  local f = io.open(path, "r")
+  if not f then
+    error("cannot open runtime file: " .. path)
+  end
+  local content = f:read("*a")
+  f:close()
+  return content .. "\n"
+end
+
 -- ============================================================================
 -- Section 2: Helper definitions (HELPERS registry)
 -- ============================================================================
@@ -1500,70 +1513,13 @@ local function generate(ast, meta)
   if #prefix > 0 then
     prefix = prefix .. "\n\n"
   end
-  local proto_decl = "local _ljs_object_prototype = {}\n\nlocal _ljs_function_prototype = {}\n\n"
-  local runtime_init = [[
-_ljs_object_prototype.toString = function(_ljs_this)
-  return "[object Object]"
-end
-_ljs_object_prototype.hasOwnProperty = function(_ljs_this, key)
-  return rawget(_ljs_this, key) ~= nil
-end
-_ljs_object_prototype.valueOf = function(_ljs_this)
-  return _ljs_this
-end
-
-local Object = _ljs_ctor(function(_ljs_this)
-  return _ljs_this
-end)
-Object.prototype = _ljs_object_prototype
-Object.prototype.constructor = Object
-Object.create = _ljs_object_create
-
-_ljs_function_prototype.call = function(_ljs_this, thisArg, ...)
-  return _ljs_this(thisArg, ...)
-end
-_ljs_function_prototype.apply = function(_ljs_this, thisArg, args)
-  if args == nil then
-    return _ljs_this(thisArg)
-  end
-  local _unpack = unpack or table.unpack
-  return _ljs_this(thisArg, _unpack(args, 1, args.length))
-end
-setmetatable(_ljs_function_prototype, { __index = _ljs_object_prototype })
-
-local Function = _ljs_ctor(nil)
-Function.prototype = _ljs_function_prototype
-
-local Array = _ljs_ctor(function(_ljs_this, ...)
-  local n = select("#", ...)
-  for i = 1, n do
-    _ljs_this[i] = select(i, ...)
-  end
-  _ljs_this.length = n
-end)
-Array.prototype.push = function(_ljs_this, ...)
-  local n = select("#", ...)
-  for i = 1, n do
-    _ljs_this[_ljs_this.length + i] = select(i, ...)
-  end
-  _ljs_this.length = _ljs_this.length + n
-  return _ljs_this.length
-end
-Array.prototype.pop = function(_ljs_this)
-  if _ljs_this.length == 0 then return nil end
-  local val = _ljs_this[_ljs_this.length]
-  _ljs_this[_ljs_this.length] = nil
-  _ljs_this.length = _ljs_this.length - 1
-  return val
-end
-
-local console = _ljs_object({})
-console.log = _ljs_fn(function(_ljs_this, ...)
-  print(...)
-end)
-
-]]
-  return proto_decl .. prefix .. runtime_init .. code
+  return read_runtime("proto")
+    .. prefix
+    .. read_runtime("object")
+    .. read_runtime("function")
+    .. read_runtime("array")
+    .. read_runtime("console")
+    .. code
 end
 
 -- ============================================================================
