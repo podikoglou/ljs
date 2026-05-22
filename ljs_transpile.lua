@@ -734,10 +734,7 @@ gen.ClassDeclaration = function(node, indent, scopes)
     scope_pop(scopes)
   elseif has_super then
     params = { "_ljs_this", "..." }
-    body_code = cg.expr_stmt(
-      cg.call(super_code, { "_ljs_arrow_this", "..." }),
-      indent + 1
-    )
+    body_code = cg.expr_stmt(cg.call(super_code, { "_ljs_arrow_this", "..." }), indent + 1)
     body_code = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. body_code
   else
     params = { "_ljs_this" }
@@ -749,20 +746,23 @@ gen.ClassDeclaration = function(node, indent, scopes)
 
   if has_super then
     local proto_setup = cg.expr_stmt(
-      cg.binop("=",
+      cg.binop(
+        "=",
         cg.member_dot(class_name, "prototype"),
         cg.call("_ljs_object_create", { cg.nil_val(), cg.member_dot(super_code, "prototype") })
       ),
       indent
     )
     out = out .. proto_setup
-    out = out .. cg.expr_stmt(
-      cg.binop("=",
-        cg.member_dot(cg.member_dot(class_name, "prototype"), "constructor"),
-        class_name
-      ),
-      indent
-    )
+    out = out
+      .. cg.expr_stmt(
+        cg.binop(
+          "=",
+          cg.member_dot(cg.member_dot(class_name, "prototype"), "constructor"),
+          class_name
+        ),
+        indent
+      )
   end
 
   for _, m in ipairs(methods) do
@@ -784,13 +784,11 @@ gen.ClassDeclaration = function(node, indent, scopes)
     else
       key_str = cg.string(m.key.value)
     end
-    out = out .. cg.expr_stmt(
-      cg.binop("=",
-        cg.member_index(cg.member_dot(class_name, "prototype"), key_str),
-        m_fn
-      ),
-      indent
-    )
+    out = out
+      .. cg.expr_stmt(
+        cg.binop("=", cg.member_index(cg.member_dot(class_name, "prototype"), key_str), m_fn),
+        indent
+      )
   end
 
   for _, m in ipairs(statics) do
@@ -812,13 +810,7 @@ gen.ClassDeclaration = function(node, indent, scopes)
     else
       key_str = cg.string(m.key.value)
     end
-    out = out .. cg.expr_stmt(
-      cg.binop("=",
-        cg.member_index(class_name, key_str),
-        m_fn
-      ),
-      indent
-    )
+    out = out .. cg.expr_stmt(cg.binop("=", cg.member_index(class_name, key_str), m_fn), indent)
   end
 
   if has_super then
@@ -871,10 +863,7 @@ gen.ClassExpression = function(node, indent, scopes)
     scope_pop(scopes)
   elseif has_super then
     params = { "_ljs_this", "..." }
-    body_code = cg.expr_stmt(
-      cg.call(super_code, { "_ljs_arrow_this", "..." }),
-      indent + 1
-    )
+    body_code = cg.expr_stmt(cg.call(super_code, { "_ljs_arrow_this", "..." }), indent + 1)
     body_code = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. body_code
   else
     params = { "_ljs_this" }
@@ -887,11 +876,13 @@ gen.ClassExpression = function(node, indent, scopes)
   iife_stmts[#iife_stmts + 1] = cg.local_inline(class_name, cg.call("_ljs_ctor", { ctor_fn }))
 
   if has_super then
-    iife_stmts[#iife_stmts + 1] = cg.binop("=",
+    iife_stmts[#iife_stmts + 1] = cg.binop(
+      "=",
       cg.member_dot(class_name, "prototype"),
       cg.call("_ljs_object_create", { cg.nil_val(), cg.member_dot(super_code, "prototype") })
     )
-    iife_stmts[#iife_stmts + 1] = cg.binop("=",
+    iife_stmts[#iife_stmts + 1] = cg.binop(
+      "=",
       cg.member_dot(cg.member_dot(class_name, "prototype"), "constructor"),
       class_name
     )
@@ -919,10 +910,8 @@ gen.ClassExpression = function(node, indent, scopes)
     else
       key_str = cg.string(m.key.value)
     end
-    iife_stmts[#iife_stmts + 1] = cg.binop("=",
-      cg.member_index(cg.member_dot(class_name, "prototype"), key_str),
-      m_fn
-    )
+    iife_stmts[#iife_stmts + 1] =
+      cg.binop("=", cg.member_index(cg.member_dot(class_name, "prototype"), key_str), m_fn)
   end
 
   for _, m in ipairs(statics) do
@@ -947,10 +936,7 @@ gen.ClassExpression = function(node, indent, scopes)
     else
       key_str = cg.string(m.key.value)
     end
-    iife_stmts[#iife_stmts + 1] = cg.binop("=",
-      cg.member_index(class_name, key_str),
-      m_fn
-    )
+    iife_stmts[#iife_stmts + 1] = cg.binop("=", cg.member_index(class_name, key_str), m_fn)
   end
 
   iife_stmts[#iife_stmts + 1] = cg.return_inline(class_name)
@@ -1386,7 +1372,10 @@ gen.MemberExpression = function(node, indent, scopes)
       if node.property.type == "StringLiteral" then
         return cg.member_index(proto, emit(node.property, indent, scopes))
       end
-      return cg.member_index(proto, cg.binop("+", cg.paren(emit(node.property, indent, scopes)), "1"))
+      return cg.member_index(
+        proto,
+        cg.binop("+", cg.paren(emit(node.property, indent, scopes)), "1")
+      )
     end
     return cg.member_dot(proto, node.property.name)
   end
@@ -1453,6 +1442,7 @@ end
 -- === Top-level generate ===
 
 local function generate(ast, meta)
+  class_super_stack = {}
   if
     meta.needed_helpers["_ljs_bnot"]
     or meta.needed_helpers["_ljs_band"]
