@@ -2,7 +2,7 @@
 // Copyright (c) 2023 Steph Ango — MIT License
 // https://github.com/kepano/flexoki
 
-import { createTheme } from '@codemirror/themes'
+import { createTheme } from '@uiw/codemirror-themes'
 import { tags as t } from '@lezer/highlight'
 
 export const flexokiDark = createTheme({
@@ -34,7 +34,6 @@ export const flexokiDark = createTheme({
     { tag: t.controlKeyword, color: '#D14D41' },
     { tag: t.operatorKeyword, color: '#D14D41' },
     { tag: t.moduleKeyword, color: '#D14D41' },
-    { tag: t.keywordExport, color: '#D14D41' },
     { tag: t.string, color: '#879A39' },
     { tag: t.special(t.string), color: '#879A39' },
     { tag: t.regexp, color: '#DA702C' },

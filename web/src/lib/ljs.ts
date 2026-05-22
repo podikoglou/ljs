@@ -1,14 +1,14 @@
 import { LuaFactory, type LuaEngine } from 'wasmoon'
 
-import ljsSource from '../../ljs.lua?raw'
-import ljsParserSource from '../../ljs_parser.lua?raw'
-import ljsTranspileSource from '../../ljs_transpile.lua?raw'
-import ljsCodegenSource from '../../ljs_codegen.lua?raw'
-import runtimeArraySource from '../../ljs_runtime/array.lua?raw'
-import runtimeConsoleSource from '../../ljs_runtime/console.lua?raw'
-import runtimeFunctionSource from '../../ljs_runtime/function.lua?raw'
-import runtimeObjectSource from '../../ljs_runtime/object.lua?raw'
-import runtimeProtoSource from '../../ljs_runtime/proto.lua?raw'
+import ljsSource from '@ljs/ljs.lua?raw'
+import ljsParserSource from '@ljs/ljs_parser.lua?raw'
+import ljsTranspileSource from '@ljs/ljs_transpile.lua?raw'
+import ljsCodegenSource from '@ljs/ljs_codegen.lua?raw'
+import runtimeArraySource from '@ljs/ljs_runtime/array.lua?raw'
+import runtimeConsoleSource from '@ljs/ljs_runtime/console.lua?raw'
+import runtimeFunctionSource from '@ljs/ljs_runtime/function.lua?raw'
+import runtimeObjectSource from '@ljs/ljs_runtime/object.lua?raw'
+import runtimeProtoSource from '@ljs/ljs_runtime/proto.lua?raw'
 
 const factory = new LuaFactory()
 
@@ -60,7 +60,7 @@ export async function run(source: string): Promise<RunResult> {
   const e = await getEngine()
   const logs: string[] = []
 
-  e.global.getTable(1, (index: number) => {
+  e.global.getTable('_G', (index: number) => {
     e.global.setField(index, 'print', (...args: unknown[]) => {
       logs.push(args.map((a) => String(a)).join('\t'))
     })
