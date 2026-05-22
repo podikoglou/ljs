@@ -2109,14 +2109,14 @@ function parse_primary_expression(stream)
       stream.advance()
       local expr = parse_expression(stream)
       stream.consume(TOKEN.RPAREN)
-      return expr
+      return parse_postfix(stream, expr)
     end
   elseif stream.is(TOKEN.LBRACKET) then
-    return parse_array_literal(stream)
+    return parse_postfix(stream, parse_array_literal(stream))
   elseif stream.is(TOKEN.LBRACE) then
-    return parse_object_literal(stream)
+    return parse_postfix(stream, parse_object_literal(stream))
   elseif stream.is(TOKEN.FUNCTION) then
-    return parse_function_expression(stream)
+    return parse_postfix(stream, parse_function_expression(stream))
   elseif stream.is(TOKEN.ARROW) then
     return nil, "Unexpected arrow token"
   elseif stream.is(TOKEN.CLASS) then
