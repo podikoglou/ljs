@@ -118,9 +118,6 @@ export default function App() {
           {consoleOutput.map((line, i) => (
             <div key={i}>{line}</div>
           ))}
-          {!error && consoleOutput.length === 0 && (
-            <span className="text-base-700">{'>'}</span>
-          )}
         </div>
       </div>
     </div>
