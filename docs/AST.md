@@ -150,6 +150,7 @@ Represents the `this` keyword. Binds to the calling context at runtime: the rece
 | `name` | `string?` | Name (present for named expressions like `function fact(n) {...}`), absent for anonymous |
 | `params` | `Identifier[]` | Parameter list |
 | `body` | `BlockStatement` | Function body |
+| `is_method` | `boolean?` | `true` when created by method shorthand `{ m() {} }` — skips `_ljs_ctor` wrapping |
 
 **Source:** `function(x) { return x; }` (anonymous), `function fact(n) { return n; }` (named)
 
@@ -278,6 +279,26 @@ Both branches allow full expressions including assignment and nested ternaries. 
 **Source:** `f()`, `f(a, b)`, `console.log("hello")`
 
 `console.log` is not a special node — it parses as a `CallExpression` whose `callee` is a `MemberExpression`.
+
+### NewExpression
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"NewExpression"` | |
+| `callee` | `node` | Constructor expression (identifier or member expression) |
+| `arguments` | `node[]` | Argument list (can be empty) |
+
+**Source:** `new Foo()`, `new Foo(a, b)`, `new Foo`, `new Foo.bar()`
+
+Parsing rules follow JS semantics: after `new`, a member expression is parsed (identifiers + `.`/`[]` chains, no call parens), then optional `(args)`. Postfix `.prop`, `[key]`, and `(args)` chains apply to the result.
+
+**Example:**
+```js
+new Foo().bar
+```
+```lua
+{ type = "MemberExpression", object = { type = "NewExpression", callee = { type = "Identifier", name = "Foo" }, arguments = {} }, property = { type = "Identifier", name = "bar" }, computed = false }
+```
 
 ### MemberExpression
 

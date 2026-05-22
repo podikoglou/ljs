@@ -29,15 +29,17 @@ If you find yourself writing `.. "goto "` or `.. "(function()"` in the transpile
 
 ### Supported
 
-Variables (`let`/`const`; `var` normalized to `let`), functions, arrow functions (expression bodies desugared to `BlockStatement` wrapping `ReturnStatement`), `this` keyword (with correct lexical binding for arrow functions), objects, arrays, arithmetic (`+` `-` `*` `/` `%`), exponentiation (`**`, right-associative), strict equality (`===`/`!==`; `==` rejected at tokenizer level), comparison (`<` `>` `<=` `>=`), `in`, bitwise (`&` `|` `^` `<<` `>>` `>>>`), logical (`&&` `||`), ternary (`? :`), assignment (`=`), compound assignment (`+=` `-=` `*=` `/=` `%=` `**=` `&=` `|=` `^=` `<<=` `>>=` `>>>=`), unary (`!` `-` `+` `~`), `delete`, `typeof`, update (`++`/`--`, prefix and postfix), hex literals (`0xFF`, `0X1A`), `if`/`else`, `while`, `do...while`, `for...of`, `for...in`, `for(;;)` (C-style for with optional init/test/update), `switch`/`case`/`default`/`break`, `continue`, `throw`, `try`/`catch`, `return`, `console.log` (parsed as regular `CallExpression` with `MemberExpression` callee).
+Variables (`let`/`const`; `var` normalized to `let`), functions, arrow functions (expression bodies desugared to `BlockStatement` wrapping `ReturnStatement`), `this` keyword (with correct lexical binding for arrow functions), objects, arrays, arithmetic (`+` `-` `*` `/` `%`), exponentiation (`**`, right-associative), strict equality (`===`/`!==`; `==` rejected at tokenizer level), comparison (`<` `>` `<=` `>=`), `in`, `instanceof`, bitwise (`&` `|` `^` `<<` `>>` `>>>`), logical (`&&` `||`), ternary (`? :`), assignment (`=`), compound assignment (`+=` `-=` `*=` `/=` `%=` `**=` `&=` `|=` `^=` `<<=` `>>=` `>>>=`), unary (`!` `-` `+` `~`), `delete`, `typeof`, update (`++`/`--`, prefix and postfix), hex literals (`0xFF`, `0X1A`), `new`, `if`/`else`, `while`, `do...while`, `for...of`, `for...in`, `for(;;)` (C-style for with optional init/test/update), `switch`/`case`/`default`/`break`, `continue`, `throw`, `try`/`catch`, `return`, `console.log` (parsed as regular `CallExpression` with `MemberExpression` callee), constructors (`new Foo()`), `instanceof`, `typeof` on constructors returns `"function"`.
 
 ### Rejected (parse error)
 
-`async`/`await`, `instanceof`, `==`, regex literals, Promises.
+`async`/`await`, `==`, regex literals, Promises.
 
 ### Known gaps
 
 - **`typeof null`**: Returns `"undefined"` instead of `"object"`. The transpiler maps JS `null` → Lua `nil`, which `_ljs_typeof` maps to `"undefined"`. All other `typeof` results match JS semantics.
+- **`f instanceof Object`**: Returns `false` because instances don't inherit from `Object.prototype`. No default prototype chain from `Object.prototype` to user constructors yet.
+- **`console.log.prototype`**: Crashes in Lua — `console.log` is a bare Lua function, not a callable table. Only `_ljs_ctor`-wrapped functions support property access.
 
 ### Runtime call ABI
 
@@ -71,6 +73,32 @@ Objects created via `Object.create(proto)` have a prototype chain implemented us
 - Object literals do not inherit from `Object.prototype` by default. `{}.toString()` is not yet available.
 - nil/null confusion: Lua tables cannot store `nil` as a value. Properties set to `null` are indistinguishable from missing properties.
 - Multi-level `__index` chaining is correct for prototype inheritance but may conflict with future metatable-based getters/descriptors. Migration to explicit `_ljs_get`/`_ljs_set` helpers is expected when descriptors are added.
+
+## Constructors
+
+Functions (`FunctionDeclaration`, `FunctionExpression`) are wrapped in `_ljs_ctor`, which returns a callable table with a `.prototype` property. Arrow functions and method shorthand are NOT wrapped.
+
+**`_ljs_ctor(fn)`:**
+- Creates a table with own key `.prototype = { constructor = ctor }`
+- Sets `__call` metamethod to delegate to the original function
+- `type(ctor)` is `"table"`, but `_ljs_typeof` detects `__call` and returns `"function"`
+
+**`new Foo(args)`:**
+- `_ljs_new(Foo, args...)` → `ctor(instance, args...)` via `__call` → `fn(instance, args...)`
+- Instance created via `_ljs_object_create(nil, Foo.prototype)` → `setmetatable({}, {__index = Foo.prototype})`
+- If constructor returns a table, that object is returned instead of the instance
+
+**`x instanceof Foo`:**
+- `_ljs_instanceof(x, Foo)` walks `x`'s `__index` chain, checking for `Foo.prototype`
+- Primitives (`nil`, `number`, `string`) return `false`
+
+**Method shorthand (`is_method` flag):**
+- `{ m() {} }` creates `FunctionExpression` with `is_method = true`
+- Skips `_ljs_ctor` wrapping — methods don't need `.prototype`
+
+**Runtime constructors:**
+- `Object` is wrapped in `_ljs_ctor`, making it callable and giving it `.prototype`
+- `console` is NOT wrapped — it's a plain object
 
 ## Runtime objects
 
