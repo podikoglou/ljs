@@ -65,8 +65,15 @@ export default function App() {
   }, [jsSource]);
 
   return (
-    <Allotment vertical defaultSizes={loadSizes("allotment-vertical", [70, 30])} onChange={(s) => saveSizes("allotment-vertical", s)}>
-      <Allotment defaultSizes={loadSizes("allotment-horizontal", [50, 50])} onChange={(s) => saveSizes("allotment-horizontal", s)}>
+    <Allotment
+      vertical
+      defaultSizes={loadSizes("allotment-vertical", [70, 30])}
+      onChange={(s) => saveSizes("allotment-vertical", s)}
+    >
+      <Allotment
+        defaultSizes={loadSizes("allotment-horizontal", [50, 50])}
+        onChange={(s) => saveSizes("allotment-horizontal", s)}
+      >
         <JsEditor source={jsSource} onSourceChange={setJsSource} ready={ready} onRun={handleRun} />
         <LuaOutput code={luaOutput} error={transpileError} />
       </Allotment>

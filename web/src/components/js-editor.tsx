@@ -27,9 +27,12 @@ export default function JsEditor({ source, onSourceChange, ready, onRun, action 
   return (
     <Panel
       label="JavaScript"
+      className="min-h-0 border-r border-base-850"
       action={
         action ?? (
-          <Button disabled={!ready} onClick={onRun}>Run</Button>
+          <Button disabled={!ready} onClick={onRun}>
+            Run
+          </Button>
         )
       }
     >
