@@ -701,11 +701,11 @@ gen.FunctionDeclaration = function(node, indent, scopes)
   local body = emit(node.body, indent, scopes)
   body = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. body
   scope_pop(scopes)
-  return cg.local_decl(
-    node.name,
-    cg.call("_ljs_ctor", { cg.fn_expr(cg.join(params), body, indent) }),
-    indent
-  )
+  return cg.local_decl(node.name, nil, indent)
+    .. cg.expr_stmt(
+      cg.binop("=", node.name, cg.call("_ljs_ctor", { cg.fn_expr(cg.join(params), body, indent) })),
+      indent
+    )
 end
 
 gen.ClassDeclaration = function(node, indent, scopes)
@@ -1516,6 +1516,7 @@ local Object = _ljs_ctor(function(_ljs_this)
   return _ljs_this
 end)
 Object.prototype = _ljs_object_prototype
+Object.prototype.constructor = Object
 Object.create = _ljs_object_create
 
 _ljs_function_prototype.call = function(_ljs_this, thisArg, ...)
@@ -1528,6 +1529,7 @@ _ljs_function_prototype.apply = function(_ljs_this, thisArg, args)
   local _unpack = unpack or table.unpack
   return _ljs_this(thisArg, _unpack(args, 1, args.length))
 end
+setmetatable(_ljs_function_prototype, { __index = _ljs_object_prototype })
 
 local Function = _ljs_ctor(nil)
 Function.prototype = _ljs_function_prototype
@@ -1556,9 +1558,9 @@ Array.prototype.pop = function(_ljs_this)
 end
 
 local console = _ljs_object({})
-console.log = function(_ljs_this, ...)
+console.log = _ljs_fn(function(_ljs_this, ...)
   print(...)
-end
+end)
 
 ]]
   return proto_decl .. prefix .. runtime_init .. code

@@ -178,7 +178,7 @@ end)
 
 test("do-while inside function", function()
   local code = transpile_ok("function f() { do { x; } while (b); }")
-  assert(code:find("local f = _ljs_ctor"), "expected local f = _ljs_ctor")
+  assert(code:find("local f\nf = _ljs_ctor"), "expected two-step _ljs_ctor")
   assert(code:find("repeat"), "expected repeat")
 end)
 

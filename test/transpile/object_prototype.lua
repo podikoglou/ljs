@@ -109,3 +109,10 @@ test("prototype chain: instance -> class proto -> Object.prototype", function()
   ]])
   assert_eq(out, "true\n[object Object]\ntrue\n")
 end)
+
+test("Object.prototype.constructor === Object", function()
+  local out = run_js([[
+    console.log(Object.prototype.constructor === Object);
+  ]])
+  assert_eq(out, "true\n")
+end)

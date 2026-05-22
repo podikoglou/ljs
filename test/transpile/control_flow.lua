@@ -10,8 +10,8 @@ local transpile_ok = H.transpile_ok
 test("function declaration", function()
   local code = transpile_ok("function foo(a, b) { return a; }")
   assert(
-    code:find("local foo = _ljs_ctor(function(_ljs_this, a, b)", 1, true),
-    "expected _ljs_ctor wrapping foo"
+    code:find("local foo\nfoo = _ljs_ctor(function(_ljs_this, a, b)", 1, true),
+    "expected two-step _ljs_ctor wrapping foo"
   )
   assert(code:find("local _ljs_arrow_this = _ljs_this", 1, true), "expected _ljs_arrow_this init")
   assert(code:find("return a", 1, true), "expected return a")

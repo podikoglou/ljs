@@ -102,3 +102,36 @@ test("constructor function has call method", function()
   ]])
   assert_eq(out, "42\n")
 end)
+
+test("console.log.call works", function()
+  local out = run_js([[
+    console.log.call(null, "hello from call");
+  ]])
+  assert_eq(out, "hello from call\n")
+end)
+
+test("console.log.apply works", function()
+  local out = run_js([[
+    console.log.apply(null, ["hello", "from", "apply"]);
+  ]])
+  assert_eq(out, "hello\tfrom\tapply\n")
+end)
+
+test("function inherits Object.prototype.hasOwnProperty", function()
+  local out = run_js([[
+    function foo() {}
+    console.log(foo.hasOwnProperty("prototype"));
+  ]])
+  assert_eq(out, "true\n")
+end)
+
+test("recursive function declaration works", function()
+  local out = run_js([[
+    function fact(n) {
+      if (n <= 1) return 1;
+      return n * fact(n - 1);
+    }
+    console.log(fact(5));
+  ]])
+  assert_eq(out, "120\n")
+end)

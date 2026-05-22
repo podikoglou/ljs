@@ -56,7 +56,10 @@ end)
 
 test("function declaration wrapped in _ljs_ctor", function()
   local code = H.transpile_ok("function foo(a) { return a; }")
-  assert(code:find("local foo = _ljs_ctor(function", nil, true), "expected _ljs_ctor wrapping")
+  assert(
+    code:find("local foo\nfoo = _ljs_ctor(function", nil, true),
+    "expected two-step _ljs_ctor wrapping"
+  )
 end)
 
 test("function expression wrapped in _ljs_ctor", function()
