@@ -61,6 +61,6 @@ body {
 }
 
 :root {
-  --separator-border: #343331;
-  --focus-border: #575653;
+  --separator-border: var(--color-base-850);
+  --focus-border: var(--color-base-700);
 }
