@@ -36,18 +36,22 @@ async function getEngine(): Promise<LuaEngine> {
 }
 
 export async function transpile(source: string): Promise<{ code: string | null; error: string | null }> {
-  const e = await getEngine()
-  e.global.set('__ljs_input', source)
-  const code = await e.doString(`
-    local ljs = require("ljs")
-    local code, err = ljs.transpile(__ljs_input)
-    if code then
-      return code
-    else
-      error(err)
-    end
-  `)
-  return { code: code ?? null, error: null }
+  try {
+    const e = await getEngine()
+    e.global.set('__ljs_input', source)
+    const code = await e.doString(`
+      local ljs = require("ljs")
+      local code, err = ljs.transpile(__ljs_input)
+      if code then
+        return code
+      else
+        error(err)
+      end
+    `)
+    return { code: code ?? null, error: null }
+  } catch (err: unknown) {
+    return { code: null, error: err instanceof Error ? err.message : String(err) }
+  }
 }
 
 export interface RunResult {

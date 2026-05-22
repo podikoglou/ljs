@@ -45,10 +45,6 @@ export default function App() {
           }
           setReady(true)
         })
-        .catch((err: unknown) => {
-          setError(err instanceof Error ? err.message : String(err))
-          setReady(true)
-        })
     }, 300)
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
