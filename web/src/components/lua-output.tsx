@@ -13,6 +13,8 @@ const cmSetup = {
   highlightActiveLineGutter: false,
 }
 
+const luaExtensions = [StreamLanguage.define(lua)]
+
 interface LuaOutputProps {
   code: string
 }
@@ -38,7 +40,7 @@ export default function LuaOutput({ code }: LuaOutputProps) {
           value={initialValue}
           height="100%"
           theme={flexokiDark}
-          extensions={[StreamLanguage.define(lua)]}
+          extensions={luaExtensions}
           editable={false}
           basicSetup={cmSetup}
         />
