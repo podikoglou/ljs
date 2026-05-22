@@ -13,9 +13,10 @@ export default function Console({ terminalRef }: ConsoleProps) {
     <Terminal
       ref={terminalRef}
       autoResize
+      rows={1}
       onData={() => {}}
       className="theme-flexoki"
-      style={{ height: "100%" }}
+      style={{ width: "100%", height: "100%" }}
     />
   );
 }
