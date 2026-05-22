@@ -5,7 +5,7 @@ interface ConsoleProps {
 
 export default function Console({ lines, error }: ConsoleProps) {
   return (
-    <div className="col-span-2 flex min-h-[160px] flex-col border-t border-base-850">
+    <div className="col-span-2 flex min-h-[160px] max-h-[40vh] flex-col border-t border-base-850">
       <div className="shrink-0 border-b border-base-850 px-3 py-1">
         <span className="text-xs text-base-400">Console</span>
       </div>
