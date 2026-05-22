@@ -29,7 +29,7 @@ If you find yourself writing `.. "goto "` or `.. "(function()"` in the transpile
 
 ### Supported
 
-Variables (`let`/`const`; `var` normalized to `let`), functions, arrow functions (expression bodies desugared to `BlockStatement` wrapping `ReturnStatement`), `this` keyword (with correct lexical binding for arrow functions), objects, arrays, arithmetic (`+` `-` `*` `/` `%`), exponentiation (`**`, right-associative), strict equality (`===`/`!==`; `==` rejected at tokenizer level), comparison (`<` `>` `<=` `>=`), `in`, `instanceof`, bitwise (`&` `|` `^` `<<` `>>` `>>>`), logical (`&&` `||`), ternary (`? :`), assignment (`=`), compound assignment (`+=` `-=` `*=` `/=` `%=` `**=` `&=` `|=` `^=` `<<=` `>>=` `>>>=`), unary (`!` `-` `+` `~`), `delete`, `typeof`, update (`++`/`--`, prefix and postfix), hex literals (`0xFF`, `0X1A`), `new`, `if`/`else`, `while`, `do...while`, `for...of`, `for...in`, `for(;;)` (C-style for with optional init/test/update), `switch`/`case`/`default`/`break`, `continue`, `throw`, `try`/`catch`, `return`, `console.log` (parsed as regular `CallExpression` with `MemberExpression` callee), constructors (`new Foo()`), `instanceof`, `typeof` on constructors returns `"function"`.
+Variables (`let`/`const`; `var` normalized to `let`), functions, arrow functions (expression bodies desugared to `BlockStatement` wrapping `ReturnStatement`), `this` keyword (with correct lexical binding for arrow functions), objects, arrays, arithmetic (`+` `-` `*` `/` `%`), exponentiation (`**`, right-associative), strict equality (`===`/`!==`; `==` rejected at tokenizer level), comparison (`<` `>` `<=` `>=`), `in`, `instanceof`, bitwise (`&` `|` `^` `<<` `>>` `>>>`), logical (`&&` `||`), ternary (`? :`), assignment (`=`), compound assignment (`+=` `-=` `*=` `/=` `%=` `**=` `&=` `|=` `^=` `<<=` `>>=` `>>>=`), unary (`!` `-` `+` `~`), `delete`, `typeof`, update (`++`/`--`, prefix and postfix), hex literals (`0xFF`, `0X1A`), `new`, `if`/`else`, `while`, `do...while`, `for...of`, `for...in`, `for(;;)` (C-style for with optional init/test/update), `switch`/`case`/`default`/`break`, `continue`, `throw`, `try`/`catch`, `return`, `console.log` (parsed as regular `CallExpression` with `MemberExpression` callee), constructors (`new Foo()`), `instanceof`, `typeof` on constructors returns `"function"`, `class` declarations and expressions with `extends`, `super()` (constructor) and `super.method()` (method), `static` methods.
 
 ### Rejected (parse error)
 
@@ -99,6 +99,39 @@ Functions (`FunctionDeclaration`, `FunctionExpression`) are wrapped in `_ljs_cto
 **Runtime constructors:**
 - `Object` is wrapped in `_ljs_ctor`, making it callable and giving it `.prototype`
 - `console` is NOT wrapped — it's a plain object
+
+## Class syntax
+
+`class` is syntactic sugar over the constructor + prototype model. The transpiler lowers class declarations to `_ljs_ctor`-wrapped constructors + prototype method assignments.
+
+**Lowering of `class Foo { constructor(x) {} method() {} static create() {} }`:**
+1. `local Foo = _ljs_ctor(function(_ljs_this, x) ... end)` — constructor wrapped in `_ljs_ctor`
+2. `Foo.prototype["method"] = function(_ljs_this) ... end` — prototype methods
+3. `Foo["create"] = function(_ljs_this) ... end` — static methods assigned directly to constructor
+
+**Lowering of `class Dog extends Animal {}`:**
+1. Constructor wraps in `_ljs_ctor` with default body that calls `Animal(_ljs_arrow_this, ...)` (forwards all args)
+2. `Dog.prototype = _ljs_object_create(nil, Animal.prototype)` — prototype chain
+3. `Dog.prototype.constructor = Dog` — restore constructor property
+
+**`super()` in constructor:**
+- Lowers to direct call: `ParentCtor(_ljs_arrow_this, args...)`
+- `ParentCtor` is the `_ljs_ctor`-wrapped callable table; `__call` dispatches to the underlying function with the instance as `_ljs_this`
+
+**`super.method()` in methods:**
+- Lowers to `_ljs_super_call(Parent.prototype, "method", _ljs_arrow_this, args...)`
+- `_ljs_super_call` looks up `proto[key]` and calls it with the current instance as `_ljs_this`
+
+**`super.prop` (property access):**
+- Lowers to `Parent.prototype.prop` (via `cg.member_dot`)
+
+**Class expressions:**
+- Wrapped in IIFE because lowering produces multiple statements
+- Anonymous classes use `_ljs_class` as internal name; named classes use the provided name
+
+**Default constructor:**
+- Without `extends`: empty body
+- With `extends`: `function(_ljs_this, ...) ParentCtor(_ljs_arrow_this, ...) end`
 
 ## Runtime objects
 

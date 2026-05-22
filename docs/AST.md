@@ -528,6 +528,56 @@ At least one of `handler` or `finalizer` must be present.
 
 ---
 
+## Classes
+
+### ClassDeclaration
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"ClassDeclaration"` | |
+| `name` | `string` | Class name (required) |
+| `superClass` | `node?` | Parent class expression, or `nil` |
+| `body` | `MethodDefinition[]` | Array of method definitions |
+
+**Source:** `class Foo { constructor() {} method() {} }`, `class Bar extends Foo {}`
+
+### ClassExpression
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"ClassExpression"` | |
+| `name` | `string?` | Class name (optional for anonymous classes) |
+| `superClass` | `node?` | Parent class expression, or `nil` |
+| `body` | `MethodDefinition[]` | Array of method definitions |
+
+**Source:** `let F = class {}`, `let F = class Foo extends Bar {}`
+
+### MethodDefinition
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"MethodDefinition"` | |
+| `kind` | `string` | `"constructor"` or `"method"` |
+| `key` | `Identifier` or `StringLiteral` | Method name |
+| `value` | `FunctionExpression` | Method body (with `is_method` set appropriately) |
+| `static` | `boolean` | `true` for static methods |
+
+**Source:** `method() {}`, `static create() {}`, `"computed-name"() {}`
+
+For constructor methods, `value.is_method` is `false`. For all other methods, `value.is_method` is `true`.
+
+### SuperExpression
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"SuperExpression"` | |
+
+**Source:** `super()`, `super.method()`, `super.prop`
+
+Appears as the `callee` of a `CallExpression` for `super(args)`, or as the `object` of a `MemberExpression` for `super.method()` / `super.prop`.
+
+---
+
 ## Full Example
 
 **JavaScript:**
