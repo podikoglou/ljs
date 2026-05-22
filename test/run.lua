@@ -50,6 +50,8 @@ describe("transpile/continue", "test.transpile.continue")
 
 describe("codegen", "test.codegen")
 
+describe("public_api", "test.public_api")
+
 T.describe("runtime/array", function()
   local ok, err = pcall(require, "test.runtime.array")
   if not ok then
