@@ -1,6 +1,8 @@
 Try ljs — browser playground for the ljs Lua JS Toolkit.
 
-Uses bun. Dev: `bun run dev`. Build: `bun run build`. Lint: `bun run lint`.
+Uses bun. Build: `bun run build`. Lint: `bun run lint`.
+
+Commits should be scoped to `web` (example: `chore(web): ...`)
 
 ## Architecture
 
