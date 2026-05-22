@@ -5,7 +5,7 @@ import "allotment/dist/style.css";
 import { transpile, run, type RunResult } from "./lib/ljs";
 import JsEditor from "./components/js-editor";
 import LuaOutput from "./components/lua-output";
-import Console from "./components/console";
+import Console, { useTerminal } from "./components/console";
 import Button from "./components/button";
 
 const DEFAULT_CODE = `function greet(name) {
@@ -32,11 +32,10 @@ function saveSizes(key: string, sizes: number[]) {
 export default function App() {
   const [jsSource, setJsSource] = useState(DEFAULT_CODE);
   const [luaOutput, setLuaOutput] = useState("");
-  const [consoleOutput, setConsoleOutput] = useState<string[]>([]);
   const [transpileError, setTranspileError] = useState<string | null>(null);
-  const [runError, setRunError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { ref: termRef, write: termWrite } = useTerminal();
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -58,13 +57,16 @@ export default function App() {
   }, [jsSource]);
 
   const handleRun = useCallback(() => {
-    setConsoleOutput([]);
+    termWrite("\x1b[2J\x1b[H");
     run(jsSource).then((result: RunResult) => {
-      setConsoleOutput(result.output);
-      if (result.error) setRunError(result.error);
-      else setRunError(null);
+      if (result.output.length > 0) {
+        termWrite(result.output.join("\r\n") + "\r\n");
+      }
+      if (result.error) {
+        termWrite(`\x1b[31m${result.error}\x1b[0m\r\n`);
+      }
     });
-  }, [jsSource]);
+  }, [jsSource, termWrite]);
 
   useHotkeys(
     "ctrl+enter",
@@ -93,7 +95,7 @@ export default function App() {
             <JsEditor source={jsSource} onSourceChange={setJsSource} onRun={handleRun} />
             <LuaOutput code={luaOutput} error={transpileError} />
           </Allotment>
-          <Console error={runError} lines={consoleOutput} />
+          <Console terminalRef={termRef} />
         </Allotment>
       </div>
     </div>

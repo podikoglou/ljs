@@ -1,15 +1,21 @@
+import { Terminal, useTerminal, type TerminalHandle } from "@wterm/react";
+import "@wterm/react/css";
+import "../theme/wterm-flexoki.css";
+
+export { useTerminal, type TerminalHandle };
+
 interface ConsoleProps {
-  lines: string[];
-  error: string | null;
+  terminalRef: React.RefObject<TerminalHandle | null>;
 }
 
-export default function Console({ lines, error }: ConsoleProps) {
+export default function Console({ terminalRef }: ConsoleProps) {
   return (
-    <div className="h-full min-h-0 overflow-auto p-3 font-mono text-xs leading-relaxed text-base-300">
-      {error && <div className="text-red-400">{error}</div>}
-      {lines.map((line, i) => (
-        <div key={i}>{line}</div>
-      ))}
-    </div>
+    <Terminal
+      ref={terminalRef}
+      autoResize
+      onData={() => {}}
+      className="theme-flexoki"
+      style={{ height: "100%" }}
+    />
   );
 }
