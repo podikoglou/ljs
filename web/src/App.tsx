@@ -5,7 +5,7 @@ import { StreamLanguage } from '@codemirror/language'
 import { lua } from '@codemirror/legacy-modes/mode/lua'
 import { flexokiDark } from './theme/flexoki'
 import { transpile, run, type RunResult } from './lib/ljs'
-import Panel from './components/Panel'
+import Panel from './components/panel'
 
 const DEFAULT_CODE = `function greet(name) {
   return "Hello, " + name + "!";
