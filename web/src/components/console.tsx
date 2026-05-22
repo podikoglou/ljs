@@ -8,11 +8,9 @@ interface ConsoleProps {
 export default function Console({ lines, error }: ConsoleProps) {
   return (
     <Panel label="Console" className="col-span-2 h-[30vh] shrink-0 border-t border-base-850">
-      <div className="h-full overflow-auto bg-base-950 p-3 font-mono text-xs leading-relaxed text-base-300">
+      <div className="h-full overflow-auto whitespace-pre-wrap bg-base-950 p-3 font-mono text-xs leading-relaxed text-base-300">
         {error && <div className="text-red-400">{error}</div>}
-        {lines.map((line, i) => (
-          <div key={i}>{line}</div>
-        ))}
+        {lines.join("\n")}
       </div>
     </Panel>
   );

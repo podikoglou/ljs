@@ -7,32 +7,7 @@
   },
   "plugins": ["typescript", "unicorn", "oxc", "react"],
   "rules": {
-    "react/react-in-jsx-scope": "off",
-    "react/forbid-component-props": "off",
-    "react/jsx-filename-extension": "off",
-    "react/no-array-index-key": "off",
-    "typescript/explicit-function-return-type": "off",
-    "typescript/explicit-module-boundary-types": "off",
-    "typescript/explicit-member-accessibility": "off",
-    "typescript/no-non-null-assertion": "off",
-    "oxc/no-async-await": "off",
-    "eslint/sort-keys": "off",
-    "eslint/sort-imports": "off",
-    "eslint/id-length": "off",
-    "eslint/no-ternary": "off",
-    "eslint/no-magic-numbers": "off",
-    "eslint/no-negated-condition": "off",
-    "eslint/func-style": "off",
-    "eslint/init-declarations": "off",
-    "eslint/max-statements": "off",
-    "eslint/curly": "off",
-    "eslint/no-console": "off",
-    "eslint/require-await": "off",
-    "unicorn/no-null": "off",
-    "unicorn/no-negated-condition": "off",
-    "unicorn/catch-error-name": "off",
-    "unicorn/prefer-native-coercion-functions": "off",
-    "unicorn/prefer-query-selector": "off"
+    "react/react-in-jsx-scope": "off"
   },
   "overrides": [
     {
