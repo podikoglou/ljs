@@ -1,3 +1,7 @@
+// Flexoki — an inky color scheme for prose and code
+// Copyright (c) 2023 Steph Ango — MIT License
+// https://github.com/kepano/flexoki
+
 import { createTheme } from '@codemirror/themes'
 import { tags as t } from '@lezer/highlight'
 
