@@ -363,6 +363,12 @@ test("parse nested arrays get .length", function()
   assert_eq(obj.a[1][1], 1)
 end)
 
+test("parse array has Array.prototype methods", function()
+  local arr = exec_js([[var a = JSON.parse('[1,2]'); a.push(3); return a;]])
+  assert_eq(arr.length, 3)
+  assert_eq(arr[3], 3)
+end)
+
 -- ============================================================================
 -- ljs-specific: JSON.parse wraps objects as _ljs_object instances
 --
