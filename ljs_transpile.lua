@@ -1549,7 +1549,7 @@ end
 -- @param source (string) JavaScript source code
 -- @param opts (table|nil) Options table; opts.mode = "script" (default) or "eval"
 -- @return (string|nil) Lua source code, or nil on error
--- @return (string|nil) Error message, or nil on success
+-- @return (table|nil) ParseError {message, line, col}, or nil on success
 function ljs_transpile.transpile_source(source, opts)
   local parser = require("ljs_parser")
   local ast, err = parser.parse(source)
