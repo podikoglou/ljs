@@ -1,7 +1,7 @@
 local T = require("test.ljs_test")
 local H = require("test.helpers.transpile")
 local test, assert_eq = T.test, T.assert_eq
-local transpile_ok, run_js = H.transpile_ok, H.run_js
+local transpile_ok, run_js, emit_ok = H.transpile_ok, H.run_js, H.emit_ok
 
 -- ============================================================================
 -- Unit tests — update expressions (++/--)
@@ -16,7 +16,8 @@ end)
 
 test("++i expression form transpiles to IIFE", function()
   local code = transpile_ok("let x = ++i;")
-  assert(not code:find("local _t"), "no temp for prefix")
+  local ecode = emit_ok("let x = ++i;")
+  assert(not ecode:find("local _t"), "no temp for prefix")
   assert(code:find("i = _ljs_add%(i, 1%)"), "expected increment")
   assert(code:find("return i"), "expected return of new value")
 end)
@@ -30,7 +31,8 @@ end)
 
 test("--i expression form transpiles to IIFE", function()
   local code = transpile_ok("let x = --i;")
-  assert(not code:find("local _t"), "no temp for prefix")
+  local ecode = emit_ok("let x = --i;")
+  assert(not ecode:find("local _t"), "no temp for prefix")
   assert(code:find("i = i %- 1"), "expected decrement")
   assert(code:find("return i"), "expected return of new value")
 end)

@@ -1,7 +1,7 @@
 local T = require("test.ljs_test")
 local H = require("test.helpers.transpile")
 local test, assert_eq = T.test, T.assert_eq
-local transpile_ok, run_js = H.transpile_ok, H.run_js
+local transpile_ok, run_js, emit_ok = H.transpile_ok, H.run_js, H.emit_ok
 
 -- ============================================================================
 -- Unit tests — continue
@@ -41,13 +41,13 @@ test("for loop with continue: label placed before update", function()
 end)
 
 test("while loop without continue has no label", function()
-  local code = transpile_ok("while (true) { x; }")
+  local code = emit_ok("while (true) { x; }")
   assert(not code:find("::_continue::"), "unexpected ::_continue:: label")
   assert(not code:find("goto _continue"), "unexpected goto _continue")
 end)
 
 test("for loop without continue has no label", function()
-  local code = transpile_ok("for (let i = 0; i < 10; i++) { x; }")
+  local code = emit_ok("for (let i = 0; i < 10; i++) { x; }")
   assert(not code:find("::_continue::"), "unexpected ::_continue:: label")
 end)
 
@@ -103,12 +103,12 @@ test("continue in for-of nested inside while", function()
 end)
 
 test("for-of without continue has no label", function()
-  local code = transpile_ok("for (let x of arr) { x; }")
+  local code = emit_ok("for (let x of arr) { x; }")
   assert(not code:find("::_continue::"), "unexpected ::_continue:: label")
 end)
 
 test("for-in without continue has no label", function()
-  local code = transpile_ok("for (let k in obj) { k; }")
+  local code = emit_ok("for (let k in obj) { k; }")
   assert(not code:find("::_continue::"), "unexpected ::_continue:: label")
 end)
 

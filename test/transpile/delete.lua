@@ -1,7 +1,7 @@
 local T = require("test.ljs_test")
 local H = require("test.helpers.transpile")
 local test, assert_eq = T.test, T.assert_eq
-local transpile_ok, expr_code = H.transpile_ok, H.expr_code
+local transpile_ok, expr_code, emit_ok = H.transpile_ok, H.expr_code, H.emit_ok
 
 -- ============================================================================
 -- Unit tests — delete expression
@@ -42,24 +42,25 @@ test("delete getObj().prop (call result member)", function()
 end)
 
 test("delete x (identifier, statement — emits nothing)", function()
-  local code = transpile_ok("delete x;")
+  local code = emit_ok("delete x;")
   assert(not code:find("rawset"), "expected no rawset for identifier delete")
 end)
 
 test("delete 42 (literal, statement — emits nothing)", function()
-  local code = transpile_ok("delete 42;")
+  local code = emit_ok("delete 42;")
   assert(not code:find("rawset"), "expected no rawset for literal delete")
 end)
 
 test("delete null (null, statement — emits nothing)", function()
-  local code = transpile_ok("delete null;")
+  local code = emit_ok("delete null;")
   assert(not code:find("rawset"), "expected no rawset for null delete")
 end)
 
 test("delete f() (call, statement — emits nothing)", function()
   local code = transpile_ok("delete f();")
   assert(code:find("local function _ljs_call"), "expected _ljs_call helper")
-  assert(not code:find("rawset"), "expected no rawset for call delete")
+  local ecode = emit_ok("delete f();")
+  assert(not ecode:find("rawset"), "expected no rawset for call delete")
 end)
 
 test("let r = delete obj.prop (expression context)", function()
@@ -184,17 +185,17 @@ test("!delete x (unary NOT of delete)", function()
 end)
 
 test("delete !x (delete of unary NOT)", function()
-  local code = transpile_ok("delete !x;")
+  local code = emit_ok("delete !x;")
   assert(not code:find("rawset"), "expected no rawset for unary NOT delete")
 end)
 
 test("delete --x (delete of prefix decrement — statement, emits nothing)", function()
-  local code = transpile_ok("delete --x;")
+  local code = emit_ok("delete --x;")
   assert(not code:find("rawset"), "expected no rawset for prefix decrement delete")
 end)
 
 test("delete delete x (double delete, statement — emits nothing)", function()
-  local code = transpile_ok("delete delete x;")
+  local code = emit_ok("delete delete x;")
   assert(not code:find("rawset"), "expected no rawset for double delete")
 end)
 

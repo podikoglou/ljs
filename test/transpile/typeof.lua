@@ -1,7 +1,8 @@
 local T = require("test.ljs_test")
 local H = require("test.helpers.transpile")
 local test, assert_eq = T.test, T.assert_eq
-local transpile_ok, expr_code, run_lua_source = H.transpile_ok, H.expr_code, H.run_lua_source
+local transpile_ok, expr_code, run_lua_source, emit_ok =
+  H.transpile_ok, H.expr_code, H.run_lua_source, H.emit_ok
 
 -- ============================================================================
 -- Statement context (gen_stmt — side-effect-free, emits nothing)
@@ -211,7 +212,7 @@ end)
 -- ============================================================================
 
 test("delete typeof x (statement — no-op)", function()
-  local code = transpile_ok("delete typeof x;")
+  local code = emit_ok("delete typeof x;")
   assert(not code:find("rawset"), "expected no rawset call")
 end)
 

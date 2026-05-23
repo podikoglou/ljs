@@ -1,7 +1,7 @@
 local T = require("test.ljs_test")
 local H = require("test.helpers.transpile")
 local test, assert_eq = T.test, T.assert_eq
-local transpile_ok, run_js = H.transpile_ok, H.run_js
+local transpile_ok, run_js, emit_ok = H.transpile_ok, H.run_js, H.emit_ok
 
 -- ============================================================================
 -- Unit tests — do...while transpile
@@ -120,7 +120,7 @@ test("continue in do-while emits goto _continue with label", function()
 end)
 
 test("do-while without continue has no label", function()
-  local code = transpile_ok("do { x; } while (y);")
+  local code = emit_ok("do { x; } while (y);")
   assert(not code:find("::_continue::"), "unexpected ::_continue:: label")
   assert(not code:find("goto _continue"), "unexpected goto _continue")
 end)
@@ -230,7 +230,7 @@ test("do-while body is update expression", function()
 end)
 
 test("do-while with no semicolons in Lua output", function()
-  local code = transpile_ok("do { x = x + 1; } while (x < 10);")
+  local code = emit_ok("do { x = x + 1; } while (x < 10);")
   assert(not code:find(";"), "no semicolons in Lua output")
 end)
 
