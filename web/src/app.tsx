@@ -36,6 +36,7 @@ export default function App() {
   const [preambleCode, setPreambleCode] = useState("");
   const [transpileError, setTranspileError] = useState<ParseError | null>(null);
   const [ready, setReady] = useState(false);
+  const [vimMode, setVimMode] = useState(() => localStorage.getItem("vim") === "true");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { ref: termRef, write: termWrite } = useTerminal();
 
@@ -84,6 +85,14 @@ export default function App() {
     });
   }, [jsSource, termWrite]);
 
+  const toggleVim = useCallback(() => {
+    setVimMode((v) => {
+      const next = !v;
+      localStorage.setItem("vim", String(next));
+      return next;
+    });
+  }, []);
+
   useHotkeys(
     "ctrl+enter",
     handleRun,
@@ -97,6 +106,15 @@ export default function App() {
         <Button disabled={!ready} onClick={handleRun}>
           Run
         </Button>
+        <label className="ml-3 flex cursor-pointer select-none items-center gap-1.5 text-xs text-base-400">
+          <input
+            type="checkbox"
+            checked={vimMode}
+            onChange={toggleVim}
+            className="accent-base-400"
+          />
+          Vim
+        </label>
       </div>
       <div className="min-h-0 flex-1">
         <Allotment
@@ -113,8 +131,9 @@ export default function App() {
               onSourceChange={setJsSource}
               onRun={handleRun}
               error={transpileError}
+              vimMode={vimMode}
             />
-            <LuaOutput code={luaOutput} error={transpileError} preambleLines={preambleLines} />
+            <LuaOutput code={luaOutput} error={transpileError} preambleLines={preambleLines} vimMode={vimMode} />
           </Allotment>
           <Console terminalRef={termRef} />
         </Allotment>

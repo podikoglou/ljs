@@ -5,6 +5,7 @@ import { keymap, type EditorView } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
 import { lintGutter, setDiagnostics } from "@codemirror/lint";
 import { flexokiDark } from "../theme/flexoki";
+import { vim } from "@replit/codemirror-vim";
 import type { ParseError } from "../lib/ljs-core";
 
 const cmSetup = {
@@ -22,6 +23,7 @@ interface JsEditorProps {
   onSourceChange: (source: string) => void;
   onRun: () => void;
   error: ParseError | null;
+  vimMode: boolean;
 }
 
 function errorToDiagnostic(error: ParseError, doc: string) {
@@ -36,7 +38,7 @@ function errorToDiagnostic(error: ParseError, doc: string) {
   return { from, to, severity: "error" as const, message: error.message };
 }
 
-export default function JsEditor({ source, onSourceChange, onRun, error }: JsEditorProps) {
+export default function JsEditor({ source, onSourceChange, onRun, error, vimMode }: JsEditorProps) {
   const viewRef = useRef<EditorView | null>(null);
 
   const extensions = useMemo(
@@ -55,8 +57,9 @@ export default function JsEditor({ source, onSourceChange, onRun, error }: JsEdi
           },
         ]),
       ),
+      ...(vimMode ? [vim()] : []),
     ],
-    [onRun],
+    [onRun, vimMode],
   );
 
   const onCreateEditor = useCallback((view: EditorView) => {

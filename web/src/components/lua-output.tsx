@@ -4,6 +4,7 @@ import type { Extension } from "@codemirror/state";
 import { StreamLanguage } from "@codemirror/language";
 import { lua } from "@codemirror/legacy-modes/mode/lua";
 import { flexokiDark } from "../theme/flexoki";
+import { vim } from "@replit/codemirror-vim";
 import type { ParseError } from "../lib/ljs-core";
 import { preambleFold } from "../lib/preamble-fold";
 
@@ -21,16 +22,20 @@ interface LuaOutputProps {
   code: string;
   error?: ParseError | null;
   preambleLines: number;
+  vimMode: boolean;
 }
 
-export default function LuaOutput({ code, error, preambleLines }: LuaOutputProps) {
+export default function LuaOutput({ code, error, preambleLines, vimMode }: LuaOutputProps) {
   const extensions = useMemo(() => {
     const exts: Extension[] = [luaLang];
     if (preambleLines > 0) {
       exts.push(preambleFold(preambleLines));
     }
+    if (vimMode) {
+      exts.push(vim());
+    }
     return exts;
-  }, [preambleLines]);
+  }, [preambleLines, vimMode]);
 
   return (
     <div className="h-full min-h-0">
