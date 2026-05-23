@@ -25,6 +25,7 @@ describe("parser/class", "test.parser.class")
 describe("parser/constructors", "test.parser.constructors")
 describe("parser/integration", "test.parser.integration")
 describe("parser/this_expression", "test.parser.this_expression")
+describe("parser/error_handling", "test.parser.error_handling")
 
 describe("transpile/basics", "test.transpile.basics")
 describe("transpile/control_flow", "test.transpile.control_flow")
