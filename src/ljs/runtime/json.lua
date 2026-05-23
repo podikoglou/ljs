@@ -4,6 +4,7 @@ local function _ljs_json_wrap(val)
   end
   if rawget(val, "_ljs_arr") then
     rawset(val, "_ljs_arr", nil)
+    setmetatable(val, { __index = Array.prototype })
     local n = 0
     for i, v in ipairs(val) do
       val[i] = _ljs_json_wrap(v)
@@ -33,6 +34,22 @@ local function _ljs_is_fn(val)
   return mt and mt.__call ~= nil
 end
 
+local function _ljs_is_array(val)
+  local mt = getmetatable(val)
+  if not mt then
+    return false
+  end
+  local proto = mt.__index
+  while proto ~= nil do
+    if proto == Array.prototype then
+      return true
+    end
+    local pmt = getmetatable(proto)
+    proto = pmt and pmt.__index
+  end
+  return false
+end
+
 local function _ljs_json_stringify(val, stack)
   stack = stack or {}
   if val == nil then
@@ -58,8 +75,8 @@ local function _ljs_json_stringify(val, stack)
       error("circular reference")
     end
     stack[val] = true
-    local len = rawget(val, "length")
-    if len and type(len) == "number" then
+    if _ljs_is_array(val) then
+      local len = val.length
       local items = {}
       for i = 1, len do
         local s = _ljs_json_stringify(rawget(val, i), stack)
