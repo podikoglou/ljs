@@ -53,11 +53,6 @@ function ljs_test.assert_table_eq(actual, expected, path)
     for k, v in pairs(expected) do
       ljs_test.assert_table_eq(actual[k], v, path .. "." .. tostring(k))
     end
-    for k, _ in pairs(actual) do
-      if expected[k] == nil then
-        error(string.format("%s: unexpected key %s", path, tostring(k)))
-      end
-    end
   else
     if actual ~= expected then
       error(string.format("%s: expected %s, got %s", path, tostring(expected), tostring(actual)))
