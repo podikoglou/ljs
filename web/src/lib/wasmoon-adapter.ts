@@ -1,14 +1,14 @@
 import { LuaFactory, type LuaEngine } from "wasmoon";
 
-import ljsSource from "@ljs/ljs.lua?raw";
-import ljsParserSource from "@ljs/ljs_parser.lua?raw";
-import ljsTranspileSource from "@ljs/ljs_transpile.lua?raw";
-import ljsCodegenSource from "@ljs/ljs_codegen.lua?raw";
-import runtimeArraySource from "@ljs/ljs_runtime/array.lua?raw";
-import runtimeConsoleSource from "@ljs/ljs_runtime/console.lua?raw";
-import runtimeFunctionSource from "@ljs/ljs_runtime/function.lua?raw";
-import runtimeObjectSource from "@ljs/ljs_runtime/object.lua?raw";
-import runtimeProtoSource from "@ljs/ljs_runtime/proto.lua?raw";
+import ljsSource from "@ljs/src/ljs.lua?raw";
+import ljsParserSource from "@ljs/src/ljs/parser.lua?raw";
+import ljsTranspileSource from "@ljs/src/ljs/transpile.lua?raw";
+import ljsCodegenSource from "@ljs/src/ljs/codegen.lua?raw";
+import runtimeArraySource from "@ljs/src/ljs/runtime/array.lua?raw";
+import runtimeConsoleSource from "@ljs/src/ljs/runtime/console.lua?raw";
+import runtimeFunctionSource from "@ljs/src/ljs/runtime/function.lua?raw";
+import runtimeObjectSource from "@ljs/src/ljs/runtime/object.lua?raw";
+import runtimeProtoSource from "@ljs/src/ljs/runtime/proto.lua?raw";
 
 import type { LuaVM } from "./ljs-core";
 
@@ -22,14 +22,14 @@ export class WasmoonAdapter implements LuaVM {
     const e = await this.factory.createEngine();
 
     await this.factory.mountFile("ljs.lua", ljsSource);
-    await this.factory.mountFile("ljs_parser.lua", ljsParserSource);
-    await this.factory.mountFile("ljs_transpile.lua", ljsTranspileSource);
-    await this.factory.mountFile("ljs_codegen.lua", ljsCodegenSource);
-    await this.factory.mountFile("ljs_runtime/array.lua", runtimeArraySource);
-    await this.factory.mountFile("ljs_runtime/console.lua", runtimeConsoleSource);
-    await this.factory.mountFile("ljs_runtime/function.lua", runtimeFunctionSource);
-    await this.factory.mountFile("ljs_runtime/object.lua", runtimeObjectSource);
-    await this.factory.mountFile("ljs_runtime/proto.lua", runtimeProtoSource);
+    await this.factory.mountFile("ljs/parser.lua", ljsParserSource);
+    await this.factory.mountFile("ljs/transpile.lua", ljsTranspileSource);
+    await this.factory.mountFile("ljs/codegen.lua", ljsCodegenSource);
+    await this.factory.mountFile("ljs/runtime/array.lua", runtimeArraySource);
+    await this.factory.mountFile("ljs/runtime/console.lua", runtimeConsoleSource);
+    await this.factory.mountFile("ljs/runtime/function.lua", runtimeFunctionSource);
+    await this.factory.mountFile("ljs/runtime/object.lua", runtimeObjectSource);
+    await this.factory.mountFile("ljs/runtime/proto.lua", runtimeProtoSource);
 
     await e.doString('require("ljs")');
 
