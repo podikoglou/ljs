@@ -1,12 +1,25 @@
+--- Pure Lua source-code builder. Every function takes plain strings (already
+--- formatted expressions/statements) and returns formatted Lua source strings.
+--- Knows nothing about JavaScript or ASTs — the transpiler decides *what* to
+--- emit, this module decides *how* to format it as Lua.
+---
+--- The transpiler must never concatenate raw strings to produce Lua syntax; it
+--- goes through cg.* so all syntax is centralised here.
+---
+--- Sections:
+---   Utilities      — escape, join, indent helpers
+---   Statements     — emit indented Lua statements (trailing newline)
+---   Expressions    — emit Lua expressions (no trailing newline)
+---   Goto/labels    — for continue-in-loops (requires Lua 5.2+)
+---   Inline stmts   — single-line, no trailing newline (for IIFE bodies)
+---   IIFE           — immediately-invoked function expression compound
+
 local M = {}
 
 -- ============================================================================
 -- Utilities
 -- ============================================================================
 
---- Escape a string for use inside double-quoted Lua string literals.
--- @param s (string) Raw string value
--- @return (string) Escaped string (without surrounding quotes)
 --- Join a list of name strings with ", ".
 -- @param names (table) List of name strings
 -- @return (string) Comma-separated names
@@ -14,6 +27,9 @@ function M.join(names)
   return table.concat(names, ", ")
 end
 
+--- Escape a string for use inside double-quoted Lua string literals.
+-- @param s (string) Raw string value
+-- @return (string) Escaped string (without surrounding quotes)
 function M.escape_string(s)
   local out = {}
   for i = 1, #s do
@@ -30,6 +46,7 @@ function M.escape_string(s)
     elseif c == "\t" then
       out[#out + 1] = "\\t"
     elseif b < 32 then
+      -- Lua long-string escape: \ddd is decimal, not hex like C
       out[#out + 1] = string.format("\\%03d", b)
     else
       out[#out + 1] = c
@@ -46,7 +63,8 @@ function M.pad(n)
 end
 
 -- ============================================================================
--- Statements
+-- Statements — each returns a string with trailing newline and indentation.
+-- The transpiler concatenates these to build block bodies.
 -- ============================================================================
 
 --- Emit a local variable declaration statement.
@@ -208,7 +226,8 @@ function M.if_stmt(test, then_body, elseifs, else_body, indent)
 end
 
 -- ============================================================================
--- Expressions
+-- Expressions — each returns a string with NO trailing newline. Compose with
+-- other expressions or wrap in a statement emitter for use as a statement.
 -- ============================================================================
 
 --- Emit a number literal.
@@ -325,7 +344,8 @@ function M.array(elems)
 end
 
 -- ============================================================================
--- Goto and labels
+-- Goto and labels — used to implement JS `continue` inside loops (Lua has no
+-- continue keyword). Requires Lua 5.2+.
 -- ============================================================================
 
 --- Emit a goto statement.
@@ -345,7 +365,8 @@ function M.label(name, indent)
 end
 
 -- ============================================================================
--- Inline statements (for IIFE bodies)
+-- Inline statements (for IIFE bodies) — single-line, no trailing newline.
+-- These are composed into the stmts table passed to M.iife().
 -- ============================================================================
 
 --- Emit a local declaration as an inline statement (no trailing newline).
@@ -373,7 +394,9 @@ function M.inline_if_return(test, consequent, alternate)
 end
 
 -- ============================================================================
--- Compound: IIFE
+-- Compound: IIFE — wraps inline statements into (function() ... end)().
+-- Used when a JS expression must be lowered to multiple Lua statements (e.g.
+-- class expressions, compound assignments with side effects).
 -- ============================================================================
 
 --- Emit an immediately-invoked function expression (IIFE).
