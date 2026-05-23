@@ -1047,6 +1047,7 @@ function M.preamble()
     .. read_runtime("object")
     .. read_runtime("function")
     .. read_runtime("array")
+    .. read_runtime("error")
     .. read_runtime("console")
   return _preamble_cache
 end
