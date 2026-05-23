@@ -153,7 +153,7 @@ local function main()
 
   local ast, parse_err = ljs.parse(source)
   if not ast then
-    io.stderr:write(parse_err .. "\n")
+    io.stderr:write(ljs.format_error(parse_err, source) .. "\n")
     os.exit(1)
   end
 

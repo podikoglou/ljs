@@ -30,7 +30,7 @@ local function main()
 
   local lua_code, transpile_err = transpile.transpile_source(source)
   if not lua_code then
-    io.stderr:write(transpile_err .. "\n")
+    io.stderr:write(ljs.format_error(transpile_err, source) .. "\n")
     os.exit(1)
   end
 
