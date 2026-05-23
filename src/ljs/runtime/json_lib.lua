@@ -25,6 +25,11 @@
 -- Modified for ljs: added _ljs_arr marker in parse_array, removed return statement.
 
 local json = { _version = "0.1.2" }
+json.null = setmetatable({}, {
+  __tostring = function()
+    return "null"
+  end,
+})
 
 -------------------------------------------------------------------------------
 -- Encode
@@ -152,7 +157,7 @@ local literals = create_set("true", "false", "null")
 local literal_map = {
   ["true"] = true,
   ["false"] = false,
-  ["null"] = nil,
+  ["null"] = json.null,
 }
 
 local function next_char(str, idx, set, negate)

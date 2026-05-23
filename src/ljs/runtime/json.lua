@@ -1,4 +1,7 @@
 local function _ljs_json_wrap(val)
+  if val == json.null then
+    return val
+  end
   if type(val) ~= "table" then
     return val
   end
@@ -21,6 +24,7 @@ local function _ljs_json_wrap(val)
 end
 
 local JSON = _ljs_object({})
+JSON.null = json.null
 
 JSON.parse = _ljs_fn(function(_ljs_this, text)
   return _ljs_json_wrap(json.decode(text))
@@ -52,6 +56,9 @@ end
 
 local function _ljs_json_stringify(val, stack)
   stack = stack or {}
+  if val == json.null then
+    return "null"
+  end
   if val == nil then
     return "null"
   end

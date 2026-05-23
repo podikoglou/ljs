@@ -57,8 +57,8 @@ test("parse literal: false", function()
   assert_eq(exec_js("return JSON.parse('false');"), false)
 end)
 
-test("parse literal: null → nil", function()
-  assert_eq(exec_js("return JSON.parse('null');"), nil)
+test("parse literal: null → JSON.null", function()
+  assert_eq(exec_js("return JSON.parse('null') === JSON['null'];"), true)
 end)
 
 -- ============================================================================
@@ -403,19 +403,41 @@ test("stringify JS array with null element → null", function()
 end)
 
 -- ============================================================================
--- ljs-specific: JSON.stringify skips undefined in objects
+-- ljs-specific: JSON.stringify with null values
 --
--- In JS, JSON.stringify({a: undefined}) → "{}".  Since nil in Lua
--- represents both null and undefined, object properties set to nil simply
--- don't exist in the table, so pairs() never encounters them.  This
--- naturally produces the correct JS behaviour of skipping undefined.
+-- JSON null is represented as JSON.null (a sentinel value) so that null-valued
+-- object keys are preserved in Lua tables.  This fixes round-trip fidelity:
+-- JSON.stringify(JSON.parse('{"a":null}')) → '{"a":null}'.
 --
--- Note: this also means JSON.stringify({a: null}) → "{}" because Lua
--- tables cannot store nil as a value.  This is a known limitation.
+-- Note: undefined values (Lua nil) are still skipped, which matches JS:
+-- JSON.stringify({a: undefined}) → "{}".
 -- ============================================================================
 
 test("stringify skips nil/undefined values in objects", function()
   assert_eq(exec_js("return JSON.stringify({a: undefined});"), "{}")
+end)
+
+test("parse object with null value preserves key", function()
+  assert_eq(exec_js([[return JSON.parse('{"a":null}').hasOwnProperty('a');]]), true)
+end)
+
+test("parse object with null value round-trips", function()
+  assert_eq(exec_js([[return JSON.stringify(JSON.parse('{"a":null}'));]]), '{"a":null}')
+end)
+
+test("parse array with null element round-trips", function()
+  assert_eq(exec_js("return JSON.stringify(JSON.parse('[1,null,3]'));"), "[1,null,3]")
+end)
+
+test("parse nested object with null round-trips", function()
+  assert_eq(
+    exec_js([[return JSON.stringify(JSON.parse('{"a":{"b":null},"c":null}'));]]),
+    '{"a":{"b":null},"c":null}'
+  )
+end)
+
+test("JSON.null round-trips through stringify", function()
+  assert_eq(exec_js("return JSON.stringify(JSON['null']);"), "null")
 end)
 
 -- ============================================================================
