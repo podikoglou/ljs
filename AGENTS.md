@@ -1,6 +1,6 @@
 # ljs - Lua JS Toolkit
 
-Lua libraries that parse a well-defined subset of JavaScript into a Lua table-based AST and transpile it to Lua source code. Lua 5.1+, 2-space indents, snake_case internals, no external dependencies.
+Lua libraries that parse a well-defined subset of JavaScript into a Lua table-based AST and transpile it to Lua source code. Lua 5.2+ (uses `goto` in generated code), 2-space indents, snake_case internals, no external dependencies.
 
 Source is in `src/ljs/` with hierarchical module names (`ljs.parser`, `ljs.codegen`, `ljs.transpile`). Runtime templates in `src/ljs/runtime/`. Rockspec in `rockspec/`.
 
