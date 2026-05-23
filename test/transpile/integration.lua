@@ -8,15 +8,16 @@ local transpile_ok, transpile, read_file, run_js =
 -- Unit tests — helpers emission
 -- ============================================================================
 
-test("no helpers when unused", function()
+test("all helpers always emitted", function()
   local code = transpile_ok("let x = 1;")
-  assert(not code:find("_ljs_add"), "expected no _ljs_add")
-  assert(not code:find("_ljs_log"), "expected no _ljs_log")
+  assert(code:find("_ljs_add"), "expected _ljs_add in preamble")
+  assert(code:find("_ljs_call"), "expected _ljs_call in preamble")
+  assert(code:find("_ljs_object"), "expected _ljs_object in preamble")
 end)
 
-test("_ljs_add only when + used", function()
+test("_ljs_add present even when + unused", function()
   local code = transpile_ok("let x = 1 * 2;")
-  assert(not code:find("_ljs_add"), "expected no _ljs_add")
+  assert(code:find("_ljs_add"), "expected _ljs_add in preamble")
 end)
 
 test("transpile.HELPERS accessible", function()
@@ -28,17 +29,8 @@ test("transpile.HELPERS accessible", function()
   )
 end)
 
--- ============================================================================
--- Unit tests — BUILTINS registry
--- ============================================================================
-
-test("transpile.BUILTINS is empty (runtime objects, not compiler builtins)", function()
-  assert_eq(next(transpile.BUILTINS), nil, "BUILTINS should be empty")
-end)
-
-test("shadowed console.log does not emit helper", function()
+test("shadowed console.log routes through _ljs_call_member", function()
   local code = transpile_ok("let console = {}; console.log(x);")
-  assert(not code:find("_ljs_log"), "shadowed console.log should not use helper")
   assert(code:find("_ljs_call_member"), "should emit _ljs_call_member for shadowed member call")
 end)
 

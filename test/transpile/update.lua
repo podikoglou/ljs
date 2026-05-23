@@ -50,9 +50,9 @@ test("i++ emits _ljs_add helper", function()
   assert(code:find("_ljs_add"), "expected _ljs_add helper in output")
 end)
 
-test("--i does not emit _ljs_add helper", function()
+test("--i still has _ljs_add in preamble", function()
   local code = transpile_ok("--i;")
-  assert(not code:find("_ljs_add"), "no _ljs_add helper needed for --")
+  assert(code:find("_ljs_add"), "_ljs_add always in preamble")
 end)
 
 test("for with i++ update emits _ljs_add helper", function()
@@ -61,9 +61,9 @@ test("for with i++ update emits _ljs_add helper", function()
   assert(code:find("while i < 10 do"), "expected while condition")
 end)
 
-test("for with --i update does not emit _ljs_add", function()
+test("for with --i update still has _ljs_add in preamble", function()
   local code = transpile_ok("for (let i = 10; i > 0; --i) { x; }")
-  assert(not code:find("_ljs_add"), "no _ljs_add for --i")
+  assert(code:find("_ljs_add"), "_ljs_add always in preamble")
 end)
 
 -- ============================================================================
