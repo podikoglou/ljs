@@ -172,6 +172,11 @@ local KEYWORDS = {
   ["static"] = TOKEN.STATIC,
 }
 
+local KEYWORD_TOKEN_TYPES = {}
+for _, tok_type in pairs(KEYWORDS) do
+  KEYWORD_TOKEN_TYPES[tok_type] = true
+end
+
 -- ============================================================================
 -- PARSE ERROR
 -- ============================================================================
@@ -741,6 +746,23 @@ local function make_token_stream(tokens)
   -- @return boolean True if at EOF
   function stream.eof()
     return stream.peek().type == TOKEN.EOF
+  end
+
+  function stream.is_property_name()
+    local t = stream.peek().type
+    return t == TOKEN.IDENTIFIER or KEYWORD_TOKEN_TYPES[t] ~= nil
+  end
+
+  function stream.consume_property_name()
+    if not stream.is_property_name() then
+      local current = stream.peek()
+      parse_error(
+        string.format("Expected property name, got %s", current.type),
+        current.line,
+        current.col
+      )
+    end
+    return stream.advance()
   end
 
   return stream
@@ -1509,7 +1531,7 @@ function parse_class_body(stream)
     end
     local key
     local kind = "method"
-    if stream.is(TOKEN.IDENTIFIER) then
+    if stream.is_property_name() then
       local key_token = stream.advance()
       key = identifier(key_token.value, key_token)
       if key_token.value == "constructor" then
@@ -1854,7 +1876,7 @@ function parse_unary_expression(stream)
     while stream.is(TOKEN.DOT) or stream.is(TOKEN.LBRACKET) do
       if stream.is(TOKEN.DOT) then
         stream.advance()
-        local prop_token = stream.consume(TOKEN.IDENTIFIER)
+        local prop_token = stream.consume_property_name()
         callee = member_expression(callee, identifier(prop_token.value, prop_token), false)
       else
         stream.advance()
@@ -2011,7 +2033,7 @@ function parse_postfix(stream, expr)
   while true do
     if stream.is(TOKEN.DOT) then
       stream.advance()
-      local prop_token = stream.consume(TOKEN.IDENTIFIER)
+      local prop_token = stream.consume_property_name()
       expr = member_expression(expr, identifier(prop_token.value, prop_token), false)
     elseif stream.is(TOKEN.LBRACKET) then
       stream.advance()
@@ -2124,7 +2146,7 @@ function parse_object_literal(stream)
     while true do
       local key
       local key_is_identifier = false
-      if stream.is(TOKEN.IDENTIFIER) then
+      if stream.is_property_name() then
         local key_token = stream.advance()
         key = identifier(key_token.value, key_token)
         key_is_identifier = true

@@ -200,3 +200,63 @@ end)
 test("class Foo { 42 } — invalid method name — error", function()
   assert_parse_fail("class Foo { 42 }", "Expected method name")
 end)
+
+-- ============================================================================
+-- Keywords as class method names (IdentifierName vs Identifier)
+-- ============================================================================
+
+test("keyword 'of' as class method name", function()
+  assert_parse_ok("class Foo { of() {} }", {
+    class_decl("Foo", nil, {
+      method_def("method", A.id("of"), method_fn({}, A.block({})), false),
+    }),
+  })
+end)
+
+test("keyword 'in' as class method name", function()
+  assert_parse_ok("class Foo { in() {} }", {
+    class_decl("Foo", nil, {
+      method_def("method", A.id("in"), method_fn({}, A.block({})), false),
+    }),
+  })
+end)
+
+test("keyword 'return' as class method name", function()
+  assert_parse_ok("class Foo { return() {} }", {
+    class_decl("Foo", nil, {
+      method_def("method", A.id("return"), method_fn({}, A.block({})), false),
+    }),
+  })
+end)
+
+test("keyword 'throw' as class method name", function()
+  assert_parse_ok("class Foo { throw() {} }", {
+    class_decl("Foo", nil, {
+      method_def("method", A.id("throw"), method_fn({}, A.block({})), false),
+    }),
+  })
+end)
+
+test("keyword 'delete' as class method name", function()
+  assert_parse_ok("class Foo { delete() {} }", {
+    class_decl("Foo", nil, {
+      method_def("method", A.id("delete"), method_fn({}, A.block({})), false),
+    }),
+  })
+end)
+
+test("keyword 'typeof' as class method name", function()
+  assert_parse_ok("class Foo { typeof() {} }", {
+    class_decl("Foo", nil, {
+      method_def("method", A.id("typeof"), method_fn({}, A.block({})), false),
+    }),
+  })
+end)
+
+test("keyword 'new' as class method name", function()
+  assert_parse_ok("class Foo { new() {} }", {
+    class_decl("Foo", nil, {
+      method_def("method", A.id("new"), method_fn({}, A.block({})), false),
+    }),
+  })
+end)

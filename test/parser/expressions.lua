@@ -445,3 +445,73 @@ test("parse -x++ (unary minus on postfix)", function()
     A.expr_stmt(A.una("-", A.update("++", A.id("x"), false))),
   })
 end)
+
+-- ============================================================================
+-- Keywords as property names after dot (IdentifierName vs Identifier)
+-- ============================================================================
+
+test("keyword 'of' as property name after dot", function()
+  assert_parse_ok("Array.of;", {
+    A.expr_stmt(A.member(A.id("Array"), A.id("of"))),
+  })
+end)
+
+test("keyword 'of' as property name in call", function()
+  assert_parse_ok("Array.of(1, 2, 3);", {
+    A.expr_stmt(A.call(A.member(A.id("Array"), A.id("of")), { A.num(1), A.num(2), A.num(3) })),
+  })
+end)
+
+test("keyword 'in' as property name after dot", function()
+  assert_parse_ok("foo.in;", {
+    A.expr_stmt(A.member(A.id("foo"), A.id("in"))),
+  })
+end)
+
+test("keyword 'return' as property name after dot", function()
+  assert_parse_ok("obj.return;", {
+    A.expr_stmt(A.member(A.id("obj"), A.id("return"))),
+  })
+end)
+
+test("keyword 'throw' as property name after dot", function()
+  assert_parse_ok("x.throw;", {
+    A.expr_stmt(A.member(A.id("x"), A.id("throw"))),
+  })
+end)
+
+test("keyword 'delete' as property name after dot", function()
+  assert_parse_ok("a.delete;", {
+    A.expr_stmt(A.member(A.id("a"), A.id("delete"))),
+  })
+end)
+
+test("keyword 'typeof' as property name after dot", function()
+  assert_parse_ok("b.typeof;", {
+    A.expr_stmt(A.member(A.id("b"), A.id("typeof"))),
+  })
+end)
+
+test("keyword 'new' as property name after dot", function()
+  assert_parse_ok("c.new;", {
+    A.expr_stmt(A.member(A.id("c"), A.id("new"))),
+  })
+end)
+
+test("keyword 'class' as property name after dot", function()
+  assert_parse_ok("d.class;", {
+    A.expr_stmt(A.member(A.id("d"), A.id("class"))),
+  })
+end)
+
+test("keyword 'function' as property name after dot", function()
+  assert_parse_ok("e.function;", {
+    A.expr_stmt(A.member(A.id("e"), A.id("function"))),
+  })
+end)
+
+test("keyword chained: obj.if.else", function()
+  assert_parse_ok("obj.if.else;", {
+    A.expr_stmt(A.member(A.member(A.id("obj"), A.id("if")), A.id("else"))),
+  })
+end)
