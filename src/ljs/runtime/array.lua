@@ -27,22 +27,7 @@ end
 -- Array.isArray
 -- ---------------------------------------------------------------------------
 Array.isArray = _ljs_fn(function(_ljs_this, x)
-  if type(x) ~= "table" then
-    return false
-  end
-  local mt = getmetatable(x)
-  if not mt then
-    return false
-  end
-  local proto = mt.__index
-  while proto ~= nil do
-    if proto == Array.prototype then
-      return true
-    end
-    local pmt = getmetatable(proto)
-    proto = pmt and pmt.__index
-  end
-  return false
+  return _ljs_instanceof(x, Array)
 end)
 
 -- ---------------------------------------------------------------------------

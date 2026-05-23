@@ -109,10 +109,6 @@ test("Function.prototype.apply", function()
 end)
 
 -- ============================================================================
--- Code generation checks
--- ============================================================================
-
--- ============================================================================
 -- Array.isArray
 -- ============================================================================
 
@@ -163,6 +159,24 @@ end)
 test("Array.from on empty", function()
   local arr = exec_js("return Array.from([]);")
   assert_eq(arr.length, 0)
+end)
+
+test("Array.from with mapFn", function()
+  local arr = exec_js("return Array.from([1, 2, 3], function(x) { return x * 2; });")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 2)
+  assert_eq(arr[2], 4)
+  assert_eq(arr[3], 6)
+end)
+
+test("Array.from with mapFn and thisArg", function()
+  local arr = exec_js([[
+    var ctx = { mult: 10 };
+    return Array.from([1, 2], function(x) { return x * this.mult; }, ctx);
+  ]])
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 10)
+  assert_eq(arr[2], 20)
 end)
 
 -- ============================================================================
