@@ -2234,7 +2234,7 @@ function ljs.format_error(err, source)
     if err.line <= #lines then
       local source_line = lines[err.line]
       result = result .. "\n" .. line_str .. " | " .. source_line
-      result = result .. "\n  " .. pad .. " | " .. string.rep(" ", err.col - 1) .. "^"
+      result = result .. "\n  " .. pad .. " | " .. string.rep(" ", math.max(0, err.col - 1)) .. "^"
     end
   end
 
