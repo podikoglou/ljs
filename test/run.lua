@@ -60,4 +60,11 @@ T.describe("runtime/array", function()
   end
 end)
 
+T.describe("runtime/error", function()
+  local ok, err = pcall(require, "test.runtime.error")
+  if not ok then
+    print(string.format("  \27[33m⚠\27[0m runtime/error: %s", tostring(err):match("^[^\n]*")))
+  end
+end)
+
 T.summary()
