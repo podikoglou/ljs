@@ -1,4 +1,4 @@
-local ljs_transpile = {}
+local M = {}
 
 local cg = require("ljs.codegen")
 
@@ -1031,7 +1031,7 @@ local HELPER_ORDER = {
 
 local _preamble_cache = nil
 
-function ljs_transpile.preamble()
+function M.preamble()
   if _preamble_cache then
     return _preamble_cache
   end
@@ -1055,7 +1055,7 @@ end
 -- @param ast (table) AST from parser.parse()
 -- @param opts (table|nil) Options table; opts.mode = "script" (default) or "eval"
 -- @return (string) Lua source code (user code only)
-function ljs_transpile.emit(ast, opts)
+function M.emit(ast, opts)
   opts = opts or {}
   local ctx = {
     eval_mode = (opts.mode == "eval"),
@@ -1073,8 +1073,8 @@ end
 -- @param ast (table) AST from parser.parse()
 -- @param opts (table|nil) Options table; opts.mode = "script" (default) or "eval"
 -- @return (string) Lua source code
-function ljs_transpile.transpile(ast, opts)
-  return ljs_transpile.preamble() .. ljs_transpile.emit(ast, opts)
+function M.transpile(ast, opts)
+  return M.preamble() .. M.emit(ast, opts)
 end
 
 --- Parse JS source and transpile to Lua in one step.
@@ -1082,19 +1082,19 @@ end
 -- @param opts (table|nil) Options table; opts.mode = "script" (default) or "eval"
 -- @return (string|nil) Lua source code, or nil on error
 -- @return (table|nil) ParseError {message, line, col}, or nil on success
-function ljs_transpile.transpile_source(source, opts)
+function M.transpile_source(source, opts)
   local parser = require("ljs.parser")
   local ast, err = parser.parse(source)
   if not ast then
     return nil, err
   end
-  return ljs_transpile.transpile(ast, opts)
+  return M.transpile(ast, opts)
 end
 
-ljs_transpile.HELPERS = HELPERS
+M.HELPERS = HELPERS
 
 -- ============================================================================
 -- Section 6: Module return
 -- ============================================================================
 
-return ljs_transpile
+return M
