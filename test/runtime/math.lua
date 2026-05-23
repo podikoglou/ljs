@@ -40,6 +40,18 @@ test("Math.SQRT2", function()
   assert_eq(eval_js("Math.SQRT2"), 1.4142135623730951)
 end)
 
+test("Math.LOG2E", function()
+  assert_eq(eval_js("Math.LOG2E"), 1.4426950408889634)
+end)
+
+test("Math.LOG10E", function()
+  assert_eq(eval_js("Math.LOG10E"), 0.4342944819032518)
+end)
+
+test("Math.SQRT1_2", function()
+  assert_eq(eval_js("Math.SQRT1_2"), 0.7071067811865476)
+end)
+
 -- ============================================================================
 -- Math.abs
 -- ============================================================================
