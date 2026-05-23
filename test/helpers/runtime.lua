@@ -1,6 +1,6 @@
-local transpile = require("ljs_transpile")
-local parser = require("ljs_parser")
-local T = require("ljs_test")
+local transpile = require("ljs.transpile")
+local parser = require("ljs.parser")
+local T = require("test.ljs_test")
 
 local test, assert_eq = T.test, T.assert_eq
 

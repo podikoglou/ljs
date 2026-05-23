@@ -1,4 +1,4 @@
-local T = require("ljs_test")
+local T = require("test.ljs_test")
 if arg and arg[1] == "-v" then
   T.set_verbose(true)
 end

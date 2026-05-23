@@ -1,4 +1,4 @@
-local T = require("ljs_test")
+local T = require("test.ljs_test")
 local H = require("test.helpers.transpile")
 local test, assert_eq = T.test, T.assert_eq
 local transpile_ok, run_js = H.transpile_ok, H.run_js

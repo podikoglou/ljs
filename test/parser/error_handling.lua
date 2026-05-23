@@ -1,5 +1,5 @@
-local T = require("ljs_test")
-local ljs = require("ljs_parser")
+local T = require("test.ljs_test")
+local ljs = require("ljs.parser")
 local test, assert_eq = T.test, T.assert_eq
 
 local function check_tokenize_err(src, msg_substr, line, col, label)

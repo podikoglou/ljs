@@ -1,6 +1,6 @@
-local T = require("ljs_test")
+local T = require("test.ljs_test")
 local ljs = require("ljs")
-local parser = require("ljs_parser")
+local parser = require("ljs.parser")
 local test, assert_eq = T.test, T.assert_eq
 
 -- ============================================================================

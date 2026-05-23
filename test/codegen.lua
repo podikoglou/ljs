@@ -1,5 +1,5 @@
-local cg = require("ljs_codegen")
-local T = require("ljs_test")
+local cg = require("ljs.codegen")
+local T = require("test.ljs_test")
 local test, assert_eq = T.test, T.assert_eq
 
 -- ============================================================================

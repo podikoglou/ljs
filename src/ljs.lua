@@ -1,5 +1,5 @@
 --- ljs — Lua JS Toolkit: parse, transpile, and run JavaScript subsets.
--- Single entry point that aggregates ljs_parser and ljs_transpile.
+-- Single entry point that aggregates ljs.parser and ljs.transpile.
 -- Lower-level modules remain directly requireable for advanced use.
 -- @module ljs
 
@@ -14,7 +14,7 @@ local ljs = {}
 -- @return (table|nil) AST root node (Program), or nil on failure
 -- @return (table|nil) ParseError {message, line, col}, or nil on success
 function ljs.parse(source)
-  local parser = require("ljs_parser")
+  local parser = require("ljs.parser")
   return parser.parse(source)
 end
 
@@ -23,7 +23,7 @@ end
 -- @return (table|nil) AST root node (Program), or nil on failure
 -- @return (table|nil) ParseError {message, line, col}, or nil on success
 function ljs.parse_tokens(tokens)
-  local parser = require("ljs_parser")
+  local parser = require("ljs.parser")
   return parser.parse_tokens(tokens)
 end
 
@@ -32,7 +32,7 @@ end
 -- @return (table|nil) Array of token tables, or nil on failure
 -- @return (table|nil) ParseError {message, line, col}, or nil on success
 function ljs.tokenize(source)
-  local parser = require("ljs_parser")
+  local parser = require("ljs.parser")
   return parser.tokenize(source)
 end
 
@@ -44,7 +44,7 @@ end
 -- Use once per output file when combining multiple ASTs.
 -- @return (string) Lua source preamble
 function ljs.preamble()
-  local transpiler = require("ljs_transpile")
+  local transpiler = require("ljs.transpile")
   return transpiler.preamble()
 end
 
@@ -52,7 +52,7 @@ end
 -- @param ast (table) AST root node (Program)
 -- @return (string) Lua source code (user code only)
 function ljs.emit(ast)
-  local transpiler = require("ljs_transpile")
+  local transpiler = require("ljs.transpile")
   return transpiler.emit(ast)
 end
 
@@ -62,7 +62,7 @@ end
 -- @return (string|nil) Lua source code, or nil on failure
 -- @return (table|nil) ParseError {message, line, col}, or nil on success
 function ljs.transpile(source)
-  local transpiler = require("ljs_transpile")
+  local transpiler = require("ljs.transpile")
   return transpiler.transpile_source(source)
 end
 
@@ -71,7 +71,7 @@ end
 -- @param ast (table) AST root node (Program)
 -- @return (string) Lua source code
 function ljs.transpile_ast(ast)
-  local transpiler = require("ljs_transpile")
+  local transpiler = require("ljs.transpile")
   return transpiler.preamble() .. transpiler.emit(ast)
 end
 
@@ -86,7 +86,7 @@ end
 -- @return (function|nil) Callable Lua function, or nil on failure
 -- @return (table|nil) ParseError {message, line, col}, or nil on success
 function ljs.load(source)
-  local transpiler = require("ljs_transpile")
+  local transpiler = require("ljs.transpile")
   local code, err = transpiler.transpile_source(source, { mode = "eval" })
   if not code then
     return nil, err
@@ -94,7 +94,7 @@ function ljs.load(source)
   local fn, load_err = load(code)
   if not fn then
     return nil,
-      require("ljs_parser").make_parse_error("compile error: " .. tostring(load_err), 0, 0)
+      require("ljs.parser").make_parse_error("compile error: " .. tostring(load_err), 0, 0)
   end
   return fn
 end
@@ -113,13 +113,13 @@ function ljs.run(source)
   end
   local ok, result = pcall(fn)
   if not ok then
-    return nil, require("ljs_parser").make_parse_error("runtime error: " .. tostring(result), 0, 0)
+    return nil, require("ljs.parser").make_parse_error("runtime error: " .. tostring(result), 0, 0)
   end
   return result
 end
 
 function ljs.is_parse_error(val)
-  return require("ljs_parser").is_parse_error(val)
+  return require("ljs.parser").is_parse_error(val)
 end
 
 --- Format a ParseError with source context for terminal display.
@@ -127,7 +127,7 @@ end
 -- @param source (string) The original source code
 -- @return (string) Formatted multi-line error string
 function ljs.format_error(err, source)
-  return require("ljs_parser").format_error(err, source)
+  return require("ljs.parser").format_error(err, source)
 end
 
 return ljs

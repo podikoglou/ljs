@@ -1,11 +1,11 @@
 local ljs_transpile = {}
 
-local cg = require("ljs_codegen")
+local cg = require("ljs.codegen")
 
 local function read_runtime(name)
   local info = debug.getinfo(1, "S")
   local dir = info.source:gsub("^@", ""):match("^(.*/)")
-  local path = dir .. "ljs_runtime/" .. name .. ".lua"
+  local path = dir .. "runtime/" .. name .. ".lua"
   local f = io.open(path, "r")
   if not f then
     error("cannot open runtime file: " .. path)
@@ -1083,7 +1083,7 @@ end
 -- @return (string|nil) Lua source code, or nil on error
 -- @return (table|nil) ParseError {message, line, col}, or nil on success
 function ljs_transpile.transpile_source(source, opts)
-  local parser = require("ljs_parser")
+  local parser = require("ljs.parser")
   local ast, err = parser.parse(source)
   if not ast then
     return nil, err

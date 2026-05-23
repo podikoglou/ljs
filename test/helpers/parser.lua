@@ -1,6 +1,6 @@
 -- Parser test helpers module
-local ljs = require("ljs_parser")
-local T = require("ljs_test") -- ljs_test is at root
+local ljs = require("ljs.parser")
+local T = require("test.ljs_test") -- ljs_test is at root
 
 local test, assert_eq, assert_table_eq = T.test, T.assert_eq, T.assert_table_eq
 

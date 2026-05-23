@@ -1,6 +1,6 @@
-local T = require("ljs_test")
+local T = require("test.ljs_test")
 local P = require("test.helpers.parser")
-local ljs = require("ljs_parser")
+local ljs = require("ljs.parser")
 local A = require("test.helpers.ast")
 local test, assert_eq, assert_table_eq = T.test, T.assert_eq, T.assert_table_eq
 local assert_parse_ok, assert_parse_fail = P.assert_parse_ok, P.assert_parse_fail
