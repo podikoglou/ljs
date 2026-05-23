@@ -1,4 +1,4 @@
--- ljs_parser - JavaScript subset parser for Lua
+-- ljs.parser - JavaScript subset parser for Lua
 -- Parses a well-defined subset of JavaScript into a Lua table-based AST.
 --
 -- Supported: let/const/var, functions, arrow functions, objects, arrays,
@@ -9,11 +9,11 @@
 -- regex literals, prototypal inheritance, Promises.
 --
 -- Usage:
---   local parser = require("ljs_parser")
+--   local parser = require("ljs.parser")
 --   local ast, err = parser.parse("let x = 42; console.log(x);")
 --   if not ast then print(err) end
 
-local ljs = {}
+local M = {}
 
 -- ============================================================================
 -- TOKEN TYPES
@@ -128,7 +128,7 @@ local TOKEN = {
   INSTANCEOF = "instanceof",
 }
 
-ljs.TOKEN = TOKEN
+M.TOKEN = TOKEN
 
 -- Maps keyword strings to their token type. Looked up during tokenization
 -- to distinguish keywords from plain identifiers. "var" maps to TOKEN.LET
@@ -648,7 +648,7 @@ local function tokenize(source)
   return tokens
 end
 
-ljs.tokenize = tokenize
+M.tokenize = tokenize
 
 -- ============================================================================
 -- TOKEN STREAM CONSUMER
@@ -746,7 +746,7 @@ local function make_token_stream(tokens)
   return stream
 end
 
-ljs.make_token_stream = make_token_stream
+M.make_token_stream = make_token_stream
 
 -- ============================================================================
 -- AST BUILDERS
@@ -1050,7 +1050,7 @@ end
 -- Top-down recursive descent parser with Pratt parsing for expressions.
 --
 -- Architecture:
---   ljs.parse(source)
+--   M.parse(source)
 --     -> tokenize(source) -> make_token_stream(tokens) -> parse_statement*
 --
 -- Statements are dispatched by the first token (let/const, if, while, etc).
@@ -1090,7 +1090,7 @@ local parse_postfix
 -- @param source (string) JavaScript source code
 -- @return ast (table) The AST root node (Program)
 -- @return err (string) Error message if parsing failed
-function ljs.parse(source)
+function M.parse(source)
   local tokens, tokenize_err = tokenize(source)
   if not tokens then
     return nil, tokenize_err
@@ -1122,7 +1122,7 @@ end
 -- @param tokens (table) Array of token tables {type, value?, line, col}
 -- @return ast (table) The AST root node (Program)
 -- @return err (string) Error message if parsing failed
-function ljs.parse_tokens(tokens)
+function M.parse_tokens(tokens)
   local stream = make_token_stream(tokens)
 
   local ok, result = pcall(function()
@@ -2209,15 +2209,15 @@ end
 -- EXPORTS
 -- ============================================================================
 
-ljs.ParseError = ParseError
-ljs.is_parse_error = is_parse_error
-ljs.make_parse_error = make_parse_error
+M.ParseError = ParseError
+M.is_parse_error = is_parse_error
+M.make_parse_error = make_parse_error
 
 --- Format a ParseError with source context for terminal display.
 -- @param err (table) ParseError {message, line, col}
 -- @param source (string) The original source code
 -- @return (string) Formatted multi-line error string
-function ljs.format_error(err, source)
+function M.format_error(err, source)
   local result = err.message
 
   if err.line and err.line > 0 and source then
@@ -2241,4 +2241,4 @@ function ljs.format_error(err, source)
   return result
 end
 
-return ljs
+return M
