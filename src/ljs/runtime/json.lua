@@ -1,3 +1,13 @@
+-- JSON.parse/stringify wrapping rxi's json.lua (loaded as `json` in the preamble).
+-- Post-processes decoded values to produce proper ljs runtime objects:
+-- arrays get Array.prototype chain + .length, objects get Object.prototype chain.
+-- stringify handles ljs-specific types (callable tables → skip, checks .length
+-- for array detection via prototype chain walk).
+
+--- Recursively wrap a decoded JSON value into ljs runtime objects.
+-- Arrays (marked with _ljs_arr by json_lib.parse_array) become Array instances
+-- with 1-based indexing and .length. Objects become _ljs_object instances.
+-- The _ljs_arr marker is stripped after detection.
 local function _ljs_json_wrap(val)
   if val == json.null then
     return val
@@ -23,6 +33,7 @@ local function _ljs_json_wrap(val)
   return result
 end
 
+-- JSON object: plain _ljs_object with parse and stringify methods.
 local JSON = _ljs_object({})
 JSON.null = json.null
 
@@ -30,6 +41,8 @@ JSON.parse = _ljs_fn(function(_ljs_this, text)
   return _ljs_json_wrap(json.decode(text))
 end)
 
+-- Detect callable tables (functions) by checking for __call metamethod.
+-- Used by stringify to skip function-valued properties.
 local function _ljs_is_fn(val)
   if type(val) ~= "table" then
     return false
@@ -38,6 +51,9 @@ local function _ljs_is_fn(val)
   return mt and mt.__call ~= nil
 end
 
+-- Check if a value is an Array instance by walking its __index chain
+-- looking for Array.prototype. Needed because JSON.stringify must distinguish
+-- arrays from plain objects.
 local function _ljs_is_array(val)
   local mt = getmetatable(val)
   if not mt then
@@ -54,6 +70,9 @@ local function _ljs_is_array(val)
   return false
 end
 
+-- Custom stringify that understands ljs runtime objects: uses rawget for array
+-- elements (skips inherited properties), checks prototype chain for array type,
+-- skips functions, handles nil → null. Circular reference detection via stack.
 local function _ljs_json_stringify(val, stack)
   stack = stack or {}
   if val == json.null then
