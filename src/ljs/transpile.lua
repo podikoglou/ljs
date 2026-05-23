@@ -1049,6 +1049,8 @@ function M.preamble()
     .. read_runtime("array")
     .. read_runtime("error")
     .. read_runtime("console")
+    .. read_runtime("json_lib")
+    .. read_runtime("json")
   return _preamble_cache
 end
 
