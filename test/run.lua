@@ -74,4 +74,11 @@ T.describe("runtime/json", function()
   end
 end)
 
+T.describe("runtime/math", function()
+  local ok, err = pcall(require, "test.runtime.math")
+  if not ok then
+    print(string.format("  \27[33m⚠\27[0m runtime/math: %s", tostring(err):match("^[^\n]*")))
+  end
+end)
+
 T.summary()
