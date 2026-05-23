@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Allotment } from "allotment";
 import { useHotkeys } from "react-hotkeys-hook";
 import "allotment/dist/style.css";
-import { transpile, run, type RunResult, type ParseError } from "./lib/ljs";
+import { emit, getPreamble, run, type RunResult } from "./lib/ljs";
+import type { ParseError } from "./lib/ljs-core";
 import JsEditor from "./components/js-editor";
 import LuaOutput from "./components/lua-output";
 import Console, { useTerminal } from "./components/console";
@@ -31,21 +32,36 @@ function saveSizes(key: string, sizes: number[]) {
 
 export default function App() {
   const [jsSource, setJsSource] = useState(DEFAULT_CODE);
-  const [luaOutput, setLuaOutput] = useState("");
+  const [userCode, setUserCode] = useState("");
+  const [preambleCode, setPreambleCode] = useState("");
   const [transpileError, setTranspileError] = useState<ParseError | null>(null);
   const [ready, setReady] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { ref: termRef, write: termWrite } = useTerminal();
 
+  const luaOutput = useMemo(
+    () => (userCode ? preambleCode + userCode : ""),
+    [preambleCode, userCode],
+  );
+
+  const preambleLines = useMemo(
+    () => (userCode ? preambleCode.split("\n").length - 1 : 0),
+    [preambleCode, userCode],
+  );
+
+  useEffect(() => {
+    getPreamble().then(setPreambleCode);
+  }, []);
+
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      transpile(jsSource).then((result) => {
+      emit(jsSource).then((result) => {
         if (result.code !== null) {
-          setLuaOutput(result.code);
+          setUserCode(result.code);
           setTranspileError(null);
         } else {
-          setLuaOutput("");
+          setUserCode("");
           setTranspileError(result.error);
         }
         setReady(true);
@@ -98,7 +114,7 @@ export default function App() {
               onRun={handleRun}
               error={transpileError}
             />
-            <LuaOutput code={luaOutput} error={transpileError} />
+            <LuaOutput code={luaOutput} error={transpileError} preambleLines={preambleLines} />
           </Allotment>
           <Console terminalRef={termRef} />
         </Allotment>

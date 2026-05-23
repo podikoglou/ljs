@@ -1,8 +1,11 @@
+import { useMemo } from "react";
 import CodeMirror from "@uiw/react-codemirror";
+import type { Extension } from "@codemirror/state";
 import { StreamLanguage } from "@codemirror/language";
 import { lua } from "@codemirror/legacy-modes/mode/lua";
 import { flexokiDark } from "../theme/flexoki";
 import type { ParseError } from "../lib/ljs-core";
+import { preambleFold } from "../lib/preamble-fold";
 
 const cmSetup = {
   lineNumbers: true,
@@ -12,14 +15,23 @@ const cmSetup = {
   highlightActiveLineGutter: false,
 };
 
-const luaExtensions = [StreamLanguage.define(lua)];
+const luaLang = StreamLanguage.define(lua);
 
 interface LuaOutputProps {
   code: string;
   error?: ParseError | null;
+  preambleLines: number;
 }
 
-export default function LuaOutput({ code, error }: LuaOutputProps) {
+export default function LuaOutput({ code, error, preambleLines }: LuaOutputProps) {
+  const extensions = useMemo(() => {
+    const exts: Extension[] = [luaLang];
+    if (preambleLines > 0) {
+      exts.push(preambleFold(preambleLines));
+    }
+    return exts;
+  }, [preambleLines]);
+
   return (
     <div className="h-full min-h-0">
       {error && (
@@ -38,7 +50,7 @@ export default function LuaOutput({ code, error }: LuaOutputProps) {
         value={code}
         height="100%"
         theme={flexokiDark}
-        extensions={luaExtensions}
+        extensions={extensions}
         editable={false}
         basicSetup={cmSetup}
       />

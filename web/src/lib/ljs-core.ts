@@ -38,26 +38,53 @@ export async function transpile(source: string): Promise<TranspileResult> {
         return { code = nil, error = { message = err.message, line = err.line, col = err.col } }
       end
     `);
-    const table = result as Record<string, unknown> | null;
-    if (table && typeof table["code"] === "string") {
-      return { code: table["code"], error: null };
-    }
-    if (table && table["error"]) {
-      const e = table["error"] as Record<string, unknown>;
-      return {
-        code: null,
-        error: {
-          message: String(e["message"] ?? "unknown error"),
-          line: Number(e["line"] ?? 0),
-          col: Number(e["col"] ?? 0),
-        },
-      };
-    }
-    return { code: null, error: null };
+    return extractTranspileResult(result);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     return { code: null, error: { message: msg, line: 0, col: 0 } };
   }
+}
+
+export async function getPreamble(): Promise<string> {
+  const result = await getVM().eval(`return require("ljs").preamble()`);
+  return String(result);
+}
+
+export async function emit(source: string): Promise<TranspileResult> {
+  try {
+    await getVM().setGlobal("__ljs_input", source);
+    const result = await getVM().eval(`
+      local ljs = require("ljs")
+      local ast, err = ljs.parse(__ljs_input)
+      if not ast then
+        return { code = nil, error = { message = err.message, line = err.line, col = err.col } }
+      end
+      return { code = ljs.emit(ast) }
+    `);
+    return extractTranspileResult(result);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { code: null, error: { message: msg, line: 0, col: 0 } };
+  }
+}
+
+function extractTranspileResult(result: unknown): TranspileResult {
+  const table = result as Record<string, unknown> | null;
+  if (table && typeof table["code"] === "string") {
+    return { code: table["code"], error: null };
+  }
+  if (table && table["error"]) {
+    const e = table["error"] as Record<string, unknown>;
+    return {
+      code: null,
+      error: {
+        message: String(e["message"] ?? "unknown error"),
+        line: Number(e["line"] ?? 0),
+        col: Number(e["col"] ?? 0),
+      },
+    };
+  }
+  return { code: null, error: null };
 }
 
 export interface RunResult {

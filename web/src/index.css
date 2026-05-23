@@ -77,3 +77,16 @@ html:root {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-base-600);
 }
+
+.cm-preamble-toggle {
+  display: block;
+  cursor: pointer;
+  color: var(--color-base-500);
+  padding: 2px 6px;
+  user-select: none;
+  font-size: 10px;
+}
+
+.cm-preamble-toggle:hover {
+  color: var(--color-base-300);
+}

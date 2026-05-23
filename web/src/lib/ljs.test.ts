@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { transpile, run, setVM, type LuaVM, type RunResult } from "./ljs-core";
+import { transpile, emit, getPreamble, run, setVM, type LuaVM, type RunResult } from "./ljs-core";
 
 class StubVM implements LuaVM {
   evalResult: unknown = null;
@@ -100,5 +100,60 @@ describe("run", () => {
     const result = await run("x");
     expect(result.output).toEqual([]);
     expect(result.error).toEqual({ message: "vm crash", line: 0, col: 0 });
+  });
+});
+
+describe("getPreamble", () => {
+  let stub: StubVM;
+
+  beforeEach(() => {
+    stub = new StubVM();
+    setVM(stub);
+  });
+
+  it("returns preamble string", async () => {
+    stub.evalResult = "local _ljs_object_prototype = {}";
+    const result = await getPreamble();
+    expect(result).toBe("local _ljs_object_prototype = {}");
+    expect(stub.evalCalls[0]).toContain("preamble()");
+  });
+});
+
+describe("emit", () => {
+  let stub: StubVM;
+
+  beforeEach(() => {
+    stub = new StubVM();
+    setVM(stub);
+  });
+
+  it("returns user code on success", async () => {
+    stub.evalResult = { code: "local x = 1" };
+    const result = await emit("let x = 1");
+    expect(result).toEqual({ code: "local x = 1", error: null });
+    expect(stub.evalCalls[0]).toContain("ljs.emit");
+  });
+
+  it("returns structured error when parse fails", async () => {
+    stub.evalResult = {
+      code: null,
+      error: { message: "Unexpected token ;", line: 1, col: 5 },
+    };
+    const result = await emit("let x = ;");
+    expect(result.code).toBeNull();
+    expect(result.error).toEqual({
+      message: "Unexpected token ;",
+      line: 1,
+      col: 5,
+    });
+  });
+
+  it("returns fallback error when eval throws", async () => {
+    stub.evalError = new Error("vm crash");
+    const result = await emit("x");
+    expect(result).toEqual({
+      code: null,
+      error: { message: "vm crash", line: 0, col: 0 },
+    });
   });
 });

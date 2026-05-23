@@ -1,5 +1,7 @@
 export {
   transpile,
+  emit,
+  getPreamble,
   run,
   setVM,
   type LuaVM,
