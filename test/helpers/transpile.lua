@@ -23,6 +23,31 @@ local function transpile_ok(src)
   return transpile_ast(ast)
 end
 
+local function emit_ok(src)
+  local ast, err = parser.parse(src)
+  if not ast then
+    error("parse failed: " .. tostring(err))
+  end
+  local code, err2 = transpile.emit(ast)
+  if not code then
+    error("emit failed: " .. tostring(err2))
+  end
+  return code
+end
+
+local function emit_expr_code(src)
+  local ast, err = parser.parse(src)
+  if not ast then
+    error("parse failed: " .. tostring(err))
+  end
+  local code, err2 = transpile.emit(ast)
+  if not code then
+    error("emit failed: " .. tostring(err2))
+  end
+  code = code:gsub("\n$", "")
+  return code:match("([^\n]*)$")
+end
+
 local function expr_code(src)
   local ast, err = parser.parse(src)
   if not ast then
@@ -79,6 +104,8 @@ return {
   assert_eq = assert_eq,
   transpile_ast = transpile_ast,
   transpile_ok = transpile_ok,
+  emit_ok = emit_ok,
+  emit_expr_code = emit_expr_code,
   expr_code = expr_code,
   run_lua_source = run_lua_source,
   run_js = run_js,

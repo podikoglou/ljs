@@ -1,7 +1,7 @@
 local T = require("test.ljs_test")
 local H = require("test.helpers.transpile")
 local test, assert_eq = T.test, T.assert_eq
-local transpile_ok = H.transpile_ok
+local transpile_ok, emit_ok = H.transpile_ok, H.emit_ok
 
 -- ============================================================================
 -- Unit tests — functions
@@ -132,7 +132,8 @@ end)
 test("for with expression init transpiles correctly", function()
   local code = transpile_ok("for (i = 0; i < 5; i = i + 1) { x; }")
   assert(code:find("i = 0"), "expected 'i = 0' (no local)")
-  assert(not code:find("local i ="), "no local for expression init")
+  local ecode = emit_ok("for (i = 0; i < 5; i = i + 1) { x; }")
+  assert(not ecode:find("local i ="), "no local for expression init")
   assert(code:find("while i < 5 do"), "expected 'while i < 5 do'")
 end)
 
@@ -140,8 +141,9 @@ test("for with nil update transpiles correctly", function()
   local code = transpile_ok("for (let x = 1; x < 5; ) { x; }")
   assert(code:find("local x = 1"), "expected 'local x = 1'")
   assert(code:find("while x < 5 do"), "expected 'while x < 5 do'")
-  assert(not code:find("x = _ljs_add"), "no _ljs_add update in codegen")
-  assert(not code:find("x = x %- 1"), "no decrement update in codegen")
+  local ecode = emit_ok("for (let x = 1; x < 5; ) { x; }")
+  assert(not ecode:find("x = _ljs_add"), "no _ljs_add update in codegen")
+  assert(not ecode:find("x = x %- 1"), "no decrement update in codegen")
 end)
 
 test("for with nil init+nil test transpiles correctly", function()
@@ -157,7 +159,7 @@ test("for with nil test transpiles to while true", function()
 end)
 
 test("for with nil init transpiles correctly", function()
-  local code = transpile_ok("for (; x < 10; x = x + 1) { y; }")
+  local code = emit_ok("for (; x < 10; x = x + 1) { y; }")
   assert(not code:find("local x"), "no init")
   assert(code:find("while x < 10 do"), "expected 'while x < 10 do'")
   assert(code:find("_ljs_add%(x, 1%)"), "expected update")
@@ -186,7 +188,7 @@ test("for update placed at end of body", function()
 end)
 
 test("for with no semicolons in Lua output", function()
-  local code = transpile_ok("for (let i = 0; i < 3; i = i + 1) { x; }")
+  local code = emit_ok("for (let i = 0; i < 3; i = i + 1) { x; }")
   assert(not code:find(";"), "no semicolons in Lua output")
 end)
 
@@ -197,7 +199,8 @@ end)
 
 test("for(;;) scoping: expression init does not use local", function()
   local code = transpile_ok("for (i = 0; i < 1; i = i + 1) { x; }")
-  assert(not code:find("local i ="), "no local for expression init")
+  local ecode = emit_ok("for (i = 0; i < 1; i = i + 1) { x; }")
+  assert(not ecode:find("local i ="), "no local for expression init")
   assert(code:find("i = 0"), "expected bare 'i = 0'")
 end)
 

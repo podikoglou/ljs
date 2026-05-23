@@ -1,7 +1,7 @@
 local T = require("test.ljs_test")
 local H = require("test.helpers.transpile")
 local test, assert_eq = T.test, T.assert_eq
-local expr_code, run_js = H.expr_code, H.run_js
+local expr_code, run_js, emit_expr_code = H.expr_code, H.run_js, H.emit_expr_code
 
 -- ============================================================================
 -- Unit tests
@@ -15,7 +15,8 @@ end)
 test("console.log emits _ljs_call_member, not _ljs_log", function()
   local code = expr_code('console.log("x")')
   assert(code:find("_ljs_call_member"))
-  assert(not code:find("_ljs_log"))
+  local ecode = emit_expr_code('console.log("x")')
+  assert(not ecode:find("_ljs_log"))
 end)
 
 test("Object and console helpers always emitted", function()

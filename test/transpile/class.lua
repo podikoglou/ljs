@@ -1,7 +1,7 @@
 local T = require("test.ljs_test")
 local H = require("test.helpers.transpile")
 local test, assert_eq = T.test, T.assert_eq
-local expr_code, run_js = H.expr_code, H.run_js
+local expr_code, run_js, emit_ok = H.expr_code, H.run_js, H.emit_ok
 
 test("_ljs_ctor wrapping for class", function()
   local code = H.transpile_ok("class Foo {}")
@@ -28,7 +28,8 @@ end)
 test("static method assigned to constructor", function()
   local code = H.transpile_ok("class Foo { static create() { return 1; } }")
   assert(code:find('Foo%["create"%]'), "expected static on constructor")
-  assert(not code:find('Foo%.prototype%["create"%]'), "static should NOT be on prototype")
+  local ecode = emit_ok("class Foo { static create() { return 1; } }")
+  assert(not ecode:find('Foo%.prototype%["create"%]'), "static should NOT be on prototype")
 end)
 
 test("extends sets up prototype chain", function()

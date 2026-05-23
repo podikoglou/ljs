@@ -1,7 +1,7 @@
 local T = require("test.ljs_test")
 local H = require("test.helpers.transpile")
 local test, assert_eq = T.test, T.assert_eq
-local transpile_ok, expr_code, run_js = H.transpile_ok, H.expr_code, H.run_js
+local transpile_ok, expr_code, run_js, emit_ok = H.transpile_ok, H.expr_code, H.run_js, H.emit_ok
 
 -- ============================================================================
 -- Unit tests — literals
@@ -166,7 +166,7 @@ test("exponentiation chained right-assoc", function()
 end)
 
 test("exponentiation no helper emitted", function()
-  local code = transpile_ok("let x = 2 ** 3;")
+  local code = emit_ok("let x = 2 ** 3;")
   assert(not code:find("_ljs_pow"), "expected no _ljs_pow helper")
 end)
 

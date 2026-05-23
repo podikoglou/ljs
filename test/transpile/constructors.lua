@@ -1,7 +1,7 @@
 local T = require("test.ljs_test")
 local H = require("test.helpers.transpile")
 local test, assert_eq = T.test, T.assert_eq
-local expr_code, run_js = H.expr_code, H.run_js
+local expr_code, run_js, emit_ok = H.expr_code, H.run_js, H.emit_ok
 
 -- ============================================================================
 -- Unit tests — helpers emitted
@@ -73,7 +73,8 @@ test("method shorthand wrapped in _ljs_fn not _ljs_ctor", function()
     code:find("m = _ljs_fn(function(_ljs_this)", nil, true),
     "expected _ljs_fn wrapping for method"
   )
-  assert(not code:find("m = _ljs_ctor("), "should NOT be _ljs_ctor wrapped")
+  local ecode = emit_ok("let o = { m() { return 1; } };")
+  assert(not ecode:find("m = _ljs_ctor("), "should NOT be _ljs_ctor wrapped")
 end)
 
 test("arrow function wrapped in _ljs_fn not _ljs_ctor", function()
