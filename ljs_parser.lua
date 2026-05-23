@@ -1093,7 +1093,7 @@ local parse_postfix
 function ljs.parse(source)
   local tokens, tokenize_err = tokenize(source)
   if not tokens then
-    return nil, "parse error: " .. tostring(tokenize_err)
+    return nil, tokenize_err
   end
 
   local stream = make_token_stream(tokens)
@@ -1109,7 +1109,10 @@ function ljs.parse(source)
   if ok then
     return result
   end
-  return nil, "parse error: " .. tostring(result)
+  if is_parse_error(result) then
+    return nil, result
+  end
+  return nil, make_parse_error(tostring(result), 0, 0)
 end
 
 --- Parse a pre-built token array into an AST.
@@ -1133,7 +1136,10 @@ function ljs.parse_tokens(tokens)
   if ok then
     return result
   end
-  return nil, "parse error: " .. tostring(result)
+  if is_parse_error(result) then
+    return nil, result
+  end
+  return nil, make_parse_error(tostring(result), 0, 0)
 end
 
 -- ============================================================================

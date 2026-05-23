@@ -358,15 +358,13 @@ test("parse_tokens: do...while without braces", function()
 end)
 
 -- ============================================================================
--- INVARIANT: parse errors return nil, msg where msg starts with "parse error:"
--- Contract: callers pattern-match on "parse error:" to distinguish parse
--- failures from other nil returns. If the prefix changes, error handling
--- in downstream tools silently breaks.
-
-test("error return convention: nil + 'parse error:' prefix", function()
+-- INVARIANT: parse errors return nil, err where err is a ParseError table
+-- Contract: callers check ljs.is_parse_error(err) to identify parse errors
+test("error return convention: nil + ParseError", function()
   local cases = {
-    "async function f() {}",
-    "1 == 2",
+    "==;",
+    "{;}",
+    "let = 3;",
     "++;",
     "5++;",
     "x += ;",
@@ -376,11 +374,12 @@ test("error return convention: nil + 'parse error:' prefix", function()
   for _, src in ipairs(cases) do
     local ast, err = ljs.parse(src)
     assert(ast == nil, "expected nil ast for: " .. src)
-    assert(err ~= nil, "expected error message for: " .. src)
+    assert(err ~= nil, "expected error for: " .. src)
     assert(
-      err:find("parse error:") == 1,
-      "expected 'parse error:' prefix, got: " .. err .. " for: " .. src
+      ljs.is_parse_error(err),
+      "expected ParseError, got: " .. tostring(err) .. " for: " .. src
     )
+    assert(err.message ~= nil, "ParseError missing message for: " .. src)
   end
 end)
 
