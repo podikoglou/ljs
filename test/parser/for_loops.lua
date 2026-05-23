@@ -130,7 +130,7 @@ test("error: let in = 5 (in is keyword)", function()
 end)
 
 test("error: for-in missing body", function()
-  assert_parse_fail("for (let x in obj) ", "Expected statement")
+  assert_parse_fail("for (let x in obj) ", "Unexpected token")
 end)
 
 test("parse for(;;) infinite loop", function()
@@ -287,11 +287,11 @@ test("for-of with const still works (regression)", function()
 end)
 
 test("error: for missing body", function()
-  assert_parse_fail("for (;;) ", "Expected statement")
+  assert_parse_fail("for (;;) ", "Unexpected token")
 end)
 
 test("error: for missing closing paren", function()
-  assert_parse_fail("for (; ; ", "Expected")
+  assert_parse_fail("for (; ; ", "Unexpected token")
 end)
 
 test("error: for missing open paren", function()

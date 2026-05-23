@@ -15,30 +15,55 @@ export function getVM(): LuaVM {
   return vm;
 }
 
-export async function transpile(
-  source: string,
-): Promise<{ code: string | null; error: string | null }> {
+export interface ParseError {
+  message: string;
+  line: number;
+  col: number;
+}
+
+export interface TranspileResult {
+  code: string | null;
+  error: ParseError | null;
+}
+
+export async function transpile(source: string): Promise<TranspileResult> {
   try {
     await getVM().setGlobal("__ljs_input", source);
-    const code = await getVM().eval(`
+    const result = await getVM().eval(`
       local ljs = require("ljs")
       local code, err = ljs.transpile(__ljs_input)
       if code then
-        return code
+        return { code = code }
       else
-        error(err)
+        return { code = nil, error = { message = err.message, line = err.line, col = err.col } }
       end
     `);
-    return { code: typeof code === "string" ? code : null, error: null };
+    const table = result as Record<string, unknown> | null;
+    if (table && typeof table["code"] === "string") {
+      return { code: table["code"], error: null };
+    }
+    if (table && table["error"]) {
+      const e = table["error"] as Record<string, unknown>;
+      return {
+        code: null,
+        error: {
+          message: String(e["message"] ?? "unknown error"),
+          line: Number(e["line"] ?? 0),
+          col: Number(e["col"] ?? 0),
+        },
+      };
+    }
+    return { code: null, error: null };
   } catch (err: unknown) {
-    return { code: null, error: err instanceof Error ? err.message : String(err) };
+    const msg = err instanceof Error ? err.message : String(err);
+    return { code: null, error: { message: msg, line: 0, col: 0 } };
   }
 }
 
 export interface RunResult {
   output: string[];
   result: unknown;
-  error: string | null;
+  error: ParseError | null;
 }
 
 export async function run(source: string): Promise<RunResult> {
@@ -48,10 +73,34 @@ export async function run(source: string): Promise<RunResult> {
   try {
     const result = await getVM().eval(`
       local ljs = require("ljs")
-      return ljs.run(__ljs_input)
+      local ok, result = pcall(ljs.run, __ljs_input)
+      if ok then
+        return { result = result }
+      else
+        local err = result
+        if type(err) == "table" and err.message then
+          return { result = nil, error = { message = err.message, line = err.line, col = err.col } }
+        else
+          return { result = nil, error = { message = tostring(err), line = 0, col = 0 } }
+        end
+      end
     `);
-    return { output: logs, result, error: null };
+    const table = result as Record<string, unknown> | null;
+    if (table && table["error"]) {
+      const e = table["error"] as Record<string, unknown>;
+      return {
+        output: logs,
+        result: null,
+        error: {
+          message: String(e["message"] ?? "unknown error"),
+          line: Number(e["line"] ?? 0),
+          col: Number(e["col"] ?? 0),
+        },
+      };
+    }
+    return { output: logs, result: table?.["result"] ?? null, error: null };
   } catch (err: unknown) {
-    return { output: logs, result: null, error: err instanceof Error ? err.message : String(err) };
+    const msg = err instanceof Error ? err.message : String(err);
+    return { output: logs, result: null, error: { message: msg, line: 0, col: 0 } };
   }
 }

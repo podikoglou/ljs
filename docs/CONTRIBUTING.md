@@ -10,7 +10,9 @@ All tests must pass (exit code 0). The test runner automatically discovers and r
 
 ## Test structure
 
-Tests live under `test/` organized by module (parser, transpile, codegen). One file per feature, lowercase with underscores. Helpers are in `test/helpers/` — parser utilities (`assert_parse_ok`, `assert_tok`) and transpile utilities (`transpile_ok`, `run_js`).
+Tests live under `test/` organized by module (parser, transpile, codegen). One file per feature, lowercase with underscores. Helpers are in `test/helpers/` — parser utilities (`assert_parse_ok`, `assert_parse_fail`, `assert_parse_error`, `assert_tok`, `assert_tokenize_error`) and transpile utilities (`transpile_ok`, `run_js`).
+
+All parser/transpiler errors are `ParseError` tables with `message` (string), `line` (1-based number), and `col` (1-based number) fields. They have a `__tostring` metamethod for simple printing. Use `ljs.format_error(err, source)` to produce a multi-line terminal display with source context and a caret.
 
 ## Adding a new JS feature
 
@@ -56,3 +58,21 @@ Rules:
 - `@return` includes type: `@return (table|nil) ...` or `@return table {type="..."}`
 - Use `---` to start a doc block, `--` for continuation lines
 - No comments inside function bodies unless asked
+
+## Error handling
+
+All parser and transpiler errors are `ParseError` tables:
+
+```lua
+{
+  message = "Expected ';', got '}'",
+  line = 5,       -- 1-based
+  col = 10,       -- 1-based
+}
+```
+
+- `tostring(err)` → `"Expected ';', got '}' at line 5, col 10"`
+- `ljs.format_error(err, source)` → multi-line output with source line and caret
+- `ljs.is_parse_error(val)` → check if a value is a ParseError
+
+Use `assert_parse_error(source, line, col, msg)` to test error positions. Use `assert_parse_fail(source, substr)` for substring-only matching.

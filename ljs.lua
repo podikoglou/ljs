@@ -12,7 +12,7 @@ local ljs = {}
 --- Parse JavaScript source into an AST.
 -- @param source (string) JavaScript source code
 -- @return (table|nil) AST root node (Program), or nil on failure
--- @return (string|nil) Error message, or nil on success
+-- @return (table|nil) ParseError {message, line, col}, or nil on success
 function ljs.parse(source)
   local parser = require("ljs_parser")
   return parser.parse(source)
@@ -21,7 +21,7 @@ end
 --- Parse a pre-built token array into an AST (bypasses tokenizer).
 -- @param tokens (table) Array of token tables {type, value?, line, col}
 -- @return (table|nil) AST root node (Program), or nil on failure
--- @return (string|nil) Error message, or nil on success
+-- @return (table|nil) ParseError {message, line, col}, or nil on success
 function ljs.parse_tokens(tokens)
   local parser = require("ljs_parser")
   return parser.parse_tokens(tokens)
@@ -30,7 +30,7 @@ end
 --- Tokenize JavaScript source (low-level).
 -- @param source (string) JavaScript source code
 -- @return (table|nil) Array of token tables, or nil on failure
--- @return (string|nil) Error message, or nil on success
+-- @return (table|nil) ParseError {message, line, col}, or nil on success
 function ljs.tokenize(source)
   local parser = require("ljs_parser")
   return parser.tokenize(source)
@@ -44,7 +44,7 @@ end
 -- Uses "script" mode: no implicit returns.
 -- @param source (string) JavaScript source code
 -- @return (string|nil) Lua source code, or nil on failure
--- @return (string|nil) Error message, or nil on success
+-- @return (table|nil) ParseError {message, line, col}, or nil on success
 function ljs.transpile(source)
   local transpiler = require("ljs_transpile")
   return transpiler.transpile_source(source)
@@ -68,7 +68,7 @@ end
 -- when the compiled function is called.
 -- @param source (string) JavaScript source code
 -- @return (function|nil) Callable Lua function, or nil on failure
--- @return (string|nil) Error message, or nil on success
+-- @return (table|nil) ParseError {message, line, col}, or nil on success
 function ljs.load(source)
   local transpiler = require("ljs_transpile")
   local code, err = transpiler.transpile_source(source, { mode = "eval" })
@@ -77,7 +77,8 @@ function ljs.load(source)
   end
   local fn, load_err = load(code)
   if not fn then
-    return nil, "compile error: " .. tostring(load_err)
+    return nil,
+      require("ljs_parser").make_parse_error("compile error: " .. tostring(load_err), 0, 0)
   end
   return fn
 end
@@ -88,7 +89,7 @@ end
 -- console.log writes to stdout via Lua's print().
 -- @param source (string) JavaScript source code
 -- @return (any) Result of executing the code
--- @return (nil|string) nil on success, or error message on failure
+-- @return (nil|table) nil on success, or ParseError {message, line, col} on failure
 function ljs.run(source)
   local fn, err = ljs.load(source)
   if not fn then
@@ -96,9 +97,21 @@ function ljs.run(source)
   end
   local ok, result = pcall(fn)
   if not ok then
-    return nil, tostring(result)
+    return nil, require("ljs_parser").make_parse_error("runtime error: " .. tostring(result), 0, 0)
   end
   return result
+end
+
+function ljs.is_parse_error(val)
+  return require("ljs_parser").is_parse_error(val)
+end
+
+--- Format a ParseError with source context for terminal display.
+-- @param err (table) ParseError {message, line, col}
+-- @param source (string) The original source code
+-- @return (string) Formatted multi-line error string
+function ljs.format_error(err, source)
+  return require("ljs_parser").format_error(err, source)
 end
 
 return ljs

@@ -269,7 +269,7 @@ test("parse error: do...while missing parens around test", function()
 end)
 
 test("parse error: do...while missing test expression", function()
-  assert_parse_fail("do { x; } while ();", "Expected expression")
+  assert_parse_fail("do { x; } while ();", "Unexpected token")
 end)
 
 test("parse error: do...while missing closing paren", function()

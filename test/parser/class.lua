@@ -198,5 +198,5 @@ test("class {} — missing name in class declaration — error", function()
 end)
 
 test("class Foo { 42 } — invalid method name — error", function()
-  assert_parse_fail("class Foo { 42 }", "Expected class body")
+  assert_parse_fail("class Foo { 42 }", "Expected method name")
 end)
