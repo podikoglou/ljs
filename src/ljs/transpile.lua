@@ -1051,6 +1051,7 @@ function M.preamble()
     .. read_runtime("console")
     .. read_runtime("json_lib")
     .. read_runtime("json")
+    .. read_runtime("math")
   return _preamble_cache
 end
 
