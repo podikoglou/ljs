@@ -40,6 +40,22 @@ end
 -- Transpile (source/AST → Lua)
 -- ============================================================================
 
+--- Return the cached preamble string (proto + helpers + runtime std lib).
+-- Use once per output file when combining multiple ASTs.
+-- @return (string) Lua source preamble
+function ljs.preamble()
+  local transpiler = require("ljs_transpile")
+  return transpiler.preamble()
+end
+
+--- Emit Lua source for a single AST (user code only, no preamble).
+-- @param ast (table) AST root node (Program)
+-- @return (string) Lua source code (user code only)
+function ljs.emit(ast)
+  local transpiler = require("ljs_transpile")
+  return transpiler.emit(ast)
+end
+
 --- Transpile JavaScript source to Lua source code.
 -- Uses "script" mode: no implicit returns.
 -- @param source (string) JavaScript source code
@@ -56,7 +72,7 @@ end
 -- @return (string) Lua source code
 function ljs.transpile_ast(ast)
   local transpiler = require("ljs_transpile")
-  return transpiler.transpile(ast)
+  return transpiler.preamble() .. transpiler.emit(ast)
 end
 
 -- ============================================================================

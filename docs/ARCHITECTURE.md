@@ -162,6 +162,20 @@ To add a new standard library function (e.g. `Array.prototype.forEach`, `String.
 3. No transpiler changes required — member calls compile to `_ljs_call_member(obj, key, ...)` which resolves the method at runtime via the prototype chain
 
 Internal operator/expression helpers (e.g. `_ljs_add`, `_ljs_ctor`, `_ljs_bnot`) follow a different pattern:
-1. Define the helper in the `HELPERS` table (used for conditional emission via `needed_helpers` analysis)
-2. Add tracking in `analyze_node()` to set `meta.needed_helpers[helper_name] = true` when the relevant AST node is encountered
-3. The helper is automatically emitted in the output when needed
+1. Define the helper in the `HELPERS` table (ordered by `HELPER_ORDER`)
+2. All 19 helpers are always emitted unconditionally in the preamble
+3. No analysis pass required — helpers are part of the compiler ABI, always available
+
+**Preamble structure** (emitted before user code):
+1. Proto declarations (`_ljs_object_prototype`, `_ljs_function_prototype`) from `ljs_runtime/proto.lua`
+2. `local _ljs_arrow_this = nil` — top-level `this` binding
+3. All 19 helpers in order: `_ljs_to_int32` first, `_ljs_fn` second, rest alphabetical
+4. Runtime std lib files: `object`, `function`, `array`, `console`
+
+**Public API:**
+- `ljs.preamble()` — cached preamble string (helpers + runtime, idempotent)
+- `ljs.emit(ast)` — user code only, no preamble
+- `ljs.transpile_ast(ast)` — `preamble() .. emit(ast)`
+- `ljs.transpile(source)` — `parse + preamble() + emit(ast)`
+
+**Multi-file pattern:** `ljs.preamble()` once + `ljs.emit(ast)` per file — no helper duplication.

@@ -168,332 +168,7 @@ HELPERS._ljs_super_call = [[local function _ljs_super_call(proto, key, this_val,
   end]]
 
 -- ============================================================================
--- Section 3: Pass 1 — Analysis (scope tracker, helper detection)
--- ============================================================================
-
-local BUILTINS = {}
-
-local function scope_push(scopes)
-  scopes[#scopes + 1] = {}
-end
-
-local function scope_pop(scopes)
-  scopes[#scopes] = nil
-end
-
-local function scope_declare(scopes, name)
-  scopes[#scopes][name] = true
-end
-
-local function scope_is_shadowed(scopes, name)
-  for i = #scopes, 1, -1 do
-    if scopes[i][name] then
-      return true
-    end
-  end
-  return false
-end
-
-local function lookup_builtin(node, ctx)
-  if node.type ~= "CallExpression" then
-    return nil
-  end
-  local callee = node.callee
-  if not callee or callee.type ~= "MemberExpression" then
-    return nil
-  end
-  if callee.computed then
-    return nil
-  end
-  if callee.object.type ~= "Identifier" then
-    return nil
-  end
-  if callee.property.type ~= "Identifier" then
-    return nil
-  end
-  local obj_entry = BUILTINS[callee.object.name]
-  if not obj_entry then
-    return nil
-  end
-  local entry = obj_entry[callee.property.name]
-  if not entry then
-    return nil
-  end
-  if scope_is_shadowed(ctx, callee.object.name) then
-    return nil
-  end
-  return entry
-end
-
-local function analyze_node(node, meta, scopes)
-  if not node or type(node) ~= "table" then
-    return
-  end
-  local t = node.type
-
-  if t == "Program" then
-    scope_push(scopes)
-    for _, child in ipairs(node.body) do
-      analyze_node(child, meta, scopes)
-    end
-    scope_pop(scopes)
-  elseif t == "BlockStatement" then
-    scope_push(scopes)
-    for _, child in ipairs(node.body) do
-      analyze_node(child, meta, scopes)
-    end
-    scope_pop(scopes)
-  elseif t == "VariableDeclaration" then
-    for _, decl in ipairs(node.declarations) do
-      scope_declare(scopes, decl.name.name)
-      if decl.init then
-        analyze_node(decl.init, meta, scopes)
-      end
-    end
-  elseif t == "FunctionDeclaration" then
-    scope_declare(scopes, node.name)
-    scope_push(scopes)
-    for _, p in ipairs(node.params) do
-      scope_declare(scopes, p.name)
-    end
-    analyze_node(node.body, meta, scopes)
-    scope_pop(scopes)
-  elseif t == "FunctionExpression" then
-    scope_push(scopes)
-    if node.name then
-      scope_declare(scopes, node.name)
-    end
-    for _, p in ipairs(node.params) do
-      scope_declare(scopes, p.name)
-    end
-    analyze_node(node.body, meta, scopes)
-    scope_pop(scopes)
-  elseif t == "ArrowFunctionExpression" then
-    scope_push(scopes)
-    for _, p in ipairs(node.params) do
-      scope_declare(scopes, p.name)
-    end
-    analyze_node(node.body, meta, scopes)
-    scope_pop(scopes)
-  elseif t == "ForOfStatement" then
-    analyze_node(node.right, meta, scopes)
-    scope_push(scopes)
-    if node.left.type == "VariableDeclaration" then
-      for _, decl in ipairs(node.left.declarations) do
-        scope_declare(scopes, decl.name.name)
-      end
-    end
-    analyze_node(node.body, meta, scopes)
-    scope_pop(scopes)
-  elseif t == "ForInStatement" then
-    analyze_node(node.right, meta, scopes)
-    scope_push(scopes)
-    if node.left.type == "VariableDeclaration" then
-      for _, decl in ipairs(node.left.declarations) do
-        scope_declare(scopes, decl.name.name)
-      end
-    end
-    analyze_node(node.body, meta, scopes)
-    scope_pop(scopes)
-  elseif t == "ForStatement" then
-    if node.init then
-      analyze_node(node.init, meta, scopes)
-    end
-    if node.test then
-      analyze_node(node.test, meta, scopes)
-    end
-    if node.update then
-      analyze_node(node.update, meta, scopes)
-    end
-    scope_push(scopes)
-    if node.init and node.init.type == "VariableDeclaration" then
-      for _, decl in ipairs(node.init.declarations) do
-        scope_declare(scopes, decl.name.name)
-      end
-    end
-    analyze_node(node.body, meta, scopes)
-    scope_pop(scopes)
-  elseif t == "CatchClause" then
-    scope_push(scopes)
-    scope_declare(scopes, node.param.name)
-    analyze_node(node.body, meta, scopes)
-    scope_pop(scopes)
-  elseif t == "IfStatement" then
-    analyze_node(node.test, meta, scopes)
-    analyze_node(node.consequent, meta, scopes)
-    if node.alternate then
-      analyze_node(node.alternate, meta, scopes)
-    end
-  elseif t == "WhileStatement" then
-    analyze_node(node.test, meta, scopes)
-    analyze_node(node.body, meta, scopes)
-  elseif t == "DoWhileStatement" then
-    analyze_node(node.body, meta, scopes)
-    analyze_node(node.test, meta, scopes)
-  elseif t == "TryStatement" then
-    analyze_node(node.block, meta, scopes)
-    if node.handler then
-      analyze_node(node.handler, meta, scopes)
-    end
-    if node.finalizer then
-      analyze_node(node.finalizer, meta, scopes)
-    end
-  elseif t == "SwitchStatement" then
-    analyze_node(node.discriminant, meta, scopes)
-    for _, case in ipairs(node.cases) do
-      if case.test then
-        analyze_node(case.test, meta, scopes)
-      end
-      for _, stmt in ipairs(case.consequent) do
-        analyze_node(stmt, meta, scopes)
-      end
-    end
-  elseif t == "ThrowStatement" then
-    if node.argument then
-      analyze_node(node.argument, meta, scopes)
-    end
-  elseif t == "ReturnStatement" then
-    if node.argument then
-      analyze_node(node.argument, meta, scopes)
-    end
-  elseif t == "ExpressionStatement" then
-    analyze_node(node.expression, meta, scopes)
-  elseif t == "BinaryExpression" then
-    local op = node.operator
-    if op == "+" or op == "+=" then
-      meta.needed_helpers["_ljs_add"] = true
-    elseif op == "&" or op == "&=" then
-      meta.needed_helpers["_ljs_band"] = true
-    elseif op == "|" or op == "|=" then
-      meta.needed_helpers["_ljs_bor"] = true
-    elseif op == "^" or op == "^=" then
-      meta.needed_helpers["_ljs_bxor"] = true
-    elseif op == "<<" or op == "<<=" then
-      meta.needed_helpers["_ljs_shl"] = true
-    elseif op == ">>" or op == ">>=" then
-      meta.needed_helpers["_ljs_shr"] = true
-    elseif op == ">>>" or op == ">>>=" then
-      meta.needed_helpers["_ljs_usr"] = true
-    elseif op == "instanceof" then
-      meta.needed_helpers["_ljs_instanceof"] = true
-      meta.needed_helpers["_ljs_ctor"] = true
-    end
-    analyze_node(node.left, meta, scopes)
-    analyze_node(node.right, meta, scopes)
-  elseif t == "UpdateExpression" then
-    if node.operator == "++" then
-      meta.needed_helpers["_ljs_add"] = true
-    end
-    analyze_node(node.argument, meta, scopes)
-  elseif t == "UnaryExpression" then
-    if node.operator == "~" then
-      meta.needed_helpers["_ljs_bnot"] = true
-    end
-    analyze_node(node.argument, meta, scopes)
-  elseif t == "DeleteExpression" then
-    analyze_node(node.argument, meta, scopes)
-  elseif t == "TypeofExpression" then
-    meta.needed_helpers["_ljs_typeof"] = true
-    analyze_node(node.argument, meta, scopes)
-  elseif t == "ConditionalExpression" then
-    analyze_node(node.test, meta, scopes)
-    analyze_node(node.consequent, meta, scopes)
-    analyze_node(node.alternate, meta, scopes)
-  elseif t == "CallExpression" then
-    local builtin = lookup_builtin(node, scopes)
-    if builtin then
-      meta.needed_helpers[builtin.helper] = true
-    elseif node.callee.type == "MemberExpression" then
-      meta.needed_helpers["_ljs_call_member"] = true
-    else
-      meta.needed_helpers["_ljs_call"] = true
-    end
-    analyze_node(node.callee, meta, scopes)
-    for _, arg in ipairs(node.arguments) do
-      analyze_node(arg, meta, scopes)
-    end
-  elseif t == "NewExpression" then
-    meta.needed_helpers["_ljs_new"] = true
-    meta.needed_helpers["_ljs_ctor"] = true
-    analyze_node(node.callee, meta, scopes)
-    for _, arg in ipairs(node.arguments) do
-      analyze_node(arg, meta, scopes)
-    end
-  elseif t == "MemberExpression" then
-    analyze_node(node.object, meta, scopes)
-    if node.computed then
-      analyze_node(node.property, meta, scopes)
-    end
-  elseif t == "ObjectExpression" then
-    meta.needed_helpers["_ljs_object"] = true
-    for _, prop in ipairs(node.properties) do
-      analyze_node(prop.value, meta, scopes)
-    end
-  elseif t == "ArrayExpression" then
-    for _, elem in ipairs(node.elements) do
-      analyze_node(elem, meta, scopes)
-    end
-  elseif t == "ClassDeclaration" then
-    scope_declare(scopes, node.name)
-    meta.needed_helpers["_ljs_ctor"] = true
-    meta.needed_helpers["_ljs_object_create"] = true
-    if node.superClass then
-      analyze_node(node.superClass, meta, scopes)
-    end
-    scope_push(scopes)
-    scope_declare(scopes, node.name)
-    for _, m in ipairs(node.body) do
-      if m.kind == "constructor" then
-        scope_push(scopes)
-        for _, p in ipairs(m.value.params) do
-          scope_declare(scopes, p.name)
-        end
-        analyze_node(m.value.body, meta, scopes)
-        scope_pop(scopes)
-      else
-        scope_push(scopes)
-        for _, p in ipairs(m.value.params) do
-          scope_declare(scopes, p.name)
-        end
-        analyze_node(m.value.body, meta, scopes)
-        scope_pop(scopes)
-      end
-    end
-    scope_pop(scopes)
-  elseif t == "ClassExpression" then
-    meta.needed_helpers["_ljs_ctor"] = true
-    meta.needed_helpers["_ljs_object_create"] = true
-    if node.superClass then
-      analyze_node(node.superClass, meta, scopes)
-    end
-    scope_push(scopes)
-    if node.name then
-      scope_declare(scopes, node.name)
-    end
-    for _, m in ipairs(node.body) do
-      scope_push(scopes)
-      for _, p in ipairs(m.value.params) do
-        scope_declare(scopes, p.name)
-      end
-      analyze_node(m.value.body, meta, scopes)
-      scope_pop(scopes)
-    end
-    scope_pop(scopes)
-  elseif t == "MethodDefinition" then
-    analyze_node(node.value, meta, scopes)
-  elseif t == "SuperExpression" then
-    meta.needed_helpers["_ljs_super_call"] = true
-  end
-end
-
-local function analyze(ast)
-  local meta = { needed_helpers = {} }
-  analyze_node(ast, meta, {})
-  return meta
-end
-
--- ============================================================================
--- Section 3b: Continue detection helper
+-- Section 3: Continue detection helper
 -- ============================================================================
 
 --- Check whether an AST subtree contains a ContinueStatement.
@@ -534,8 +209,20 @@ local function has_continue(node)
 end
 
 -- ============================================================================
--- Section 4: Pass 2 — Code generation (JS AST → Lua source via ljs_codegen)
+-- Section 4: Code generation (JS AST → Lua source via ljs_codegen)
 -- ============================================================================
+
+local function scope_push(ctx)
+  ctx.scopes[#ctx.scopes + 1] = {}
+end
+
+local function scope_pop(ctx)
+  ctx.scopes[#ctx.scopes] = nil
+end
+
+local function scope_declare(ctx, name)
+  ctx.scopes[#ctx.scopes][name] = true
+end
 
 local gen = {}
 local gen_stmt = {}
@@ -629,12 +316,12 @@ gen.Program = function(node, indent, ctx)
     local last_expr = emit(body[#body].expression, indent, ctx)
     code = code .. cg.return_expr(last_expr, indent)
     scope_pop(ctx)
-    return cg.local_decl("_ljs_arrow_this", "nil", 0) .. code
+    return code
   end
 
   local code = emit_body(body, indent, ctx)
   scope_pop(ctx)
-  return cg.local_decl("_ljs_arrow_this", "nil", 0) .. code
+  return code
 end
 
 -- === Literals ===
@@ -1218,11 +905,6 @@ gen.CallExpression = function(node, indent, ctx)
     return cg.call(super_parent, call_args)
   end
 
-  local builtin = lookup_builtin(node, ctx)
-  if builtin then
-    return cg.call(builtin.helper, args)
-  end
-
   if node.callee.type == "MemberExpression" and node.callee.object.type == "SuperExpression" then
     local super_parent = ctx.super_stack[#ctx.super_stack]
     local proto = cg.member_dot(super_parent, "prototype")
@@ -1323,59 +1005,64 @@ gen_stmt.TypeofExpression = function(node, indent, ctx)
   return ""
 end
 
--- === Top-level generate ===
+-- === Top-level preamble and emit ===
 
-local function generate(ast, meta, opts)
-  opts = opts or {}
-  local ctx = {}
-  ctx.eval_mode = (opts.mode == "eval")
-  ctx.super_stack = {}
-  if
-    meta.needed_helpers["_ljs_bnot"]
-    or meta.needed_helpers["_ljs_band"]
-    or meta.needed_helpers["_ljs_bor"]
-    or meta.needed_helpers["_ljs_bxor"]
-    or meta.needed_helpers["_ljs_shl"]
-    or meta.needed_helpers["_ljs_shr"]
-    or meta.needed_helpers["_ljs_usr"]
-  then
-    meta.needed_helpers["_ljs_to_int32"] = true
+local HELPER_ORDER = {
+  "_ljs_to_int32",
+  "_ljs_fn",
+  "_ljs_add",
+  "_ljs_bnot",
+  "_ljs_band",
+  "_ljs_bor",
+  "_ljs_bxor",
+  "_ljs_shl",
+  "_ljs_shr",
+  "_ljs_usr",
+  "_ljs_typeof",
+  "_ljs_call",
+  "_ljs_call_member",
+  "_ljs_object",
+  "_ljs_object_create",
+  "_ljs_ctor",
+  "_ljs_new",
+  "_ljs_instanceof",
+  "_ljs_super_call",
+}
+
+local _preamble_cache = nil
+
+function ljs_transpile.preamble()
+  if _preamble_cache then
+    return _preamble_cache
   end
-  meta.needed_helpers["_ljs_object"] = true
-  meta.needed_helpers["_ljs_object_create"] = true
-  meta.needed_helpers["_ljs_fn"] = true
-  meta.needed_helpers["_ljs_ctor"] = true
-  meta.needed_helpers["_ljs_new"] = true
-  meta.needed_helpers["_ljs_instanceof"] = true
-  local code = emit(ast, 0, ctx)
   local helper_parts = {}
-  if meta.needed_helpers["_ljs_to_int32"] then
-    helper_parts[#helper_parts + 1] = HELPERS["_ljs_to_int32"]
+  for _, name in ipairs(HELPER_ORDER) do
+    helper_parts[#helper_parts + 1] = HELPERS[name]
   end
-  if meta.needed_helpers["_ljs_fn"] then
-    helper_parts[#helper_parts + 1] = HELPERS["_ljs_fn"]
-  end
-  local rest = {}
-  for name, _ in pairs(meta.needed_helpers) do
-    if name ~= "_ljs_to_int32" and name ~= "_ljs_fn" then
-      rest[#rest + 1] = HELPERS[name]
-    end
-  end
-  table.sort(rest)
-  for _, h in ipairs(rest) do
-    helper_parts[#helper_parts + 1] = h
-  end
-  local prefix = table.concat(helper_parts, "\n\n")
-  if #prefix > 0 then
-    prefix = prefix .. "\n\n"
-  end
-  return read_runtime("proto")
-    .. prefix
+  local helpers_str = table.concat(helper_parts, "\n\n")
+  _preamble_cache = read_runtime("proto")
+    .. "local _ljs_arrow_this = nil\n\n"
+    .. helpers_str
+    .. "\n\n"
     .. read_runtime("object")
     .. read_runtime("function")
     .. read_runtime("array")
     .. read_runtime("console")
-    .. code
+  return _preamble_cache
+end
+
+--- Emit Lua source for an AST (user code only, no preamble).
+-- @param ast (table) AST from parser.parse()
+-- @param opts (table|nil) Options table; opts.mode = "script" (default) or "eval"
+-- @return (string) Lua source code (user code only)
+function ljs_transpile.emit(ast, opts)
+  opts = opts or {}
+  local ctx = {
+    eval_mode = (opts.mode == "eval"),
+    super_stack = {},
+    scopes = {},
+  }
+  return emit(ast, 0, ctx)
 end
 
 -- ============================================================================
@@ -1387,8 +1074,7 @@ end
 -- @param opts (table|nil) Options table; opts.mode = "script" (default) or "eval"
 -- @return (string) Lua source code
 function ljs_transpile.transpile(ast, opts)
-  local meta = analyze(ast)
-  return generate(ast, meta, opts)
+  return ljs_transpile.preamble() .. ljs_transpile.emit(ast, opts)
 end
 
 --- Parse JS source and transpile to Lua in one step.
@@ -1405,7 +1091,6 @@ function ljs_transpile.transpile_source(source, opts)
   return ljs_transpile.transpile(ast, opts)
 end
 
-ljs_transpile.BUILTINS = BUILTINS
 ljs_transpile.HELPERS = HELPERS
 
 -- ============================================================================

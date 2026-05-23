@@ -265,9 +265,9 @@ test("_ljs_typeof helper emitted when typeof used", function()
   assert(code:find("local function _ljs_typeof"), "expected _ljs_typeof helper definition")
 end)
 
-test("_ljs_typeof helper NOT emitted when typeof unused", function()
+test("_ljs_typeof helper always in preamble", function()
   local code = transpile_ok("let x = 1;")
-  assert(not code:find("_ljs_typeof"), "expected no _ljs_typeof helper")
+  assert(code:find("_ljs_typeof"), "expected _ljs_typeof helper in preamble")
 end)
 
 -- ============================================================================
