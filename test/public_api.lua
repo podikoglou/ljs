@@ -225,3 +225,27 @@ test("invariant: transpile output is always loadable Lua", function()
     assert(fn ~= nil, "load error for: " .. src .. "\n  " .. tostring(load_err))
   end
 end)
+
+-- ============================================================================
+-- ljs.format_error()
+-- ============================================================================
+
+test("format_error returns message with source context", function()
+  local source = "let x = 1\nlet y = ;"
+  local err = parser.make_parse_error("Unexpected token ;", 2, 9)
+  local formatted = parser.format_error(err, source)
+  assert(string.find(formatted, "let y = ;"), "should contain source line")
+  assert(string.find(formatted, "^"), "should contain caret")
+end)
+
+test("format_error handles missing source", function()
+  local err = parser.make_parse_error("test error", 1, 1)
+  local formatted = parser.format_error(err, nil)
+  assert_eq(formatted, "test error")
+end)
+
+test("format_error handles line=0 errors", function()
+  local err = parser.make_parse_error("internal error", 0, 0)
+  local formatted = parser.format_error(err, "some source")
+  assert_eq(formatted, "internal error")
+end)

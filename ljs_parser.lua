@@ -2207,4 +2207,32 @@ ljs.ParseError = ParseError
 ljs.is_parse_error = is_parse_error
 ljs.make_parse_error = make_parse_error
 
+--- Format a ParseError with source context for terminal display.
+-- @param err (table) ParseError {message, line, col}
+-- @param source (string) The original source code
+-- @return (string) Formatted multi-line error string
+function ljs.format_error(err, source)
+  local result = err.message
+
+  if err.line and err.line > 0 and source then
+    local lines = {}
+    for line in source:gmatch("[^\n]*") do
+      table.insert(lines, line)
+    end
+
+    local line_str = tostring(err.line)
+    local pad = string.rep(" ", #line_str)
+
+    result = result .. "\n  " .. pad .. " |"
+
+    if err.line <= #lines then
+      local source_line = lines[err.line]
+      result = result .. "\n" .. line_str .. " | " .. source_line
+      result = result .. "\n  " .. pad .. " | " .. string.rep(" ", err.col - 1) .. "^"
+    end
+  end
+
+  return result
+end
+
 return ljs

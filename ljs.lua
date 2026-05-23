@@ -106,4 +106,12 @@ function ljs.is_parse_error(val)
   return require("ljs_parser").is_parse_error(val)
 end
 
+--- Format a ParseError with source context for terminal display.
+-- @param err (table) ParseError {message, line, col}
+-- @param source (string) The original source code
+-- @return (string) Formatted multi-line error string
+function ljs.format_error(err, source)
+  return require("ljs_parser").format_error(err, source)
+end
+
 return ljs
