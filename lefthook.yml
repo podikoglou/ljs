@@ -14,7 +14,7 @@ pre-commit:
 
     - name: stylua
       glob: "*.lua"
-      run: stylua --check {staged_files}
+      run: stylua {staged_files} && git add {staged_files}
 
     - name: lint
       glob: "*.lua"
