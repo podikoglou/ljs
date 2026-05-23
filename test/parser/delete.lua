@@ -4,7 +4,7 @@ local A = require("test.helpers.ast")
 local test, assert_eq, assert_table_eq = T.test, T.assert_eq, T.assert_table_eq
 local assert_parse_ok, assert_parse_fail = P.assert_parse_ok, P.assert_parse_fail
 local tok, assert_tok, assert_tokenize_fail = P.tok, P.assert_tok, P.assert_tokenize_fail
-local ljs = P.ljs
+local parser = P.parser
 
 -- DELETE EXPRESSION TESTS
 -- ============================================================================
@@ -342,7 +342,7 @@ test("delete is a keyword not an identifier", function()
 end)
 
 test("delete is not banned (unlike typeof/this)", function()
-  local ast, err = ljs.parse("delete x;")
+  local ast, err = parser.parse("delete x;")
   assert(ast ~= nil, "delete should parse successfully, got error: " .. tostring(err))
 end)
 

@@ -4,7 +4,7 @@ local A = require("test.helpers.ast")
 local test, assert_eq, assert_table_eq = T.test, T.assert_eq, T.assert_table_eq
 local assert_parse_ok, assert_parse_fail = P.assert_parse_ok, P.assert_parse_fail
 local tok, assert_tok, assert_tokenize_fail = P.tok, P.assert_tok, P.assert_tokenize_fail
-local ljs = P.ljs
+local parser = P.parser
 
 test("tokenize ?", function()
   assert_tok("x ? 1 : 0", 2, "?")
@@ -71,7 +71,7 @@ test("parse ternary in variable init", function()
 end)
 
 test("parse ternary in return", function()
-  local ast = ljs.parse("function f(x) { return x ? 1 : 0; }")
+  local ast = parser.parse("function f(x) { return x ? 1 : 0; }")
   assert(ast)
   local ret = ast.body[1].body.body[1]
   assert_eq(ret.type, "ReturnStatement")
@@ -100,7 +100,7 @@ test("parse ternary in array element", function()
 end)
 
 test("parse ternary in for-loop init", function()
-  local ast = ljs.parse("for (let i = x ? 0 : 1; i < 10; i += 1) {}")
+  local ast = parser.parse("for (let i = x ? 0 : 1; i < 10; i += 1) {}")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForStatement")

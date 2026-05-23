@@ -1,6 +1,6 @@
 local T = require("test.ljs_test")
 local P = require("test.helpers.parser")
-local ljs = require("ljs.parser")
+local parser = require("ljs.parser")
 local test, assert_eq = T.test, T.assert_eq
 local assert_tok, assert_tokenize_fail = P.assert_tok, P.assert_tokenize_fail
 
@@ -174,35 +174,35 @@ test("tokenize error: unexpected character", function()
 end)
 
 test("tokenize +++ maximal munch", function()
-  local tokens = ljs.tokenize("+++")
+  local tokens = parser.tokenize("+++")
   assert(tokens)
   assert_eq(tokens[1].type, "++")
   assert_eq(tokens[2].type, "+")
 end)
 
 test("tokenize --- maximal munch", function()
-  local tokens = ljs.tokenize("---")
+  local tokens = parser.tokenize("---")
   assert(tokens)
   assert_eq(tokens[1].type, "--")
   assert_eq(tokens[2].type, "-")
 end)
 
 test("tokenize + + with space is not ++", function()
-  local tokens = ljs.tokenize("+ +")
+  local tokens = parser.tokenize("+ +")
   assert(tokens)
   assert_eq(tokens[1].type, "+")
   assert_eq(tokens[2].type, "+")
 end)
 
 test("tokenize - - with space is not --", function()
-  local tokens = ljs.tokenize("- -")
+  local tokens = parser.tokenize("- -")
   assert(tokens)
   assert_eq(tokens[1].type, "-")
   assert_eq(tokens[2].type, "-")
 end)
 
 test("tokenize ++++ (two increments)", function()
-  local tokens = ljs.tokenize("++++")
+  local tokens = parser.tokenize("++++")
   assert(tokens)
   assert_eq(tokens[1].type, "++")
   assert_eq(tokens[2].type, "++")
@@ -222,82 +222,82 @@ test("tokenize += in context: x += 1", function()
 end)
 
 test("tokenize + = with space is not +=", function()
-  local tokens = ljs.tokenize("+ =")
+  local tokens = parser.tokenize("+ =")
   assert(tokens)
   assert_eq(tokens[1].type, "+")
   assert_eq(tokens[2].type, "=")
 end)
 
 test("tokenize * = with space is not *=", function()
-  local tokens = ljs.tokenize("* =")
+  local tokens = parser.tokenize("* =")
   assert(tokens)
   assert_eq(tokens[1].type, "*")
   assert_eq(tokens[2].type, "=")
 end)
 
 test("tokenize +++= maximal munch: ++ +=", function()
-  local tokens = ljs.tokenize("+++=")
+  local tokens = parser.tokenize("+++=")
   assert(tokens)
   assert_eq(tokens[1].type, "++")
   assert_eq(tokens[2].type, "+=")
 end)
 
 test("tokenize ---= maximal munch: -- -=", function()
-  local tokens = ljs.tokenize("---=")
+  local tokens = parser.tokenize("---=")
   assert(tokens)
   assert_eq(tokens[1].type, "--")
   assert_eq(tokens[2].type, "-=")
 end)
 
 test("tokenize ** (exponentiation)", function()
-  local tokens = ljs.tokenize("**")
+  local tokens = parser.tokenize("**")
   assert(tokens)
   assert_eq(tokens[1].type, "**")
 end)
 
 test("tokenize **= (exponentiation assignment)", function()
-  local tokens = ljs.tokenize("**=")
+  local tokens = parser.tokenize("**=")
   assert(tokens)
   assert_eq(tokens[1].type, "**=")
 end)
 
 test("tokenize *** maximal munch: ** *", function()
-  local tokens = ljs.tokenize("***")
+  local tokens = parser.tokenize("***")
   assert(tokens)
   assert_eq(tokens[1].type, "**")
   assert_eq(tokens[2].type, "*")
 end)
 
 test("tokenize **** maximal munch: ** **", function()
-  local tokens = ljs.tokenize("****")
+  local tokens = parser.tokenize("****")
   assert(tokens)
   assert_eq(tokens[1].type, "**")
   assert_eq(tokens[2].type, "**")
 end)
 
 test("tokenize ***= maximal munch: ** *=", function()
-  local tokens = ljs.tokenize("***=")
+  local tokens = parser.tokenize("***=")
   assert(tokens)
   assert_eq(tokens[1].type, "**")
   assert_eq(tokens[2].type, "*=")
 end)
 
 test("tokenize * * with space is not **", function()
-  local tokens = ljs.tokenize("* *")
+  local tokens = parser.tokenize("* *")
   assert(tokens)
   assert_eq(tokens[1].type, "*")
   assert_eq(tokens[2].type, "*")
 end)
 
 test("tokenize ** = with space is not **=", function()
-  local tokens = ljs.tokenize("** =")
+  local tokens = parser.tokenize("** =")
   assert(tokens)
   assert_eq(tokens[1].type, "**")
   assert_eq(tokens[2].type, "=")
 end)
 
 test("tokenize * *= maximal munch: * *=", function()
-  local tokens = ljs.tokenize("* *=")
+  local tokens = parser.tokenize("* *=")
   assert(tokens)
   assert_eq(tokens[1].type, "*")
   assert_eq(tokens[2].type, "*=")
@@ -326,7 +326,7 @@ test("invariant: tokenize always ends with EOF", function()
     "true false null undefined",
   }
   for _, src in ipairs(sources) do
-    local tokens = ljs.tokenize(src)
+    local tokens = parser.tokenize(src)
     assert(tokens)
     assert(tokens and #tokens > 0, "expected tokens for: " .. src)
     assert_eq(tokens[#tokens].type, "EOF", "last token must be EOF for: " .. src)
@@ -348,7 +348,7 @@ test("invariant: all tokens have valid positions", function()
     "a + b\n* c",
   }
   for _, src in ipairs(sources) do
-    local tokens = ljs.tokenize(src)
+    local tokens = parser.tokenize(src)
     assert(tokens)
     if tokens then
       for i, t in ipairs(tokens) do
@@ -449,7 +449,7 @@ test("invariant: token value type matches token type", function()
 
   local src = "+ - * / % === !== < > <= >= && || = ! ~ => ++ -- += -= *= **= /= %= & | ^ << >> >>> &= |= ^= <<= >>= >>>="
     .. ' let x = 42; "hello" true false null undefined'
-  local tokens = ljs.tokenize(src)
+  local tokens = parser.tokenize(src)
   assert(tokens)
   for i, t in ipairs(tokens) do
     if t.type == "EOF" then

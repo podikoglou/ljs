@@ -1,11 +1,11 @@
 -- Parser test helpers module
-local ljs = require("ljs.parser")
+local parser = require("ljs.parser")
 local T = require("test.ljs_test") -- ljs_test is at root
 
 local test, assert_eq, assert_table_eq = T.test, T.assert_eq, T.assert_table_eq
 
 local function assert_parse_ok(source, expected_body, msg)
-  local ast, err = ljs.parse(source)
+  local ast, err = parser.parse(source)
   if not ast then
     error(string.format("%s: parse failed: %s", msg or source, tostring(err)))
   end
@@ -13,7 +13,7 @@ local function assert_parse_ok(source, expected_body, msg)
 end
 
 local function assert_parse_fail(source, substr, msg)
-  local ast, err = ljs.parse(source)
+  local ast, err = parser.parse(source)
   if ast then
     error(string.format("%s: expected failure but got result", msg or source))
   end
@@ -30,7 +30,7 @@ local function assert_parse_fail(source, substr, msg)
 end
 
 local function tok(source, idx)
-  local tokens, err = ljs.tokenize(source)
+  local tokens, err = parser.tokenize(source)
   if not tokens then
     error("tokenize failed: " .. tostring(err))
   end
@@ -46,7 +46,7 @@ local function assert_tok(source, idx, ttype, tvalue, msg)
 end
 
 local function assert_tokenize_fail(source, substr, msg)
-  local tokens, err = ljs.tokenize(source)
+  local tokens, err = parser.tokenize(source)
   if tokens then
     error(string.format("%s: expected failure but got tokens", msg or source))
   end
@@ -63,11 +63,11 @@ local function assert_tokenize_fail(source, substr, msg)
 end
 
 local function assert_parse_error(source, expected_line, expected_col, msg)
-  local ast, err = ljs.parse(source)
+  local ast, err = parser.parse(source)
   if ast then
     error(string.format("%s: expected error but got result", msg or source))
   end
-  if not ljs.is_parse_error(err) then
+  if not parser.is_parse_error(err) then
     error(string.format("%s: expected ParseError, got %s", msg or source, type(err)))
   end
   ---@diagnostic disable-next-line: undefined-field, need-check-nil
@@ -77,11 +77,11 @@ local function assert_parse_error(source, expected_line, expected_col, msg)
 end
 
 local function assert_tokenize_error(source, expected_line, expected_col, msg)
-  local tokens, err = ljs.tokenize(source)
+  local tokens, err = parser.tokenize(source)
   if tokens then
     error(string.format("%s: expected failure but got tokens", msg or source))
   end
-  if not ljs.is_parse_error(err) then
+  if not parser.is_parse_error(err) then
     error(string.format("%s: expected ParseError, got %s", msg or source, type(err)))
   end
   ---@diagnostic disable-next-line: undefined-field, need-check-nil
@@ -91,7 +91,7 @@ local function assert_tokenize_error(source, expected_line, expected_col, msg)
 end
 
 return {
-  ljs = ljs,
+  parser = parser,
   test = test,
   assert_eq = assert_eq,
   assert_table_eq = assert_table_eq,

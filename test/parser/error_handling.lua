@@ -1,11 +1,11 @@
 local T = require("test.ljs_test")
-local ljs = require("ljs.parser")
+local parser = require("ljs.parser")
 local test, assert_eq = T.test, T.assert_eq
 
 local function check_tokenize_err(src, msg_substr, line, col, label)
-  local tokens, err = ljs.tokenize(src)
+  local tokens, err = parser.tokenize(src)
   assert(tokens == nil, string.format("%s: expected failure", label))
-  assert(ljs.is_parse_error(err), string.format("%s: expected ParseError", label))
+  assert(parser.is_parse_error(err), string.format("%s: expected ParseError", label))
   ---@diagnostic disable: need-check-nil
   assert(
     string.find(err.message, msg_substr, 1, true),
@@ -17,9 +17,9 @@ local function check_tokenize_err(src, msg_substr, line, col, label)
 end
 
 local function check_parse_err(src, msg_substr, line, col, label)
-  local ast, err = ljs.parse(src)
+  local ast, err = parser.parse(src)
   assert(ast == nil, string.format("%s: expected failure", label))
-  assert(ljs.is_parse_error(err), string.format("%s: expected ParseError", label))
+  assert(parser.is_parse_error(err), string.format("%s: expected ParseError", label))
   ---@diagnostic disable: need-check-nil
   assert(
     string.find(err.message, msg_substr, 1, true),
@@ -157,9 +157,9 @@ test("parser: consume mismatch shows expected and actual", function()
 end)
 
 test("parser: != produces an error (excluded operator)", function()
-  local ast, err = ljs.parse("x != y")
+  local ast, err = parser.parse("x != y")
   assert(ast == nil, "expected nil ast for !=")
-  assert(ljs.is_parse_error(err), "expected ParseError for !=")
+  assert(parser.is_parse_error(err), "expected ParseError for !=")
 end)
 
 test("parser: error on third line has correct line number", function()
@@ -196,9 +196,9 @@ test("all parse errors have line >= 1, col >= 1, non-empty message", function()
     "await x",
   }
   for _, src in ipairs(sources) do
-    local ast, err = ljs.parse(src)
+    local ast, err = parser.parse(src)
     assert(ast == nil, "expected nil ast for: " .. src)
-    assert(ljs.is_parse_error(err), "expected ParseError for: " .. src)
+    assert(parser.is_parse_error(err), "expected ParseError for: " .. src)
     ---@diagnostic disable-next-line: need-check-nil
     assert(type(err.message) == "string" and #err.message > 0, "missing message for: " .. src)
     ---@diagnostic disable-next-line: need-check-nil
@@ -219,9 +219,9 @@ test("all tokenize errors have line >= 1, col >= 1, non-empty message", function
     '"a\\qb"',
   }
   for _, src in ipairs(sources) do
-    local tokens, err = ljs.tokenize(src)
+    local tokens, err = parser.tokenize(src)
     assert(tokens == nil, "expected nil tokens for: " .. src)
-    assert(ljs.is_parse_error(err), "expected ParseError for: " .. src)
+    assert(parser.is_parse_error(err), "expected ParseError for: " .. src)
     ---@diagnostic disable-next-line: need-check-nil
     assert(type(err.message) == "string" and #err.message > 0, "missing message for: " .. src)
     ---@diagnostic disable-next-line: need-check-nil
@@ -236,13 +236,13 @@ end)
 -- ============================================================================
 
 test("is_parse_error returns false for non-ParseError values", function()
-  assert(not ljs.is_parse_error(nil), "nil should not be ParseError")
+  assert(not parser.is_parse_error(nil), "nil should not be ParseError")
   assert(
-    not ljs.is_parse_error({ message = "x", line = 1, col = 1 }),
+    not parser.is_parse_error({ message = "x", line = 1, col = 1 }),
     "plain table should not be ParseError"
   )
-  assert(not ljs.is_parse_error("error"), "string should not be ParseError")
-  assert(not ljs.is_parse_error(42), "number should not be ParseError")
+  assert(not parser.is_parse_error("error"), "string should not be ParseError")
+  assert(not parser.is_parse_error(42), "number should not be ParseError")
 end)
 
 -- ============================================================================
@@ -265,7 +265,7 @@ test("parse returns ast with no error for valid source", function()
     "class C {}",
   }
   for _, src in ipairs(valid) do
-    local ast, err = ljs.parse(src)
+    local ast, err = parser.parse(src)
     assert(ast ~= nil, "expected non-nil ast for: " .. src)
     assert(err == nil, "expected nil error for: " .. src)
   end
@@ -279,7 +279,7 @@ test("tokenize returns tokens with no error for valid source", function()
     '"world"',
   }
   for _, src in ipairs(valid) do
-    local tokens, err = ljs.tokenize(src)
+    local tokens, err = parser.tokenize(src)
     assert(tokens ~= nil, "expected non-nil tokens for: " .. src)
     assert(err == nil, "expected nil error for: " .. src)
   end
@@ -296,8 +296,8 @@ test("error col points at or after the bad construct", function()
     { src = "0xG", min_col = 1 },
   }
   for _, case in ipairs(cases) do
-    local _, err = ljs.tokenize(case.src)
-    assert(ljs.is_parse_error(err), "expected ParseError for: " .. case.src)
+    local _, err = parser.tokenize(case.src)
+    assert(parser.is_parse_error(err), "expected ParseError for: " .. case.src)
     ---@diagnostic disable: need-check-nil
     assert(
       err.col >= case.min_col,
@@ -309,16 +309,16 @@ end)
 
 -- ============================================================================
 -- format_error: public API for formatting ParseError with source context
--- Contract: ljs.format_error(err, source) returns a string that includes
+-- Contract: parser.format_error(err, source) returns a string that includes
 -- the error message and, when source is provided and line is valid, the
 -- offending source line with a caret pointing at the error column.
 -- Catches: broken source-context display, wrong line extraction, misaligned caret.
 
 test("format_error with source shows message and source line with caret", function()
-  local _, err = ljs.parse("let x = ;")
+  local _, err = parser.parse("let x = ;")
   assert(err)
   ---@diagnostic disable-next-line: need-check-nil
-  local formatted = ljs.format_error(err, "let x = ;")
+  local formatted = parser.format_error(err, "let x = ;")
   ---@diagnostic disable-next-line: need-check-nil
   assert(string.find(formatted, err.message, 1, true), "formatted output should contain message")
   assert(
@@ -329,33 +329,33 @@ test("format_error with source shows message and source line with caret", functi
 end)
 
 test("format_error without source returns message only", function()
-  local _, err = ljs.parse("let x = ;")
+  local _, err = parser.parse("let x = ;")
   assert(err)
   ---@diagnostic disable-next-line: need-check-nil
-  local formatted = ljs.format_error(err, nil)
+  local formatted = parser.format_error(err, nil)
   ---@diagnostic disable-next-line: need-check-nil
   assert_eq(formatted, err.message)
 end)
 
 test("format_error with line beyond source length shows message and empty context", function()
-  local err = ljs.make_parse_error("test error", 99, 1)
-  local formatted = ljs.format_error(err, "one line")
+  local err = parser.make_parse_error("test error", 99, 1)
+  local formatted = parser.format_error(err, "one line")
   assert(string.find(formatted, "test error", 1, true), "should contain message")
   assert(string.find(formatted, "|", 1, true), "should show context separator")
 end)
 
 test("format_error with line 0 returns message only (no source context)", function()
-  local err = ljs.make_parse_error("test error", 0, 1)
-  local formatted = ljs.format_error(err, "some source")
+  local err = parser.make_parse_error("test error", 0, 1)
+  local formatted = parser.format_error(err, "some source")
   assert_eq(formatted, "test error")
 end)
 
 test("format_error with multi-line source shows correct line", function()
   local src = "let a = 1;\nlet b = @;"
-  local _, err = ljs.parse(src)
+  local _, err = parser.parse(src)
   assert(err)
   ---@diagnostic disable-next-line: need-check-nil
-  local formatted = ljs.format_error(err, src)
+  local formatted = parser.format_error(err, src)
   assert(
     string.find(formatted, "let b = @;", 1, true),
     "should show the offending line, not line 1"
@@ -390,7 +390,7 @@ test("all AST nodes have a type field for diverse programs", function()
   end
 
   local function assert_all_nodes_typed(src)
-    local ast = ljs.parse(src)
+    local ast = parser.parse(src)
     assert(ast, "expected parse for: " .. src)
     assert(ast.type ~= nil, "Program root missing type for: " .. src)
     for i, stmt in ipairs(ast.body) do

@@ -1,5 +1,5 @@
-local parser = require("parser.parser")
-local transpile = require("parser.transpile")
+local parser = require("ljs.parser")
+local transpile = require("ljs.transpile")
 
 local function read_file(path)
   local f, err = io.open(path, "r")

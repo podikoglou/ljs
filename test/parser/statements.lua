@@ -62,12 +62,12 @@ test("parse while", function()
 end)
 
 test("parse empty source produces empty Program", function()
-  local ast = P.ljs.parse("")
+  local ast = P.parser.parse("")
   assert_table_eq(ast, A.program({}))
 end)
 
 test("parse whitespace-only source produces empty Program", function()
-  local ast = P.ljs.parse("   \n  \t  \n  ")
+  local ast = P.parser.parse("   \n  \t  \n  ")
   assert_table_eq(ast, A.program({}))
 end)
 

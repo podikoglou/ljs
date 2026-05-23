@@ -1,6 +1,6 @@
 local T = require("test.ljs_test")
 local P = require("test.helpers.parser")
-local ljs = require("ljs.parser")
+local parser = require("ljs.parser")
 local A = require("test.helpers.ast")
 local test, assert_table_eq = T.test, T.assert_table_eq
 local assert_parse_ok, assert_parse_fail = P.assert_parse_ok, P.assert_parse_fail
@@ -78,7 +78,7 @@ test("parse BinaryExpression all operators", function()
     { "2 ** 3;", "**" },
   }
   for _, tc in ipairs(ops) do
-    local ast = ljs.parse(tc[1])
+    local ast = parser.parse(tc[1])
     assert(ast)
     assert_table_eq(ast.body[1].expression.operator, tc[2], "operator for " .. tc[1])
   end
@@ -159,7 +159,7 @@ test("precedence: ** binds tighter than all binary operators (both directions)",
   }
   for _, op in ipairs(ops) do
     local src_r = string.format("a %s b ** c;", op)
-    local ast_r = ljs.parse(src_r)
+    local ast_r = parser.parse(src_r)
     assert(ast_r, "expected parse for: " .. src_r)
     local expr_r = ast_r.body[1].expression
     assert_table_eq(expr_r.operator, op, "outer op for: " .. src_r)
@@ -167,7 +167,7 @@ test("precedence: ** binds tighter than all binary operators (both directions)",
     assert_table_eq(expr_r.right.operator, "**", "right child op for: " .. src_r)
 
     local src_l = string.format("a ** b %s c;", op)
-    local ast_l = ljs.parse(src_l)
+    local ast_l = parser.parse(src_l)
     assert(ast_l, "expected parse for: " .. src_l)
     local expr_l = ast_l.body[1].expression
     assert_table_eq(expr_l.operator, op, "outer op for: " .. src_l)

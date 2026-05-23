@@ -1,6 +1,6 @@
 local T = require("test.ljs_test")
 local P = require("test.helpers.parser")
-local ljs = require("ljs.parser")
+local parser = require("ljs.parser")
 local A = require("test.helpers.ast")
 local test, assert_eq, assert_table_eq = T.test, T.assert_eq, T.assert_table_eq
 local assert_parse_ok, assert_parse_fail = P.assert_parse_ok, P.assert_parse_fail
@@ -31,7 +31,7 @@ test("parse for...in with const", function()
 end)
 
 test("parse for...in with var (normalized to let)", function()
-  local ast = ljs.parse("for (var k in obj) { k; }")
+  local ast = parser.parse("for (var k in obj) { k; }")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForInStatement")
@@ -42,7 +42,7 @@ test("parse for...in with var (normalized to let)", function()
 end)
 
 test("parse for...in with expression left (no declaration)", function()
-  local ast = ljs.parse("for (key in obj) { key; }")
+  local ast = parser.parse("for (key in obj) { key; }")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForInStatement")
@@ -52,7 +52,7 @@ test("parse for...in with expression left (no declaration)", function()
 end)
 
 test("parse for...in without body braces", function()
-  local ast = ljs.parse("for (let k in obj) f(k);")
+  local ast = parser.parse("for (let k in obj) f(k);")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForInStatement")
@@ -60,7 +60,7 @@ test("parse for...in without body braces", function()
 end)
 
 test("parse for...in with object literal right", function()
-  local ast = ljs.parse("for (let k in {a: 1, b: 2}) { k; }")
+  local ast = parser.parse("for (let k in {a: 1, b: 2}) { k; }")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForInStatement")
@@ -69,7 +69,7 @@ test("parse for...in with object literal right", function()
 end)
 
 test("parse for...in with member expression right", function()
-  local ast = ljs.parse("for (let k in obj.prop) { k; }")
+  local ast = parser.parse("for (let k in obj.prop) { k; }")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForInStatement")
@@ -77,7 +77,7 @@ test("parse for...in with member expression right", function()
 end)
 
 test("parse for...in with computed member expression right", function()
-  local ast = ljs.parse("for (let k in obj[key]) { k; }")
+  local ast = parser.parse("for (let k in obj[key]) { k; }")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForInStatement")
@@ -86,7 +86,7 @@ test("parse for...in with computed member expression right", function()
 end)
 
 test("parse nested for...in", function()
-  local ast = ljs.parse("for (let k in obj) { for (let j in arr) { x; } }")
+  local ast = parser.parse("for (let k in obj) { for (let j in arr) { x; } }")
   assert(ast)
   local outer = ast.body[1]
   assert_eq(outer.type, "ForInStatement")
@@ -95,7 +95,7 @@ test("parse nested for...in", function()
 end)
 
 test("parse for...in body uses key with bracket access", function()
-  local ast = ljs.parse("for (let k in obj) { obj[k]; }")
+  local ast = parser.parse("for (let k in obj) { obj[k]; }")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForInStatement")
@@ -134,7 +134,7 @@ test("error: for-in missing body", function()
 end)
 
 test("parse for(;;) infinite loop", function()
-  local ast = ljs.parse("for (;;) { x; }")
+  local ast = parser.parse("for (;;) { x; }")
   assert(ast)
   assert_eq(ast.body[1].type, "ForStatement")
   assert_eq(ast.body[1].init, nil)
@@ -144,7 +144,7 @@ test("parse for(;;) infinite loop", function()
 end)
 
 test("parse for with full clauses", function()
-  local ast = ljs.parse("for (let i = 0; i < 10; i = i + 1) { x; }")
+  local ast = parser.parse("for (let i = 0; i < 10; i = i + 1) { x; }")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForStatement")
@@ -159,7 +159,7 @@ test("parse for with full clauses", function()
 end)
 
 test("parse for with expression init", function()
-  local ast = ljs.parse("for (i = 0; i < 10; i = i + 1) { x; }")
+  local ast = parser.parse("for (i = 0; i < 10; i = i + 1) { x; }")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForStatement")
@@ -170,7 +170,7 @@ test("parse for with expression init", function()
 end)
 
 test("parse for with only init + test", function()
-  local ast = ljs.parse("for (let x = 1; x < 5; ) { x; }")
+  local ast = parser.parse("for (let x = 1; x < 5; ) { x; }")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForStatement")
@@ -180,7 +180,7 @@ test("parse for with only init + test", function()
 end)
 
 test("parse for with only test + update", function()
-  local ast = ljs.parse("for (; x < 10; x = x + 1) { y; }")
+  local ast = parser.parse("for (; x < 10; x = x + 1) { y; }")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForStatement")
@@ -190,7 +190,7 @@ test("parse for with only test + update", function()
 end)
 
 test("parse for with only update", function()
-  local ast = ljs.parse("for (;; x = x + 1) { y; }")
+  local ast = parser.parse("for (;; x = x + 1) { y; }")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForStatement")
@@ -200,7 +200,7 @@ test("parse for with only update", function()
 end)
 
 test("parse for with only init", function()
-  local ast = ljs.parse("for (let x = 1; ; ) { x; }")
+  local ast = parser.parse("for (let x = 1; ; ) { x; }")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForStatement")
@@ -210,7 +210,7 @@ test("parse for with only init", function()
 end)
 
 test("parse for with only test (while-like)", function()
-  local ast = ljs.parse("for (; x < 10; ) { y; }")
+  local ast = parser.parse("for (; x < 10; ) { y; }")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForStatement")
@@ -220,7 +220,7 @@ test("parse for with only test (while-like)", function()
 end)
 
 test("parse for without body braces", function()
-  local ast = ljs.parse("for (;;) x;")
+  local ast = parser.parse("for (;;) x;")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForStatement")
@@ -228,7 +228,7 @@ test("parse for without body braces", function()
 end)
 
 test("parse nested for loops", function()
-  local ast = ljs.parse("for (;;) { for (;;) { x; } }")
+  local ast = parser.parse("for (;;) { for (;;) { x; } }")
   assert(ast)
   local outer = ast.body[1]
   assert_eq(outer.type, "ForStatement")
@@ -238,14 +238,14 @@ test("parse nested for loops", function()
 end)
 
 test("parse for with const init", function()
-  local ast = ljs.parse("for (const x = 1; x < 5; x = x + 1) { x; }")
+  local ast = parser.parse("for (const x = 1; x < 5; x = x + 1) { x; }")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.init.kind, "const")
 end)
 
 test("parse for with logical test", function()
-  local ast = ljs.parse("for (; a > 0 && b < 10; ) { x; }")
+  local ast = parser.parse("for (; a > 0 && b < 10; ) { x; }")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.test.type, "BinaryExpression")
@@ -253,7 +253,7 @@ test("parse for with logical test", function()
 end)
 
 test("parse for with multiple declarators in init", function()
-  local ast = ljs.parse("for (let i = 0, j = 10; i < j; i = i + 1) { x; }")
+  local ast = parser.parse("for (let i = 0, j = 10; i < j; i = i + 1) { x; }")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.init.type, "VariableDeclaration")
@@ -315,7 +315,7 @@ test("error: for with expression but no semicolon or of", function()
 end)
 
 test("parse for with var init (normalized to let)", function()
-  local ast = ljs.parse("for (var i = 0; i < 3; i = i + 1) { x; }")
+  local ast = parser.parse("for (var i = 0; i < 3; i = i + 1) { x; }")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForStatement")
@@ -325,7 +325,7 @@ test("parse for with var init (normalized to let)", function()
 end)
 
 test("parse for with i++ update", function()
-  local ast = ljs.parse("for (let i = 0; i < 10; i++) {}")
+  local ast = parser.parse("for (let i = 0; i < 10; i++) {}")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForStatement")
@@ -336,7 +336,7 @@ test("parse for with i++ update", function()
 end)
 
 test("parse for with --i update", function()
-  local ast = ljs.parse("for (let i = 10; i > 0; --i) {}")
+  local ast = parser.parse("for (let i = 10; i > 0; --i) {}")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForStatement")

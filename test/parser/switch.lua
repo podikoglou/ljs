@@ -4,8 +4,8 @@ local A = require("test.helpers.ast")
 local test, assert_eq, assert_table_eq = T.test, T.assert_eq, T.assert_table_eq
 local assert_parse_ok, assert_parse_fail = P.assert_parse_ok, P.assert_parse_fail
 local tok, assert_tok, assert_tokenize_fail = P.tok, P.assert_tok, P.assert_tokenize_fail
-local ljs = P.ljs
-local TK = ljs.TOKEN
+local parser = P.parser
+local TK = parser.TOKEN
 
 -- SWITCH/CASE/BREAK TESTS
 -- ============================================================================
@@ -114,7 +114,7 @@ end)
 -- SwitchStatement: discriminant expressions
 
 test("parse switch discriminant is binary expression", function()
-  local ast = ljs.parse("switch (a + b) {}")
+  local ast = parser.parse("switch (a + b) {}")
   assert(ast)
   local sw = ast.body[1]
   assert_eq(sw.type, "SwitchStatement")
@@ -123,7 +123,7 @@ test("parse switch discriminant is binary expression", function()
 end)
 
 test("parse switch discriminant is call expression", function()
-  local ast = ljs.parse("switch (f()) {}")
+  local ast = parser.parse("switch (f()) {}")
   assert(ast)
   local sw = ast.body[1]
   assert_eq(sw.discriminant.type, "CallExpression")
@@ -131,7 +131,7 @@ test("parse switch discriminant is call expression", function()
 end)
 
 test("parse switch discriminant is member expression", function()
-  local ast = ljs.parse("switch (obj.prop) {}")
+  local ast = parser.parse("switch (obj.prop) {}")
   assert(ast)
   local sw = ast.body[1]
   assert_eq(sw.discriminant.type, "MemberExpression")
@@ -140,7 +140,7 @@ test("parse switch discriminant is member expression", function()
 end)
 
 test("parse switch discriminant is ternary expression", function()
-  local ast = ljs.parse("switch (a ? 1 : 2) {}")
+  local ast = parser.parse("switch (a ? 1 : 2) {}")
   assert(ast)
   local sw = ast.body[1]
   assert_eq(sw.discriminant.type, "ConditionalExpression")
@@ -150,7 +150,7 @@ end)
 -- SwitchStatement: case test expressions
 
 test("parse case test is string literal", function()
-  local ast = ljs.parse('switch (x) { case "hello": break; }')
+  local ast = parser.parse('switch (x) { case "hello": break; }')
   assert(ast)
   local case = ast.body[1].cases[1]
   assert_eq(case.test.type, "StringLiteral")
@@ -158,7 +158,7 @@ test("parse case test is string literal", function()
 end)
 
 test("parse case test is identifier", function()
-  local ast = ljs.parse("switch (x) { case myVar: break; }")
+  local ast = parser.parse("switch (x) { case myVar: break; }")
   assert(ast)
   local case = ast.body[1].cases[1]
   assert_eq(case.test.type, "Identifier")
@@ -166,7 +166,7 @@ test("parse case test is identifier", function()
 end)
 
 test("parse case test is boolean", function()
-  local ast = ljs.parse("switch (x) { case true: break; }")
+  local ast = parser.parse("switch (x) { case true: break; }")
   assert(ast)
   local case = ast.body[1].cases[1]
   assert_eq(case.test.type, "BooleanLiteral")
@@ -174,7 +174,7 @@ test("parse case test is boolean", function()
 end)
 
 test("parse case test is member expression", function()
-  local ast = ljs.parse("switch (x) { case obj.key: break; }")
+  local ast = parser.parse("switch (x) { case obj.key: break; }")
   assert(ast)
   local case = ast.body[1].cases[1]
   assert_eq(case.test.type, "MemberExpression")
@@ -183,7 +183,7 @@ test("parse case test is member expression", function()
 end)
 
 test("parse case test is computed member", function()
-  local ast = ljs.parse("switch (x) { case arr[0]: break; }")
+  local ast = parser.parse("switch (x) { case arr[0]: break; }")
   assert(ast)
   local case = ast.body[1].cases[1]
   assert_eq(case.test.type, "MemberExpression")
@@ -194,7 +194,7 @@ end)
 -- SwitchStatement: case body variations
 
 test("parse case body with multiple statements", function()
-  local ast = ljs.parse("switch (x) { case 1: a; b; c; break; }")
+  local ast = parser.parse("switch (x) { case 1: a; b; c; break; }")
   assert(ast)
   local case = ast.body[1].cases[1]
   assert_eq(#case.consequent, 4)
@@ -205,7 +205,7 @@ test("parse case body with multiple statements", function()
 end)
 
 test("parse case body with variable declaration", function()
-  local ast = ljs.parse("switch (x) { case 1: let y = 2; break; }")
+  local ast = parser.parse("switch (x) { case 1: let y = 2; break; }")
   assert(ast)
   local case = ast.body[1].cases[1]
   assert_eq(case.consequent[1].type, "VariableDeclaration")
@@ -214,7 +214,7 @@ test("parse case body with variable declaration", function()
 end)
 
 test("parse case body with if/else", function()
-  local ast = ljs.parse("switch (x) { case 1: if (a) { b; } break; }")
+  local ast = parser.parse("switch (x) { case 1: if (a) { b; } break; }")
   assert(ast)
   local case = ast.body[1].cases[1]
   assert_eq(case.consequent[1].type, "IfStatement")
@@ -223,7 +223,7 @@ test("parse case body with if/else", function()
 end)
 
 test("parse case body with return", function()
-  local ast = ljs.parse("function f(x) { switch (x) { case 1: return x; } }")
+  local ast = parser.parse("function f(x) { switch (x) { case 1: return x; } }")
   assert(ast)
   local case = ast.body[1].body.body[1].cases[1]
   assert_eq(case.consequent[1].type, "ReturnStatement")
@@ -231,7 +231,7 @@ test("parse case body with return", function()
 end)
 
 test("parse case body with throw", function()
-  local ast = ljs.parse('switch (x) { case 1: throw "err"; }')
+  local ast = parser.parse('switch (x) { case 1: throw "err"; }')
   assert(ast)
   local case = ast.body[1].cases[1]
   assert_eq(case.consequent[1].type, "ThrowStatement")
@@ -257,7 +257,7 @@ end)
 -- SwitchStatement: default position
 
 test("parse default first", function()
-  local ast = ljs.parse("switch (x) { default: a; break; case 1: b; break; }")
+  local ast = parser.parse("switch (x) { default: a; break; case 1: b; break; }")
   assert(ast)
   assert_eq(#ast.body[1].cases, 2)
   assert_eq(ast.body[1].cases[1].test, nil)
@@ -265,7 +265,7 @@ test("parse default first", function()
 end)
 
 test("parse default last", function()
-  local ast = ljs.parse("switch (x) { case 1: a; break; default: b; break; }")
+  local ast = parser.parse("switch (x) { case 1: a; break; default: b; break; }")
   assert(ast)
   assert_eq(#ast.body[1].cases, 2)
   assert_eq(ast.body[1].cases[1].test.value, 1)
@@ -291,21 +291,21 @@ test("parse break without semicolon before }", function()
 end)
 
 test("parse break inside while loop", function()
-  local ast = ljs.parse("while (true) { break; }")
+  local ast = parser.parse("while (true) { break; }")
   assert(ast)
   local brk = ast.body[1].body.body[1]
   assert_eq(brk.type, "BreakStatement")
 end)
 
 test("parse break inside for loop", function()
-  local ast = ljs.parse("for (;;) { break; }")
+  local ast = parser.parse("for (;;) { break; }")
   assert(ast)
   local brk = ast.body[1].body.body[1]
   assert_eq(brk.type, "BreakStatement")
 end)
 
 test("parse break inside do...while", function()
-  local ast = ljs.parse("do { break; } while (true);")
+  local ast = parser.parse("do { break; } while (true);")
   assert(ast)
   local brk = ast.body[1].body.body[1]
   assert_eq(brk.type, "BreakStatement")
@@ -331,42 +331,42 @@ test("parse continue without semicolon before }", function()
 end)
 
 test("parse continue inside while loop", function()
-  local ast = ljs.parse("while (true) { continue; }")
+  local ast = parser.parse("while (true) { continue; }")
   assert(ast)
   local cont = ast.body[1].body.body[1]
   assert_eq(cont.type, "ContinueStatement")
 end)
 
 test("parse continue inside for-of loop", function()
-  local ast = ljs.parse("for (let x of arr) { continue; }")
+  local ast = parser.parse("for (let x of arr) { continue; }")
   assert(ast)
   local cont = ast.body[1].body.body[1]
   assert_eq(cont.type, "ContinueStatement")
 end)
 
 test("parse continue inside for-in loop", function()
-  local ast = ljs.parse("for (let k in obj) { continue; }")
+  local ast = parser.parse("for (let k in obj) { continue; }")
   assert(ast)
   local cont = ast.body[1].body.body[1]
   assert_eq(cont.type, "ContinueStatement")
 end)
 
 test("parse continue inside C-style for loop", function()
-  local ast = ljs.parse("for (;;) { continue; }")
+  local ast = parser.parse("for (;;) { continue; }")
   assert(ast)
   local cont = ast.body[1].body.body[1]
   assert_eq(cont.type, "ContinueStatement")
 end)
 
 test("parse continue inside do...while", function()
-  local ast = ljs.parse("do { continue; } while (true);")
+  local ast = parser.parse("do { continue; } while (true);")
   assert(ast)
   local cont = ast.body[1].body.body[1]
   assert_eq(cont.type, "ContinueStatement")
 end)
 
 test("parse continue inside nested if within loop", function()
-  local ast = ljs.parse("while (x) { if (a) { continue; } b; }")
+  local ast = parser.parse("while (x) { if (a) { continue; } b; }")
   assert(ast)
   local if_stmt = ast.body[1].body.body[1]
   assert_eq(if_stmt.type, "IfStatement")
@@ -375,7 +375,7 @@ test("parse continue inside nested if within loop", function()
 end)
 
 test("parse continue inside switch within loop", function()
-  local ast = ljs.parse("while (x) { switch (a) { case 1: continue; } }")
+  local ast = parser.parse("while (x) { switch (a) { case 1: continue; } }")
   assert(ast)
   local sw = ast.body[1].body.body[1]
   assert_eq(sw.type, "SwitchStatement")
@@ -384,7 +384,7 @@ test("parse continue inside switch within loop", function()
 end)
 
 test("parse continue in nested loops (inner and outer)", function()
-  local ast = ljs.parse("while (a) { while (b) { continue; } continue; }")
+  local ast = parser.parse("while (a) { while (b) { continue; } continue; }")
   assert(ast)
   local outer = ast.body[1]
   local inner = outer.body.body[1]
@@ -396,7 +396,7 @@ end)
 
 test("parse continue mixed with break in switch inside loop", function()
   local ast =
-    ljs.parse("while (x) { switch (a) { case 1: continue; case 2: break; default: continue; } }")
+    parser.parse("while (x) { switch (a) { case 1: continue; case 2: break; default: continue; } }")
   assert(ast)
   local sw = ast.body[1].body.body[1]
   assert_eq(sw.cases[1].consequent[1].type, "ContinueStatement")
@@ -405,7 +405,7 @@ test("parse continue mixed with break in switch inside loop", function()
 end)
 
 test("parse continue after other statements", function()
-  local ast = ljs.parse("while (x) { a; b; continue; c; }")
+  local ast = parser.parse("while (x) { a; b; continue; c; }")
   assert(ast)
   local body = ast.body[1].body.body
   assert_eq(body[1].type, "ExpressionStatement")
@@ -415,7 +415,7 @@ test("parse continue after other statements", function()
 end)
 
 test("parse multiple continues in same loop body", function()
-  local ast = ljs.parse("while (x) { if (a) { continue; } if (b) { continue; } c; }")
+  local ast = parser.parse("while (x) { if (a) { continue; } if (b) { continue; } c; }")
   assert(ast)
   local body = ast.body[1].body.body
   assert_eq(body[1].consequent.body[1].type, "ContinueStatement")
@@ -427,7 +427,7 @@ test("error: continue as expression operand", function()
 end)
 
 test("note: labeled continue accepted (labels ignored, same as break)", function()
-  local ast = ljs.parse("while (x) { continue foo; }")
+  local ast = parser.parse("while (x) { continue foo; }")
   assert(ast)
   assert_eq(ast.body[1].body.body[1].type, "ContinueStatement")
 end)
@@ -435,7 +435,7 @@ end)
 -- Integration
 
 test("integration: switch after variable declaration", function()
-  local ast = ljs.parse("let x = 1; switch (x) { case 1: break; }")
+  local ast = parser.parse("let x = 1; switch (x) { case 1: break; }")
   assert(ast)
   assert_eq(#ast.body, 2)
   assert_eq(ast.body[1].type, "VariableDeclaration")
@@ -443,7 +443,7 @@ test("integration: switch after variable declaration", function()
 end)
 
 test("integration: switch inside function body", function()
-  local ast = ljs.parse("function f(x) { switch (x) { case 1: return x; default: return 0; } }")
+  local ast = parser.parse("function f(x) { switch (x) { case 1: return x; default: return 0; } }")
   assert(ast)
   local fn = ast.body[1]
   assert_eq(fn.type, "FunctionDeclaration")
@@ -455,14 +455,14 @@ test("integration: switch inside function body", function()
 end)
 
 test("integration: switch inside while", function()
-  local ast = ljs.parse("while (cond) { switch (x) { case 1: break; } }")
+  local ast = parser.parse("while (cond) { switch (x) { case 1: break; } }")
   assert(ast)
   local sw = ast.body[1].body.body[1]
   assert_eq(sw.type, "SwitchStatement")
 end)
 
 test("integration: nested switch statements", function()
-  local ast = ljs.parse("switch (a) { case 1: switch (b) { case 2: break; } break; }")
+  local ast = parser.parse("switch (a) { case 1: switch (b) { case 2: break; } break; }")
   assert(ast)
   local outer = ast.body[1]
   assert_eq(outer.type, "SwitchStatement")
@@ -475,7 +475,7 @@ test("integration: nested switch statements", function()
 end)
 
 test("integration: switch inside for loop", function()
-  local ast = ljs.parse("for (;;) { switch (x) { case 1: break; default: break; } }")
+  local ast = parser.parse("for (;;) { switch (x) { case 1: break; default: break; } }")
   assert(ast)
   local sw = ast.body[1].body.body[1]
   assert_eq(sw.type, "SwitchStatement")
@@ -483,7 +483,7 @@ test("integration: switch inside for loop", function()
 end)
 
 test("integration: switch with complex case body", function()
-  local ast = ljs.parse("switch (x) { case 1: let y = 2; if (y > 0) { y; } break; }")
+  local ast = parser.parse("switch (x) { case 1: let y = 2; if (y > 0) { y; } break; }")
   assert(ast)
   local case = ast.body[1].cases[1]
   assert_eq(#case.consequent, 3)
@@ -513,7 +513,7 @@ test("parse_tokens: minimal switch", function()
     tok_constructor(TK.RBRACE),
     tok_constructor(TK.EOF),
   }
-  local ast = ljs.parse_tokens(tokens)
+  local ast = parser.parse_tokens(tokens)
   assert_table_eq(
     ast,
     A.program({
@@ -532,7 +532,7 @@ test("parse_tokens: break statement", function()
     tok_constructor(TK.SEMICOLON),
     tok_constructor(TK.EOF),
   }
-  local ast = ljs.parse_tokens(tokens)
+  local ast = parser.parse_tokens(tokens)
   assert_table_eq(
     ast,
     A.program({
@@ -547,7 +547,7 @@ test("parse_tokens: continue statement", function()
     tok_constructor(TK.SEMICOLON),
     tok_constructor(TK.EOF),
   }
-  local ast = ljs.parse_tokens(tokens)
+  local ast = parser.parse_tokens(tokens)
   assert_table_eq(
     ast,
     A.program({

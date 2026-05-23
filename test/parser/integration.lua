@@ -5,8 +5,8 @@ local test, assert_eq, assert_table_eq = T.test, T.assert_eq, T.assert_table_eq
 local assert_parse_ok, assert_parse_fail = P.assert_parse_ok, P.assert_parse_fail
 local tok_from_source, assert_tok, assert_tokenize_fail =
   P.tok, P.assert_tok, P.assert_tokenize_fail
-local ljs = P.ljs
-local TK = ljs.TOKEN
+local parser = P.parser
+local TK = parser.TOKEN
 
 -- PARSER TESTS - ERROR CASES
 -- ============================================================================
@@ -58,12 +58,12 @@ test("error: postfix on undefined literal", function()
 end)
 
 test("parse postfix on parenthesized expression", function()
-  local ast = ljs.parse("(x)++;")
+  local ast = parser.parse("(x)++;")
   assert(ast, "expected parse to succeed")
 end)
 
 test("parse postfix on array literal", function()
-  local ast = ljs.parse("[1, 2]++;")
+  local ast = parser.parse("[1, 2]++;")
   assert(ast, "expected parse to succeed")
 end)
 
@@ -190,11 +190,11 @@ end)
 -- ============================================================================
 -- PARSER ISOLATION TESTS (via parse_tokens)
 -- ============================================================================
--- These tests construct token arrays by hand and call ljs.parse_tokens()
+-- These tests construct token arrays by hand and call parser.parse_tokens()
 -- directly. If one of these fails, it is unambiguously a parser bug —
 -- the tokenizer is not involved.
 
-local TK = ljs.TOKEN
+local TK = parser.TOKEN
 
 local function tok(type, value, line, col)
   return { type = type, value = value, line = line or 1, col = col or 1 }
@@ -209,7 +209,7 @@ test("parse_tokens: let declaration", function()
     tok(TK.SEMICOLON),
     tok(TK.EOF),
   }
-  local ast = ljs.parse_tokens(tokens)
+  local ast = parser.parse_tokens(tokens)
   assert_table_eq(
     ast,
     A.program({
@@ -235,7 +235,7 @@ test("parse_tokens: if/else", function()
     tok(TK.RBRACE),
     tok(TK.EOF),
   }
-  local ast = ljs.parse_tokens(tokens)
+  local ast = parser.parse_tokens(tokens)
   assert_table_eq(
     ast,
     A.program({
@@ -254,7 +254,7 @@ test("parse_tokens: binary expression with precedence", function()
     tok(TK.SEMICOLON),
     tok(TK.EOF),
   }
-  local ast = ljs.parse_tokens(tokens)
+  local ast = parser.parse_tokens(tokens)
   assert_table_eq(
     ast,
     A.program({
@@ -268,13 +268,13 @@ test("parse_tokens: error on unexpected token", function()
     tok(TK.RPAREN),
     tok(TK.EOF),
   }
-  local ast, err = ljs.parse_tokens(tokens)
+  local ast, err = parser.parse_tokens(tokens)
   assert_eq(ast, nil, "expected nil ast")
   assert(err ~= nil, "expected error message")
 end)
 
 test("parse_tokens: empty program", function()
-  local ast = ljs.parse_tokens({ tok(TK.EOF) })
+  local ast = parser.parse_tokens({ tok(TK.EOF) })
   assert_table_eq(ast, A.program({}))
 end)
 
@@ -286,7 +286,7 @@ test("parse_tokens: compound assignment x += 1", function()
     tok(TK.SEMICOLON),
     tok(TK.EOF),
   }
-  local ast = ljs.parse_tokens(tokens)
+  local ast = parser.parse_tokens(tokens)
   assert_table_eq(
     ast,
     A.program({
@@ -305,7 +305,7 @@ test("parse_tokens: ternary x ? 1 : 0", function()
     tok(TK.SEMICOLON),
     tok(TK.EOF),
   }
-  local ast = ljs.parse_tokens(tokens)
+  local ast = parser.parse_tokens(tokens)
   assert_table_eq(
     ast,
     A.program({
@@ -328,7 +328,7 @@ test("parse_tokens: do...while with braces", function()
     tok(TK.SEMICOLON),
     tok(TK.EOF),
   }
-  local ast = ljs.parse_tokens(tokens)
+  local ast = parser.parse_tokens(tokens)
   assert_table_eq(
     ast,
     A.program({
@@ -348,7 +348,7 @@ test("parse_tokens: do...while without braces", function()
     tok(TK.RPAREN),
     tok(TK.EOF),
   }
-  local ast = ljs.parse_tokens(tokens)
+  local ast = parser.parse_tokens(tokens)
   assert_table_eq(
     ast,
     A.program({
@@ -359,7 +359,7 @@ end)
 
 -- ============================================================================
 -- INVARIANT: parse errors return nil, err where err is a ParseError table
--- Contract: callers check ljs.is_parse_error(err) to identify parse errors
+-- Contract: callers check parser.is_parse_error(err) to identify parse errors
 test("error return convention: nil + ParseError", function()
   local cases = {
     "==;",
@@ -372,11 +372,11 @@ test("error return convention: nil + ParseError", function()
     "2 * * 3;",
   }
   for _, src in ipairs(cases) do
-    local ast, err = ljs.parse(src)
+    local ast, err = parser.parse(src)
     assert(ast == nil, "expected nil ast for: " .. src)
     assert(err ~= nil, "expected error for: " .. src)
     assert(
-      ljs.is_parse_error(err),
+      parser.is_parse_error(err),
       "expected ParseError, got: " .. tostring(err) .. " for: " .. src
     )
     assert(err.message ~= nil, "ParseError missing message for: " .. src)

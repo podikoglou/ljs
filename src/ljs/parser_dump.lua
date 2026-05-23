@@ -6,7 +6,7 @@
 --   cat file.js | lua ljs/parser_dump.lua
 --   echo "let x = 42;" | lua ljs/parser_dump.lua
 
-local parser = require("parser.parser")
+local parser = require("ljs.parser")
 
 -- JSON serialization --------------------------------------------------------
 

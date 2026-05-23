@@ -1,6 +1,6 @@
 local T = require("test.ljs_test")
 local P = require("test.helpers.parser")
-local ljs = require("ljs.parser")
+local parser = require("ljs.parser")
 local A = require("test.helpers.ast")
 local test, assert_eq = T.test, T.assert_eq
 local assert_tok, assert_parse_ok, assert_parse_fail =
@@ -26,21 +26,21 @@ test("parse do...while without braces", function()
 end)
 
 test("parse do...while without trailing semicolon", function()
-  local ast = ljs.parse("do { y; } while (x)")
+  local ast = parser.parse("do { y; } while (x)")
   assert(ast)
   assert_eq(ast.body[1].type, "DoWhileStatement")
   assert_eq(ast.body[1].test.name, "x")
 end)
 
 test("parse do...while with trailing semicolon", function()
-  local ast = ljs.parse("do { y; } while (x);")
+  local ast = parser.parse("do { y; } while (x);")
   assert(ast)
   assert_eq(ast.body[1].type, "DoWhileStatement")
   assert_eq(#ast.body, 1)
 end)
 
 test("parse do...while with complex binary test", function()
-  local ast = ljs.parse("do { y; } while (a + b > 0);")
+  local ast = parser.parse("do { y; } while (a + b > 0);")
   assert(ast)
   local dw = ast.body[1]
   assert_eq(dw.type, "DoWhileStatement")
@@ -49,7 +49,7 @@ test("parse do...while with complex binary test", function()
 end)
 
 test("parse do...while with logical test", function()
-  local ast = ljs.parse("do { y; } while (a && b);")
+  local ast = parser.parse("do { y; } while (a && b);")
   assert(ast)
   local dw = ast.body[1]
   assert_eq(dw.type, "DoWhileStatement")
@@ -63,14 +63,14 @@ test("parse do...while with unary negation test", function()
 end)
 
 test("parse do...while with strict inequality test", function()
-  local ast = ljs.parse("do { y; } while (x !== 0);")
+  local ast = parser.parse("do { y; } while (x !== 0);")
   assert(ast)
   local dw = ast.body[1]
   assert_eq(dw.test.operator, "!==")
 end)
 
 test("parse do...while with call expression as test", function()
-  local ast = ljs.parse("do { y; } while (shouldContinue());")
+  local ast = parser.parse("do { y; } while (shouldContinue());")
   assert(ast)
   local dw = ast.body[1]
   assert_eq(dw.test.type, "CallExpression")
@@ -78,7 +78,7 @@ test("parse do...while with call expression as test", function()
 end)
 
 test("parse do...while with member expression as test", function()
-  local ast = ljs.parse("do { y; } while (obj.active);")
+  local ast = parser.parse("do { y; } while (obj.active);")
   assert(ast)
   local dw = ast.body[1]
   assert_eq(dw.test.type, "MemberExpression")
@@ -87,7 +87,7 @@ test("parse do...while with member expression as test", function()
 end)
 
 test("parse do...while with ternary as test", function()
-  local ast = ljs.parse("do { y; } while (flag ? true : false);")
+  local ast = parser.parse("do { y; } while (flag ? true : false);")
   assert(ast)
   local dw = ast.body[1]
   assert_eq(dw.test.type, "ConditionalExpression")
@@ -97,7 +97,7 @@ test("parse do...while with ternary as test", function()
 end)
 
 test("parse do...while with number literal as test", function()
-  local ast = ljs.parse("do { y; } while (1);")
+  local ast = parser.parse("do { y; } while (1);")
   assert(ast)
   local dw = ast.body[1]
   assert_eq(dw.test.type, "NumberLiteral")
@@ -105,7 +105,7 @@ test("parse do...while with number literal as test", function()
 end)
 
 test("parse do...while body with multiple statements", function()
-  local ast = ljs.parse("do { x = x + 1; y = y + 1; } while (x < 10);")
+  local ast = parser.parse("do { x = x + 1; y = y + 1; } while (x < 10);")
   assert(ast)
   local dw = ast.body[1]
   assert_eq(dw.body.type, "BlockStatement")
@@ -113,7 +113,7 @@ test("parse do...while body with multiple statements", function()
 end)
 
 test("parse do...while body is if statement", function()
-  local ast = ljs.parse("do if (a) { x; } while (b);")
+  local ast = parser.parse("do if (a) { x; } while (b);")
   assert(ast)
   local dw = ast.body[1]
   assert_eq(dw.type, "DoWhileStatement")
@@ -122,7 +122,7 @@ test("parse do...while body is if statement", function()
 end)
 
 test("parse do...while body is while loop", function()
-  local ast = ljs.parse("do while (a) { x; } while (b);")
+  local ast = parser.parse("do while (a) { x; } while (b);")
   assert(ast)
   local dw = ast.body[1]
   assert_eq(dw.type, "DoWhileStatement")
@@ -131,7 +131,7 @@ test("parse do...while body is while loop", function()
 end)
 
 test("parse do...while body is another do...while", function()
-  local ast = ljs.parse("do do { x; } while (a); while (b);")
+  local ast = parser.parse("do do { x; } while (a); while (b);")
   assert(ast)
   local outer = ast.body[1]
   assert_eq(outer.type, "DoWhileStatement")
@@ -141,7 +141,7 @@ test("parse do...while body is another do...while", function()
 end)
 
 test("parse do...while body is for loop", function()
-  local ast = ljs.parse("do for (let i = 0; i < 5; i = i + 1) { x; } while (b);")
+  local ast = parser.parse("do for (let i = 0; i < 5; i = i + 1) { x; } while (b);")
   assert(ast)
   local dw = ast.body[1]
   assert_eq(dw.type, "DoWhileStatement")
@@ -149,7 +149,7 @@ test("parse do...while body is for loop", function()
 end)
 
 test("parse do...while body is throw", function()
-  local ast = ljs.parse("do throw e; while (false);")
+  local ast = parser.parse("do throw e; while (false);")
   assert(ast)
   local dw = ast.body[1]
   assert_eq(dw.type, "DoWhileStatement")
@@ -157,7 +157,7 @@ test("parse do...while body is throw", function()
 end)
 
 test("parse do...while body is try/catch", function()
-  local ast = ljs.parse("do try { x; } catch (e) { y; } while (b);")
+  local ast = parser.parse("do try { x; } catch (e) { y; } while (b);")
   assert(ast)
   local dw = ast.body[1]
   assert_eq(dw.type, "DoWhileStatement")
@@ -165,7 +165,7 @@ test("parse do...while body is try/catch", function()
 end)
 
 test("parse do...while body is variable declaration", function()
-  local ast = ljs.parse("do let x = 1; while (b);")
+  local ast = parser.parse("do let x = 1; while (b);")
   assert(ast)
   local dw = ast.body[1]
   assert_eq(dw.type, "DoWhileStatement")
@@ -173,7 +173,7 @@ test("parse do...while body is variable declaration", function()
 end)
 
 test("parse do...while body is return", function()
-  local ast = ljs.parse("do return x; while (b);")
+  local ast = parser.parse("do return x; while (b);")
   assert(ast)
   local dw = ast.body[1]
   assert_eq(dw.type, "DoWhileStatement")
@@ -187,7 +187,7 @@ test("parse do...while body is update expression", function()
 end)
 
 test("parse do...while inside while", function()
-  local ast = ljs.parse("while (a) { do { x; } while (b); }")
+  local ast = parser.parse("while (a) { do { x; } while (b); }")
   assert(ast)
   local outer = ast.body[1]
   assert_eq(outer.type, "WhileStatement")
@@ -198,7 +198,7 @@ test("parse do...while inside while", function()
 end)
 
 test("parse do...while inside if", function()
-  local ast = ljs.parse("if (a) { do { x; } while (b); }")
+  local ast = parser.parse("if (a) { do { x; } while (b); }")
   assert(ast)
   local ifs = ast.body[1]
   assert_eq(ifs.type, "IfStatement")
@@ -207,7 +207,7 @@ test("parse do...while inside if", function()
 end)
 
 test("parse do...while inside for", function()
-  local ast = ljs.parse("for (;;) { do { x; } while (b); }")
+  local ast = parser.parse("for (;;) { do { x; } while (b); }")
   assert(ast)
   local outer = ast.body[1]
   assert_eq(outer.type, "ForStatement")
@@ -216,7 +216,7 @@ test("parse do...while inside for", function()
 end)
 
 test("parse do...while inside function", function()
-  local ast = ljs.parse("function f() { do { x; } while (b); }")
+  local ast = parser.parse("function f() { do { x; } while (b); }")
   assert(ast)
   local fn = ast.body[1]
   assert_eq(fn.type, "FunctionDeclaration")
@@ -225,7 +225,7 @@ test("parse do...while inside function", function()
 end)
 
 test("parse multiple do...while in sequence", function()
-  local ast = ljs.parse("do { a; } while (x); do { b; } while (y);")
+  local ast = parser.parse("do { a; } while (x); do { b; } while (y);")
   assert(ast)
   assert_eq(#ast.body, 2)
   assert_eq(ast.body[1].type, "DoWhileStatement")
@@ -235,7 +235,7 @@ test("parse multiple do...while in sequence", function()
 end)
 
 test("parse do...while with compound expression in body", function()
-  local ast = ljs.parse("do { let x = 1; x; } while (true);")
+  local ast = parser.parse("do { let x = 1; x; } while (true);")
   assert(ast)
   local dw = ast.body[1]
   assert_eq(dw.type, "DoWhileStatement")
@@ -246,7 +246,7 @@ test("parse do...while with compound expression in body", function()
 end)
 
 test("parse do...while with assignment expression test", function()
-  local ast = ljs.parse("do { x; } while (n = n - 1);")
+  local ast = parser.parse("do { x; } while (n = n - 1);")
   assert(ast)
   local dw = ast.body[1]
   assert_eq(dw.test.type, "BinaryExpression")
@@ -254,7 +254,7 @@ test("parse do...while with assignment expression test", function()
 end)
 
 test("parse do...while with compound assignment test", function()
-  local ast = ljs.parse("do { x; } while (n -= 1);")
+  local ast = parser.parse("do { x; } while (n -= 1);")
   assert(ast)
   local dw = ast.body[1]
   assert_eq(dw.test.operator, "-=")

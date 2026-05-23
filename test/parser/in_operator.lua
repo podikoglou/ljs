@@ -1,6 +1,6 @@
 local T = require("test.ljs_test")
 local P = require("test.helpers.parser")
-local ljs = require("ljs.parser")
+local parser = require("ljs.parser")
 local A = require("test.helpers.ast")
 local test, assert_eq, assert_table_eq = T.test, T.assert_eq, T.assert_table_eq
 local assert_parse_ok, assert_parse_fail = P.assert_parse_ok, P.assert_parse_fail
@@ -24,7 +24,7 @@ test("parse number in array", function()
 end)
 
 test("parse member expression as left operand", function()
-  local ast = ljs.parse("obj.key in obj2;")
+  local ast = parser.parse("obj.key in obj2;")
   assert(ast)
   local expr = ast.body[1].expression
   assert_eq(expr.type, "BinaryExpression")
@@ -34,7 +34,7 @@ test("parse member expression as left operand", function()
 end)
 
 test("parse member expression as right operand", function()
-  local ast = ljs.parse('"x" in obj.prop;')
+  local ast = parser.parse('"x" in obj.prop;')
   assert(ast)
   local expr = ast.body[1].expression
   assert_eq(expr.type, "BinaryExpression")
@@ -43,7 +43,7 @@ test("parse member expression as right operand", function()
 end)
 
 test("parse object literal as right operand", function()
-  local ast = ljs.parse('"x" in {a: 1};')
+  local ast = parser.parse('"x" in {a: 1};')
   assert(ast)
   local expr = ast.body[1].expression
   assert_eq(expr.type, "BinaryExpression")
@@ -78,7 +78,7 @@ test("in in && expression", function()
 end)
 
 test("in in if condition", function()
-  local ast = ljs.parse('if ("x" in obj) { y; }')
+  local ast = parser.parse('if ("x" in obj) { y; }')
   assert(ast)
   local if_stmt = ast.body[1]
   assert_eq(if_stmt.type, "IfStatement")
@@ -111,14 +111,14 @@ test("in in parenthesized expression", function()
 end)
 
 test("in in while condition", function()
-  local ast = ljs.parse('while ("x" in obj) { break; }')
+  local ast = parser.parse('while ("x" in obj) { break; }')
   assert(ast)
   assert_eq(ast.body[1].type, "WhileStatement")
   assert_eq(ast.body[1].test.operator, "in")
 end)
 
 test("in in return statement", function()
-  local ast = ljs.parse('function f() { return "x" in obj; }')
+  local ast = parser.parse('function f() { return "x" in obj; }')
   assert(ast)
   local ret = ast.body[1].body.body[1]
   assert_eq(ret.type, "ReturnStatement")
@@ -126,7 +126,7 @@ test("in in return statement", function()
 end)
 
 test("for (key in obj) is still ForInStatement", function()
-  local ast = ljs.parse("for (key in obj) { key; }")
+  local ast = parser.parse("for (key in obj) { key; }")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForInStatement")
@@ -136,7 +136,7 @@ test("for (key in obj) is still ForInStatement", function()
 end)
 
 test("for (let key in obj) is still ForInStatement", function()
-  local ast = ljs.parse("for (let key in obj) { key; }")
+  local ast = parser.parse("for (let key in obj) { key; }")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForInStatement")
@@ -144,7 +144,7 @@ test("for (let key in obj) is still ForInStatement", function()
 end)
 
 test("for (const k in obj) is still ForInStatement", function()
-  local ast = ljs.parse("for (const k in obj) { k; }")
+  local ast = parser.parse("for (const k in obj) { k; }")
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForInStatement")
@@ -152,7 +152,7 @@ test("for (const k in obj) is still ForInStatement", function()
 end)
 
 test("for with in inside parens is C-style for", function()
-  local ast = ljs.parse('for (("x" in obj); ; ) { break; }')
+  local ast = parser.parse('for (("x" in obj); ; ) { break; }')
   assert(ast)
   local f = ast.body[1]
   assert_eq(f.type, "ForStatement")
