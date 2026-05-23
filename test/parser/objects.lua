@@ -306,3 +306,61 @@ test("key:value with function expression still works", function()
     ),
   })
 end)
+
+-- ============================================================================
+-- Keywords as object literal keys (IdentifierName vs Identifier)
+-- ============================================================================
+
+test("keyword 'of' as object key", function()
+  assert_parse_ok("let o = { of: 1 };", {
+    A.let("o", A.obj({ A.prop(A.id("of"), A.num(1)) })),
+  })
+end)
+
+test("keyword 'in' as object key", function()
+  assert_parse_ok("let o = { in: 2 };", {
+    A.let("o", A.obj({ A.prop(A.id("in"), A.num(2)) })),
+  })
+end)
+
+test("keyword 'return' as object key", function()
+  assert_parse_ok("let o = { return: 3 };", {
+    A.let("o", A.obj({ A.prop(A.id("return"), A.num(3)) })),
+  })
+end)
+
+test("keyword 'throw' as object key", function()
+  assert_parse_ok("let o = { throw: 4 };", {
+    A.let("o", A.obj({ A.prop(A.id("throw"), A.num(4)) })),
+  })
+end)
+
+test("keyword 'delete' as object key", function()
+  assert_parse_ok("let o = { delete: 5 };", {
+    A.let("o", A.obj({ A.prop(A.id("delete"), A.num(5)) })),
+  })
+end)
+
+test("keyword 'typeof' as object key", function()
+  assert_parse_ok("let o = { typeof: 6 };", {
+    A.let("o", A.obj({ A.prop(A.id("typeof"), A.num(6)) })),
+  })
+end)
+
+test("keyword 'new' as object key", function()
+  assert_parse_ok("let o = { new: 7 };", {
+    A.let("o", A.obj({ A.prop(A.id("new"), A.num(7)) })),
+  })
+end)
+
+test("keyword 'class' as object key", function()
+  assert_parse_ok("let o = { class: 8 };", {
+    A.let("o", A.obj({ A.prop(A.id("class"), A.num(8)) })),
+  })
+end)
+
+test("keyword 'function' as object key", function()
+  assert_parse_ok("let o = { function: 9 };", {
+    A.let("o", A.obj({ A.prop(A.id("function"), A.num(9)) })),
+  })
+end)
