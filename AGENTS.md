@@ -2,6 +2,8 @@
 
 Lua libraries that parse a well-defined subset of JavaScript into a Lua table-based AST and transpile it to Lua source code. Lua 5.1+, 2-space indents, snake_case internals, no external dependencies.
 
+Source is in `src/ljs/` with hierarchical module names (`ljs.parser`, `ljs.codegen`, `ljs.transpile`). Runtime templates in `src/ljs/runtime/`. Rockspec in `rockspec/`.
+
 This is a ~16k line codebase. No need for subagents or careful file loading — just read the relevant file, make the change, run the tests.
 
 Tests: `make test`
