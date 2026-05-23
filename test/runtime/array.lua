@@ -112,6 +112,94 @@ end)
 -- Code generation checks
 -- ============================================================================
 
+-- ============================================================================
+-- Array.isArray
+-- ============================================================================
+
+test("Array.isArray on array literal", function()
+  assert_eq(exec_js("return Array.isArray([1, 2, 3]);"), true)
+end)
+
+test("Array.isArray on non-array object", function()
+  assert_eq(exec_js("return Array.isArray({});"), false)
+end)
+
+test("Array.isArray on string", function()
+  assert_eq(exec_js("return Array.isArray('hello');"), false)
+end)
+
+test("Array.isArray on number", function()
+  assert_eq(exec_js("return Array.isArray(42);"), false)
+end)
+
+test("Array.isArray on null", function()
+  assert_eq(exec_js("return Array.isArray(null);"), false)
+end)
+
+test("Array.isArray on new Array", function()
+  assert_eq(exec_js("return Array.isArray(new Array(1, 2));"), true)
+end)
+
+-- ============================================================================
+-- Array.from
+-- ============================================================================
+
+test("Array.from on array", function()
+  local arr = exec_js("return Array.from([1, 2, 3]);")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+end)
+
+test("Array.from on string", function()
+  local arr = exec_js("return Array.from('abc');")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], "a")
+  assert_eq(arr[2], "b")
+  assert_eq(arr[3], "c")
+end)
+
+test("Array.from on empty", function()
+  local arr = exec_js("return Array.from([]);")
+  assert_eq(arr.length, 0)
+end)
+
+-- ============================================================================
+-- Array.of
+-- ============================================================================
+
+test("Array.of with args", function()
+  local arr = exec_js('return Array["of"](1, 2, 3);')
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+end)
+
+test("Array.of single arg", function()
+  local arr = exec_js('return Array["of"](42);')
+  assert_eq(arr.length, 1)
+  assert_eq(arr[1], 42)
+end)
+
+test("Array.of no args", function()
+  local arr = exec_js('return Array["of"]();')
+  assert_eq(arr.length, 0)
+end)
+
+test("Array.of with mixed types", function()
+  local arr = exec_js("return Array[\"of\"](1, 'hello', true);")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], "hello")
+  assert_eq(arr[3], true)
+end)
+
+-- ============================================================================
+-- Code generation checks
+-- ============================================================================
+
 test("member call emits _ljs_call_member", function()
   local code = transpile_js("arr.push(1);")
   assert(code:find("_ljs_call_member"), "expected _ljs_call_member in output")
