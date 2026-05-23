@@ -1,4 +1,4 @@
-local cg = {}
+local M = {}
 
 -- ============================================================================
 -- Utilities
@@ -10,11 +10,11 @@ local cg = {}
 --- Join a list of name strings with ", ".
 -- @param names (table) List of name strings
 -- @return (string) Comma-separated names
-function cg.join(names)
+function M.join(names)
   return table.concat(names, ", ")
 end
 
-function cg.escape_string(s)
+function M.escape_string(s)
   local out = {}
   for i = 1, #s do
     local c = s:sub(i, i)
@@ -41,7 +41,7 @@ end
 --- Produce indentation whitespace.
 -- @param n (number) Indent level (each level = 2 spaces)
 -- @return (string) Indentation string
-function cg.pad(n)
+function M.pad(n)
   return string.rep("  ", n)
 end
 
@@ -54,11 +54,11 @@ end
 -- @param init (string|nil) Initializer expression, or nil for uninitialized
 -- @param indent (number) Indentation level
 -- @return (string) Formatted local declaration with trailing newline
-function cg.local_decl(name, init, indent)
+function M.local_decl(name, init, indent)
   if init then
-    return cg.pad(indent) .. "local " .. name .. " = " .. init .. "\n"
+    return M.pad(indent) .. "local " .. name .. " = " .. init .. "\n"
   end
-  return cg.pad(indent) .. "local " .. name .. "\n"
+  return M.pad(indent) .. "local " .. name .. "\n"
 end
 
 --- Emit a local function declaration statement.
@@ -67,15 +67,15 @@ end
 -- @param body (string) Function body (pre-formatted with indentation)
 -- @param indent (number) Indentation level for declaration and closing end
 -- @return (string) Formatted local function declaration with trailing newline
-function cg.local_fn(name, params, body, indent)
-  return cg.pad(indent)
+function M.local_fn(name, params, body, indent)
+  return M.pad(indent)
     .. "local function "
     .. name
     .. "("
     .. params
     .. ")\n"
     .. body
-    .. cg.pad(indent)
+    .. M.pad(indent)
     .. "end\n"
 end
 
@@ -84,50 +84,50 @@ end
 -- @param body (string) Function body (pre-formatted with indentation)
 -- @param indent (number) Indentation level for the closing end
 -- @return (string) Formatted function expression (no trailing newline)
-function cg.fn_expr(params, body, indent)
-  return "function(" .. params .. ")\n" .. body .. cg.pad(indent) .. "end"
+function M.fn_expr(params, body, indent)
+  return "function(" .. params .. ")\n" .. body .. M.pad(indent) .. "end"
 end
 
 --- Emit a return statement.
 -- @param expr (string|nil) Return expression, or nil for bare return
 -- @param indent (number) Indentation level
 -- @return (string) Formatted return statement with trailing newline
-function cg.return_stmt(expr, indent)
+function M.return_stmt(expr, indent)
   if expr then
-    return cg.pad(indent) .. "return " .. expr .. "\n"
+    return M.pad(indent) .. "return " .. expr .. "\n"
   end
-  return cg.pad(indent) .. "return\n"
+  return M.pad(indent) .. "return\n"
 end
 
 --- Emit a break statement.
 -- @param indent (number) Indentation level
 -- @return (string) Formatted break statement with trailing newline
-function cg.break_stmt(indent)
-  return cg.pad(indent) .. "break\n"
+function M.break_stmt(indent)
+  return M.pad(indent) .. "break\n"
 end
 
 --- Emit an expression statement.
 -- @param expr (string) Expression code
 -- @param indent (number) Indentation level
 -- @return (string) Formatted expression statement with trailing newline
-function cg.expr_stmt(expr, indent)
-  return cg.pad(indent) .. expr .. "\n"
+function M.expr_stmt(expr, indent)
+  return M.pad(indent) .. expr .. "\n"
 end
 
 --- Emit a return-from-expression statement (used in eval mode).
 -- @param expr (string) Expression code
 -- @param indent (number) Indentation level
 -- @return (string) Formatted return statement with trailing newline
-function cg.return_expr(expr, indent)
-  return cg.pad(indent) .. "return " .. expr .. "\n"
+function M.return_expr(expr, indent)
+  return M.pad(indent) .. "return " .. expr .. "\n"
 end
 
 --- Emit a do...end block for scoping.
 -- @param body (string) Block body (pre-formatted)
 -- @param indent (number) Indentation level
 -- @return (string) Formatted do block with trailing newline
-function cg.do_block(body, indent)
-  return cg.pad(indent) .. "do\n" .. body .. cg.pad(indent) .. "end\n"
+function M.do_block(body, indent)
+  return M.pad(indent) .. "do\n" .. body .. M.pad(indent) .. "end\n"
 end
 
 --- Emit a while loop statement.
@@ -135,8 +135,8 @@ end
 -- @param body (string) Loop body (pre-formatted)
 -- @param indent (number) Indentation level
 -- @return (string) Formatted while loop with trailing newline
-function cg.while_stmt(test, body, indent)
-  return cg.pad(indent) .. "while " .. test .. " do\n" .. body .. cg.pad(indent) .. "end\n"
+function M.while_stmt(test, body, indent)
+  return M.pad(indent) .. "while " .. test .. " do\n" .. body .. M.pad(indent) .. "end\n"
 end
 
 --- Emit a repeat...until loop statement.
@@ -144,8 +144,8 @@ end
 -- @param body (string) Loop body (pre-formatted)
 -- @param indent (number) Indentation level
 -- @return (string) Formatted repeat...until loop with trailing newline
-function cg.repeat_until(condition, body, indent)
-  return cg.pad(indent) .. "repeat\n" .. body .. cg.pad(indent) .. "until " .. condition .. "\n"
+function M.repeat_until(condition, body, indent)
+  return M.pad(indent) .. "repeat\n" .. body .. M.pad(indent) .. "until " .. condition .. "\n"
 end
 
 --- Emit a generic for..in loop statement.
@@ -154,15 +154,15 @@ end
 -- @param body (string) Loop body (pre-formatted)
 -- @param indent (number) Indentation level
 -- @return (string) Formatted for..in loop with trailing newline
-function cg.for_in_stmt(vars, iter, body, indent)
-  return cg.pad(indent)
+function M.for_in_stmt(vars, iter, body, indent)
+  return M.pad(indent)
     .. "for "
     .. vars
     .. " in "
     .. iter
     .. " do\n"
     .. body
-    .. cg.pad(indent)
+    .. M.pad(indent)
     .. "end\n"
 end
 
@@ -173,8 +173,8 @@ end
 -- @param body (string) Loop body (pre-formatted)
 -- @param indent (number) Indentation level
 -- @return (string) Formatted numeric for loop with trailing newline
-function cg.numeric_for(var, start, stop, body, indent)
-  return cg.pad(indent)
+function M.numeric_for(var, start, stop, body, indent)
+  return M.pad(indent)
     .. "for "
     .. var
     .. " = "
@@ -183,7 +183,7 @@ function cg.numeric_for(var, start, stop, body, indent)
     .. stop
     .. " do\n"
     .. body
-    .. cg.pad(indent)
+    .. M.pad(indent)
     .. "end\n"
 end
 
@@ -194,17 +194,17 @@ end
 -- @param else_body (string|nil) Else branch body (pre-formatted)
 -- @param indent (number) Indentation level
 -- @return (string) Formatted if statement with trailing newline
-function cg.if_stmt(test, then_body, elseifs, else_body, indent)
-  local code = cg.pad(indent) .. "if " .. test .. " then\n" .. then_body
+function M.if_stmt(test, then_body, elseifs, else_body, indent)
+  local code = M.pad(indent) .. "if " .. test .. " then\n" .. then_body
   if elseifs then
     for _, clause in ipairs(elseifs) do
-      code = code .. cg.pad(indent) .. "elseif " .. clause.test .. " then\n" .. clause.body
+      code = code .. M.pad(indent) .. "elseif " .. clause.test .. " then\n" .. clause.body
     end
   end
   if else_body then
-    code = code .. cg.pad(indent) .. "else\n" .. else_body
+    code = code .. M.pad(indent) .. "else\n" .. else_body
   end
-  return code .. cg.pad(indent) .. "end\n"
+  return code .. M.pad(indent) .. "end\n"
 end
 
 -- ============================================================================
@@ -214,48 +214,48 @@ end
 --- Emit a number literal.
 -- @param n (number) Numeric value
 -- @return (string) Formatted number literal
-function cg.number(n)
+function M.number(n)
   return tostring(n)
 end
 
 --- Emit a string literal.
 -- @param s (string) Raw string value
 -- @return (string) Formatted string literal with double quotes
-function cg.string(s)
-  return '"' .. cg.escape_string(s) .. '"'
+function M.string(s)
+  return '"' .. M.escape_string(s) .. '"'
 end
 
 --- Emit a boolean literal.
 -- @param b (boolean) Boolean value
 -- @return (string) "true" or "false"
-function cg.boolean(b)
+function M.boolean(b)
   return b and "true" or "false"
 end
 
 --- Emit a nil literal.
 -- @return (string) "nil"
-function cg.nil_val()
+function M.nil_val()
   return "nil"
 end
 
 --- Emit an identifier.
 -- @param name (string) Identifier name
 -- @return (string) The identifier as-is
-function cg.ident(name)
+function M.ident(name)
   return name
 end
 
 --- Emit a parenthesized expression.
 -- @param expr (string) Inner expression
 -- @return (string) Parenthesized expression
-function cg.paren(expr)
+function M.paren(expr)
   return "(" .. expr .. ")"
 end
 
 --- Emit a bracket key for use inside a table constructor.
 -- @param expr (string) Key expression
 -- @return (string) Bracketed key, e.g. ["key"]
-function cg.bracket_key(expr)
+function M.bracket_key(expr)
   return "[" .. expr .. "]"
 end
 
@@ -264,7 +264,7 @@ end
 -- @param left (string) Left operand expression
 -- @param right (string) Right operand expression
 -- @return (string) Formatted binary expression
-function cg.binop(op, left, right)
+function M.binop(op, left, right)
   return left .. " " .. op .. " " .. right
 end
 
@@ -272,7 +272,7 @@ end
 -- @param op (string) Operator ("not" or "-")
 -- @param expr (string) Operand expression
 -- @return (string) Formatted unary expression
-function cg.unop(op, expr)
+function M.unop(op, expr)
   if op == "not" then
     return "not " .. expr
   end
@@ -283,7 +283,7 @@ end
 -- @param fn_expr (string) Function expression
 -- @param args (table) List of argument expression strings
 -- @return (string) Formatted function call
-function cg.call(fn_expr, args)
+function M.call(fn_expr, args)
   return fn_expr .. "(" .. table.concat(args, ", ") .. ")"
 end
 
@@ -291,7 +291,7 @@ end
 -- @param obj (string) Object expression
 -- @param prop (string) Property name
 -- @return (string) Formatted member access
-function cg.member_dot(obj, prop)
+function M.member_dot(obj, prop)
   return obj .. "." .. prop
 end
 
@@ -299,14 +299,14 @@ end
 -- @param obj (string) Object expression
 -- @param index (string) Index expression
 -- @return (string) Formatted index access
-function cg.member_index(obj, index)
+function M.member_index(obj, index)
   return obj .. "[" .. index .. "]"
 end
 
 --- Emit a table constructor with key-value pairs.
 -- @param fields (table) List of {key=string, value=string}
 -- @return (string) Formatted table constructor
-function cg.object(fields)
+function M.object(fields)
   if #fields == 0 then
     return "{}"
   end
@@ -320,7 +320,7 @@ end
 --- Emit a table constructor with sequential values.
 -- @param elems (table) List of expression strings
 -- @return (string) Formatted table constructor
-function cg.array(elems)
+function M.array(elems)
   return "{" .. table.concat(elems, ", ") .. "}"
 end
 
@@ -332,16 +332,16 @@ end
 -- @param label (string) Label name
 -- @param indent (number) Indentation level
 -- @return (string) Formatted goto statement with trailing newline
-function cg.goto_stmt(label, indent)
-  return cg.pad(indent) .. "goto " .. label .. "\n"
+function M.goto_stmt(label, indent)
+  return M.pad(indent) .. "goto " .. label .. "\n"
 end
 
 --- Emit a goto label.
 -- @param name (string) Label name
 -- @param indent (number) Indentation level
 -- @return (string) Formatted label with trailing newline
-function cg.label(name, indent)
-  return cg.pad(indent) .. "::" .. name .. "::\n"
+function M.label(name, indent)
+  return M.pad(indent) .. "::" .. name .. "::\n"
 end
 
 -- ============================================================================
@@ -352,14 +352,14 @@ end
 -- @param name (string) Variable name
 -- @param init (string) Initializer expression
 -- @return (string) Inline local declaration
-function cg.local_inline(name, init)
+function M.local_inline(name, init)
   return "local " .. name .. " = " .. init
 end
 
 --- Emit a return as an inline statement (no trailing newline).
 -- @param expr (string) Return expression
 -- @return (string) Inline return statement
-function cg.return_inline(expr)
+function M.return_inline(expr)
   return "return " .. expr
 end
 
@@ -368,7 +368,7 @@ end
 -- @param consequent (string) Return value if truthy
 -- @param alternate (string) Return value if falsy
 -- @return (string) Inline if-return statement
-function cg.inline_if_return(test, consequent, alternate)
+function M.inline_if_return(test, consequent, alternate)
   return "if " .. test .. " then return " .. consequent .. " else return " .. alternate .. " end"
 end
 
@@ -379,8 +379,8 @@ end
 --- Emit an immediately-invoked function expression (IIFE).
 -- @param stmts (table) List of inline statement strings
 -- @return (string) Formatted IIFE expression
-function cg.iife(stmts)
+function M.iife(stmts)
   return "(function() " .. table.concat(stmts, "; ") .. " end)()"
 end
 
-return cg
+return M
