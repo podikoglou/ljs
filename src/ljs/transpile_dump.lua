@@ -1,3 +1,6 @@
+--- CLI entry point: reads JS source from file arg or stdin, transpiles to Lua,
+--- writes Lua source to stdout. Exits 1 on parse/transpile error with formatted
+--- error message on stderr.
 local parser = require("ljs.parser")
 local transpile = require("ljs.transpile")
 

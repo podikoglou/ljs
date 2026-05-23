@@ -1,3 +1,6 @@
+-- Array constructor + prototype methods + static methods.
+-- Array constructor stores elements at 1-based indices and sets .length.
+-- All methods follow the JS-ABI convention: first param is _ljs_this.
 local Array = _ljs_ctor(function(_ljs_this, ...)
   local n = select("#", ...)
   for i = 1, n do
@@ -5,6 +8,7 @@ local Array = _ljs_ctor(function(_ljs_this, ...)
   end
   _ljs_this.length = n
 end)
+-- push supports multiple arguments (matching JS Array.prototype.push semantics).
 Array.prototype.push = function(_ljs_this, ...)
   local n = select("#", ...)
   for i = 1, n do
@@ -26,6 +30,8 @@ end
 -- ---------------------------------------------------------------------------
 -- Array.isArray
 -- ---------------------------------------------------------------------------
+-- Array.isArray: checks via _ljs_instanceof so subclass instances return true.
+-- Wrapped in _ljs_fn (no .prototype) since it's a static utility.
 Array.isArray = _ljs_fn(function(_ljs_this, x)
   return _ljs_instanceof(x, Array)
 end)

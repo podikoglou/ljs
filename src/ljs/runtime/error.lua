@@ -1,3 +1,7 @@
+-- Error and built-in subclasses (TypeError, RangeError, SyntaxError, ReferenceError).
+-- Each subclass gets its own prototype inheriting from Error.prototype via __index.
+-- The constructor is built with _ljs_ctor(nil) then has .prototype replaced to point
+-- at the subclass prototype (not the default _ljs_object_prototype).
 local Error = _ljs_ctor(function(_ljs_this, message)
   _ljs_this.message = message
 end)
@@ -9,6 +13,8 @@ Error.prototype.toString = function(_ljs_this)
   return _ljs_this.name
 end
 
+-- Factory for Error subclasses: creates a prototype chain off Error.prototype,
+-- sets .name, and wires a _ljs_ctor-wrapped constructor with that prototype.
 local function _ljs_error_subclass(name)
   local prototype = setmetatable({}, { __index = Error.prototype })
   prototype.name = name

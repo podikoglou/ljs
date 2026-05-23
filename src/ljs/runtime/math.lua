@@ -1,3 +1,6 @@
+-- Math object: mirrors JS Math API over Lua's math library.
+-- All methods wrapped in _ljs_fn (no .prototype — Math is not a constructor).
+-- Constants match JS values exactly.
 local Math = _ljs_object({})
 
 Math.PI = math.pi
@@ -21,6 +24,7 @@ Math.floor = _ljs_fn(function(_ljs_this, x)
   return math.floor(x)
 end)
 
+-- round: floor(x + 0.5) matches JS Math.round behavior (rounds half-up).
 Math.round = _ljs_fn(function(_ljs_this, x)
   return math.floor(x + 0.5)
 end)

@@ -1,3 +1,8 @@
+-- Object.prototype methods + Object constructor. Populates the root
+-- _ljs_object_prototype declared in proto.lua, then creates the Object
+-- constructor (via _ljs_ctor) and wires up Object.create.
+--
+-- hasOwnProperty uses rawget to check own properties only (no prototype chain walk).
 _ljs_object_prototype.toString = function(_ljs_this)
   return "[object Object]"
 end

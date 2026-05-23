@@ -22,7 +22,10 @@
 -- SOFTWARE.
 --
 
--- Modified for ljs: added _ljs_arr marker in parse_array, removed return statement.
+-- rxi's json.lua v0.1.2 (MIT license) — JSON encoder/decoder.
+-- Ljs modification: added _ljs_arr marker in parse_array (line 300) so that
+-- JSON.parse can distinguish arrays from objects when wrapping results.
+-- The return statement was removed so this file contributes to the preamble scope.
 
 local json = { _version = "0.1.2" }
 json.null = setmetatable({}, {

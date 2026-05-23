@@ -1,7 +1,36 @@
+--- Transpiler: AST → Lua source via codegen.
+-- Depends on `ljs.codegen` for all Lua syntax construction; never concatenates
+-- raw Lua keywords/operators itself. Depends on `ljs.parser` only via the
+-- public API (`M.transpile_source`).
+--
+-- Architecture:
+--   JS source → [Parser] → AST → [this module] → cg.* calls → [Codegen] → Lua source
+--
+-- The transpiler decides WHAT to emit based on the AST node type.
+-- Codegen decides HOW to format it as Lua source text.
+-- See docs/ARCHITECTURE.md § "Transpiler boundary rule" for the full contract.
+--
+-- Key design decisions:
+--   - All JS functions receive a hidden `_ljs_this` first parameter (JS-ABI).
+--   - `this` compiles to `_ljs_arrow_this`, which is saved from `_ljs_this`
+--     (regular functions) or captured via closure (arrow functions).
+--   - `goto`/`labels` are used for `continue` (Lua has no `continue` keyword).
+--   - `switch` is lowered to chained `if/elseif` wrapped in a single-iteration
+--     `for` loop so `break` exits the switch without leaving the enclosing loop.
+--   - `try/catch/finally` is lowered to `pcall` with manual rethrow for
+--     finally-only blocks.
+--   - Expression-context constructs that need statements (ternary, ++/--) are
+--     wrapped in IIFEs; statement-context versions avoid the IIFE overhead.
 local M = {}
 
 local cg = require("ljs.codegen")
 
+--- Read a runtime template file from the runtime/ directory.
+-- Uses debug.getinfo to resolve the path relative to this source file,
+-- so it works regardless of the working directory.
+-- @param name (string) Runtime file name without extension (e.g. "proto", "object")
+-- @return (string) File content with trailing newline
+-- @error "cannot open runtime file: <path>" if the file doesn't exist
 local function read_runtime(name)
   local info = debug.getinfo(1, "S")
   local dir = info.source:gsub("^@", ""):match("^(.*/)")
@@ -16,7 +45,11 @@ local function read_runtime(name)
 end
 
 -- ============================================================================
--- Section 2: Helper definitions (HELPERS registry)
+-- Runtime helpers (emitted unconditionally in every preamble).
+-- These are the JS-ABI runtime functions that support operator semantics,
+-- prototype chains, and constructor mechanics. All 19 are always emitted
+-- regardless of whether the source code uses them — no tree-shaking pass.
+-- See docs/ARCHITECTURE.md § "Runtime call ABI" and "Constructors".
 -- ============================================================================
 
 local HELPERS = {}
@@ -92,6 +125,7 @@ HELPERS._ljs_usr = [[local function _ljs_usr(a, b)
   return math.floor(a / 2^b)
 end]]
 
+-- Known gap: typeof null returns "undefined" because JS null → Lua nil.
 HELPERS._ljs_typeof = [[local function _ljs_typeof(x)
   local t = type(x)
   if t == "nil" then return "undefined"
@@ -102,14 +136,17 @@ HELPERS._ljs_typeof = [[local function _ljs_typeof(x)
   else return t end
 end]]
 
+-- Direct call: f(a,b) → _ljs_call(f,a,b). Passes nil as _ljs_this (no receiver).
 HELPERS._ljs_call = [[local function _ljs_call(fn, ...)
   return fn(nil, ...)
 end]]
 
+-- Method call: obj.m(a,b) → _ljs_call_member(obj,"m",a,b). Passes obj as _ljs_this.
 HELPERS._ljs_call_member = [[local function _ljs_call_member(obj, key, ...)
   return obj[key](obj, ...)
 end]]
 
+-- Wraps a table with Object.prototype as __index. Used for all object literals.
 HELPERS._ljs_object = [[local function _ljs_object(t)
   return setmetatable(t, { __index = _ljs_object_prototype })
 end]]
@@ -118,6 +155,8 @@ HELPERS._ljs_object_create = [[local function _ljs_object_create(_ljs_this, prot
   return setmetatable({}, {__index = proto})
 end]]
 
+-- Wraps a plain Lua function as a callable table with Function.prototype chain.
+-- Used for arrow functions and method shorthand — no .prototype property.
 HELPERS._ljs_fn = [[local function _ljs_fn(fn)
   return setmetatable({}, {
     __call = function(_, ...)
@@ -127,12 +166,18 @@ HELPERS._ljs_fn = [[local function _ljs_fn(fn)
   })
 end]]
 
+-- Wraps a function as a constructor: callable table + .prototype inheriting
+-- from _ljs_object_prototype. Used for FunctionDeclaration, FunctionExpression,
+-- and class constructors.
 HELPERS._ljs_ctor = [[local function _ljs_ctor(fn)
   local ctor = _ljs_fn(fn)
   ctor.prototype = setmetatable({ constructor = ctor }, { __index = _ljs_object_prototype })
   return ctor
 end]]
 
+-- new Foo(args) → creates instance with Foo.prototype chain, calls ctor.
+-- If ctor returns a table, that table is returned instead of the instance
+-- (matching JS constructor return semantics).
 HELPERS._ljs_new = [[local function _ljs_new(ctor, ...)
   local proto = ctor.prototype
   local instance = setmetatable({}, {__index = proto})
@@ -143,6 +188,7 @@ HELPERS._ljs_new = [[local function _ljs_new(ctor, ...)
   return instance
 end]]
 
+-- Walks __index chain checking for ctor.prototype. Primitives always false.
 HELPERS._ljs_instanceof = [[local function _ljs_instanceof(value, ctor)
   if type(value) ~= "table" then
     return false
@@ -163,6 +209,7 @@ HELPERS._ljs_instanceof = [[local function _ljs_instanceof(value, ctor)
   return false
 end]]
 
+-- super.method() → looks up proto[key] and calls with the current instance.
 HELPERS._ljs_super_call = [[local function _ljs_super_call(proto, key, this_val, ...)
   return proto[key](this_val, ...)
   end]]
@@ -212,6 +259,12 @@ end
 -- Section 4: Code generation (JS AST → Lua source via ljs_codegen)
 -- ============================================================================
 
+-- ============================================================================
+-- Scope tracking (lexical variable declarations).
+-- Scopes are a stack of sets; used only for tracking declared names,
+-- not for Lua `local` emission (that's handled structurally by emit).
+-- ============================================================================
+
 local function scope_push(ctx)
   ctx.scopes[#ctx.scopes + 1] = {}
 end
@@ -224,13 +277,27 @@ local function scope_declare(ctx, name)
   ctx.scopes[#ctx.scopes][name] = true
 end
 
+-- gen[node_type] handles expression-context emission.
+-- gen_stmt[node_type] handles statement-context emission for types that
+-- produce different code when used as a statement (e.g. UpdateExpression
+-- avoids IIFE overhead in statement context).
 local gen = {}
 local gen_stmt = {}
 
+--- Dispatch to the type-specific emitter for the given AST node.
+-- @param node (table) AST node with a `type` field
+-- @param indent (number) Current indentation level
+-- @param ctx (table) Transpilation context {eval_mode, super_stack, scopes}
+-- @return (string) Lua source fragment
 local function emit(node, indent, ctx)
   return gen[node.type](node, indent, ctx)
 end
 
+--- Emit a sequence of statements, concatenating their output.
+-- @param stmts (table) Array of AST statement nodes
+-- @param indent (number) Current indentation level
+-- @param ctx (table) Transpilation context
+-- @return (string) Concatenated Lua source
 local function emit_body(stmts, indent, ctx)
   local parts = {}
   for _, s in ipairs(stmts) do
@@ -239,6 +306,20 @@ local function emit_body(stmts, indent, ctx)
   return table.concat(parts)
 end
 
+--- Emit a JS function (FunctionExpression/ArrowFunctionExpression/ctor) as a Lua
+--- function expression.
+-- Prepends `_ljs_this` to the parameter list (JS-ABI hidden-this convention).
+-- Emits `local _ljs_arrow_this = _ljs_this` (regular) or `= _ljs_arrow_this`
+-- (arrow) at the top of the body so that `this` resolves correctly:
+--   - Regular functions: saves the received `_ljs_this` for inner arrows.
+--   - Arrow functions: captures the enclosing scope's `_ljs_arrow_this` via
+--     closure, matching JS lexical-this semantics.
+-- @param fn_node (table) AST FunctionExpression or ArrowFunctionExpression
+-- @param indent (number) Current indentation level
+-- @param ctx (table) Transpilation context
+-- @param extra_scope_names (table|nil) Additional names to declare in scope
+--   (used for class expression self-references like the class name inside its body)
+-- @return (string) Lua function expression string
 local function emit_fn(fn_node, indent, ctx, extra_scope_names)
   local params = { "_ljs_this" }
   for _, p in ipairs(fn_node.params) do
@@ -257,6 +338,9 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
     scope_declare(ctx, p.name)
   end
   local body = emit(fn_node.body, indent, ctx)
+  -- Selects the source variable for _ljs_arrow_this:
+  --   ArrowFunctionExpression → "_ljs_arrow_this" (captures enclosing scope via closure)
+  --   everything else → "_ljs_this" (saves the received hidden-this parameter)
   local save_src = fn_node.type == "ArrowFunctionExpression" and "_ljs_arrow_this" or "_ljs_this"
   body = cg.local_decl("_ljs_arrow_this", save_src, indent + 1) .. body
   scope_pop(ctx)
@@ -308,6 +392,7 @@ gen.Program = function(node, indent, ctx)
   scope_push(ctx)
   local body = node.body
 
+  -- In eval mode the last expression is returned as the program's value.
   if ctx.eval_mode and #body > 0 and body[#body].type == "ExpressionStatement" then
     local code = ""
     for i = 1, #body - 1 do
@@ -371,8 +456,13 @@ gen.VariableDeclaration = function(node, indent, ctx)
     local init = decl.init
     if not init then
       out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
+    -- Split pattern: `local x; x = _ljs_ctor(fn)` instead of `local x = _ljs_ctor(fn)`.
+    -- Works around Lua 5.5 closure upvalue issue where the function's self-reference
+    -- would resolve to nil if the local hasn't been assigned yet.
     elseif init.type == "ArrowFunctionExpression" or init.type == "FunctionExpression" then
       local fn = emit_fn(init, indent, ctx)
+      -- Non-method FunctionExpressions get _ljs_ctor (has .prototype);
+      -- arrows and method shorthand get _ljs_fn (no .prototype).
       local wrapper = (init.type == "FunctionExpression" and not init.is_method) and "_ljs_ctor"
         or "_ljs_fn"
       out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
@@ -389,12 +479,14 @@ gen.ReturnStatement = function(node, indent, ctx)
   return cg.return_stmt(expr, indent)
 end
 
+-- error(msg, 0) — level 0 prevents pcall from adding position info to the message,
+-- matching JS throw semantics (the thrown value IS the error).
 gen.ThrowStatement = function(node, indent, ctx)
   return cg.expr_stmt(cg.call("error", { emit(node.argument, indent, ctx), "0" }), indent)
 end
 
--- === Functions ===
-
+-- Declarations use the same split pattern as VariableDeclaration for the
+-- Lua 5.5 closure upvalue workaround.
 gen.FunctionDeclaration = function(node, indent, ctx)
   scope_declare(ctx, node.name)
   local fn = emit_fn(node, indent, ctx)
@@ -402,6 +494,10 @@ gen.FunctionDeclaration = function(node, indent, ctx)
     .. cg.expr_stmt(cg.binop("=", node.name, cg.call("_ljs_ctor", { fn })), indent)
 end
 
+--- Class declaration lowering: syntactic sugar over _ljs_ctor + prototype assignments.
+-- Emits: 1) `_ljs_ctor`-wrapped constructor, 2) prototype chain setup if extends,
+-- 3) prototype method assignments, 4) static method assignments.
+-- See docs/ARCHITECTURE.md § "Class syntax" for the full lowering spec.
 gen.ClassDeclaration = function(node, indent, ctx)
   scope_declare(ctx, node.name)
 
@@ -409,6 +505,8 @@ gen.ClassDeclaration = function(node, indent, ctx)
   local has_super = node.superClass ~= nil
   local super_code = has_super and emit(node.superClass, indent, ctx) or nil
 
+  -- super_stack tracks the current superclass for super()/super.method() resolution.
+  -- Pushed here, popped after emission — supports nested classes.
   if has_super then
     ctx.super_stack[#ctx.super_stack + 1] = super_code
   end
@@ -427,6 +525,7 @@ gen.ClassDeclaration = function(node, indent, ctx)
     end
   end
 
+  -- Default constructor: empty body if no extends, forwards all args to parent otherwise.
   local ctor_fn
   if constructor_method then
     ctor_fn = emit_fn(constructor_method.value, indent, ctx)
@@ -607,6 +706,8 @@ gen.WhileStatement = function(node, indent, ctx)
   return cg.while_stmt(test_code, body, indent)
 end
 
+-- JS do..while → Lua repeat..until. `until` takes an exit condition, so the
+-- test is negated: JS `do {} while(cond)` → Lua `repeat until not cond`.
 gen.DoWhileStatement = function(node, indent, ctx)
   local test_code = emit(node.test, indent, ctx)
   local body = emit(node.body, indent, ctx)
@@ -635,6 +736,8 @@ gen.ForOfStatement = function(node, indent, ctx)
   return cg.for_in_stmt(cg.join({ "_", var_name }), iter, body, indent)
 end
 
+-- JS for..in → Lua pairs(). The dummy `_` catches the value since JS for..in
+-- only yields keys. Note: does not walk prototype chain (Lua pairs() limitation).
 gen.ForInStatement = function(node, indent, ctx)
   local var_name
   if node.left.type == "VariableDeclaration" then
@@ -653,6 +756,9 @@ gen.ForInStatement = function(node, indent, ctx)
   return cg.for_in_stmt(cg.join({ var_name, "_" }), iter, body, indent)
 end
 
+-- C-style for → init statement + while loop. The init is emitted as a separate
+-- statement BEFORE the while so it runs once; the update runs at the END of
+-- each loop iteration body (before the continue label, if present).
 gen.ForStatement = function(node, indent, ctx)
   local parts = {}
   if node.init then
@@ -682,6 +788,10 @@ gen.ForStatement = function(node, indent, ctx)
   return table.concat(parts)
 end
 
+-- Switch lowering: chained if/elseif with fallthrough via `_ljs_matched` flag,
+-- wrapped in `for _ = 1, 1 do ... end` so that `break` exits the switch
+-- without breaking the enclosing loop. Each case sets `_ljs_matched = true`;
+-- subsequent cases check `_ljs_matched or _ljs_sw == test` for fallthrough.
 gen.SwitchStatement = function(node, indent, ctx)
   local disc = emit(node.discriminant, indent, ctx)
   local parts = {}
@@ -715,6 +825,11 @@ end
 
 -- === Exception handling ===
 
+-- try/catch/finally lowering via pcall. Three patterns:
+--   1) try+finally (no catch): pcall + finally + conditional rethrow
+--   2) try+catch+finally: pcall into (ok, err) + catch if not ok + finally
+--   3) try+catch (no finally): pcall into (ok, err) + catch if not ok
+-- The pcall wraps the try body in an anonymous function to delimit its scope.
 gen.TryStatement = function(node, indent, ctx)
   local try_body = emit(node.block, indent + 1, ctx)
 
@@ -812,6 +927,10 @@ gen.BinaryExpression = function(node, indent, ctx)
     return cg.binop("=", left, cg.call("_ljs_usr", { left, right }))
   elseif op == "instanceof" then
     return cg.call("_ljs_instanceof", { left, right })
+  -- The `in` operator: `key in obj` → `obj[key] ~= nil`.
+  -- For non-string computed keys, adds 1 to convert JS 0-based to Lua 1-based index
+  -- (so `"prop" in obj` with a numeric key works against Lua array indices).
+  -- Wraps object literal RHS in parens to avoid ambiguous Lua syntax.
   elseif op == "in" then
     local key_code
     if node.left.type == "StringLiteral" then
@@ -838,6 +957,14 @@ gen.UnaryExpression = function(node, indent, ctx)
   return cg.unop("-", expr)
 end
 
+--- Compute the Lua key for a MemberExpression.
+-- Computed string keys are used as-is. Computed non-string keys (numbers) get
+-- +1 to convert JS 0-based indices to Lua 1-based. Non-computed keys become
+-- Lua string keys via cg.string().
+-- @param node (table) MemberExpression AST node
+-- @param indent (number) Current indentation level
+-- @param ctx (table) Transpilation context
+-- @return (string) Lua expression for the key
 local function member_key(node, indent, ctx)
   if node.computed then
     if node.property.type == "StringLiteral" then
@@ -869,6 +996,8 @@ gen.TypeofExpression = function(node, indent, ctx)
   return cg.call("_ljs_typeof", { emit(node.argument, indent, ctx) })
 end
 
+-- Expression-context ++/--: wrapped in IIFE to return the value.
+-- Prefix returns the new value; postfix saves old value, increments, returns old.
 gen.UpdateExpression = function(node, indent, ctx)
   local arg = emit(node.argument, indent, ctx)
   local val
@@ -890,6 +1019,11 @@ gen.ConditionalExpression = function(node, indent, ctx)
   return cg.iife({ cg.inline_if_return(test_code, cons_code, alt_code) })
 end
 
+-- Call emission: four dispatch paths checked in order:
+--   1) super() → direct parent constructor call with current instance
+--   2) super.method() → _ljs_super_call with parent prototype
+--   3) obj.method() → _ljs_call_member (passes obj as _ljs_this)
+--   4) fn() → _ljs_call (passes nil as _ljs_this)
 gen.CallExpression = function(node, indent, ctx)
   local args = {}
   for _, a in ipairs(node.arguments) do
@@ -979,8 +1113,12 @@ gen.ArrayExpression = function(node, indent, ctx)
   return cg.call("_ljs_new", args)
 end
 
--- === Statement emission for IIFE-returning expressions ===
+-- === Statement-context emission ===
+-- gen_stmt handlers produce cheaper code than the expression-context gen handlers.
+-- Used when an expression appears as the sole child of an ExpressionStatement,
+-- avoiding IIFE wrapping where a direct statement will do.
 
+-- Statement-context ++/--: direct assignment, no IIFE needed.
 gen_stmt.UpdateExpression = function(node, indent, ctx)
   local arg = emit(node.argument, indent, ctx)
   if node.operator == "++" then
@@ -993,6 +1131,7 @@ gen_stmt.ConditionalExpression = function(node, indent, ctx)
   return cg.expr_stmt(emit(node, indent, ctx), indent)
 end
 
+-- Statement-context delete: just rawset, no need for the `and true` wrapper.
 gen_stmt.DeleteExpression = function(node, indent, ctx)
   local obj, key = delete_key_and_obj(node.argument, indent, ctx)
   if obj then
@@ -1001,12 +1140,16 @@ gen_stmt.DeleteExpression = function(node, indent, ctx)
   return ""
 end
 
+-- typeof as a statement has no side effects; emit nothing.
 gen_stmt.TypeofExpression = function(node, indent, ctx)
   return ""
 end
 
 -- === Top-level preamble and emit ===
 
+-- Emission order: _ljs_to_int32 first (other helpers depend on it),
+-- _ljs_fn second (_ljs_ctor depends on it), rest alphabetical.
+-- All 19 helpers are always emitted unconditionally.
 local HELPER_ORDER = {
   "_ljs_to_int32",
   "_ljs_fn",
@@ -1031,6 +1174,10 @@ local HELPER_ORDER = {
 
 local _preamble_cache = nil
 
+--- Build the runtime preamble (helpers + stdlib). Result is cached after first call.
+-- Structure: proto declarations → _ljs_arrow_this → 19 helpers → runtime stdlib files.
+-- Idempotent; safe to call for multi-file output (emit preamble once, then per-file emit).
+-- @return (string) Complete Lua preamble source
 function M.preamble()
   if _preamble_cache then
     return _preamble_cache
