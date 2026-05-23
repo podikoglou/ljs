@@ -133,7 +133,12 @@ export default function App() {
               error={transpileError}
               vimMode={vimMode}
             />
-            <LuaOutput code={luaOutput} error={transpileError} preambleLines={preambleLines} vimMode={vimMode} />
+            <LuaOutput
+              code={luaOutput}
+              error={transpileError}
+              preambleLines={preambleLines}
+              vimMode={vimMode}
+            />
           </Allotment>
           <Console terminalRef={termRef} />
         </Allotment>
