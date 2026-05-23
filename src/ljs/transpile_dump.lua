@@ -1,5 +1,5 @@
-local ljs = require("ljs.parser")
-local transpile = require("ljs.transpile")
+local parser = require("parser.parser")
+local transpile = require("parser.transpile")
 
 local function read_file(path)
   local f, err = io.open(path, "r")
@@ -30,7 +30,7 @@ local function main()
 
   local lua_code, transpile_err = transpile.transpile_source(source)
   if not lua_code then
-    io.stderr:write(ljs.format_error(transpile_err, source) .. "\n")
+    io.stderr:write(parser.format_error(transpile_err, source) .. "\n")
     os.exit(1)
   end
 

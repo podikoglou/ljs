@@ -1,4 +1,4 @@
--- ljs.parser_dump - CLI frontend for ljs parser
+-- parser.parser_dump - CLI frontend for ljs parser
 -- Reads JS from file argument or stdin, prints AST as JSON to stdout.
 --
 -- Usage:
@@ -6,7 +6,7 @@
 --   cat file.js | lua ljs/parser_dump.lua
 --   echo "let x = 42;" | lua ljs/parser_dump.lua
 
-local ljs = require("ljs.parser")
+local parser = require("parser.parser")
 
 -- JSON serialization --------------------------------------------------------
 
@@ -151,9 +151,9 @@ local function main()
     end
   end
 
-  local ast, parse_err = ljs.parse(source)
+  local ast, parse_err = parser.parse(source)
   if not ast then
-    io.stderr:write(ljs.format_error(parse_err, source) .. "\n")
+    io.stderr:write(parser.format_error(parse_err, source) .. "\n")
     os.exit(1)
   end
 
