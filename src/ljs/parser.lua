@@ -1,12 +1,16 @@
--- ljs.parser - JavaScript subset parser for Lua
--- Parses a well-defined subset of JavaScript into a Lua table-based AST.
+-- ljs.parser — JavaScript subset → Lua table AST.
 --
--- Supported: let/const/var, functions, arrow functions, objects, arrays,
--- arithmetic/comparison/logical/assignment operators, in operator, if/else, while, for...of,
--- throw/try/catch, console.log, member access, method calls, comments.
+-- Two-phase pipeline: tokenize(source) → parse(tokens) → AST.
+-- Pure parser — knows nothing about Lua. No external dependencies.
+-- All errors are ParseError tables {message, line, col} with __tostring metamethod,
+-- thrown via error()/pcall(). Public API catches and returns nil, ParseError.
 --
--- Excluded (errors): this, async/await, instanceof, == (use ===),
--- regex literals, prototypal inheritance, Promises.
+-- Supported: let/const/var, functions, arrows, classes (extends/super/static),
+-- objects, arrays, all arithmetic/comparison/logical/bitwise/assignment ops, new,
+-- typeof, delete, instanceof, in, if/else, while, do...while, for...of/in/(;;),
+-- switch/case, throw/try/catch/finally, this, console.log, comments.
+--
+-- Rejected (parse error): async/await, == (use ===), regex literals.
 --
 -- Usage:
 --   local parser = require("ljs.parser")
@@ -172,6 +176,8 @@ local KEYWORDS = {
   ["static"] = TOKEN.STATIC,
 }
 
+-- Reverse set of all unique token types produced by KEYWORDS.
+-- Used by is_property_name() to accept keywords as property names (obj.return, {class: 1}).
 local KEYWORD_TOKEN_TYPES = {}
 for _, tok_type in pairs(KEYWORDS) do
   KEYWORD_TOKEN_TYPES[tok_type] = true
@@ -188,14 +194,26 @@ function ParseError:__tostring()
   return self.message .. " at line " .. self.line .. ", col " .. self.col
 end
 
+--- Create a ParseError table without throwing.
+-- @param message (string) Human-readable error description
+-- @param line (number) 1-based source line
+-- @param col (number) 1-based source column
+-- @return table ParseError with __tostring metamethod
 local function make_parse_error(message, line, col)
   return setmetatable({ message = message, line = line, col = col }, ParseError)
 end
 
+--- Throw a ParseError via error() at level 0 (avoids injecting this frame into traceback).
+-- @param message (string) Human-readable error description
+-- @param line (number) 1-based source line
+-- @param col (number) 1-based source column
 local function parse_error(message, line, col)
   error(make_parse_error(message, line, col), 0)
 end
 
+--- Check metatable identity to distinguish ParseError from other error types.
+-- @param val (any) Value to check
+-- @return boolean
 local function is_parse_error(val)
   return getmetatable(val) == ParseError
 end
@@ -617,7 +635,7 @@ local function tokenize(source)
         table.insert(tokens, make_token(TOKEN.GT))
         advance()
       end
-    -- & and | only appear as && and || in this subset. Lone & or | is an error.
+    -- & and | are tokenized as both logical (&&, ||) and bitwise (lone &, |) ops.
     elseif c == "&" then
       if lookahead(2) == "&&" then
         table.insert(tokens, make_token(TOKEN.AND))
@@ -748,11 +766,16 @@ local function make_token_stream(tokens)
     return stream.peek().type == TOKEN.EOF
   end
 
+  --- Check if current token can be an object/class property name.
+  -- Accepts identifiers and all keywords (JS allows keywords as property names: obj.return).
+  -- @return boolean
   function stream.is_property_name()
     local t = stream.peek().type
     return t == TOKEN.IDENTIFIER or KEYWORD_TOKEN_TYPES[t] ~= nil
   end
 
+  --- Consume current token as a property name, erroring if not valid.
+  -- @return (table) The consumed token
   function stream.consume_property_name()
     if not stream.is_property_name() then
       local current = stream.peek()
@@ -850,22 +873,39 @@ local function typeof_expression(argument)
   return { type = "TypeofExpression", argument = argument }
 end
 
+--- @param callee (table) Constructor expression (Identifier or MemberExpression)
+--- @param arguments (table) Array of argument expressions
+--- @return table {type="NewExpression", callee, arguments}
 local function new_expression(callee, arguments)
   return { type = "NewExpression", callee = callee, arguments = arguments }
 end
 
+--- @param name (string) Class name (required for declarations)
+--- @param superClass (table|nil) Parent class expression, or nil
+--- @param body (table) Array of MethodDefinition nodes
+--- @return table {type="ClassDeclaration", name, superClass, body}
 local function class_declaration(name, superClass, body)
   return { type = "ClassDeclaration", name = name, superClass = superClass, body = body }
 end
 
+--- @param name (string|nil) Optional class name (nil for anonymous)
+--- @param superClass (table|nil) Parent class expression, or nil
+--- @param body (table) Array of MethodDefinition nodes
+--- @return table {type="ClassExpression", name, superClass, body}
 local function class_expression(name, superClass, body)
   return { type = "ClassExpression", name = name, superClass = superClass, body = body }
 end
 
+--- @param kind (string) "constructor" or "method"
+--- @param key (table) Identifier or StringLiteral for the method name
+--- @param value (table) FunctionExpression for the method body
+--- @param static_flag (boolean) true for static methods
+--- @return table {type="MethodDefinition", kind, key, value, static}
 local function method_definition(kind, key, value, static_flag)
   return { type = "MethodDefinition", kind = kind, key = key, value = value, static = static_flag }
 end
 
+--- @return table {type="SuperExpression"}
 local function super_expression()
   return { type = "SuperExpression" }
 end
@@ -1168,6 +1208,8 @@ end
 -- BANNED KEYWORD CHECK
 -- ============================================================================
 
+-- Keywords that tokenize normally but are rejected in expression/statement context.
+-- These are valid JS but outside this subset's scope.
 local BANNED_KEYWORDS = {
   [TOKEN.ASYNC] = "async",
   [TOKEN.AWAIT] = "await",
@@ -1517,6 +1559,11 @@ function parse_function_declaration(stream)
   return function_declaration(name, params, body)
 end
 
+--- Parse class body: { constructor(){} method(){} static fn(){} }
+-- Disambiguates static modifier from method named "static": static foo() is a
+-- static method, static() is a regular method named "static".
+-- @param stream (table) Token stream
+-- @return (table) Array of MethodDefinition nodes
 function parse_class_body(stream)
   stream.consume(TOKEN.LBRACE)
   local methods = {}
@@ -1524,6 +1571,7 @@ function parse_class_body(stream)
     local is_static = false
     if stream.is(TOKEN.STATIC) then
       local next_tok = stream.peek_n(2)
+      -- If next token after "static" is (, then "static" is the method name, not a modifier
       if next_tok and next_tok.type ~= TOKEN.LPAREN then
         stream.advance()
         is_static = true
@@ -1562,6 +1610,10 @@ function parse_class_body(stream)
   return methods
 end
 
+--- Parse class declaration: class Name [extends Super] { body }
+-- Always requires a name (unlike class expressions).
+-- @param stream (table) Token stream
+-- @return table ClassDeclaration AST node
 function parse_class_declaration(stream)
   stream.consume(TOKEN.CLASS)
   local name_token = stream.consume(TOKEN.IDENTIFIER)
@@ -1575,11 +1627,18 @@ function parse_class_declaration(stream)
   return class_declaration(name, superClass, body)
 end
 
+--- Parse class expression: class [Name] [extends Super] { body }
+-- Name is optional and only consumed if followed by something other than (
+-- (to disambiguate from a call expression in certain contexts).
+-- @param stream (table) Token stream
+-- @return table ClassExpression AST node
 function parse_class_expression(stream)
   stream.consume(TOKEN.CLASS)
   local name = nil
   if stream.is(TOKEN.IDENTIFIER) then
     local next_tok = stream.peek_n(2)
+    -- Consume identifier as class name only if next token isn't ( — distinguishes
+    -- class Foo {} (named) from class {} (anonymous)
     if next_tok and next_tok.type ~= TOKEN.LPAREN then
       local name_token = stream.advance()
       name = name_token.value
@@ -1941,6 +2000,9 @@ function parse_primary_expression(stream)
   elseif stream.is(TOKEN.IDENTIFIER) then
     return parse_identifier_or_call(stream)
   elseif stream.is(TOKEN.LPAREN) then
+    -- Disambiguate (expr) from (params) => body: scan ahead to matching )
+    -- and check if => follows. Without this lookahead, (x) => x would be
+    -- misparsed as a parenthesized identifier.
     local depth = 0
     local n = 0
     local found_arrow = false
@@ -2003,6 +2065,8 @@ function parse_primary_expression(stream)
   elseif stream.is(TOKEN.ARROW) then
     parse_error("Unexpected arrow token", token.line, token.col)
   elseif stream.is(TOKEN.CLASS) then
+    -- NOTE: no parse_postfix wrapper — class expressions can't be directly
+    -- chained with .prop or (args). They're always parenthesized in practice.
     return parse_class_expression(stream)
   else
     parse_error(string.format("Unexpected token %s", token.type), token.line, token.col)
@@ -2059,6 +2123,8 @@ function parse_postfix(stream, expr)
       break
     end
   end
+  -- Postfix ++/-- is checked once after the chain, not inside the loop,
+  -- because it's not chainable: x++++ is not valid JS.
   if stream.is(TOKEN.INCREMENT) then
     stream.advance()
     return update_expression("++", expr, false)
