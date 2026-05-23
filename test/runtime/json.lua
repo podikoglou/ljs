@@ -285,6 +285,13 @@ test("stringify nested", function()
   assert_eq(exec_js("return JSON.stringify({x:[1]});"), '{"x":[1]}')
 end)
 
+test("stringify object with numeric .length is serialized as object", function()
+  local result = exec_js([[return JSON.stringify({a:1, length:2});]])
+  assert(result:find('"a":1'), "expected a:1 in " .. result)
+  assert(result:find('"length":2'), "expected length:2 in " .. result)
+  assert(not result:find("^%["), "should not start with [ got: " .. result)
+end)
+
 -- ============================================================================
 -- JSON.stringify — numbers (ported: rxi "numbers")
 -- ============================================================================
