@@ -1280,21 +1280,22 @@ gen.UnaryExpression = function(node, indent, ctx)
   return cg.unop("-", expr)
 end
 
+local function member_key(node, indent, ctx)
+  if node.computed then
+    if node.property.type == "StringLiteral" then
+      return emit(node.property, indent, ctx)
+    end
+    return cg.binop("+", cg.paren(emit(node.property, indent, ctx)), "1")
+  end
+  return cg.string(node.property.name)
+end
+
 local function delete_key_and_obj(arg, indent, ctx)
   if arg.type ~= "MemberExpression" then
     return nil, nil
   end
   local obj = emit(arg.object, indent, ctx)
-  local key
-  if arg.computed then
-    if arg.property.type == "StringLiteral" then
-      key = emit(arg.property, indent, ctx)
-    else
-      key = cg.binop("+", cg.paren(emit(arg.property, indent, ctx)), "1")
-    end
-  else
-    key = cg.string(arg.property.name)
-  end
+  local key = member_key(arg, indent, ctx)
   return obj, key
 end
 
@@ -1354,16 +1355,7 @@ gen.CallExpression = function(node, indent, ctx)
   if node.callee.type == "MemberExpression" and node.callee.object.type == "SuperExpression" then
     local super_parent = ctx.super_stack[#ctx.super_stack]
     local proto = cg.member_dot(super_parent, "prototype")
-    local key_expr
-    if node.callee.computed then
-      if node.callee.property.type == "StringLiteral" then
-        key_expr = emit(node.callee.property, indent, ctx)
-      else
-        key_expr = cg.binop("+", cg.paren(emit(node.callee.property, indent, ctx)), "1")
-      end
-    else
-      key_expr = cg.string(node.callee.property.name)
-    end
+    local key_expr = member_key(node.callee, indent, ctx)
     local call_args = { proto, key_expr, "_ljs_arrow_this" }
     for _, a in ipairs(args) do
       call_args[#call_args + 1] = a
@@ -1373,16 +1365,7 @@ gen.CallExpression = function(node, indent, ctx)
 
   if node.callee.type == "MemberExpression" then
     local obj_expr = emit(node.callee.object, indent, ctx)
-    local key_expr
-    if node.callee.computed then
-      if node.callee.property.type == "StringLiteral" then
-        key_expr = emit(node.callee.property, indent, ctx)
-      else
-        key_expr = cg.binop("+", cg.paren(emit(node.callee.property, indent, ctx)), "1")
-      end
-    else
-      key_expr = cg.string(node.callee.property.name)
-    end
+    local key_expr = member_key(node.callee, indent, ctx)
     local call_args = { obj_expr, key_expr }
     for _, a in ipairs(args) do
       call_args[#call_args + 1] = a
@@ -1406,23 +1389,15 @@ gen.NewExpression = function(node, indent, ctx)
 end
 
 gen.MemberExpression = function(node, indent, ctx)
+  local obj
   if node.object.type == "SuperExpression" then
     local super_parent = ctx.super_stack[#ctx.super_stack]
-    local proto = cg.member_dot(super_parent, "prototype")
-    if node.computed then
-      if node.property.type == "StringLiteral" then
-        return cg.member_index(proto, emit(node.property, indent, ctx))
-      end
-      return cg.member_index(proto, cg.binop("+", cg.paren(emit(node.property, indent, ctx)), "1"))
-    end
-    return cg.member_dot(proto, node.property.name)
+    obj = cg.member_dot(super_parent, "prototype")
+  else
+    obj = emit(node.object, indent, ctx)
   end
-  local obj = emit(node.object, indent, ctx)
   if node.computed then
-    if node.property.type == "StringLiteral" then
-      return cg.member_index(obj, emit(node.property, indent, ctx))
-    end
-    return cg.member_index(obj, cg.binop("+", cg.paren(emit(node.property, indent, ctx)), "1"))
+    return cg.member_index(obj, member_key(node, indent, ctx))
   end
   return cg.member_dot(obj, node.property.name)
 end
