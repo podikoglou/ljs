@@ -32,22 +32,33 @@ describe("transpile", () => {
   });
 
   it("returns code on success", async () => {
-    stub.evalResult = "local x = 1";
+    stub.evalResult = { code: "local x = 1" };
     const result = await transpile("let x = 1");
     expect(result).toEqual({ code: "local x = 1", error: null });
     expect(stub.globals["__ljs_input"]).toBe("let x = 1");
   });
 
-  it("returns error when eval throws", async () => {
-    stub.evalError = new Error("parse failure");
+  it("returns structured error when transpile fails", async () => {
+    stub.evalResult = {
+      code: null,
+      error: { message: "parse error: Unexpected token }", line: 1, col: 5 },
+    };
     const result = await transpile("bad {");
-    expect(result).toEqual({ code: null, error: "parse failure" });
+    expect(result.code).toBeNull();
+    expect(result.error).toEqual({
+      message: "parse error: Unexpected token }",
+      line: 1,
+      col: 5,
+    });
   });
 
-  it("returns stringified non-Error throws", async () => {
-    stub.evalError = "raw string" as unknown as Error;
+  it("returns fallback error when eval throws", async () => {
+    stub.evalError = new Error("vm crash");
     const result = await transpile("x");
-    expect(result).toEqual({ code: null, error: "raw string" });
+    expect(result).toEqual({
+      code: null,
+      error: { message: "vm crash", line: 0, col: 0 },
+    });
   });
 });
 
@@ -60,19 +71,34 @@ describe("run", () => {
   });
 
   it("returns output and result on success", async () => {
-    stub.evalResult = 42;
+    stub.evalResult = { result: 42 };
     stub.logs = ["hello", "world"];
     const result: RunResult = await run('console.log("hello")');
     expect(result).toEqual({ output: ["hello", "world"], result: 42, error: null });
     expect(stub.globals["__ljs_input"]).toBe('console.log("hello")');
   });
 
-  it("returns error when eval throws", async () => {
-    stub.evalError = new Error("runtime boom");
+  it("returns structured error when run fails", async () => {
+    stub.evalResult = {
+      result: null,
+      error: { message: "runtime error: boom", line: 0, col: 0 },
+    };
     stub.logs = ["before crash"];
     const result = await run("throw 1");
     expect(result.output).toEqual(["before crash"]);
     expect(result.result).toBeNull();
-    expect(result.error).toBe("runtime boom");
+    expect(result.error).toEqual({
+      message: "runtime error: boom",
+      line: 0,
+      col: 0,
+    });
+  });
+
+  it("returns fallback error when eval throws", async () => {
+    stub.evalError = new Error("vm crash");
+    stub.logs = [];
+    const result = await run("x");
+    expect(result.output).toEqual([]);
+    expect(result.error).toEqual({ message: "vm crash", line: 0, col: 0 });
   });
 });

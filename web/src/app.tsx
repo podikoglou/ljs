@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Allotment } from "allotment";
 import { useHotkeys } from "react-hotkeys-hook";
 import "allotment/dist/style.css";
-import { transpile, run, type RunResult } from "./lib/ljs";
+import { transpile, run, type RunResult, type ParseError } from "./lib/ljs";
 import JsEditor from "./components/js-editor";
 import LuaOutput from "./components/lua-output";
 import Console, { useTerminal } from "./components/console";
@@ -32,7 +32,7 @@ function saveSizes(key: string, sizes: number[]) {
 export default function App() {
   const [jsSource, setJsSource] = useState(DEFAULT_CODE);
   const [luaOutput, setLuaOutput] = useState("");
-  const [transpileError, setTranspileError] = useState<string | null>(null);
+  const [transpileError, setTranspileError] = useState<ParseError | null>(null);
   const [ready, setReady] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { ref: termRef, write: termWrite } = useTerminal();
@@ -63,7 +63,7 @@ export default function App() {
         termWrite(result.output.join("\r\n") + "\r\n");
       }
       if (result.error) {
-        termWrite(`\x1b[31m${result.error}\x1b[0m\r\n`);
+        termWrite(`\x1b[31m${result.error.message}\x1b[0m\r\n`);
       }
     });
   }, [jsSource, termWrite]);
@@ -92,7 +92,12 @@ export default function App() {
             defaultSizes={loadSizes("allotment-horizontal", [50, 50])}
             onChange={(s) => saveSizes("allotment-horizontal", s)}
           >
-            <JsEditor source={jsSource} onSourceChange={setJsSource} onRun={handleRun} />
+            <JsEditor
+              source={jsSource}
+              onSourceChange={setJsSource}
+              onRun={handleRun}
+              error={transpileError}
+            />
             <LuaOutput code={luaOutput} error={transpileError} />
           </Allotment>
           <Console terminalRef={termRef} />
