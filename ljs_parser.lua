@@ -203,12 +203,12 @@ end
 --   - value is present for identifiers/keywords (string), numbers (number),
 --     booleans (true/false), strings (unescaped string). Absent for punctuation.
 --   - line/col are 1-based source positions.
--- Returns: tokens array on success, nil + error string on failure.
+-- Returns: tokens array on success, nil + ParseError on failure.
 
 --- Tokenize JavaScript source code into a list of tokens.
 -- @param source (string) The JavaScript source code to tokenize
 -- @return tokens (table|nil) Array of token tables, or nil on error
--- @return err (string|nil) Error message if tokenization failed
+-- @return err (table|nil) ParseError {message, line, col} if tokenization failed
 local function tokenize(source)
   local tokens = {}
   local pos = 1

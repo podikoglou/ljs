@@ -6,7 +6,7 @@ Three independent layers with strict boundaries:
 JS source → [Parser] → AST → [Transpiler] → cg.* calls → [Codegen] → Lua source
 ```
 
-1. **Parser** — JS source → AST. No dependencies. Knows nothing about Lua.
+1. **Parser** — JS source → AST. No dependencies. Knows nothing about Lua. All errors are `ParseError` tables `{message, line, col}` thrown via `error()`/`pcall()`. The public API (`ljs.parse()`, `ljs.tokenize()`) catches and returns `nil, ParseError`.
 2. **Codegen** — Pure Lua source code builder. No dependencies. Knows nothing about JavaScript or ASTs. Every function takes strings and returns formatted Lua source strings. Module is returned as `cg`.
 3. **Transpiler** — AST → Lua source via codegen. Depends on both parser and codegen. Makes all semantic decisions but never does raw string concatenation to produce Lua syntax. Every Lua syntax construct goes through `cg.*`.
 
