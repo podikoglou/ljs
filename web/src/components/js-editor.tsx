@@ -30,7 +30,8 @@ function errorToDiagnostic(error: ParseError, doc: string) {
   const lineIdx = Math.min(error.line - 1, lines.length - 1);
   const line = lines[lineIdx] ?? "";
   const col = Math.max(0, Math.min(error.col - 1, line.length));
-  const from = lines.slice(0, lineIdx).reduce((acc, l) => acc + l.length + 1, 0) + col;
+  let from = col;
+  for (let i = 0; i < lineIdx; i++) from += lines[i].length + 1;
   const to = Math.min(from + 1, doc.length);
   return { from, to, severity: "error" as const, message: error.message };
 }
