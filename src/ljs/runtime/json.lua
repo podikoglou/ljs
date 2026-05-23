@@ -36,7 +36,7 @@ end
 local function _ljs_json_stringify(val, stack)
   stack = stack or {}
   if val == nil then
-    return nil
+    return "null"
   end
   if type(val) == "boolean" then
     return tostring(val)

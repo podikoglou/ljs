@@ -67,4 +67,11 @@ T.describe("runtime/error", function()
   end
 end)
 
+T.describe("runtime/json", function()
+  local ok, err = pcall(require, "test.runtime.json")
+  if not ok then
+    print(string.format("  \27[33m⚠\27[0m runtime/json: %s", tostring(err):match("^[^\n]*")))
+  end
+end)
+
 T.summary()
