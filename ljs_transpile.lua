@@ -552,6 +552,30 @@ local function emit_body(stmts, indent, ctx)
   return table.concat(parts)
 end
 
+local function emit_fn(fn_node, indent, ctx, extra_scope_names)
+  local params = { "_ljs_this" }
+  for _, p in ipairs(fn_node.params) do
+    params[#params + 1] = p.name
+  end
+  scope_push(ctx)
+  if extra_scope_names then
+    for _, name in ipairs(extra_scope_names) do
+      scope_declare(ctx, name)
+    end
+  end
+  if fn_node.name then
+    scope_declare(ctx, fn_node.name)
+  end
+  for _, p in ipairs(fn_node.params) do
+    scope_declare(ctx, p.name)
+  end
+  local body = emit(fn_node.body, indent, ctx)
+  local save_src = fn_node.type == "ArrowFunctionExpression" and "_ljs_arrow_this" or "_ljs_this"
+  body = cg.local_decl("_ljs_arrow_this", save_src, indent + 1) .. body
+  scope_pop(ctx)
+  return cg.fn_expr(cg.join(params), body, indent)
+end
+
 local function is_elseif_chain(node)
   if node.type == "IfStatement" then
     return true
@@ -661,39 +685,11 @@ gen.VariableDeclaration = function(node, indent, ctx)
     if not init then
       out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
     elseif init.type == "ArrowFunctionExpression" or init.type == "FunctionExpression" then
-      local params = { "_ljs_this" }
-      for _, p in ipairs(init.params) do
-        params[#params + 1] = p.name
-      end
-      scope_push(ctx)
-      for _, p in ipairs(init.params) do
-        scope_declare(ctx, p.name)
-      end
-      local body = emit(init.body, indent, ctx)
-      local save_src = init.type == "ArrowFunctionExpression" and "_ljs_arrow_this" or "_ljs_this"
-      body = cg.local_decl("_ljs_arrow_this", save_src, indent + 1) .. body
-      scope_pop(ctx)
-      if init.type == "FunctionExpression" and not init.is_method then
-        out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
-        out[#out + 1] = cg.expr_stmt(
-          cg.binop(
-            "=",
-            decl.name.name,
-            cg.call("_ljs_ctor", { cg.fn_expr(cg.join(params), body, indent) })
-          ),
-          indent
-        )
-      else
-        out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
-        out[#out + 1] = cg.expr_stmt(
-          cg.binop(
-            "=",
-            decl.name.name,
-            cg.call("_ljs_fn", { cg.fn_expr(cg.join(params), body, indent) })
-          ),
-          indent
-        )
-      end
+      local fn = emit_fn(init, indent, ctx)
+      local wrapper = (init.type == "FunctionExpression" and not init.is_method) and "_ljs_ctor"
+        or "_ljs_fn"
+      out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
+      out[#out + 1] = cg.expr_stmt(cg.binop("=", decl.name.name, cg.call(wrapper, { fn })), indent)
     else
       out[#out + 1] = cg.local_decl(decl.name.name, emit(init, indent, ctx), indent)
     end
@@ -714,22 +710,9 @@ end
 
 gen.FunctionDeclaration = function(node, indent, ctx)
   scope_declare(ctx, node.name)
-  local params = { "_ljs_this" }
-  for _, p in ipairs(node.params) do
-    params[#params + 1] = p.name
-  end
-  scope_push(ctx)
-  for _, p in ipairs(node.params) do
-    scope_declare(ctx, p.name)
-  end
-  local body = emit(node.body, indent, ctx)
-  body = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. body
-  scope_pop(ctx)
+  local fn = emit_fn(node, indent, ctx)
   return cg.local_decl(node.name, nil, indent)
-    .. cg.expr_stmt(
-      cg.binop("=", node.name, cg.call("_ljs_ctor", { cg.fn_expr(cg.join(params), body, indent) })),
-      indent
-    )
+    .. cg.expr_stmt(cg.binop("=", node.name, cg.call("_ljs_ctor", { fn })), indent)
 end
 
 gen.ClassDeclaration = function(node, indent, ctx)
@@ -757,31 +740,18 @@ gen.ClassDeclaration = function(node, indent, ctx)
     end
   end
 
-  local params
-  local body_code
-
+  local ctor_fn
   if constructor_method then
-    params = { "_ljs_this" }
-    for _, p in ipairs(constructor_method.value.params) do
-      params[#params + 1] = p.name
-    end
-    scope_push(ctx)
-    for _, p in ipairs(constructor_method.value.params) do
-      scope_declare(ctx, p.name)
-    end
-    body_code = emit(constructor_method.value.body, indent, ctx)
-    body_code = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. body_code
-    scope_pop(ctx)
+    ctor_fn = emit_fn(constructor_method.value, indent, ctx)
   elseif has_super then
-    params = { "_ljs_this", "..." }
-    body_code = cg.expr_stmt(cg.call(super_code, { "_ljs_arrow_this", "..." }), indent + 1)
+    local params = { "_ljs_this", "..." }
+    local body_code = cg.expr_stmt(cg.call(super_code, { "_ljs_arrow_this", "..." }), indent + 1)
     body_code = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. body_code
+    ctor_fn = cg.fn_expr(cg.join(params), body_code, indent)
   else
-    params = { "_ljs_this" }
-    body_code = ""
+    ctor_fn = cg.fn_expr("_ljs_this", "", indent)
   end
 
-  local ctor_fn = cg.fn_expr(cg.join(params), body_code, indent)
   local out = cg.local_decl(class_name, cg.call("_ljs_ctor", { ctor_fn }), indent)
 
   if has_super then
@@ -805,52 +775,26 @@ gen.ClassDeclaration = function(node, indent, ctx)
       )
   end
 
-  for _, m in ipairs(methods) do
-    local m_params = { "_ljs_this" }
-    for _, p in ipairs(m.value.params) do
-      m_params[#m_params + 1] = p.name
-    end
-    scope_push(ctx)
-    for _, p in ipairs(m.value.params) do
-      scope_declare(ctx, p.name)
-    end
-    local m_body = emit(m.value.body, indent, ctx)
-    m_body = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. m_body
-    scope_pop(ctx)
-    local m_fn = cg.fn_expr(cg.join(m_params), m_body, indent)
-    local key_str
+  local function method_key(m)
     if m.key.type == "Identifier" then
-      key_str = cg.string(m.key.name)
-    else
-      key_str = cg.string(m.key.value)
+      return cg.string(m.key.name)
     end
+    return cg.string(m.key.value)
+  end
+
+  for _, m in ipairs(methods) do
+    local m_fn = emit_fn(m.value, indent, ctx)
     out = out
       .. cg.expr_stmt(
-        cg.binop("=", cg.member_index(cg.member_dot(class_name, "prototype"), key_str), m_fn),
+        cg.binop("=", cg.member_index(cg.member_dot(class_name, "prototype"), method_key(m)), m_fn),
         indent
       )
   end
 
   for _, m in ipairs(statics) do
-    local m_params = { "_ljs_this" }
-    for _, p in ipairs(m.value.params) do
-      m_params[#m_params + 1] = p.name
-    end
-    scope_push(ctx)
-    for _, p in ipairs(m.value.params) do
-      scope_declare(ctx, p.name)
-    end
-    local m_body = emit(m.value.body, indent, ctx)
-    m_body = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. m_body
-    scope_pop(ctx)
-    local m_fn = cg.fn_expr(cg.join(m_params), m_body, indent)
-    local key_str
-    if m.key.type == "Identifier" then
-      key_str = cg.string(m.key.name)
-    else
-      key_str = cg.string(m.key.value)
-    end
-    out = out .. cg.expr_stmt(cg.binop("=", cg.member_index(class_name, key_str), m_fn), indent)
+    local m_fn = emit_fn(m.value, indent, ctx)
+    out = out
+      .. cg.expr_stmt(cg.binop("=", cg.member_index(class_name, method_key(m)), m_fn), indent)
   end
 
   if has_super then
@@ -883,34 +827,19 @@ gen.ClassExpression = function(node, indent, ctx)
     end
   end
 
-  local params
-  local body_code
+  local extra_scope = node.name and { node.name } or nil
 
+  local ctor_fn
   if constructor_method then
-    params = { "_ljs_this" }
-    for _, p in ipairs(constructor_method.value.params) do
-      params[#params + 1] = p.name
-    end
-    scope_push(ctx)
-    if node.name then
-      scope_declare(ctx, node.name)
-    end
-    for _, p in ipairs(constructor_method.value.params) do
-      scope_declare(ctx, p.name)
-    end
-    body_code = emit(constructor_method.value.body, indent, ctx)
-    body_code = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. body_code
-    scope_pop(ctx)
+    ctor_fn = emit_fn(constructor_method.value, indent, ctx, extra_scope)
   elseif has_super then
-    params = { "_ljs_this", "..." }
-    body_code = cg.expr_stmt(cg.call(super_code, { "_ljs_arrow_this", "..." }), indent + 1)
+    local params = { "_ljs_this", "..." }
+    local body_code = cg.expr_stmt(cg.call(super_code, { "_ljs_arrow_this", "..." }), indent + 1)
     body_code = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. body_code
+    ctor_fn = cg.fn_expr(cg.join(params), body_code, indent)
   else
-    params = { "_ljs_this" }
-    body_code = ""
+    ctor_fn = cg.fn_expr("_ljs_this", "", indent)
   end
-
-  local ctor_fn = cg.fn_expr(cg.join(params), body_code, indent)
 
   local iife_stmts = {}
   iife_stmts[#iife_stmts + 1] = cg.local_inline(class_name, cg.call("_ljs_ctor", { ctor_fn }))
@@ -928,55 +857,22 @@ gen.ClassExpression = function(node, indent, ctx)
     )
   end
 
-  for _, m in ipairs(methods) do
-    local m_params = { "_ljs_this" }
-    for _, p in ipairs(m.value.params) do
-      m_params[#m_params + 1] = p.name
-    end
-    scope_push(ctx)
-    if node.name then
-      scope_declare(ctx, node.name)
-    end
-    for _, p in ipairs(m.value.params) do
-      scope_declare(ctx, p.name)
-    end
-    local m_body = emit(m.value.body, indent, ctx)
-    m_body = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. m_body
-    scope_pop(ctx)
-    local m_fn = cg.fn_expr(cg.join(m_params), m_body, indent)
-    local key_str
+  local function method_key(m)
     if m.key.type == "Identifier" then
-      key_str = cg.string(m.key.name)
-    else
-      key_str = cg.string(m.key.value)
+      return cg.string(m.key.name)
     end
+    return cg.string(m.key.value)
+  end
+
+  for _, m in ipairs(methods) do
+    local m_fn = emit_fn(m.value, indent, ctx, extra_scope)
     iife_stmts[#iife_stmts + 1] =
-      cg.binop("=", cg.member_index(cg.member_dot(class_name, "prototype"), key_str), m_fn)
+      cg.binop("=", cg.member_index(cg.member_dot(class_name, "prototype"), method_key(m)), m_fn)
   end
 
   for _, m in ipairs(statics) do
-    local m_params = { "_ljs_this" }
-    for _, p in ipairs(m.value.params) do
-      m_params[#m_params + 1] = p.name
-    end
-    scope_push(ctx)
-    if node.name then
-      scope_declare(ctx, node.name)
-    end
-    for _, p in ipairs(m.value.params) do
-      scope_declare(ctx, p.name)
-    end
-    local m_body = emit(m.value.body, indent, ctx)
-    m_body = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. m_body
-    scope_pop(ctx)
-    local m_fn = cg.fn_expr(cg.join(m_params), m_body, indent)
-    local key_str
-    if m.key.type == "Identifier" then
-      key_str = cg.string(m.key.name)
-    else
-      key_str = cg.string(m.key.value)
-    end
-    iife_stmts[#iife_stmts + 1] = cg.binop("=", cg.member_index(class_name, key_str), m_fn)
+    local m_fn = emit_fn(m.value, indent, ctx, extra_scope)
+    iife_stmts[#iife_stmts + 1] = cg.binop("=", cg.member_index(class_name, method_key(m)), m_fn)
   end
 
   iife_stmts[#iife_stmts + 1] = cg.return_inline(class_name)
@@ -989,21 +885,7 @@ gen.ClassExpression = function(node, indent, ctx)
 end
 
 gen.FunctionExpression = function(node, indent, ctx)
-  local params = { "_ljs_this" }
-  for _, p in ipairs(node.params) do
-    params[#params + 1] = p.name
-  end
-  scope_push(ctx)
-  if node.name then
-    scope_declare(ctx, node.name)
-  end
-  for _, p in ipairs(node.params) do
-    scope_declare(ctx, p.name)
-  end
-  local body = emit(node.body, indent, ctx)
-  body = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. body
-  scope_pop(ctx)
-  local fn = cg.fn_expr(cg.join(params), body, indent)
+  local fn = emit_fn(node, indent, ctx)
   if node.is_method then
     return cg.call("_ljs_fn", { fn })
   end
@@ -1011,18 +893,7 @@ gen.FunctionExpression = function(node, indent, ctx)
 end
 
 gen.ArrowFunctionExpression = function(node, indent, ctx)
-  local params = { "_ljs_this" }
-  for _, p in ipairs(node.params) do
-    params[#params + 1] = p.name
-  end
-  scope_push(ctx)
-  for _, p in ipairs(node.params) do
-    scope_declare(ctx, p.name)
-  end
-  local body = emit(node.body, indent, ctx)
-  body = cg.local_decl("_ljs_arrow_this", "_ljs_arrow_this", indent + 1) .. body
-  scope_pop(ctx)
-  local fn = cg.fn_expr(cg.join(params), body, indent)
+  local fn = emit_fn(node, indent, ctx)
   return cg.call("_ljs_fn", { fn })
 end
 
