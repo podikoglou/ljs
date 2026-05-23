@@ -173,6 +173,29 @@ local KEYWORDS = {
 }
 
 -- ============================================================================
+-- PARSE ERROR
+-- ============================================================================
+
+local ParseError = {}
+ParseError.__index = ParseError
+
+function ParseError:__tostring()
+  return self.message .. " at line " .. self.line .. ", col " .. self.col
+end
+
+local function make_parse_error(message, line, col)
+  return setmetatable({ message = message, line = line, col = col }, ParseError)
+end
+
+local function parse_error(message, line, col)
+  error(make_parse_error(message, line, col), 0)
+end
+
+local function is_parse_error(val)
+  return getmetatable(val) == ParseError
+end
+
+-- ============================================================================
 -- TOKENIZER
 -- ============================================================================
 -- Converts source string into an array of tokens.
@@ -2370,5 +2393,9 @@ end
 -- ============================================================================
 -- EXPORTS
 -- ============================================================================
+
+ljs.ParseError = ParseError
+ljs.is_parse_error = is_parse_error
+ljs.make_parse_error = make_parse_error
 
 return ljs
