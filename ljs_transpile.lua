@@ -857,8 +857,6 @@ gen.ClassExpression = function(node, indent, ctx)
     )
   end
 
-  local extra_scope = node.name and { node.name } or nil
-
   local function method_key(m)
     if m.key.type == "Identifier" then
       return cg.string(m.key.name)
