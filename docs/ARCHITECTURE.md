@@ -167,7 +167,7 @@ Internal operator/expression helpers (e.g. `_ljs_add`, `_ljs_ctor`, `_ljs_bnot`)
 3. No analysis pass required — helpers are part of the compiler ABI, always available
 
 **Preamble structure** (emitted before user code):
-1. Proto declarations (`_ljs_object_prototype`, `_ljs_function_prototype`) from `ljs_runtime/proto.lua`
+1. Proto declarations (`_ljs_object_prototype`, `_ljs_function_prototype`) from `ljs.runtime.proto`
 2. `local _ljs_arrow_this = nil` — top-level `this` binding
 3. All 19 helpers in order: `_ljs_to_int32` first, `_ljs_fn` second, rest alphabetical
 4. Runtime std lib files: `object`, `function`, `array`, `console`

@@ -2,7 +2,7 @@
 
 Single entry point: `require("ljs")` returns a table with all public functions.
 
-Lower-level modules (`ljs_parser`, `ljs_transpile`, `ljs_codegen`) remain
+Lower-level modules (`ljs.parser`, `ljs.transpile`, `ljs.codegen`) remain
 directly requireable for advanced use (pre-parsing, AST manipulation).
 
 ```lua
@@ -195,7 +195,7 @@ For advanced use, eval mode can be used directly through the lower-level
 transpiler:
 
 ```lua
-local transpiler = require("ljs_transpile")
+local transpiler = require("ljs.transpile")
 local code = transpiler.transpile(ast, { mode = "eval" })
 ```
 
