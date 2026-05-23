@@ -126,52 +126,54 @@ test("parse **= right-associative: x **= y **= 2", function()
   })
 end)
 
-test("parse precedence: ** tighter than * (right)", function()
-  assert_parse_ok("2 * 3 ** 2;", {
-    A.expr_stmt(A.bin("*", A.num(2), A.bin("**", A.num(3), A.num(2)))),
-  })
-end)
+-- INVARIANT: ** binds tighter than all lower-precedence binary operators.
+-- Contract: exponentiation (precedence 5.5) is higher than *, /, %, +, -,
+-- <<, >>, >>>, ===, !==, <, >, <=, >=, &, ^, |, &&, ||.
+-- Tests both nesting directions for each operator:
+--   a OP b ** c  →  a OP (b ** c)   (** absorbs right operand first)
+--   a ** b OP c  →  (a ** b) OP c   (** absorbs left operand first)
+-- Catches: any regression in PRECEDENCE table that would lower ** below other ops.
+-- Replaces 8 individual example-based tests that each verified only one operator
+-- in one direction, covering only 7 of 17 operators.
+test("precedence: ** binds tighter than all binary operators (both directions)", function()
+  local ops = {
+    "*",
+    "/",
+    "%",
+    "+",
+    "-",
+    "<<",
+    ">>",
+    ">>>",
+    "===",
+    "!==",
+    "<",
+    ">",
+    "<=",
+    ">=",
+    "&",
+    "^",
+    "|",
+    "&&",
+    "||",
+  }
+  for _, op in ipairs(ops) do
+    local src_r = string.format("a %s b ** c;", op)
+    local ast_r = ljs.parse(src_r)
+    assert(ast_r, "expected parse for: " .. src_r)
+    local expr_r = ast_r.body[1].expression
+    assert_table_eq(expr_r.operator, op, "outer op for: " .. src_r)
+    assert_table_eq(expr_r.right.type, "BinaryExpression", "right child type for: " .. src_r)
+    assert_table_eq(expr_r.right.operator, "**", "right child op for: " .. src_r)
 
-test("parse precedence: ** tighter than * (left)", function()
-  assert_parse_ok("2 ** 3 * 4;", {
-    A.expr_stmt(A.bin("*", A.bin("**", A.num(2), A.num(3)), A.num(4))),
-  })
-end)
-
-test("parse precedence: ** tighter than /", function()
-  assert_parse_ok("8 / 2 ** 3;", {
-    A.expr_stmt(A.bin("/", A.num(8), A.bin("**", A.num(2), A.num(3)))),
-  })
-end)
-
-test("parse precedence: ** tighter than %", function()
-  assert_parse_ok("10 % 3 ** 2;", {
-    A.expr_stmt(A.bin("%", A.num(10), A.bin("**", A.num(3), A.num(2)))),
-  })
-end)
-
-test("parse precedence: ** tighter than +", function()
-  assert_parse_ok("1 + 2 ** 3;", {
-    A.expr_stmt(A.bin("+", A.num(1), A.bin("**", A.num(2), A.num(3)))),
-  })
-end)
-
-test("parse precedence: ** tighter than comparison", function()
-  assert_parse_ok("2 ** 3 > 5;", {
-    A.expr_stmt(A.bin(">", A.bin("**", A.num(2), A.num(3)), A.num(5))),
-  })
-end)
-
-test("parse precedence: ** tighter than &&", function()
-  assert_parse_ok("a ** b && c;", {
-    A.expr_stmt(A.bin("&&", A.bin("**", A.id("a"), A.id("b")), A.id("c"))),
-  })
-end)
-
-test("parse precedence: ** tighter than ||", function()
-  assert_parse_ok("a ** b || c;", {
-    A.expr_stmt(A.bin("||", A.bin("**", A.id("a"), A.id("b")), A.id("c"))),
-  })
+    local src_l = string.format("a ** b %s c;", op)
+    local ast_l = ljs.parse(src_l)
+    assert(ast_l, "expected parse for: " .. src_l)
+    local expr_l = ast_l.body[1].expression
+    assert_table_eq(expr_l.operator, op, "outer op for: " .. src_l)
+    assert_table_eq(expr_l.left.type, "BinaryExpression", "left child type for: " .. src_l)
+    assert_table_eq(expr_l.left.operator, "**", "left child op for: " .. src_l)
+  end
 end)
 
 test("parse -2 ** 3 (unary minus before **)", function()

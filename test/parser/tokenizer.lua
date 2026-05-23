@@ -384,3 +384,126 @@ end)
 test("tokenize error: unterminated multi-line comment", function()
   assert_tokenize_fail("/* never ends", "Unterminated")
 end)
+
+-- ============================================================================
+-- INVARIANT: token type determines value type
+-- Contract: the docstring says "value is present for identifiers/keywords
+-- (string), numbers (number), booleans (true/false), strings (unescaped
+-- string). Absent for punctuation."  Downstream consumers (parser, error
+-- messages) rely on this — a nil value where a string was expected, or a
+-- non-nil value where nil was expected, would cascade into obscure bugs.
+-- Catches: accidental addition of value to punctuation tokens, or removal
+-- of value from literal/identifier tokens.
+
+test("invariant: token value type matches token type", function()
+  local punctuation = {
+    ["("] = true,
+    [")"] = true,
+    ["{"] = true,
+    ["}"] = true,
+    ["["] = true,
+    ["]"] = true,
+    [","] = true,
+    [";"] = true,
+    [":"] = true,
+    ["."] = true,
+    ["?"] = true,
+    ["+"] = true,
+    ["-"] = true,
+    ["*"] = true,
+    ["/"] = true,
+    ["%"] = true,
+    ["==="] = true,
+    ["!=="] = true,
+    ["<"] = true,
+    [">"] = true,
+    ["<="] = true,
+    [">="] = true,
+    ["&&"] = true,
+    ["||"] = true,
+    ["="] = true,
+    ["!"] = true,
+    ["~"] = true,
+    ["=>"] = true,
+    ["++"] = true,
+    ["--"] = true,
+    ["+="] = true,
+    ["-="] = true,
+    ["*="] = true,
+    ["**="] = true,
+    ["/="] = true,
+    ["%="] = true,
+    ["&"] = true,
+    ["|"] = true,
+    ["^"] = true,
+    ["<<"] = true,
+    [">>"] = true,
+    [">>>"] = true,
+    ["&="] = true,
+    ["|="] = true,
+    ["^="] = true,
+    ["<<="] = true,
+    [">>="] = true,
+    [">>>="] = true,
+  }
+
+  local src = "+ - * / % === !== < > <= >= && || = ! ~ => ++ -- += -= *= **= /= %= & | ^ << >> >>> &= |= ^= <<= >>= >>>="
+    .. ' let x = 42; "hello" true false null undefined'
+  local tokens = ljs.tokenize(src)
+  assert(tokens)
+  for i, t in ipairs(tokens) do
+    if t.type == "EOF" then
+      assert(t.value == nil, string.format("EOF token %d should have nil value", i))
+    elseif punctuation[t.type] then
+      assert(
+        t.value == nil,
+        string.format(
+          "punctuation token %d (%s) should have nil value, got %s",
+          i,
+          t.type,
+          tostring(t.value)
+        )
+      )
+    elseif t.type == "Number" then
+      assert(
+        type(t.value) == "number",
+        string.format("Number token %d should have number value, got %s", i, type(t.value))
+      )
+    elseif t.type == "String" then
+      assert(
+        type(t.value) == "string",
+        string.format("String token %d should have string value, got %s", i, type(t.value))
+      )
+    elseif t.type == "Boolean" then
+      assert(
+        type(t.value) == "boolean",
+        string.format("Boolean token %d should have boolean value, got %s", i, type(t.value))
+      )
+    elseif t.type == "Identifier" then
+      assert(
+        type(t.value) == "string",
+        string.format("Identifier token %d should have string value, got %s", i, type(t.value))
+      )
+    elseif t.type == "Null" or t.type == "Undefined" then
+      assert(
+        t.value == nil,
+        string.format("%s token %d should have nil value, got %s", t.type, i, tostring(t.value))
+      )
+    end
+  end
+end)
+
+-- ============================================================================
+-- INVARIANT: null and undefined tokens have value=nil but distinct types
+-- Contract: null and undefined are distinct token types ("Null" vs "Undefined")
+-- even though both carry nil values. The parser uses the type to build
+-- different AST nodes (NullLiteral vs UndefinedLiteral).
+-- Catches: accidental unification of Null and Undefined types.
+
+test("invariant: null and undefined produce distinct token types", function()
+  local null_t = P.tok("null", 1)
+  local undef_t = P.tok("undefined", 1)
+  assert_eq(null_t.type, "Null")
+  assert_eq(undef_t.type, "Undefined")
+  assert(null_t.type ~= undef_t.type, "null and undefined must have distinct types")
+end)

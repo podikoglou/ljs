@@ -306,3 +306,116 @@ test("error col points at or after the bad construct", function()
     ---@diagnostic enable: need-check-nil
   end
 end)
+
+-- ============================================================================
+-- format_error: public API for formatting ParseError with source context
+-- Contract: ljs.format_error(err, source) returns a string that includes
+-- the error message and, when source is provided and line is valid, the
+-- offending source line with a caret pointing at the error column.
+-- Catches: broken source-context display, wrong line extraction, misaligned caret.
+
+test("format_error with source shows message and source line with caret", function()
+  local _, err = ljs.parse("let x = ;")
+  assert(err)
+  ---@diagnostic disable-next-line: need-check-nil
+  local formatted = ljs.format_error(err, "let x = ;")
+  ---@diagnostic disable-next-line: need-check-nil
+  assert(string.find(formatted, err.message, 1, true), "formatted output should contain message")
+  assert(
+    string.find(formatted, "let x = ;", 1, true),
+    "formatted output should contain source line"
+  )
+  assert(string.find(formatted, "^", 1, true), "formatted output should contain caret")
+end)
+
+test("format_error without source returns message only", function()
+  local _, err = ljs.parse("let x = ;")
+  assert(err)
+  ---@diagnostic disable-next-line: need-check-nil
+  local formatted = ljs.format_error(err, nil)
+  ---@diagnostic disable-next-line: need-check-nil
+  assert_eq(formatted, err.message)
+end)
+
+test("format_error with line beyond source length shows message and empty context", function()
+  local err = ljs.make_parse_error("test error", 99, 1)
+  local formatted = ljs.format_error(err, "one line")
+  assert(string.find(formatted, "test error", 1, true), "should contain message")
+  assert(string.find(formatted, "|", 1, true), "should show context separator")
+end)
+
+test("format_error with line 0 returns message only (no source context)", function()
+  local err = ljs.make_parse_error("test error", 0, 1)
+  local formatted = ljs.format_error(err, "some source")
+  assert_eq(formatted, "test error")
+end)
+
+test("format_error with multi-line source shows correct line", function()
+  local src = "let a = 1;\nlet b = @;"
+  local _, err = ljs.parse(src)
+  assert(err)
+  ---@diagnostic disable-next-line: need-check-nil
+  local formatted = ljs.format_error(err, src)
+  assert(
+    string.find(formatted, "let b = @;", 1, true),
+    "should show the offending line, not line 1"
+  )
+end)
+
+-- ============================================================================
+-- INVARIANT: every table in a valid AST has a type field
+-- Contract: the parser produces well-formed AST nodes — every table in the
+-- tree represents a node with a `type` field. Downstream consumers (codegen,
+-- analysis tools) rely on this for dispatch.
+-- Catches: a parser bug that returns a raw sub-expression or helper table
+-- without wrapping it in a proper AST node.
+
+test("all AST nodes have a type field for diverse programs", function()
+  local function check_types(node, path)
+    if type(node) ~= "table" then
+      return
+    end
+    if node.type == nil then
+      return
+    end
+    for k, v in pairs(node) do
+      if type(v) == "table" and k ~= "type" then
+        if type(k) == "number" then
+          check_types(v, path .. "[" .. k .. "]")
+        else
+          check_types(v, path .. "." .. k)
+        end
+      end
+    end
+  end
+
+  local function assert_all_nodes_typed(src)
+    local ast = ljs.parse(src)
+    assert(ast, "expected parse for: " .. src)
+    assert(ast.type ~= nil, "Program root missing type for: " .. src)
+    for i, stmt in ipairs(ast.body) do
+      check_types(stmt, "body[" .. i .. "]")
+    end
+  end
+
+  local sources = {
+    "let x = 1 + 2 * 3;",
+    "function f(a, b) { return a > b ? a : b; }",
+    "for (let i = 0; i < 10; i += 1) { if (i === 5) { break; } }",
+    "try { throw x; } catch (e) { console.log(e); } finally { x = 0; }",
+    "let o = { a: 1, b(x) { return x; }, c };",
+    "switch (x) { case 1: break; default: x; }",
+    "class C extends B { constructor() { super(); } method() {} }",
+    "let f = (a, b) => a + b;",
+    "[1, 2, 3].map(x => x * 2);",
+    "for (let k in obj) { obj[k]; }",
+    "for (const x of arr) { typeof x; }",
+    "do { x++; } while (x < 10);",
+    "let a = x !== null && typeof x === 'object' ? x : {};",
+    "delete obj.prop; typeof x; new Foo();",
+    "let b = x & y | z ^ w;",
+  }
+  for _, src in ipairs(sources) do
+    assert_all_nodes_typed(src)
+  end
+end)
