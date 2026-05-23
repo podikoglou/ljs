@@ -107,7 +107,7 @@ ljs.run(source)            -- → result | nil, err
 ## Changes summary
 
 ### ljs_transpile.lua
-- **Add**: `preamble()` — assemble + cache preamble string
+- **Add**: `preamble()` — assemble + cache preamble string (all helpers + runtime, idempotent)
 - **Add**: `emit(ast, opts)` — construct ctx, emit user code only (no preamble)
 - **Change**: `transpile(ast, opts)` — now = `preamble() .. emit(ast, opts)`
 - **Keep**: `transpile_source(source, opts)` — unchanged wrapper
@@ -117,10 +117,12 @@ ljs.run(source)            -- → result | nil, err
 - **Delete**: `lookup_builtin()`
 - **Delete**: `generate()` — replaced by `preamble()` + `emit()`
 - **Change**: `gen.Program` — drop `local _ljs_arrow_this = nil` (moved to preamble)
-- **Change**: `gen.CallExpression` — remove builtin dispatch branch (line 1221-1224)
+- **Change**: `gen.CallExpression` — remove builtin dispatch branch
 - **Change**: preamble always includes all 19 helpers + all 5 runtime files
 - **Keep**: `HELPERS` exported
 - **Keep**: `read_runtime()`, `super_stack`, `eval_mode` — unchanged
+- **Add**: `HELPER_ORDER` table for deterministic helper ordering
+- **Add**: `scope_push`, `scope_pop`, `scope_declare` as local functions operating on `ctx.scopes`
 
 ### ljs.lua
 - **Add**: `ljs.preamble()` — delegates to `ljs_transpile.preamble()`
@@ -132,12 +134,11 @@ ljs.run(source)            -- → result | nil, err
 - No changes. All files kept as-is.
 
 ### docs/ARCHITECTURE.md
-- Update Section 2 (lines 164-167) to document helper/std-lib distinction and unconditional preamble emission.
+- Updated helper section to document unconditional emission and preamble structure
+- Added public API and multi-file pattern docs
 
-## Tests
-
-Existing tests must pass (same output, richer preamble). New tests:
-- `preamble()` returns consistent string
-- `preamble()` is idempotent (cached)
-- `emit(ast)` produces no helpers/std-lib in output
-- `transpile_ast(ast)` = `preamble() .. emit(ast)`
+### Test changes
+- Removed BUILTINS test (no longer exported)
+- Updated "no helpers when unused" tests to "all helpers always in preamble"
+- Added 14 new tests for `ljs.preamble()` and `ljs.emit()` API
+- Total: 1535 tests pass (was 1522)
