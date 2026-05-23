@@ -54,8 +54,26 @@ test("tokenizer: invalid escape sequence", function()
   check_tokenize_err('"a\\qb"', "Invalid escape", 1, 4, "bad escape")
 end)
 
-test("tokenizer: unterminated string", function()
+test("tokenizer: unterminated double-quoted string", function()
   check_tokenize_err('"hello', "Unterminated string", 1, 1, "unterminated string")
+end)
+
+test("tokenizer: unterminated single-quoted string", function()
+  check_tokenize_err("'hello", "Unterminated string", 1, 1, "unterminated single-quoted string")
+end)
+
+test("tokenizer: invalid escape in single-quoted string", function()
+  check_tokenize_err("'a\\qb'", "Invalid escape", 1, 4, "bad escape single-quoted")
+end)
+
+test("tokenizer: unexpected char on third line has correct position", function()
+  check_tokenize_err(
+    "let a = 1;\nlet b = 2;\nlet c = @;",
+    "Unexpected character",
+    3,
+    9,
+    "@ on line 3"
+  )
 end)
 
 test("tokenizer: unterminated multi-line comment", function()
@@ -138,6 +156,16 @@ test("parser: consume mismatch shows expected and actual", function()
   check_parse_err("function f( { }", "Expected Identifier, got {", 1, 13, "missing param name")
 end)
 
+test("parser: != produces an error (excluded operator)", function()
+  local ast, err = ljs.parse("x != y")
+  assert(ast == nil, "expected nil ast for !=")
+  assert(ljs.is_parse_error(err), "expected ParseError for !=")
+end)
+
+test("parser: error on third line has correct line number", function()
+  check_parse_err("let a = 1;\nlet b = 2;\nlet c = ;", "Unexpected token", 3, 9, "line 3 error")
+end)
+
 -- ============================================================================
 -- PROPERTY: all error paths return well-formed ParseError
 -- ============================================================================
@@ -200,5 +228,81 @@ test("all tokenize errors have line >= 1, col >= 1, non-empty message", function
     assert(err.line >= 1, "line < 1 for: " .. src)
     ---@diagnostic disable-next-line: need-check-nil
     assert(err.col >= 1, "col < 1 for: " .. src)
+  end
+end)
+
+-- ============================================================================
+-- PROPERTY: is_parse_error is a precise type guard
+-- ============================================================================
+
+test("is_parse_error returns false for non-ParseError values", function()
+  assert(not ljs.is_parse_error(nil), "nil should not be ParseError")
+  assert(
+    not ljs.is_parse_error({ message = "x", line = 1, col = 1 }),
+    "plain table should not be ParseError"
+  )
+  assert(not ljs.is_parse_error("error"), "string should not be ParseError")
+  assert(not ljs.is_parse_error(42), "number should not be ParseError")
+end)
+
+-- ============================================================================
+-- PROPERTY: valid input never returns errors
+-- ============================================================================
+
+test("parse returns ast with no error for valid source", function()
+  local valid = {
+    "",
+    "let x = 1;",
+    "function f() { return 1; }",
+    "let a = [1, 2, 3];",
+    "let o = { x: 1 };",
+    "if (true) {} else {}",
+    "while (false) {}",
+    "for (let i of arr) {}",
+    "try {} catch (e) {}",
+    "switch (x) { case 1: break; }",
+    "(a) => a + 1",
+    "class C {}",
+  }
+  for _, src in ipairs(valid) do
+    local ast, err = ljs.parse(src)
+    assert(ast ~= nil, "expected non-nil ast for: " .. src)
+    assert(err == nil, "expected nil error for: " .. src)
+  end
+end)
+
+test("tokenize returns tokens with no error for valid source", function()
+  local valid = {
+    "",
+    "let x = 1;",
+    "'hello'",
+    '"world"',
+  }
+  for _, src in ipairs(valid) do
+    local tokens, err = ljs.tokenize(src)
+    assert(tokens ~= nil, "expected non-nil tokens for: " .. src)
+    assert(err == nil, "expected nil error for: " .. src)
+  end
+end)
+
+-- ============================================================================
+-- PROPERTY: error column points at or past the offending token
+-- ============================================================================
+
+test("error col points at or after the bad construct", function()
+  local cases = {
+    { src = "x == y", min_col = 3 },
+    { src = "let x = @;", min_col = 9 },
+    { src = "0xG", min_col = 1 },
+  }
+  for _, case in ipairs(cases) do
+    local _, err = ljs.tokenize(case.src)
+    assert(ljs.is_parse_error(err), "expected ParseError for: " .. case.src)
+    ---@diagnostic disable: need-check-nil
+    assert(
+      err.col >= case.min_col,
+      string.format("col %d < min_col %d for: %s", err.col, case.min_col, case.src)
+    )
+    ---@diagnostic enable: need-check-nil
   end
 end)
