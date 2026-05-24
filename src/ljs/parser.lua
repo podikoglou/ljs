@@ -856,8 +856,6 @@ local function is_valid_update_target(expr)
     return true
   elseif t == "MemberExpression" then
     return true
-  elseif t == "ParenthesizedExpression" then
-    return is_valid_update_target(expr.expression)
   end
   return false
 end
