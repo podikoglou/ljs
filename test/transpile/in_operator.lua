@@ -19,8 +19,8 @@ test("n in arr transpiles to (arr[(n) + 1] ~= nil)", function()
   assert_eq(expr_code("n in arr"), "(arr[(n) + 1] ~= nil)")
 end)
 
-test('"x" in obj.prop transpiles to (obj.prop["x"] ~= nil)', function()
-  assert_eq(expr_code('"x" in obj.prop'), '(obj.prop["x"] ~= nil)')
+test('"x" in obj.prop transpiles to (_ljs_to_object(obj).prop["x"] ~= nil)', function()
+  assert_eq(expr_code('"x" in obj.prop'), '(_ljs_to_object(obj).prop["x"] ~= nil)')
 end)
 
 test("key in obj transpiles to (obj[(key) + 1] ~= nil)", function()

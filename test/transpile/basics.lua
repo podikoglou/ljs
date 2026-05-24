@@ -154,11 +154,14 @@ test("exponentiation **= desugars", function()
 end)
 
 test("exponentiation **= on member expression", function()
-  assert_eq(expr_code("obj.x **= 2"), "obj.x = obj.x ^ 2")
+  assert_eq(expr_code("obj.x **= 2"), "_ljs_to_object(obj).x = _ljs_to_object(obj).x ^ 2")
 end)
 
 test("exponentiation **= on computed member", function()
-  assert_eq(expr_code("arr[0] **= 2"), "arr[(0) + 1] = arr[(0) + 1] ^ 2")
+  assert_eq(
+    expr_code("arr[0] **= 2"),
+    "_ljs_to_object(arr)[(0) + 1] = _ljs_to_object(arr)[(0) + 1] ^ 2"
+  )
 end)
 
 test("exponentiation chained right-assoc", function()
@@ -257,7 +260,7 @@ test("compound %= desugars", function()
 end)
 
 test("compound += on member expression", function()
-  assert_eq(expr_code("obj.x += 1"), "obj.x = _ljs_add(obj.x, 1)")
+  assert_eq(expr_code("obj.x += 1"), "_ljs_to_object(obj).x = _ljs_add(_ljs_to_object(obj).x, 1)")
 end)
 
 test("compound += with string concatenation", function()

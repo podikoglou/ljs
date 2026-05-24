@@ -59,17 +59,17 @@ end)
 
 test("let r = typeof obj.prop", function()
   local code = expr_code("let r = typeof obj.prop")
-  assert_eq(code, "local r = _ljs_typeof(obj.prop)")
+  assert_eq(code, "local r = _ljs_typeof(_ljs_to_object(obj).prop)")
 end)
 
 test("let r = typeof obj[key]", function()
   local code = expr_code("let r = typeof obj[key]")
-  assert_eq(code, "local r = _ljs_typeof(obj[(key) + 1])")
+  assert_eq(code, "local r = _ljs_typeof(_ljs_to_object(obj)[(key) + 1])")
 end)
 
 test("let r = typeof arr[0]", function()
   local code = expr_code("let r = typeof arr[0]")
-  assert_eq(code, "local r = _ljs_typeof(arr[(0) + 1])")
+  assert_eq(code, "local r = _ljs_typeof(_ljs_to_object(arr)[(0) + 1])")
 end)
 
 test("let r = typeof f()", function()
