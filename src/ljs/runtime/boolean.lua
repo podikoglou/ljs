@@ -15,7 +15,14 @@ local Boolean = _ljs_fn(function(_ljs_this, value)
     value = false
   end
   if type(value) ~= "boolean" then
-    value = value ~= false and value ~= nil
+    local vt = type(value)
+    if vt == "number" then
+      value = value ~= 0 and value == value
+    elseif vt == "string" then
+      value = #value > 0
+    else
+      value = true
+    end
   end
   if _ljs_this == nil then
     return value
