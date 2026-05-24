@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "ecma-query": {
+      "source": "podikoglou/ecma-query",
+      "sourceType": "github",
+      "skillPath": "skills/ecma-query/SKILL.md",
+      "computedHash": "7403f82d7b7a9d2cf93d23b798763280d582db27e859d293888f966347e42106"
+    }
+  }
+}
