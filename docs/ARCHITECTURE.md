@@ -114,8 +114,8 @@ Functions (`FunctionDeclaration`, `FunctionExpression`) are wrapped in `_ljs_cto
 
 **Lowering of `class Foo { constructor(x) {} method() {} static create() {} }`:**
 1. `local Foo = _ljs_ctor(function(_ljs_this, x) ... end)` — constructor wrapped in `_ljs_ctor`
-2. `Foo.prototype["method"] = function(_ljs_this) ... end` — prototype methods
-3. `Foo["create"] = function(_ljs_this) ... end` — static methods assigned directly to constructor
+2. `Foo.prototype["method"] = _ljs_fn(function(_ljs_this) ... end)` — prototype methods wrapped in `_ljs_fn`
+3. `Foo["create"] = _ljs_fn(function(_ljs_this) ... end)` — static methods wrapped in `_ljs_fn`
 
 **Lowering of `class Dog extends Animal {}`:**
 1. Constructor wraps in `_ljs_ctor` with default body that calls `Animal(_ljs_arrow_this, ...)` (forwards all args)
@@ -152,6 +152,7 @@ Standard library globals (`Object`, `Array`, `Function`, `console`) are real JS 
 - All `_ljs_fn`-wrapped functions inherit from `_ljs_function_prototype` via `__index`.
 - All `_ljs_object`-wrapped objects inherit from `_ljs_object_prototype` via `__index`.
 - All `_ljs_new`-created instances inherit from their constructor's prototype, which inherits from `_ljs_object_prototype`.
+- **All runtime functions** (prototype methods, static utilities, class methods) are wrapped in `_ljs_fn()` so they are proper JS function objects with the `Function.prototype` chain. This enables extracting methods as values and calling `.call()`/`.apply()` on them.
 
 **Variable declaration pattern:**
 - Functions assigned to variables use `local x; x = _ljs_fn(...)` instead of `local x = _ljs_fn(...)` to work around a Lua 5.5 closure upvalue issue where the function's self-reference would resolve to `nil`.
@@ -159,7 +160,8 @@ Standard library globals (`Object`, `Array`, `Function`, `console`) are real JS 
 To add a new standard library function (e.g. `Array.prototype.forEach`, `String.prototype.trim`):
 1. Define the function in the runtime init block as a method on the target prototype or object
 2. Use the JS-ABI convention: `function(_ljs_this, ...)` for all methods
-3. No transpiler changes required — member calls compile to `_ljs_call_member(obj, key, ...)` which resolves the method at runtime via the prototype chain
+3. Wrap in `_ljs_fn()` so the method is a proper function object with `.call`/`.apply`: `Array.prototype.forEach = _ljs_fn(function(_ljs_this, ...) ... end)`
+4. No transpiler changes required — member calls compile to `_ljs_call_member(obj, key, ...)` which resolves the method at runtime via the prototype chain
 
 Internal operator/expression helpers (e.g. `_ljs_add`, `_ljs_ctor`, `_ljs_bnot`) follow a different pattern:
 1. Define the helper in the `HELPERS` table (ordered by `HELPER_ORDER`)
