@@ -23,7 +23,11 @@ local Number = _ljs_fn(function(_ljs_this, value)
     value = 0
   end
   if type(value) ~= "number" then
-    value = tonumber(value) or 0
+    if type(value) == "boolean" then
+      value = value and 1 or 0
+    else
+      value = tonumber(value) or 0
+    end
   end
   if _ljs_this == nil then
     return value
