@@ -92,4 +92,11 @@ T.describe("runtime/console", function()
   end
 end)
 
+T.describe("runtime/globals", function()
+  local ok, err = pcall(require, "test.runtime.globals")
+  if not ok then
+    print(string.format("  \27[33m⚠\27[0m runtime/globals: %s", tostring(err):match("^[^\n]*")))
+  end
+end)
+
 T.summary()
