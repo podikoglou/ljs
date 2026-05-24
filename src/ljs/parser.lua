@@ -2338,9 +2338,9 @@ function parse_identifier_or_call(stream)
   local expr = identifier(token.value, token)
 
   if stream.is(TOKEN.ARROW) then
-    local arrow_token = stream.advance()
+    stream.advance()
     local body = parse_arrow_function_body(stream)
-    return arrow_function_expression({ expr }, body, arrow_token)
+    return arrow_function_expression({ expr }, body, token)
   end
 
   return parse_postfix(stream, expr)
