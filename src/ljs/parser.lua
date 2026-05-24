@@ -2144,7 +2144,7 @@ function parse_postfix(stream, expr, no_update)
   elseif stream.is(TOKEN.INCREMENT) or stream.is(TOKEN.DECREMENT) then
     local tok = stream.peek()
     parse_error(
-      "Invalid update target: call expression result cannot be used with " .. tok.type,
+      "Invalid update target: cannot use " .. tok.type .. " on this expression",
       tok.line,
       tok.col
     )
