@@ -52,6 +52,14 @@ Array.prototype.join = function(_ljs_this, sep)
 end
 
 -- ---------------------------------------------------------------------------
+-- Array.prototype.toString
+-- ---------------------------------------------------------------------------
+-- Per spec: calls .join(",") on this.
+Array.prototype.toString = function(_ljs_this)
+  return _ljs_call_member(_ljs_this, "join", ",")
+end
+
+-- ---------------------------------------------------------------------------
 -- Array.isArray
 -- ---------------------------------------------------------------------------
 -- Array.isArray: checks via _ljs_instanceof so subclass instances return true.
