@@ -104,3 +104,10 @@ test("array inherits Object.prototype methods", function()
   ]])
   assert_eq(out, "true\n")
 end)
+
+test("array toString calls join", function()
+  local out = run_js([[
+    console.log([1, 2, 3].toString());
+  ]])
+  assert_eq(out, "1,2,3\n")
+end)

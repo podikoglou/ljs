@@ -243,6 +243,30 @@ test("join with empty separator", function()
 end)
 
 -- ============================================================================
+-- Array.prototype.toString
+-- ============================================================================
+
+test("toString calls join with comma", function()
+  assert_eq(exec_js("return [1, 2, 3].toString();"), "1,2,3")
+end)
+
+test("toString on empty array", function()
+  assert_eq(exec_js("return [].toString();"), "")
+end)
+
+test("toString on single element", function()
+  assert_eq(exec_js("return [42].toString();"), "42")
+end)
+
+test("toString with strings", function()
+  assert_eq(exec_js("return ['a', 'b'].toString();"), "a,b")
+end)
+
+test("toString with mixed types", function()
+  assert_eq(exec_js("return [1, 'two', true].toString();"), "1,two,true")
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 
