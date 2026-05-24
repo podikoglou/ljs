@@ -180,6 +180,22 @@ test("isNaN(undefined) is true (coerces to NaN)", function()
   assert_eq(eval_js("isNaN(undefined)"), true)
 end)
 
+test("isNaN('Infinity') is false (StringToNumber → +∞)", function()
+  assert_eq(eval_js("isNaN('Infinity')"), false)
+end)
+
+test("isNaN('+Infinity') is false (StringToNumber → +∞)", function()
+  assert_eq(eval_js("isNaN('+Infinity')"), false)
+end)
+
+test("isNaN('-Infinity') is false (StringToNumber → -∞)", function()
+  assert_eq(eval_js("isNaN('-Infinity')"), false)
+end)
+
+test("isNaN('NaN') is true (StringToNumber → NaN)", function()
+  assert_eq(eval_js("isNaN('NaN')"), true)
+end)
+
 -- ============================================================================
 -- isFinite global function
 -- ============================================================================
@@ -234,6 +250,22 @@ end)
 
 test("isFinite(undefined) is false (coerces to NaN)", function()
   assert_eq(eval_js("isFinite(undefined)"), false)
+end)
+
+test("isFinite('Infinity') is false (StringToNumber → +∞)", function()
+  assert_eq(eval_js("isFinite('Infinity')"), false)
+end)
+
+test("isFinite('+Infinity') is false (StringToNumber → +∞)", function()
+  assert_eq(eval_js("isFinite('+Infinity')"), false)
+end)
+
+test("isFinite('-Infinity') is false (StringToNumber → -∞)", function()
+  assert_eq(eval_js("isFinite('-Infinity')"), false)
+end)
+
+test("isFinite('NaN') is false (StringToNumber → NaN)", function()
+  assert_eq(eval_js("isFinite('NaN')"), false)
 end)
 
 -- ============================================================================

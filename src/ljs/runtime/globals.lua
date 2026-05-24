@@ -24,6 +24,12 @@ local function _ljs_toNumber(x)
     if x == "" or x:match("^%s*$") then
       return 0
     end
+    if x == "Infinity" or x == "+Infinity" then
+      return math.huge
+    end
+    if x == "-Infinity" then
+      return -math.huge
+    end
     local n = tonumber(x)
     if n then
       return n
