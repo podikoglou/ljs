@@ -347,10 +347,8 @@ test('parse "s"[0]-- (postfix decrement on computed string member)', function()
   })
 end)
 
-test("parse true.toString()++ (postfix on call result from literal)", function()
-  assert_parse_ok("true.toString()++;", {
-    A.expr_stmt(A.update("++", A.call(A.member(A.bool(true), A.id("toString")), {}), false)),
-  })
+test("reject true.toString()++ (postfix on call result from literal)", function()
+  assert_parse_fail("true.toString()++;")
 end)
 
 -- ============================================================================
