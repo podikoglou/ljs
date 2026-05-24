@@ -151,14 +151,31 @@ HELPERS._ljs_call = [[local function _ljs_call(fn, ...)
   return fn(nil, ...)
 end]]
 
+-- ES2026 §7.1.19 ToObject: boxes primitives into wrapper objects for property access.
+HELPERS._ljs_to_object = [[local function _ljs_to_object(obj)
+  local t = type(obj)
+  if t == "number" then
+    return setmetatable({ _ljs_data = obj }, { __index = _ljs_number_prototype })
+  end
+  if t == "string" then
+    return setmetatable({ _ljs_data = obj }, { __index = _ljs_string_prototype })
+  end
+  if t == "boolean" then
+    return setmetatable({ _ljs_data = obj }, { __index = _ljs_boolean_prototype })
+  end
+  return obj
+end]]
+
 -- Method call: obj.m(a,b) → _ljs_call_member(obj,"m",a,b). Passes obj as _ljs_this.
 -- Throws TypeError on null/undefined per RequireObjectCoercible (§7.2.1).
+-- Boxes primitives via _ljs_to_object before property lookup.
 HELPERS._ljs_call_member = [[local function _ljs_call_member(obj, key, ...)
   if obj == nil or obj == _ljs_null then
     local desc = obj == nil and "undefined" or "null"
     error("TypeError: Cannot read properties of " .. desc .. " (reading '" .. tostring(key) .. "')")
   end
-  return obj[key](obj, ...)
+  local boxed = _ljs_to_object(obj)
+  return boxed[key](boxed, ...)
 end]]
 
 -- Wraps a table with Object.prototype as __index. Used for all object literals.
@@ -1254,12 +1271,13 @@ end
 -- === Top-level preamble and emit ===
 
 -- Emission order: _ljs_to_int32 first (other helpers depend on it),
--- _ljs_fn second (_ljs_ctor depends on it), rest alphabetical
--- except _ljs_to_primitive and _ljs_str_to_num before _ljs_eq (dependency order).
--- All 22 helpers are always emitted unconditionally.
+-- _ljs_fn second (_ljs_ctor depends on it), _ljs_to_object before
+-- _ljs_call_member (which calls it), _ljs_tostring, rest alphabetical.
+-- All 24 helpers are always emitted unconditionally.
 local HELPER_ORDER = {
   "_ljs_to_int32",
   "_ljs_fn",
+  "_ljs_to_object",
   "_ljs_tostring",
   "_ljs_add",
   "_ljs_bnot",
@@ -1286,7 +1304,7 @@ local HELPER_ORDER = {
 local _preamble_cache = nil
 
 --- Build the runtime preamble (helpers + stdlib). Result is cached after first call.
--- Structure: proto declarations → _ljs_arrow_this → 22 helpers → runtime stdlib files.
+-- Structure: proto declarations → _ljs_arrow_this → 24 helpers → runtime stdlib files.
 -- Idempotent; safe to call for multi-file output (emit preamble once, then per-file emit).
 -- @return (string) Complete Lua preamble source
 function M.preamble()
