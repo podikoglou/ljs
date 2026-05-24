@@ -572,7 +572,11 @@ gen.ClassDeclaration = function(node, indent, ctx)
     local m_fn = emit_fn(m.value, indent, ctx)
     out = out
       .. cg.expr_stmt(
-        cg.binop("=", cg.member_index(cg.member_dot(class_name, "prototype"), method_key(m)), m_fn),
+        cg.binop(
+          "=",
+          cg.member_index(cg.member_dot(class_name, "prototype"), method_key(m)),
+          cg.call("_ljs_fn", { m_fn })
+        ),
         indent
       )
   end
@@ -580,7 +584,10 @@ gen.ClassDeclaration = function(node, indent, ctx)
   for _, m in ipairs(statics) do
     local m_fn = emit_fn(m.value, indent, ctx)
     out = out
-      .. cg.expr_stmt(cg.binop("=", cg.member_index(class_name, method_key(m)), m_fn), indent)
+      .. cg.expr_stmt(
+        cg.binop("=", cg.member_index(class_name, method_key(m)), cg.call("_ljs_fn", { m_fn })),
+        indent
+      )
   end
 
   if has_super then
@@ -652,13 +659,17 @@ gen.ClassExpression = function(node, indent, ctx)
 
   for _, m in ipairs(methods) do
     local m_fn = emit_fn(m.value, indent, ctx, extra_scope)
-    iife_stmts[#iife_stmts + 1] =
-      cg.binop("=", cg.member_index(cg.member_dot(class_name, "prototype"), method_key(m)), m_fn)
+    iife_stmts[#iife_stmts + 1] = cg.binop(
+      "=",
+      cg.member_index(cg.member_dot(class_name, "prototype"), method_key(m)),
+      cg.call("_ljs_fn", { m_fn })
+    )
   end
 
   for _, m in ipairs(statics) do
     local m_fn = emit_fn(m.value, indent, ctx, extra_scope)
-    iife_stmts[#iife_stmts + 1] = cg.binop("=", cg.member_index(class_name, method_key(m)), m_fn)
+    iife_stmts[#iife_stmts + 1] =
+      cg.binop("=", cg.member_index(class_name, method_key(m)), cg.call("_ljs_fn", { m_fn }))
   end
 
   iife_stmts[#iife_stmts + 1] = cg.return_inline(class_name)

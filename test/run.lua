@@ -47,6 +47,7 @@ describe("transpile/integration", "test.transpile.integration")
 describe("transpile/function_prototype", "test.transpile.function_prototype")
 describe("transpile/object_prototype", "test.transpile.object_prototype")
 describe("transpile/array_prototype", "test.transpile.array_prototype")
+describe("transpile/function_objects", "test.transpile.function_objects")
 describe("transpile/continue", "test.transpile.continue")
 
 describe("codegen", "test.codegen")

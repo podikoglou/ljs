@@ -6,12 +6,12 @@ local Error = _ljs_ctor(function(_ljs_this, message)
   _ljs_this.message = message
 end)
 Error.prototype.name = "Error"
-Error.prototype.toString = function(_ljs_this)
+Error.prototype.toString = _ljs_fn(function(_ljs_this)
   if _ljs_this.message ~= nil then
     return _ljs_this.name .. ": " .. tostring(_ljs_this.message)
   end
   return _ljs_this.name
-end
+end)
 
 -- Factory for Error subclasses: creates a prototype chain off Error.prototype,
 -- sets .name, and wires a _ljs_ctor-wrapped constructor with that prototype.
