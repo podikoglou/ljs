@@ -97,11 +97,17 @@ test("for...of iterates array elements", function()
   assert_eq(out, "10\n20\n30\n")
 end)
 
-test("array inherits Object.prototype.toString", function()
+test("array inherits Object.prototype methods", function()
   local out = run_js([[
     let arr = [1, 2];
     console.log(arr.hasOwnProperty("length"));
-    console.log(arr.toString());
   ]])
-  assert_eq(out, "true\n[object Object]\n")
+  assert_eq(out, "true\n")
+end)
+
+test("array toString calls join", function()
+  local out = run_js([[
+    console.log([1, 2, 3].toString());
+  ]])
+  assert_eq(out, "1,2,3\n")
 end)

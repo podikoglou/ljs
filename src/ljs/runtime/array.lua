@@ -28,6 +28,38 @@ Array.prototype.pop = function(_ljs_this)
 end
 
 -- ---------------------------------------------------------------------------
+-- Array.prototype.join
+-- ---------------------------------------------------------------------------
+-- Converts each element to a string (using tostring; nil/undefined → ""),
+-- then concatenates with the given separator (default ",").
+Array.prototype.join = function(_ljs_this, sep)
+  if sep == nil then
+    sep = ","
+  end
+  if _ljs_this.length == 0 then
+    return ""
+  end
+  local parts = {}
+  for i = 1, _ljs_this.length do
+    local v = _ljs_this[i]
+    if v == nil then
+      parts[i] = ""
+    else
+      parts[i] = tostring(v)
+    end
+  end
+  return table.concat(parts, sep)
+end
+
+-- ---------------------------------------------------------------------------
+-- Array.prototype.toString
+-- ---------------------------------------------------------------------------
+-- Per spec: calls .join(",") on this.
+Array.prototype.toString = function(_ljs_this)
+  return _ljs_call_member(_ljs_this, "join", ",")
+end
+
+-- ---------------------------------------------------------------------------
 -- Array.isArray
 -- ---------------------------------------------------------------------------
 -- Array.isArray: checks via _ljs_instanceof so subclass instances return true.

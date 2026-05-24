@@ -211,6 +211,62 @@ test("Array.of with mixed types", function()
 end)
 
 -- ============================================================================
+-- Array.prototype.join
+-- ============================================================================
+
+test("join default separator is comma", function()
+  assert_eq(exec_js("return [1, 2, 3].join();"), "1,2,3")
+end)
+
+test("join with custom separator", function()
+  assert_eq(exec_js("return [1, 2, 3].join('-');"), "1-2-3")
+end)
+
+test("join empty array returns empty string", function()
+  assert_eq(exec_js("return [].join();"), "")
+end)
+
+test("join single element", function()
+  assert_eq(exec_js("return [42].join();"), "42")
+end)
+
+test("join with strings", function()
+  assert_eq(exec_js("return ['a', 'b', 'c'].join(',');"), "a,b,c")
+end)
+
+test("join with mixed types", function()
+  assert_eq(exec_js("return [1, 'two', true].join(',');"), "1,two,true")
+end)
+
+test("join with empty separator", function()
+  assert_eq(exec_js("return [1, 2, 3].join('');"), "123")
+end)
+
+-- ============================================================================
+-- Array.prototype.toString
+-- ============================================================================
+
+test("toString calls join with comma", function()
+  assert_eq(exec_js("return [1, 2, 3].toString();"), "1,2,3")
+end)
+
+test("toString on empty array", function()
+  assert_eq(exec_js("return [].toString();"), "")
+end)
+
+test("toString on single element", function()
+  assert_eq(exec_js("return [42].toString();"), "42")
+end)
+
+test("toString with strings", function()
+  assert_eq(exec_js("return ['a', 'b'].toString();"), "a,b")
+end)
+
+test("toString with mixed types", function()
+  assert_eq(exec_js("return [1, 'two', true].toString();"), "1,two,true")
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 
