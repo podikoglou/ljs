@@ -331,9 +331,7 @@ test("parse prefix --x", function()
 end)
 
 test("parse nested prefix ++ ++ x", function()
-  assert_parse_ok("++ ++ x;", {
-    A.expr_stmt(A.update("++", A.update("++", A.id("x"), true), true)),
-  })
+  assert_parse_fail("++ ++ x;", "update")
 end)
 
 test("parse prefix ++ on member expression", function()
