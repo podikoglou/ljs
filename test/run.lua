@@ -26,6 +26,7 @@ describe("parser/constructors", "test.parser.constructors")
 describe("parser/integration", "test.parser.integration")
 describe("parser/this_expression", "test.parser.this_expression")
 describe("parser/error_handling", "test.parser.error_handling")
+describe("parser/member_literals", "test.parser.member_literals")
 
 describe("transpile/basics", "test.transpile.basics")
 describe("transpile/control_flow", "test.transpile.control_flow")
@@ -49,6 +50,7 @@ describe("transpile/object_prototype", "test.transpile.object_prototype")
 describe("transpile/array_prototype", "test.transpile.array_prototype")
 describe("transpile/function_objects", "test.transpile.function_objects")
 describe("transpile/continue", "test.transpile.continue")
+describe("transpile/member_literals", "test.transpile.member_literals")
 
 describe("codegen", "test.codegen")
 
