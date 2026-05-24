@@ -135,3 +135,63 @@ test("recursive function declaration works", function()
   ]])
   assert_eq(out, "120\n")
 end)
+
+-- ============================================================================
+-- Integration tests — Function.prototype.toString
+-- ============================================================================
+
+test("Function.prototype.toString returns native code representation", function()
+  local out = run_js([[
+    function foo() {}
+    console.log(foo.toString());
+  ]])
+  assert_eq(out, "function () { [native code] }\n")
+end)
+
+test("Function.prototype.toString on anonymous function", function()
+  local out = run_js([[
+    let f = function() {};
+    console.log(f.toString());
+  ]])
+  assert_eq(out, "function () { [native code] }\n")
+end)
+
+test("Function.prototype.toString on arrow function", function()
+  local out = run_js([[
+    let f = () => 1;
+    console.log(f.toString());
+  ]])
+  assert_eq(out, "function () { [native code] }\n")
+end)
+
+test("Function.prototype.toString on runtime function", function()
+  local out = run_js([[
+    console.log(console.log.toString());
+  ]])
+  assert_eq(out, "function () { [native code] }\n")
+end)
+
+test("Function.prototype.toString on method shorthand", function()
+  local out = run_js([[
+    let obj = { greet() { return "hi"; } };
+    console.log(obj.greet.toString());
+  ]])
+  assert_eq(out, "function () { [native code] }\n")
+end)
+
+test("Function.prototype.toString.call delegates correctly", function()
+  local out = run_js([[
+    function foo() {}
+    console.log(Function.prototype.toString.call(foo));
+  ]])
+  assert_eq(out, "function () { [native code] }\n")
+end)
+
+test("function inherits Object.prototype.hasOwnProperty (still works with toString)", function()
+  local out = run_js([[
+    function foo() {}
+    console.log(foo.hasOwnProperty("prototype"));
+    console.log(foo.toString());
+  ]])
+  assert_eq(out, "true\nfunction () { [native code] }\n")
+end)
