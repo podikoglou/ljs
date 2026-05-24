@@ -127,14 +127,14 @@ end)
 
 test("'hello'.toString() returns 'hello'", function()
   local out = run_js([[
-    console.log(("hello").toString());
+    console.log("hello".toString());
   ]])
   assert_eq(out, "hello\n")
 end)
 
 test("empty string toString returns empty string", function()
   local out = run_js([[
-    console.log(("").toString() === "");
+    console.log("".toString() === "");
   ]])
   assert_eq(out, "true\n")
 end)
@@ -152,14 +152,14 @@ end)
 
 test("true.toString() returns 'true'", function()
   local out = run_js([[
-    console.log((true).toString());
+    console.log(true.toString());
   ]])
   assert_eq(out, "true\n")
 end)
 
 test("false.toString() returns 'false'", function()
   local out = run_js([[
-    console.log((false).toString());
+    console.log(false.toString());
   ]])
   assert_eq(out, "false\n")
 end)
@@ -184,14 +184,14 @@ end)
 
 test("'hello'.valueOf() returns 'hello'", function()
   local out = run_js([[
-    console.log(("hello").valueOf());
+    console.log("hello".valueOf());
   ]])
   assert_eq(out, "hello\n")
 end)
 
 test("true.valueOf() returns true", function()
   local out = run_js([[
-    console.log((true).valueOf());
+    console.log(true.valueOf());
   ]])
   assert_eq(out, "true\n")
 end)
@@ -318,14 +318,14 @@ end)
 
 test("boxed string inherits Object.prototype.hasOwnProperty", function()
   local out = run_js([[
-    console.log(("hello").hasOwnProperty("toString"));
+    console.log("hello".hasOwnProperty("toString"));
   ]])
   assert_eq(out, "false\n")
 end)
 
 test("boxed boolean inherits Object.prototype.hasOwnProperty", function()
   local out = run_js([[
-    console.log((true).hasOwnProperty("toString"));
+    console.log(true.hasOwnProperty("toString"));
   ]])
   assert_eq(out, "false\n")
 end)
@@ -348,5 +348,251 @@ test("Boolean.prototype.constructor === Boolean", function()
   local out = run_js([[
     console.log(Boolean.prototype.constructor === Boolean);
   ]])
+  assert_eq(out, "true\n")
+end)
+
+-- ============================================================================
+-- Boolean constructor — type coercion (ECMA ToBoolean)
+-- ============================================================================
+
+test("Boolean() returns false (no args)", function()
+  local out = run_js([[ console.log(Boolean()); ]])
+  assert_eq(out, "false\n")
+end)
+
+test("Boolean(0) returns false", function()
+  local out = run_js([[ console.log(Boolean(0)); ]])
+  assert_eq(out, "false\n")
+end)
+
+test("Boolean(-1) returns true", function()
+  local out = run_js([[ console.log(Boolean(-1)); ]])
+  assert_eq(out, "true\n")
+end)
+
+test("Boolean(42) returns true", function()
+  local out = run_js([[ console.log(Boolean(42)); ]])
+  assert_eq(out, "true\n")
+end)
+
+test("Boolean('') returns false", function()
+  local out = run_js([[ console.log(Boolean("")); ]])
+  assert_eq(out, "false\n")
+end)
+
+test("Boolean('hello') returns true", function()
+  local out = run_js([[ console.log(Boolean("hello")); ]])
+  assert_eq(out, "true\n")
+end)
+
+test("Boolean(null) returns false", function()
+  local out = run_js([[ console.log(Boolean(null)); ]])
+  assert_eq(out, "false\n")
+end)
+
+test("Boolean(undefined) returns false", function()
+  local out = run_js([[ console.log(Boolean(undefined)); ]])
+  assert_eq(out, "false\n")
+end)
+
+test("Boolean({}) returns true", function()
+  local out = run_js([[ console.log(Boolean({})); ]])
+  assert_eq(out, "true\n")
+end)
+
+test("new Boolean(0).valueOf() returns false", function()
+  local out = run_js([[ console.log(new Boolean(0).valueOf()); ]])
+  assert_eq(out, "false\n")
+end)
+
+test("new Boolean('').valueOf() returns false", function()
+  local out = run_js([[ console.log(new Boolean("").valueOf()); ]])
+  assert_eq(out, "false\n")
+end)
+
+test("new Boolean(0).toString() returns 'false'", function()
+  local out = run_js([[ console.log(new Boolean(0).toString()); ]])
+  assert_eq(out, "false\n")
+end)
+
+-- ============================================================================
+-- Number constructor — type coercion (ECMA ToNumber)
+-- ============================================================================
+
+test("Number() returns 0 (no args)", function()
+  local out = run_js([[ console.log(Number()); ]])
+  assert_eq(out, "0\n")
+end)
+
+test("Number(true) returns 1", function()
+  local out = run_js([[ console.log(Number(true)); ]])
+  assert_eq(out, "1\n")
+end)
+
+test("Number(false) returns 0", function()
+  local out = run_js([[ console.log(Number(false)); ]])
+  assert_eq(out, "0\n")
+end)
+
+test("Number(null) returns 0", function()
+  local out = run_js([[ console.log(Number(null)); ]])
+  assert_eq(out, "0\n")
+end)
+
+test("Number('42') returns 42", function()
+  local out = run_js([[ console.log(Number("42")); ]])
+  assert_eq(out, "42\n")
+end)
+
+test("Number('') returns 0", function()
+  local out = run_js([[ console.log(Number("")); ]])
+  assert_eq(out, "0\n")
+end)
+
+test("typeof new Number() is 'object'", function()
+  local out = run_js([[ console.log(typeof new Number()); ]])
+  assert_eq(out, "object\n")
+end)
+
+test("new Number().valueOf() returns 0", function()
+  local out = run_js([[ console.log(new Number().valueOf()); ]])
+  assert_eq(out, "0\n")
+end)
+
+-- ============================================================================
+-- String constructor — type coercion (ECMA ToString)
+-- ============================================================================
+
+test("String() returns empty string (no args)", function()
+  local out = run_js([[ console.log(String() === ""); ]])
+  assert_eq(out, "true\n")
+end)
+
+test("String(0) returns '0'", function()
+  local out = run_js([[ console.log(String(0)); ]])
+  assert_eq(out, "0\n")
+end)
+
+test("String(42) returns '42'", function()
+  local out = run_js([[ console.log(String(42)); ]])
+  assert_eq(out, "42\n")
+end)
+
+test("String(true) returns 'true'", function()
+  local out = run_js([[ console.log(String(true)); ]])
+  assert_eq(out, "true\n")
+end)
+
+test("String(false) returns 'false'", function()
+  local out = run_js([[ console.log(String(false)); ]])
+  assert_eq(out, "false\n")
+end)
+
+test("typeof new String() is 'object'", function()
+  local out = run_js([[ console.log(typeof new String()); ]])
+  assert_eq(out, "object\n")
+end)
+
+test("new String().valueOf() returns empty string", function()
+  local out = run_js([[ console.log(new String().valueOf() === ""); ]])
+  assert_eq(out, "true\n")
+end)
+
+-- ============================================================================
+-- Number.prototype.toString — edge cases
+-- ============================================================================
+
+test("(3.14).toString() returns '3.14'", function()
+  local out = run_js([[ console.log((3.14).toString()); ]])
+  assert_eq(out, "3.14\n")
+end)
+
+test("(-3.14).toString() returns '-3.14'", function()
+  local out = run_js([[ console.log((-3.14).toString()); ]])
+  assert_eq(out, "-3.14\n")
+end)
+
+test("(100).toString() returns '100'", function()
+  local out = run_js([[ console.log((100).toString()); ]])
+  assert_eq(out, "100\n")
+end)
+
+-- ============================================================================
+-- Negative cases — null/undefined property access throws
+-- ============================================================================
+
+test("null.toString() throws error", function()
+  local out = run_js([[
+    try { null.toString(); console.log("no error"); }
+    catch(e) { console.log("error"); }
+  ]])
+  assert_eq(out, "error\n")
+end)
+
+test("undefined.toString() throws error", function()
+  local out = run_js([[
+    try { undefined.toString(); console.log("no error"); }
+    catch(e) { console.log("error"); }
+  ]])
+  assert_eq(out, "error\n")
+end)
+
+-- ============================================================================
+-- Chained / nested boxing
+-- ============================================================================
+
+test("Number(42).toString() — constructor returns primitive then re-boxes", function()
+  local out = run_js([[ console.log(Number(42).toString()); ]])
+  assert_eq(out, "42\n")
+end)
+
+test("String('a').valueOf() — constructor returns primitive then re-boxes", function()
+  local out = run_js([[ console.log(String("a").valueOf()); ]])
+  assert_eq(out, "a\n")
+end)
+
+test("Boolean(true).valueOf() — constructor returns primitive then re-boxes", function()
+  local out = run_js([[ console.log(Boolean(true).valueOf()); ]])
+  assert_eq(out, "true\n")
+end)
+
+-- ============================================================================
+-- Property set on primitive is silently ignored
+-- ============================================================================
+
+test("setting property on number primitive is silently ignored", function()
+  local out = run_js([[
+    let x = 42;
+    x.custom = "nope";
+    console.log(x.custom === undefined);
+  ]])
+  assert_eq(out, "true\n")
+end)
+
+test("setting property on string primitive is silently ignored", function()
+  local out = run_js([[
+    let s = "hello";
+    s.custom = "nope";
+    console.log(s.custom === undefined);
+  ]])
+  assert_eq(out, "true\n")
+end)
+
+-- ============================================================================
+-- Constructor identity on boxed objects
+-- ============================================================================
+
+test("new Number(1).constructor === Number", function()
+  local out = run_js([[ console.log(new Number(1).constructor === Number); ]])
+  assert_eq(out, "true\n")
+end)
+
+test("new String('a').constructor === String", function()
+  local out = run_js([[ console.log(new String("a").constructor === String); ]])
+  assert_eq(out, "true\n")
+end)
+
+test("new Boolean(true).constructor === Boolean", function()
+  local out = run_js([[ console.log(new Boolean(true).constructor === Boolean); ]])
   assert_eq(out, "true\n")
 end)
