@@ -154,10 +154,8 @@ test("parse typeof ++x (typeof of prefix update)", function()
   })
 end)
 
-test("parse ++typeof x (prefix increment of typeof result)", function()
-  assert_parse_ok("++typeof x;", {
-    A.expr_stmt(A.update("++", A.typeof_(A.id("x")), true)),
-  })
+test("error: ++typeof x (prefix increment of typeof result)", function()
+  assert_parse_fail("++typeof x;", "update")
 end)
 
 -- typeof in binary expressions
@@ -479,10 +477,8 @@ test("parse typeof x-- (typeof of postfix decrement)", function()
 end)
 
 -- typeof result in prefix decrement
-test("parse --typeof x (prefix decrement of typeof)", function()
-  assert_parse_ok("--typeof x;", {
-    A.expr_stmt(A.update("--", A.typeof_(A.id("x")), true)),
-  })
+test("error: --typeof x (prefix decrement of typeof)", function()
+  assert_parse_fail("--typeof x;", "update")
 end)
 
 -- typeof in complex expression

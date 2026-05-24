@@ -155,10 +155,8 @@ test("parse delete ++x (delete of prefix update)", function()
   })
 end)
 
-test("parse ++delete x (prefix increment of delete result)", function()
-  assert_parse_ok("++delete x;", {
-    A.expr_stmt(A.update("++", A.del(A.id("x")), true)),
-  })
+test("error: ++delete x (prefix increment of delete result)", function()
+  assert_parse_fail("++delete x;", "update")
 end)
 
 -- delete in binary expressions

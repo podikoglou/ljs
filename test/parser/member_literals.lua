@@ -282,9 +282,8 @@ test("error: null++ is invalid (postfix on null literal)", function()
   assert_parse_fail("null++;", nil)
 end)
 
-test("parse undefined++ (postfix on undefined, acts as identifier)", function()
-  local ast = parser.parse("undefined++;")
-  assert(ast, "expected parse to succeed")
+test("error: undefined++ is invalid (postfix increment on undefined literal)", function()
+  assert_parse_fail("undefined++;", "update")
 end)
 
 test("error: true-- is invalid (postfix decrement on boolean literal)", function()
