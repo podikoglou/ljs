@@ -2054,7 +2054,12 @@ function parse_primary_expression(stream)
       stream.advance()
       local expr = parse_expression(stream)
       stream.consume(TOKEN.RPAREN)
-      return parse_postfix(stream, expr)
+      local nu = expr.type == "NumberLiteral"
+        or expr.type == "StringLiteral"
+        or expr.type == "BooleanLiteral"
+        or expr.type == "NullLiteral"
+        or expr.type == "UndefinedLiteral"
+      return parse_postfix(stream, expr, nu)
     end
   elseif stream.is(TOKEN.LBRACKET) then
     return parse_postfix(stream, parse_array_literal(stream))
@@ -2093,7 +2098,7 @@ end
 -- @param stream (table) Token stream
 -- @param expr (table) The expression to apply postfix ops to
 -- @return (table) The resulting expression after all postfix ops
-function parse_postfix(stream, expr)
+function parse_postfix(stream, expr, no_update)
   while true do
     if stream.is(TOKEN.DOT) then
       stream.advance()
@@ -2125,12 +2130,14 @@ function parse_postfix(stream, expr)
   end
   -- Postfix ++/-- is checked once after the chain, not inside the loop,
   -- because it's not chainable: x++++ is not valid JS.
-  if stream.is(TOKEN.INCREMENT) then
-    stream.advance()
-    return update_expression("++", expr, false)
-  elseif stream.is(TOKEN.DECREMENT) then
-    stream.advance()
-    return update_expression("--", expr, false)
+  if not no_update then
+    if stream.is(TOKEN.INCREMENT) then
+      stream.advance()
+      return update_expression("++", expr, false)
+    elseif stream.is(TOKEN.DECREMENT) then
+      stream.advance()
+      return update_expression("--", expr, false)
+    end
   end
   return expr
 end
