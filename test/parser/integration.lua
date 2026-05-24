@@ -57,6 +57,38 @@ test("error: postfix on undefined literal", function()
   assert_parse_fail("undefined++;", nil)
 end)
 
+test("error: postfix on parenthesized number literal", function()
+  assert_parse_fail("(5)++;", nil)
+end)
+
+test("error: postfix on parenthesized boolean literal", function()
+  assert_parse_fail("(true)++;", nil)
+end)
+
+test("error: postfix on parenthesized null literal", function()
+  assert_parse_fail("(null)++;", nil)
+end)
+
+test("error: postfix on parenthesized string literal", function()
+  assert_parse_fail('("hello")++;', nil)
+end)
+
+test("error: postfix on parenthesized undefined literal", function()
+  assert_parse_fail("(undefined)++;", nil)
+end)
+
+test("error: postfix -- on parenthesized number literal", function()
+  assert_parse_fail("(5)--;", nil)
+end)
+
+test("error: postfix -- on parenthesized boolean literal", function()
+  assert_parse_fail("(true)--;", nil)
+end)
+
+test("error: postfix -- on parenthesized null literal", function()
+  assert_parse_fail("(null)--;", nil)
+end)
+
 test("parse postfix on parenthesized expression", function()
   local ast = parser.parse("(x)++;")
   assert(ast, "expected parse to succeed")
