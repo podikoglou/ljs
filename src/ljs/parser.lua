@@ -2104,11 +2104,13 @@ function parse_postfix(stream, expr, no_update)
       stream.advance()
       local prop_token = stream.consume_property_name()
       expr = member_expression(expr, identifier(prop_token.value, prop_token), false)
+      no_update = false
     elseif stream.is(TOKEN.LBRACKET) then
       stream.advance()
       local prop = parse_expression(stream)
       stream.consume(TOKEN.RBRACKET)
       expr = member_expression(expr, prop, true)
+      no_update = false
     elseif stream.is(TOKEN.LPAREN) then
       stream.advance()
       local args = {}
@@ -2124,6 +2126,7 @@ function parse_postfix(stream, expr, no_update)
       end
       stream.consume(TOKEN.RPAREN)
       expr = call_expression(expr, args)
+      no_update = true
     else
       break
     end
@@ -2138,6 +2141,13 @@ function parse_postfix(stream, expr, no_update)
       stream.advance()
       return update_expression("--", expr, false)
     end
+  elseif stream.is(TOKEN.INCREMENT) or stream.is(TOKEN.DECREMENT) then
+    local tok = stream.peek()
+    parse_error(
+      "Invalid update target: cannot use " .. tok.type .. " on this expression",
+      tok.line,
+      tok.col
+    )
   end
   return expr
 end
