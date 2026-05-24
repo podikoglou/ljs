@@ -9,15 +9,15 @@ local Array = _ljs_ctor(function(_ljs_this, ...)
   _ljs_this.length = n
 end)
 -- push supports multiple arguments (matching JS Array.prototype.push semantics).
-Array.prototype.push = function(_ljs_this, ...)
+Array.prototype.push = _ljs_fn(function(_ljs_this, ...)
   local n = select("#", ...)
   for i = 1, n do
     _ljs_this[_ljs_this.length + i] = select(i, ...)
   end
   _ljs_this.length = _ljs_this.length + n
   return _ljs_this.length
-end
-Array.prototype.pop = function(_ljs_this)
+end)
+Array.prototype.pop = _ljs_fn(function(_ljs_this)
   if _ljs_this.length == 0 then
     return nil
   end
@@ -25,14 +25,14 @@ Array.prototype.pop = function(_ljs_this)
   _ljs_this[_ljs_this.length] = nil
   _ljs_this.length = _ljs_this.length - 1
   return val
-end
+end)
 
 -- ---------------------------------------------------------------------------
 -- Array.prototype.join
 -- ---------------------------------------------------------------------------
 -- Converts each element to a string (using tostring; nil/undefined → ""),
 -- then concatenates with the given separator (default ",").
-Array.prototype.join = function(_ljs_this, sep)
+Array.prototype.join = _ljs_fn(function(_ljs_this, sep)
   if sep == nil then
     sep = ","
   end
@@ -49,15 +49,15 @@ Array.prototype.join = function(_ljs_this, sep)
     end
   end
   return table.concat(parts, sep)
-end
+end)
 
 -- ---------------------------------------------------------------------------
 -- Array.prototype.toString
 -- ---------------------------------------------------------------------------
 -- Per spec: calls .join(",") on this.
-Array.prototype.toString = function(_ljs_this)
+Array.prototype.toString = _ljs_fn(function(_ljs_this)
   return _ljs_call_member(_ljs_this, "join", ",")
-end
+end)
 
 -- ---------------------------------------------------------------------------
 -- Array.isArray
