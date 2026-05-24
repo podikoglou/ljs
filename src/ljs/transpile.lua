@@ -1206,6 +1206,7 @@ gen.MemberExpression = function(node, indent, ctx)
   else
     obj = emit(node.object, indent, ctx)
   end
+  obj = cg.call("_ljs_to_object", { obj })
   if node.computed then
     return cg.member_index(obj, member_key(node, indent, ctx))
   end
