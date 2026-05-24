@@ -2,6 +2,8 @@
 
 Every AST node is a Lua table with a `type` string field. This document covers every node type, its fields, and the JavaScript source that produces it.
 
+> **Location info:** Every node also has `line` (number, 1-based) and `col` (number, 1-based) fields representing the source position of the construct's first token. These are omitted from individual node tables below for brevity.
+
 > **Compatibility:** Transpilation requires Lua 5.2+ (uses `goto` for `continue` statements).
 
 ## Root

@@ -802,50 +802,63 @@ M.make_token_stream = make_token_stream
 --- @param name (string) Variable/parameter name
 --- @return table {type="Identifier", name=name}
 local function identifier(name, token)
-  return { type = "Identifier", name = name }
+  return { type = "Identifier", name = name, line = token.line, col = token.col }
 end
 
 --- @param value (number) Numeric value
 --- @return table {type="NumberLiteral", value=value}
 local function number_literal(value, token)
-  return { type = "NumberLiteral", value = value }
+  return { type = "NumberLiteral", value = value, line = token.line, col = token.col }
 end
 
 --- @param value (string) Unescaped string content
 --- @return table {type="StringLiteral", value=value}
 local function string_literal(value, token)
-  return { type = "StringLiteral", value = value }
+  return { type = "StringLiteral", value = value, line = token.line, col = token.col }
 end
 
 --- @param value (boolean) true or false
 --- @return table {type="BooleanLiteral", value=value}
 local function boolean_literal(value, token)
-  return { type = "BooleanLiteral", value = value }
+  return { type = "BooleanLiteral", value = value, line = token.line, col = token.col }
 end
 
 --- @return table {type="NullLiteral"}
 local function null_literal(token)
-  return { type = "NullLiteral" }
+  return { type = "NullLiteral", line = token.line, col = token.col }
 end
 
 --- @return table {type="UndefinedLiteral"}
 local function undefined_literal(token)
-  return { type = "UndefinedLiteral" }
+  return { type = "UndefinedLiteral", line = token.line, col = token.col }
 end
 
 --- @param operator (string) One of: + - * / % ** === !== < > <= >= && || in = += -= *= /= %= **= & | ^ << >> >>> &= |= ^= <<= >>= >>>=
 --- @param left (table) Left-hand AST expression
 --- @param right (table) Right-hand AST expression
 --- @return table {type="BinaryExpression", operator, left, right}
-local function binary_expression(operator, left, right)
-  return { type = "BinaryExpression", operator = operator, left = left, right = right }
+local function binary_expression(operator, left, right, token)
+  return {
+    type = "BinaryExpression",
+    operator = operator,
+    left = left,
+    right = right,
+    line = token.line,
+    col = token.col,
+  }
 end
 
 --- @param operator (string) "!" or "-" or "~"
 --- @param argument (table) The operand AST expression
 --- @return table {type="UnaryExpression", operator, argument}
-local function unary_expression(operator, argument)
-  return { type = "UnaryExpression", operator = operator, argument = argument }
+local function unary_expression(operator, argument, token)
+  return {
+    type = "UnaryExpression",
+    operator = operator,
+    argument = argument,
+    line = token.line,
+    col = token.col,
+  }
 end
 
 --- @param expr (table) AST expression node
@@ -876,48 +889,75 @@ end
 --- @param argument (table) The operand AST expression
 --- @param prefix (boolean) true for prefix (++x), false for postfix (x++)
 --- @return table {type="UpdateExpression", operator, argument, prefix}
-local function update_expression(operator, argument, prefix)
-  return { type = "UpdateExpression", operator = operator, argument = argument, prefix = prefix }
+local function update_expression(operator, argument, prefix, token)
+  return {
+    type = "UpdateExpression",
+    operator = operator,
+    argument = argument,
+    prefix = prefix,
+    line = token.line,
+    col = token.col,
+  }
 end
 
 --- @param argument (table) The operand AST expression
 --- @return table {type="DeleteExpression", argument}
-local function delete_expression(argument)
-  return { type = "DeleteExpression", argument = argument }
+local function delete_expression(argument, token)
+  return { type = "DeleteExpression", argument = argument, line = token.line, col = token.col }
 end
 
 --- @return table {type="ThisExpression"}
-local function this_expression()
-  return { type = "ThisExpression" }
+local function this_expression(token)
+  return { type = "ThisExpression", line = token.line, col = token.col }
 end
 
 --- @param argument (table) The operand AST expression
 --- @return table {type="TypeofExpression", argument}
-local function typeof_expression(argument)
-  return { type = "TypeofExpression", argument = argument }
+local function typeof_expression(argument, token)
+  return { type = "TypeofExpression", argument = argument, line = token.line, col = token.col }
 end
 
 --- @param callee (table) Constructor expression (Identifier or MemberExpression)
 --- @param arguments (table) Array of argument expressions
 --- @return table {type="NewExpression", callee, arguments}
-local function new_expression(callee, arguments)
-  return { type = "NewExpression", callee = callee, arguments = arguments }
+local function new_expression(callee, arguments, token)
+  return {
+    type = "NewExpression",
+    callee = callee,
+    arguments = arguments,
+    line = token.line,
+    col = token.col,
+  }
 end
 
 --- @param name (string) Class name (required for declarations)
 --- @param superClass (table|nil) Parent class expression, or nil
 --- @param body (table) Array of MethodDefinition nodes
 --- @return table {type="ClassDeclaration", name, superClass, body}
-local function class_declaration(name, superClass, body)
-  return { type = "ClassDeclaration", name = name, superClass = superClass, body = body }
+local function class_declaration(name, superClass, body, token)
+  return {
+    type = "ClassDeclaration",
+    name = name,
+    superClass = superClass,
+    body = body,
+    line = token.line,
+    col = token.col,
+  }
 end
 
 --- @param name (string|nil) Optional class name (nil for anonymous)
 --- @param superClass (table|nil) Parent class expression, or nil
 --- @param body (table) Array of MethodDefinition nodes
 --- @return table {type="ClassExpression", name, superClass, body}
-local function class_expression(name, superClass, body)
-  return { type = "ClassExpression", name = name, superClass = superClass, body = body }
+local function class_expression(name, superClass, body, token)
+  return {
+    type = "ClassExpression",
+    name = name,
+    superClass = superClass,
+    body = body,
+    line = token.line,
+    col = token.col,
+  }
 end
 
 --- @param kind (string) "constructor" or "method"
@@ -925,70 +965,118 @@ end
 --- @param value (table) FunctionExpression for the method body
 --- @param static_flag (boolean) true for static methods
 --- @return table {type="MethodDefinition", kind, key, value, static}
-local function method_definition(kind, key, value, static_flag)
-  return { type = "MethodDefinition", kind = kind, key = key, value = value, static = static_flag }
+local function method_definition(kind, key, value, static_flag, token)
+  return {
+    type = "MethodDefinition",
+    kind = kind,
+    key = key,
+    value = value,
+    static = static_flag,
+    line = token.line,
+    col = token.col,
+  }
 end
 
 --- @return table {type="SuperExpression"}
-local function super_expression()
-  return { type = "SuperExpression" }
+local function super_expression(token)
+  return { type = "SuperExpression", line = token.line, col = token.col }
 end
 
 --- @param test (table) Condition expression
 --- @param consequent (table) Expression if truthy
 --- @param alternate (table) Expression if falsy
 --- @return table {type="ConditionalExpression", test, consequent, alternate}
-local function conditional_expression(test, consequent, alternate)
+local function conditional_expression(test, consequent, alternate, token)
   return {
     type = "ConditionalExpression",
     test = test,
     consequent = consequent,
     alternate = alternate,
+    line = token.line,
+    col = token.col,
   }
 end
 
 --- @param callee (table) Expression being called
 --- @param arguments (table) Array of argument expressions
 --- @return table {type="CallExpression", callee, arguments}
-local function call_expression(callee, arguments)
-  return { type = "CallExpression", callee = callee, arguments = arguments }
+local function call_expression(callee, arguments, token)
+  return {
+    type = "CallExpression",
+    callee = callee,
+    arguments = arguments,
+    line = token.line,
+    col = token.col,
+  }
 end
 
 --- @param object (table) Object expression
 --- @param property (table) Property expression (Identifier or computed expression)
 --- @param computed (boolean) true for bracket notation obj[expr], false for dot notation obj.prop
 --- @return table {type="MemberExpression", object, property, computed}
-local function member_expression(object, property, computed)
-  return { type = "MemberExpression", object = object, property = property, computed = computed }
+local function member_expression(object, property, computed, token)
+  return {
+    type = "MemberExpression",
+    object = object,
+    property = property,
+    computed = computed,
+    line = token.line,
+    col = token.col,
+  }
 end
 
 --- @param kind (string) "let" or "const"
 --- @param declarations (table) Array of VariableDeclarator nodes
 --- @return table {type="VariableDeclaration", kind, declarations}
-local function variable_declaration(kind, declarations)
-  return { type = "VariableDeclaration", kind = kind, declarations = declarations }
+local function variable_declaration(kind, declarations, token)
+  return {
+    type = "VariableDeclaration",
+    kind = kind,
+    declarations = declarations,
+    line = token.line,
+    col = token.col,
+  }
 end
 
 --- @param name (table) Identifier node
 --- @param init (table|nil) Initializer expression, or nil
 --- @return table {type="VariableDeclarator", name, init}
-local function variable_declarator(name, init)
-  return { type = "VariableDeclarator", name = name, init = init }
+local function variable_declarator(name, init, token)
+  return {
+    type = "VariableDeclarator",
+    name = name,
+    init = init,
+    line = token.line,
+    col = token.col,
+  }
 end
 
 --- @param name (string) Function name
 --- @param params (table) Array of Identifier nodes
 --- @param body (table) BlockStatement node
 --- @return table {type="FunctionDeclaration", name, params, body}
-local function function_declaration(name, params, body)
-  return { type = "FunctionDeclaration", name = name, params = params, body = body }
+local function function_declaration(name, params, body, token)
+  return {
+    type = "FunctionDeclaration",
+    name = name,
+    params = params,
+    body = body,
+    line = token.line,
+    col = token.col,
+  }
 end
 
 --- @param params (table) Array of Identifier nodes
 --- @param body (table) BlockStatement node
 --- @return table {type="FunctionExpression", params, body}
-local function function_expression(params, body)
-  return { type = "FunctionExpression", params = params, body = body }
+local function function_expression(params, body, token)
+  return {
+    type = "FunctionExpression",
+    params = params,
+    body = body,
+    line = token.line,
+    col = token.col,
+  }
 end
 
 --- Arrow functions are desugared: expression bodies become BlockStatement
@@ -996,46 +1084,73 @@ end
 --- @param params (table) Array of Identifier nodes
 --- @param body (table) BlockStatement (always, even for expression bodies)
 --- @return table {type="ArrowFunctionExpression", params, body}
-local function arrow_function_expression(params, body)
-  return { type = "ArrowFunctionExpression", params = params, body = body }
+local function arrow_function_expression(params, body, token)
+  return {
+    type = "ArrowFunctionExpression",
+    params = params,
+    body = body,
+    line = token.line,
+    col = token.col,
+  }
 end
 
 --- @param test (table) Condition expression
 --- @param consequent (table) Statement to run if truthy
 --- @param alternate (table|nil) else branch, or nil
 --- @return table {type="IfStatement", test, consequent, alternate}
-local function if_statement(test, consequent, alternate)
-  return { type = "IfStatement", test = test, consequent = consequent, alternate = alternate }
+local function if_statement(test, consequent, alternate, token)
+  return {
+    type = "IfStatement",
+    test = test,
+    consequent = consequent,
+    alternate = alternate,
+    line = token.line,
+    col = token.col,
+  }
 end
 
 --- @param test (table) Condition expression
 --- @param body (table) Statement to repeat
 --- @return table {type="WhileStatement", test, body}
-local function while_statement(test, body)
-  return { type = "WhileStatement", test = test, body = body }
+local function while_statement(test, body, token)
+  return { type = "WhileStatement", test = test, body = body, line = token.line, col = token.col }
 end
 
 --- @param body (table) Statement to repeat
 --- @param test (table) Condition expression
 --- @return table {type="DoWhileStatement", body, test}
-local function do_while_statement(body, test)
-  return { type = "DoWhileStatement", body = body, test = test }
+local function do_while_statement(body, test, token)
+  return { type = "DoWhileStatement", body = body, test = test, line = token.line, col = token.col }
 end
 
 --- @param left (table) VariableDeclaration or expression (the loop variable)
 --- @param right (table) Iterable expression
 --- @param body (table) Statement to repeat
 --- @return table {type="ForOfStatement", left, right, body}
-local function for_of_statement(left, right, body)
-  return { type = "ForOfStatement", left = left, right = right, body = body }
+local function for_of_statement(left, right, body, token)
+  return {
+    type = "ForOfStatement",
+    left = left,
+    right = right,
+    body = body,
+    line = token.line,
+    col = token.col,
+  }
 end
 
 --- @param left (table) VariableDeclaration or expression (the loop variable)
 --- @param right (table) Object expression to iterate over
 --- @param body (table) Statement to repeat
 --- @return table {type="ForInStatement", left, right, body}
-local function for_in_statement(left, right, body)
-  return { type = "ForInStatement", left = left, right = right, body = body }
+local function for_in_statement(left, right, body, token)
+  return {
+    type = "ForInStatement",
+    left = left,
+    right = right,
+    body = body,
+    line = token.line,
+    col = token.col,
+  }
 end
 
 --- @param init (table|nil) Initialization expression or VariableDeclaration
@@ -1043,91 +1158,130 @@ end
 --- @param update (table|nil) Update expression evaluated after each iteration
 --- @param body (table) Statement to repeat
 --- @return table {type="ForStatement", init, test, update, body}
-local function for_statement(init, test, update, body)
-  return { type = "ForStatement", init = init, test = test, update = update, body = body }
+local function for_statement(init, test, update, body, token)
+  return {
+    type = "ForStatement",
+    init = init,
+    test = test,
+    update = update,
+    body = body,
+    line = token.line,
+    col = token.col,
+  }
 end
 
 --- @param body (table) Array of statement nodes
 --- @return table {type="BlockStatement", body}
-local function block_statement(body)
-  return { type = "BlockStatement", body = body }
+local function block_statement(body, token)
+  return { type = "BlockStatement", body = body, line = token.line, col = token.col }
 end
 
 --- @param expression (table) The expression being evaluated for side effects
 --- @return table {type="ExpressionStatement", expression}
-local function expression_statement(expression)
-  return { type = "ExpressionStatement", expression = expression }
+local function expression_statement(expression, token)
+  return {
+    type = "ExpressionStatement",
+    expression = expression,
+    line = token.line,
+    col = token.col,
+  }
 end
 
 --- @param argument (table) The value to throw
 --- @return table {type="ThrowStatement", argument}
-local function throw_statement(argument)
-  return { type = "ThrowStatement", argument = argument }
+local function throw_statement(argument, token)
+  return { type = "ThrowStatement", argument = argument, line = token.line, col = token.col }
 end
 
 --- @param block (table) BlockStatement (the try body)
 --- @param handler (table|nil) CatchClause node, or nil
 --- @param finalizer (table|nil) BlockStatement for finally body, or nil
 --- @return table {type="TryStatement", block, handler, finalizer}
-local function try_statement(block, handler, finalizer)
-  return { type = "TryStatement", block = block, handler = handler, finalizer = finalizer }
+local function try_statement(block, handler, finalizer, token)
+  return {
+    type = "TryStatement",
+    block = block,
+    handler = handler,
+    finalizer = finalizer,
+    line = token.line,
+    col = token.col,
+  }
 end
 
 --- @param param (table) Identifier node for the caught error
 --- @param body (table) BlockStatement for catch body
 --- @return table {type="CatchClause", param, body}
-local function catch_clause(param, body)
-  return { type = "CatchClause", param = param, body = body }
+local function catch_clause(param, body, token)
+  return { type = "CatchClause", param = param, body = body, line = token.line, col = token.col }
 end
 
 --- @param argument (table|nil) Return value expression, or nil for bare return
 --- @return table {type="ReturnStatement", argument}
-local function return_statement(argument)
-  return { type = "ReturnStatement", argument = argument }
+local function return_statement(argument, token)
+  return { type = "ReturnStatement", argument = argument, line = token.line, col = token.col }
 end
 
 --- @param properties (table) Array of Property nodes
 --- @return table {type="ObjectExpression", properties}
-local function object_expression(properties)
-  return { type = "ObjectExpression", properties = properties }
+local function object_expression(properties, token)
+  return { type = "ObjectExpression", properties = properties, line = token.line, col = token.col }
 end
 
 --- @param key (table) Identifier or StringLiteral node
 --- @param value (table) Expression node
 --- @param computed (boolean) true if key is a computed [expr] property
 --- @return table {type="Property", key, value, computed}
-local function property(key, value, computed)
-  return { type = "Property", key = key, value = value, computed = computed or false }
+local function property(key, value, computed, token)
+  return {
+    type = "Property",
+    key = key,
+    value = value,
+    computed = computed or false,
+    line = token.line,
+    col = token.col,
+  }
 end
 
 --- @param elements (table) Array of expression nodes
 --- @return table {type="ArrayExpression", elements}
-local function array_expression(elements)
-  return { type = "ArrayExpression", elements = elements }
+local function array_expression(elements, token)
+  return { type = "ArrayExpression", elements = elements, line = token.line, col = token.col }
 end
 
 --- @param discriminant (table) Expression being matched against
 --- @param cases (table) Array of SwitchCase nodes
 --- @return table {type="SwitchStatement", discriminant, cases}
-local function switch_statement(discriminant, cases)
-  return { type = "SwitchStatement", discriminant = discriminant, cases = cases }
+local function switch_statement(discriminant, cases, token)
+  return {
+    type = "SwitchStatement",
+    discriminant = discriminant,
+    cases = cases,
+    line = token.line,
+    col = token.col,
+  }
 end
 
 --- @param test (table|nil) Case value expression, or nil for default
 --- @param consequent (table) Array of statement nodes in this case
 --- @return table {type="SwitchCase", test, consequent}
-local function switch_case(test, consequent)
-  return { type = "SwitchCase", test = test, consequent = consequent }
+local function switch_case(test, consequent, token)
+  return {
+    type = "SwitchCase",
+    test = test,
+    consequent = consequent,
+    line = token.line,
+    col = token.col,
+  }
 end
 
 --- @return table {type="BreakStatement"}
-local function break_statement()
-  return { type = "BreakStatement" }
+local function break_statement(token)
+  return { type = "BreakStatement", line = token.line, col = token.col }
 end
 
 --- @return table {type="ContinueStatement"}
-local function continue_statement()
-  return { type = "ContinueStatement" }
+local function continue_statement(token)
+  return { type = "ContinueStatement", line = token.line, col = token.col }
 end
 
 -- ============================================================================
@@ -1189,7 +1343,7 @@ function M.parse(source)
     while not stream.eof() do
       table.insert(stmts, parse_statement(stream))
     end
-    return { type = "Program", body = stmts }
+    return { type = "Program", body = stmts, line = 1, col = 1 }
   end)
 
   if ok then
@@ -1216,7 +1370,7 @@ function M.parse_tokens(tokens)
     while not stream.eof() do
       table.insert(stmts, parse_statement(stream))
     end
-    return { type = "Program", body = stmts }
+    return { type = "Program", body = stmts, line = 1, col = 1 }
   end)
 
   if ok then
@@ -1295,24 +1449,25 @@ function parse_statement(stream)
     if banned_err then
       error(banned_err, 0)
     end
+    local expr_token = stream.peek()
     local expr = parse_expression(stream)
     if stream.is(TOKEN.SEMICOLON) then
       stream.advance()
     end
-    return expression_statement(expr)
+    return expression_statement(expr, expr_token)
   end
 end
 
 --- Parse a block: { stmt1; stmt2; ... }
 -- Consumes the opening and closing braces.
 function parse_block_statement(stream)
-  stream.consume(TOKEN.LBRACE)
+  local lbrace = stream.consume(TOKEN.LBRACE)
   local body = {}
   while not stream.is(TOKEN.RBRACE) and not stream.eof() do
     table.insert(body, parse_statement(stream))
   end
   stream.consume(TOKEN.RBRACE)
-  return block_statement(body)
+  return block_statement(body, lbrace)
 end
 
 --- Parse variable declaration: let/const/var x = expr, y = expr;
@@ -1350,7 +1505,7 @@ function parse_variable_declaration(stream, no_in)
     stream.advance()
   end
 
-  return variable_declaration(kind, declarations)
+  return variable_declaration(kind, declarations, kind_token)
 end
 
 --- Parse a single variable declarator: name or name = init
@@ -1366,13 +1521,13 @@ function parse_variable_declarator(stream, no_in)
     init = parse_expression(stream, no_in)
   end
 
-  return variable_declarator(name, init)
+  return variable_declarator(name, init, token)
 end
 
 --- Parse if/else: if (test) consequent [else alternate]
 -- The consequent and alternate are single statements (can be blocks).
 function parse_if_statement(stream)
-  stream.consume(TOKEN.IF)
+  local kw = stream.consume(TOKEN.IF)
   stream.consume(TOKEN.LPAREN)
   local test = parse_expression(stream)
   stream.consume(TOKEN.RPAREN)
@@ -1385,17 +1540,17 @@ function parse_if_statement(stream)
     alternate = parse_statement(stream)
   end
 
-  return if_statement(test, consequent, alternate)
+  return if_statement(test, consequent, alternate, kw)
 end
 
 --- Parse while: while (test) body
 function parse_while_statement(stream)
-  stream.consume(TOKEN.WHILE)
+  local kw = stream.consume(TOKEN.WHILE)
   stream.consume(TOKEN.LPAREN)
   local test = parse_expression(stream)
   stream.consume(TOKEN.RPAREN)
   local body = parse_statement(stream)
-  return while_statement(test, body)
+  return while_statement(test, body, kw)
 end
 
 --- Parse do...while: do body while (test);
@@ -1404,7 +1559,7 @@ end
 -- @return (table|nil) DoWhileStatement AST node, or nil on error
 -- @return (string|nil) Error message if parsing failed
 function parse_do_while_statement(stream)
-  stream.consume(TOKEN.DO)
+  local kw = stream.consume(TOKEN.DO)
   local body = parse_statement(stream)
   stream.consume(TOKEN.WHILE)
   stream.consume(TOKEN.LPAREN)
@@ -1413,32 +1568,33 @@ function parse_do_while_statement(stream)
   if stream.is(TOKEN.SEMICOLON) then
     stream.advance()
   end
-  return do_while_statement(body, test)
+  return do_while_statement(body, test, kw)
 end
 
 --- Parse for statement: dispatches between for...of, for...in, and C-style for(;;).
 function parse_for_statement(stream)
-  stream.consume(TOKEN.FOR)
+  local kw = stream.consume(TOKEN.FOR)
   stream.consume(TOKEN.LPAREN)
 
   if stream.is(TOKEN.SEMICOLON) then
-    return parse_c_style_for(stream, nil)
+    return parse_c_style_for(stream, nil, kw)
   end
 
   if stream.is(TOKEN.LET) or stream.is(TOKEN.CONST) then
     local decl = parse_variable_declaration(stream, true)
 
     if stream.is(TOKEN.OF) then
-      return parse_for_of_from_left(stream, decl)
+      return parse_for_of_from_left(stream, decl, kw)
     end
 
     if stream.is(TOKEN.IN) then
-      return parse_for_in_from_left(stream, decl)
+      return parse_for_in_from_left(stream, decl, kw)
     end
 
-    return parse_c_style_for_from_test(stream, decl)
+    return parse_c_style_for_from_test(stream, decl, kw)
   end
 
+  local expr_token = stream.peek()
   local expr = parse_expression(stream, true)
 
   if stream.is(TOKEN.OF) then
@@ -1446,7 +1602,7 @@ function parse_for_statement(stream)
     local right = parse_expression(stream)
     stream.consume(TOKEN.RPAREN)
     local body = parse_statement(stream)
-    return for_of_statement(expr, right, body)
+    return for_of_statement(expr, right, body, kw)
   end
 
   if stream.is(TOKEN.IN) then
@@ -1454,28 +1610,28 @@ function parse_for_statement(stream)
     local right = parse_expression(stream)
     stream.consume(TOKEN.RPAREN)
     local body = parse_statement(stream)
-    return for_in_statement(expr, right, body)
+    return for_in_statement(expr, right, body, kw)
   end
 
-  local init = expression_statement(expr)
+  local init = expression_statement(expr, expr_token)
   stream.consume(TOKEN.SEMICOLON)
-  return parse_c_style_for_from_test(stream, init)
+  return parse_c_style_for_from_test(stream, init, kw)
 end
 
 --- Parse C-style for loop starting from the first semicolon (no init clause).
 -- @param stream (table) Token stream
 -- @param init (table|nil) Initialization expression or nil
 -- @return (table|nil) ForStatement AST node, or nil on error
-function parse_c_style_for(stream, init)
+function parse_c_style_for(stream, init, kw)
   stream.consume(TOKEN.SEMICOLON)
-  return parse_c_style_for_from_test(stream, init)
+  return parse_c_style_for_from_test(stream, init, kw)
 end
 
 --- Parse C-style for loop test and update clauses after init has been consumed.
 -- @param stream (table) Token stream
 -- @param init (table|nil) Initialization expression or VariableDeclaration
 -- @return (table|nil) ForStatement AST node, or nil on error
-function parse_c_style_for_from_test(stream, init)
+function parse_c_style_for_from_test(stream, init, kw)
   local test
   if not stream.is(TOKEN.SEMICOLON) then
     test = parse_expression(stream)
@@ -1489,7 +1645,7 @@ function parse_c_style_for_from_test(stream, init)
   stream.consume(TOKEN.RPAREN)
 
   local body = parse_statement(stream)
-  return for_statement(init, test, update, body)
+  return for_statement(init, test, update, body, kw)
 end
 
 --- Parse for...of loop after the left-hand variable declaration has been consumed.
@@ -1497,12 +1653,12 @@ end
 -- @param left (table) VariableDeclaration for the loop variable
 -- @return (table|nil) ForOfStatement AST node, or nil on error
 -- @return (string|nil) Error message if parsing failed
-function parse_for_of_from_left(stream, left)
+function parse_for_of_from_left(stream, left, kw)
   stream.consume(TOKEN.OF)
   local right = parse_expression(stream)
   stream.consume(TOKEN.RPAREN)
   local body = parse_statement(stream)
-  return for_of_statement(left, right, body)
+  return for_of_statement(left, right, body, kw)
 end
 
 --- Parse for...in loop after the left-hand variable declaration has been consumed.
@@ -1511,7 +1667,7 @@ end
 -- @param left (table) VariableDeclaration for the loop variable
 -- @return (table|nil) ForInStatement AST node, or nil on error
 -- @return (string|nil) Error message if parsing failed
-function parse_for_in_from_left(stream, left)
+function parse_for_in_from_left(stream, left, kw)
   if #left.declarations ~= 1 then
     parse_error("for-in loop requires a single variable", stream.peek().line, stream.peek().col)
   end
@@ -1526,33 +1682,34 @@ function parse_for_in_from_left(stream, left)
   local right = parse_expression(stream)
   stream.consume(TOKEN.RPAREN)
   local body = parse_statement(stream)
-  return for_in_statement(left, right, body)
+  return for_in_statement(left, right, body, kw)
 end
 
 --- Parse throw: throw expression;
 function parse_throw_statement(stream)
-  stream.consume(TOKEN.THROW)
+  local kw = stream.consume(TOKEN.THROW)
   local argument = parse_expression(stream)
   if stream.is(TOKEN.SEMICOLON) then
     stream.advance()
   end
-  return throw_statement(argument)
+  return throw_statement(argument, kw)
 end
 
 --- Parse try/catch/finally: try { ... } catch (param) { ... } finally { ... }
 -- At least one of catch or finally must be present.
 function parse_try_statement(stream)
-  stream.consume(TOKEN.TRY)
+  local kw = stream.consume(TOKEN.TRY)
   local block = parse_block_statement(stream)
 
   local handler = nil
   if stream.is(TOKEN.CATCH) then
-    stream.advance()
+    local catch_kw = stream.advance()
     stream.consume(TOKEN.LPAREN)
-    local param = identifier(stream.consume(TOKEN.IDENTIFIER).value)
+    local param_token = stream.consume(TOKEN.IDENTIFIER)
+    local param = identifier(param_token.value, param_token)
     stream.consume(TOKEN.RPAREN)
     local catch_body = parse_block_statement(stream)
-    handler = catch_clause(param, catch_body)
+    handler = catch_clause(param, catch_body, catch_kw)
   end
 
   local finalizer = nil
@@ -1565,13 +1722,13 @@ function parse_try_statement(stream)
     parse_error("Expected catch or finally after try block", stream.peek().line, stream.peek().col)
   end
 
-  return try_statement(block, handler, finalizer)
+  return try_statement(block, handler, finalizer, kw)
 end
 
 --- Parse function declaration: function name(params) { body }
 -- Always has a name (unlike function expressions which can be anonymous).
 function parse_function_declaration(stream)
-  stream.consume(TOKEN.FUNCTION)
+  local kw = stream.consume(TOKEN.FUNCTION)
   local name_token = stream.consume(TOKEN.IDENTIFIER)
   local name = name_token.value
 
@@ -1580,7 +1737,7 @@ function parse_function_declaration(stream)
   stream.consume(TOKEN.RPAREN)
 
   local body = parse_block_statement(stream)
-  return function_declaration(name, params, body)
+  return function_declaration(name, params, body, kw)
 end
 
 --- Parse class body: { constructor(){} method(){} static fn(){} }
@@ -1602,15 +1759,16 @@ function parse_class_body(stream)
       end
     end
     local key
+    local key_token
     local kind = "method"
     if stream.is_property_name() then
-      local key_token = stream.advance()
+      key_token = stream.advance()
       key = identifier(key_token.value, key_token)
       if key_token.value == "constructor" then
         kind = "constructor"
       end
     elseif stream.is(TOKEN.STRING) then
-      local key_token = stream.advance()
+      key_token = stream.advance()
       key = string_literal(key_token.value, key_token)
     else
       parse_error("Expected method name in class body", stream.peek().line, stream.peek().col)
@@ -1619,16 +1777,12 @@ function parse_class_body(stream)
     local params = parse_parameters(stream)
     stream.consume(TOKEN.RPAREN)
     local body = parse_block_statement(stream)
-    local fn = {
-      type = "FunctionExpression",
-      params = params,
-      body = body,
-      is_method = true,
-    }
+    local fn = function_expression(params, body, key_token)
+    fn.is_method = true
     if kind == "constructor" then
       fn.is_method = false
     end
-    table.insert(methods, method_definition(kind, key, fn, is_static))
+    table.insert(methods, method_definition(kind, key, fn, is_static, key_token))
   end
   stream.consume(TOKEN.RBRACE)
   return methods
@@ -1639,7 +1793,7 @@ end
 -- @param stream (table) Token stream
 -- @return table ClassDeclaration AST node
 function parse_class_declaration(stream)
-  stream.consume(TOKEN.CLASS)
+  local kw = stream.consume(TOKEN.CLASS)
   local name_token = stream.consume(TOKEN.IDENTIFIER)
   local name = name_token.value
   local superClass = nil
@@ -1648,7 +1802,7 @@ function parse_class_declaration(stream)
     superClass = parse_expression(stream)
   end
   local body = parse_class_body(stream)
-  return class_declaration(name, superClass, body)
+  return class_declaration(name, superClass, body, kw)
 end
 
 --- Parse class expression: class [Name] [extends Super] { body }
@@ -1657,7 +1811,7 @@ end
 -- @param stream (table) Token stream
 -- @return table ClassExpression AST node
 function parse_class_expression(stream)
-  stream.consume(TOKEN.CLASS)
+  local kw = stream.consume(TOKEN.CLASS)
   local name = nil
   if stream.is(TOKEN.IDENTIFIER) then
     local next_tok = stream.peek_n(2)
@@ -1674,14 +1828,14 @@ function parse_class_expression(stream)
     superClass = parse_expression(stream)
   end
   local body = parse_class_body(stream)
-  return class_expression(name, superClass, body)
+  return class_expression(name, superClass, body, kw)
 end
 
 --- Parse return: return expression?;
 -- Bare return (no expression) is allowed — argument will be nil.
 -- Heuristic: if next token is ; or }, there's no expression.
 function parse_return_statement(stream)
-  stream.consume(TOKEN.RETURN)
+  local kw = stream.consume(TOKEN.RETURN)
   local argument = nil
   if not stream.is(TOKEN.SEMICOLON) and not stream.is(TOKEN.RBRACE) then
     argument = parse_expression(stream)
@@ -1689,12 +1843,12 @@ function parse_return_statement(stream)
   if stream.is(TOKEN.SEMICOLON) then
     stream.advance()
   end
-  return return_statement(argument)
+  return return_statement(argument, kw)
 end
 
 --- Parse switch: switch (expr) { case val: stmts default: stmts }
 function parse_switch_statement(stream)
-  stream.consume(TOKEN.SWITCH)
+  local kw = stream.consume(TOKEN.SWITCH)
   stream.consume(TOKEN.LPAREN)
   local discriminant = parse_expression(stream)
   stream.consume(TOKEN.RPAREN)
@@ -1705,16 +1859,17 @@ function parse_switch_statement(stream)
 
   while not stream.is(TOKEN.RBRACE) and not stream.eof() do
     local test = nil
+    local case_token
 
     if stream.is(TOKEN.CASE) then
-      stream.advance()
+      case_token = stream.advance()
       test = parse_expression(stream)
     elseif stream.is(TOKEN.DEFAULT) then
       if has_default then
         parse_error("Duplicate default clause", stream.peek().line, stream.peek().col)
       end
       has_default = true
-      stream.advance()
+      case_token = stream.advance()
     else
       parse_error(
         string.format("Expected case or default, got %s", stream.peek().type),
@@ -1735,29 +1890,29 @@ function parse_switch_statement(stream)
       table.insert(consequent, parse_statement(stream))
     end
 
-    table.insert(cases, switch_case(test, consequent))
+    table.insert(cases, switch_case(test, consequent, case_token))
   end
 
   stream.consume(TOKEN.RBRACE)
-  return switch_statement(discriminant, cases)
+  return switch_statement(discriminant, cases, kw)
 end
 
 --- Parse break: break ;
 function parse_break_statement(stream)
-  stream.consume(TOKEN.BREAK)
+  local kw = stream.consume(TOKEN.BREAK)
   if stream.is(TOKEN.SEMICOLON) then
     stream.advance()
   end
-  return break_statement()
+  return break_statement(kw)
 end
 
 --- Parse continue: continue ;
 function parse_continue_statement(stream)
-  stream.consume(TOKEN.CONTINUE)
+  local kw = stream.consume(TOKEN.CONTINUE)
   if stream.is(TOKEN.SEMICOLON) then
     stream.advance()
   end
-  return continue_statement()
+  return continue_statement(kw)
 end
 
 --- Parse a comma-separated list of identifier parameters.
@@ -1892,22 +2047,22 @@ function parse_binary_expression(stream, min_precedence, no_in)
     then
       stream.advance()
       local right = parse_expression(stream, no_in)
-      left = binary_expression(op, left, right)
+      left = binary_expression(op, left, right, op_token)
     elseif op == TOKEN.STARSTAR then
       stream.advance()
       local right = parse_binary_expression(stream, precedence, no_in)
-      left = binary_expression(op, left, right)
+      left = binary_expression(op, left, right, op_token)
     elseif op == TOKEN.QUESTION then
       stream.advance()
       local consequent = parse_expression(stream, no_in)
       stream.consume(TOKEN.COLON)
       local alternate = parse_expression(stream, no_in)
-      left = conditional_expression(left, consequent, alternate)
+      left = conditional_expression(left, consequent, alternate, op_token)
     else
       stream.advance()
       local next_min = precedence + 0.01
       local right = parse_binary_expression(stream, next_min, no_in)
-      left = binary_expression(op, left, right)
+      left = binary_expression(op, left, right, op_token)
     end
   end
 
@@ -1931,22 +2086,22 @@ function parse_unary_expression(stream)
       or op == TOKEN.TILDE and "~"
       or op == TOKEN.PLUS and "+"
       or "-"
-    return unary_expression(op_str, argument)
+    return unary_expression(op_str, argument, op_token)
   elseif stream.is(TOKEN.INCREMENT) or stream.is(TOKEN.DECREMENT) then
     local op_token = stream.advance()
     local argument = parse_unary_expression(stream)
     check_update_target(argument, op_token)
-    return update_expression(op_token.type, argument, true)
+    return update_expression(op_token.type, argument, true, op_token)
   elseif stream.is(TOKEN.DELETE) then
-    stream.advance()
+    local kw = stream.advance()
     local argument = parse_unary_expression(stream)
-    return delete_expression(argument)
+    return delete_expression(argument, kw)
   elseif stream.is(TOKEN.TYPEOF) then
-    stream.advance()
+    local kw = stream.advance()
     local argument = parse_unary_expression(stream)
-    return typeof_expression(argument)
+    return typeof_expression(argument, kw)
   elseif stream.is(TOKEN.NEW) then
-    stream.advance()
+    local new_kw = stream.advance()
     if stream.is(TOKEN.NEW) then
       local inner = parse_unary_expression(stream)
       return parse_postfix(stream, inner, true)
@@ -1959,14 +2114,14 @@ function parse_unary_expression(stream)
     local callee = identifier(token.value, token)
     while stream.is(TOKEN.DOT) or stream.is(TOKEN.LBRACKET) do
       if stream.is(TOKEN.DOT) then
-        stream.advance()
+        local dot = stream.advance()
         local prop_token = stream.consume_property_name()
-        callee = member_expression(callee, identifier(prop_token.value, prop_token), false)
+        callee = member_expression(callee, identifier(prop_token.value, prop_token), false, dot)
       else
-        stream.advance()
+        local lbracket = stream.advance()
         local prop = parse_expression(stream)
         stream.consume(TOKEN.RBRACKET)
-        callee = member_expression(callee, prop, true)
+        callee = member_expression(callee, prop, true, lbracket)
       end
     end
     local args = {}
@@ -1984,7 +2139,7 @@ function parse_unary_expression(stream)
       end
       stream.consume(TOKEN.RPAREN)
     end
-    return parse_postfix(stream, new_expression(callee, args), true)
+    return parse_postfix(stream, new_expression(callee, args, new_kw), true)
   end
   return parse_primary_expression(stream)
 end
@@ -2021,10 +2176,10 @@ function parse_primary_expression(stream)
     return parse_postfix(stream, undefined_literal(token), true)
   elseif stream.is(TOKEN.THIS) then
     stream.advance()
-    return parse_postfix(stream, this_expression(), true)
+    return parse_postfix(stream, this_expression(token), true)
   elseif stream.is(TOKEN.SUPER) then
     stream.advance()
-    return parse_postfix(stream, super_expression(), true)
+    return parse_postfix(stream, super_expression(token), true)
   elseif stream.is(TOKEN.IDENTIFIER) then
     return parse_identifier_or_call(stream)
   elseif stream.is(TOKEN.LPAREN) then
@@ -2055,12 +2210,14 @@ function parse_primary_expression(stream)
     end
 
     if found_arrow then
+      local arrow_token = token
       stream.advance()
       local params = {}
       if not stream.is(TOKEN.RPAREN) then
         while true do
           if stream.is(TOKEN.IDENTIFIER) then
-            table.insert(params, identifier(stream.advance().value))
+            local id_token = stream.advance()
+            table.insert(params, identifier(id_token.value, id_token))
           else
             parse_error(
               "Arrow function parameters must be identifiers",
@@ -2077,7 +2234,7 @@ function parse_primary_expression(stream)
       stream.consume(TOKEN.RPAREN)
       stream.consume(TOKEN.ARROW)
       local body = parse_arrow_function_body(stream)
-      return arrow_function_expression(params, body)
+      return arrow_function_expression(params, body, arrow_token)
     else
       stream.advance()
       local expr = parse_expression(stream)
@@ -2109,8 +2266,10 @@ function parse_arrow_function_body(stream)
   if stream.is(TOKEN.LBRACE) then
     return parse_block_statement(stream)
   else
+    local expr_token = stream.peek()
     local expr = parse_expression(stream)
-    return block_statement({ return_statement(expr) })
+    local ret = return_statement(expr, expr_token)
+    return block_statement({ ret }, expr_token)
   end
 end
 
@@ -2124,18 +2283,18 @@ end
 function parse_postfix(stream, expr, no_update)
   while true do
     if stream.is(TOKEN.DOT) then
-      stream.advance()
+      local dot = stream.advance()
       local prop_token = stream.consume_property_name()
-      expr = member_expression(expr, identifier(prop_token.value, prop_token), false)
+      expr = member_expression(expr, identifier(prop_token.value, prop_token), false, dot)
       no_update = false
     elseif stream.is(TOKEN.LBRACKET) then
-      stream.advance()
+      local lbracket = stream.advance()
       local prop = parse_expression(stream)
       stream.consume(TOKEN.RBRACKET)
-      expr = member_expression(expr, prop, true)
+      expr = member_expression(expr, prop, true, lbracket)
       no_update = false
     elseif stream.is(TOKEN.LPAREN) then
-      stream.advance()
+      local lparen = stream.advance()
       local args = {}
       if not stream.is(TOKEN.RPAREN) then
         while true do
@@ -2148,22 +2307,24 @@ function parse_postfix(stream, expr, no_update)
         end
       end
       stream.consume(TOKEN.RPAREN)
-      expr = call_expression(expr, args)
+      expr = call_expression(expr, args, lparen)
       no_update = false
     else
       break
     end
   end
+  -- Postfix ++/-- is checked once after the chain, not inside the loop,
+  -- because it's not chainable: x++++ is not valid JS.
   if stream.is(TOKEN.INCREMENT) or stream.is(TOKEN.DECREMENT) then
-    local tok = stream.advance()
+    local op_token = stream.advance()
     if no_update then
       parse_error(
-        "Invalid update target: cannot use " .. tok.type .. " on this expression",
-        tok.line,
-        tok.col
+        "Invalid update target: cannot use " .. op_token.type .. " on this expression",
+        op_token.line,
+        op_token.col
       )
     end
-    return update_expression(tok.type, expr, false)
+    return update_expression(op_token.type, expr, false, op_token)
   end
   return expr
 end
@@ -2179,7 +2340,7 @@ function parse_identifier_or_call(stream)
   if stream.is(TOKEN.ARROW) then
     stream.advance()
     local body = parse_arrow_function_body(stream)
-    return arrow_function_expression({ expr }, body)
+    return arrow_function_expression({ expr }, body, token)
   end
 
   return parse_postfix(stream, expr)
@@ -2191,7 +2352,7 @@ end
 -- @param stream (table) Token stream
 -- @param callee (table) The expression being called
 function parse_call_expression(stream, callee)
-  stream.consume(TOKEN.LPAREN)
+  local lparen = stream.consume(TOKEN.LPAREN)
   local arguments = {}
   if not stream.is(TOKEN.RPAREN) then
     while true do
@@ -2204,14 +2365,14 @@ function parse_call_expression(stream, callee)
     end
   end
   stream.consume(TOKEN.RPAREN)
-  local expr = call_expression(callee, arguments)
+  local expr = call_expression(callee, arguments, lparen)
   return parse_postfix(stream, expr)
 end
 
 --- Parse array literal: [expr, expr, ...]
 -- Empty arrays [] are valid.
 function parse_array_literal(stream)
-  stream.consume(TOKEN.LBRACKET)
+  local lbracket = stream.consume(TOKEN.LBRACKET)
   local elements = {}
   if not stream.is(TOKEN.RBRACKET) then
     while true do
@@ -2227,7 +2388,7 @@ function parse_array_literal(stream)
     end
   end
   stream.consume(TOKEN.RBRACKET)
-  return array_expression(elements)
+  return array_expression(elements, lbracket)
 end
 
 --- Parse object literal: { key: value, key: value, ... }
@@ -2239,7 +2400,7 @@ end
 -- Computed keys (e.g. {[expr]: value}) are not supported.
 -- Empty objects {} are valid.
 function parse_object_literal(stream)
-  stream.consume(TOKEN.LBRACE)
+  local lbrace = stream.consume(TOKEN.LBRACE)
   local properties = {}
   if not stream.is(TOKEN.RBRACE) then
     while true do
@@ -2259,22 +2420,18 @@ function parse_object_literal(stream)
       if stream.is(TOKEN.COLON) then
         stream.advance()
         local value = parse_expression(stream)
-        table.insert(properties, property(key, value, false))
+        table.insert(properties, property(key, value, false, key))
       elseif key_is_identifier and stream.is(TOKEN.LPAREN) then
         stream.consume(TOKEN.LPAREN)
         local params = parse_parameters(stream)
         stream.consume(TOKEN.RPAREN)
         local body = parse_block_statement(stream)
-        local fn = {
-          type = "FunctionExpression",
-          name = key.name,
-          params = params,
-          body = body,
-          is_method = true,
-        }
-        table.insert(properties, property(key, fn, false))
+        local fn = function_expression(params, body, key)
+        fn.name = key.name
+        fn.is_method = true
+        table.insert(properties, property(key, fn, false, key))
       elseif key_is_identifier and (stream.is(TOKEN.COMMA) or stream.is(TOKEN.RBRACE)) then
-        table.insert(properties, property(key, identifier(key.name, key), false))
+        table.insert(properties, property(key, identifier(key.name, key), false, key))
       else
         parse_error(
           "Expected ':', '(', ',', or '}' after property key",
@@ -2293,14 +2450,14 @@ function parse_object_literal(stream)
     end
   end
   stream.consume(TOKEN.RBRACE)
-  return object_expression(properties)
+  return object_expression(properties, lbrace)
 end
 
 --- Parse function expression: function(params) { body } or function name(params) { body }
 -- Can be anonymous (no name) or named. Named function expressions produce
 -- a FunctionExpression node with a `name` field (not FunctionDeclaration).
 function parse_function_expression(stream)
-  stream.consume(TOKEN.FUNCTION)
+  local kw = stream.consume(TOKEN.FUNCTION)
 
   local name = nil
   -- Disambiguate: function foo( is a named expression, function( is anonymous.
@@ -2320,9 +2477,11 @@ function parse_function_expression(stream)
   local body = parse_block_statement(stream)
 
   if name then
-    return { type = "FunctionExpression", name = name, params = params, body = body }
+    local fn = function_expression(params, body, kw)
+    fn.name = name
+    return fn
   else
-    return function_expression(params, body)
+    return function_expression(params, body, kw)
   end
 end
 
