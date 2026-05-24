@@ -1210,6 +1210,7 @@ function M.preamble()
     .. read_runtime("json_lib")
     .. read_runtime("json")
     .. read_runtime("math")
+    .. read_runtime("globals")
   return _preamble_cache
 end
 
