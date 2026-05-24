@@ -211,6 +211,38 @@ test("Array.of with mixed types", function()
 end)
 
 -- ============================================================================
+-- Array.prototype.join
+-- ============================================================================
+
+test("join default separator is comma", function()
+  assert_eq(exec_js("return [1, 2, 3].join();"), "1,2,3")
+end)
+
+test("join with custom separator", function()
+  assert_eq(exec_js("return [1, 2, 3].join('-');"), "1-2-3")
+end)
+
+test("join empty array returns empty string", function()
+  assert_eq(exec_js("return [].join();"), "")
+end)
+
+test("join single element", function()
+  assert_eq(exec_js("return [42].join();"), "42")
+end)
+
+test("join with strings", function()
+  assert_eq(exec_js("return ['a', 'b', 'c'].join(',');"), "a,b,c")
+end)
+
+test("join with mixed types", function()
+  assert_eq(exec_js("return [1, 'two', true].join(',');"), "1,two,true")
+end)
+
+test("join with empty separator", function()
+  assert_eq(exec_js("return [1, 2, 3].join('');"), "123")
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 
