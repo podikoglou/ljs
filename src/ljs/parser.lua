@@ -1507,6 +1507,8 @@ function parse_variable_declaration(stream, no_in)
 
   return variable_declaration(kind, declarations, kind_token)
 end
+
+--- Parse a single variable declarator: name or name = init
 -- @param stream (table) Token stream
 -- @param no_in (boolean|nil) If true, suppress 'in' in initializer expression
 function parse_variable_declarator(stream, no_in)
@@ -1521,6 +1523,8 @@ function parse_variable_declarator(stream, no_in)
 
   return variable_declarator(name, init, token)
 end
+
+--- Parse if/else: if (test) consequent [else alternate]
 -- The consequent and alternate are single statements (can be blocks).
 function parse_if_statement(stream)
   local kw = stream.consume(TOKEN.IF)
@@ -1811,6 +1815,8 @@ function parse_class_expression(stream)
   local name = nil
   if stream.is(TOKEN.IDENTIFIER) then
     local next_tok = stream.peek_n(2)
+    -- Consume identifier as class name only if next token isn't ( — distinguishes
+    -- class Foo {} (named) from class {} (anonymous)
     if next_tok and next_tok.type ~= TOKEN.LPAREN then
       local name_token = stream.advance()
       name = name_token.value
@@ -2307,6 +2313,8 @@ function parse_postfix(stream, expr, no_update)
       break
     end
   end
+  -- Postfix ++/-- is checked once after the chain, not inside the loop,
+  -- because it's not chainable: x++++ is not valid JS.
   if stream.is(TOKEN.INCREMENT) or stream.is(TOKEN.DECREMENT) then
     local op_token = stream.advance()
     if no_update then
@@ -2452,6 +2460,8 @@ function parse_function_expression(stream)
   local kw = stream.consume(TOKEN.FUNCTION)
 
   local name = nil
+  -- Disambiguate: function foo( is a named expression, function( is anonymous.
+  -- Check if current token is identifier AND the one after it is (.
   if stream.is(TOKEN.IDENTIFIER) then
     local name_token = stream.peek_n(2)
     if name_token and name_token.type == TOKEN.LPAREN then
