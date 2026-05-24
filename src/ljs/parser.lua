@@ -2129,7 +2129,7 @@ function parse_postfix(stream, expr, no_update)
       end
       stream.consume(TOKEN.RPAREN)
       expr = call_expression(expr, args)
-      no_update = true
+      no_update = false
     else
       break
     end

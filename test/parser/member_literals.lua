@@ -347,8 +347,9 @@ test('parse "s"[0]-- (postfix decrement on computed string member)', function()
   })
 end)
 
-test("reject true.toString()++ (postfix on call result from literal)", function()
-  assert_parse_fail("true.toString()++;")
+test("parse true.toString()++", function()
+  local ast = parser.parse("true.toString()++;")
+  assert(ast, "expected parse to succeed")
 end)
 
 -- ============================================================================

