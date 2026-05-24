@@ -1978,19 +1978,22 @@ function parse_primary_expression(stream)
 
   if stream.is(TOKEN.NUMBER) then
     stream.advance()
+    -- NOTE: NumberLiteral deliberately NOT wrapped in parse_postfix because
+    -- `42.toString()` is a SyntaxError in JS (the dot after a number literal
+    -- is parsed as a decimal point). Use (42).toString() instead.
     return number_literal(token.value, token)
   elseif stream.is(TOKEN.STRING) then
     stream.advance()
-    return string_literal(token.value, token)
+    return parse_postfix(stream, string_literal(token.value, token), true)
   elseif stream.is(TOKEN.BOOLEAN) then
     stream.advance()
-    return boolean_literal(token.value, token)
+    return parse_postfix(stream, boolean_literal(token.value, token), true)
   elseif stream.is(TOKEN.NULL) then
     stream.advance()
-    return null_literal(token)
+    return parse_postfix(stream, null_literal(token), true)
   elseif stream.is(TOKEN.UNDEFINED) then
     stream.advance()
-    return undefined_literal(token)
+    return parse_postfix(stream, undefined_literal(token))
   elseif stream.is(TOKEN.THIS) then
     stream.advance()
     return parse_postfix(stream, this_expression())

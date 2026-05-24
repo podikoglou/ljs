@@ -53,8 +53,9 @@ test("error: postfix on null literal", function()
   assert_parse_fail("null++;", nil)
 end)
 
-test("error: postfix on undefined literal", function()
-  assert_parse_fail("undefined++;", nil)
+test("postfix on undefined literal", function()
+  local ast = parser.parse("undefined++;")
+  assert(ast, "expected parse to succeed")
 end)
 
 test("error: postfix on parenthesized number literal", function()
