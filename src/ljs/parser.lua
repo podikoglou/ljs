@@ -848,6 +848,30 @@ local function unary_expression(operator, argument)
   return { type = "UnaryExpression", operator = operator, argument = argument }
 end
 
+--- @param expr (table) AST expression node
+--- @return boolean
+local function is_valid_update_target(expr)
+  local t = expr.type
+  if t == "Identifier" then
+    return true
+  elseif t == "MemberExpression" then
+    return true
+  end
+  return false
+end
+
+--- @param expr (table) AST expression node
+--- @param tok (table) The ++ or -- token
+local function check_update_target(expr, tok)
+  if not is_valid_update_target(expr) then
+    parse_error(
+      "Invalid update target: cannot use " .. tok.type .. " on this expression",
+      tok.line,
+      tok.col
+    )
+  end
+end
+
 --- @param operator (string) "++" or "--"
 --- @param argument (table) The operand AST expression
 --- @param prefix (boolean) true for prefix (++x), false for postfix (x++)
@@ -1911,6 +1935,7 @@ function parse_unary_expression(stream)
   elseif stream.is(TOKEN.INCREMENT) or stream.is(TOKEN.DECREMENT) then
     local op_token = stream.advance()
     local argument = parse_unary_expression(stream)
+    check_update_target(argument, op_token)
     return update_expression(op_token.type, argument, true)
   elseif stream.is(TOKEN.DELETE) then
     stream.advance()
@@ -1924,7 +1949,7 @@ function parse_unary_expression(stream)
     stream.advance()
     if stream.is(TOKEN.NEW) then
       local inner = parse_unary_expression(stream)
-      return parse_postfix(stream, inner)
+      return parse_postfix(stream, inner, true)
     end
     local banned_err = check_banned(stream)
     if banned_err then
@@ -1959,7 +1984,7 @@ function parse_unary_expression(stream)
       end
       stream.consume(TOKEN.RPAREN)
     end
-    return parse_postfix(stream, new_expression(callee, args))
+    return parse_postfix(stream, new_expression(callee, args), true)
   end
   return parse_primary_expression(stream)
 end
@@ -1993,13 +2018,13 @@ function parse_primary_expression(stream)
     return parse_postfix(stream, null_literal(token), true)
   elseif stream.is(TOKEN.UNDEFINED) then
     stream.advance()
-    return parse_postfix(stream, undefined_literal(token))
+    return parse_postfix(stream, undefined_literal(token), true)
   elseif stream.is(TOKEN.THIS) then
     stream.advance()
-    return parse_postfix(stream, this_expression())
+    return parse_postfix(stream, this_expression(), true)
   elseif stream.is(TOKEN.SUPER) then
     stream.advance()
-    return parse_postfix(stream, super_expression())
+    return parse_postfix(stream, super_expression(), true)
   elseif stream.is(TOKEN.IDENTIFIER) then
     return parse_identifier_or_call(stream)
   elseif stream.is(TOKEN.LPAREN) then
@@ -2057,19 +2082,14 @@ function parse_primary_expression(stream)
       stream.advance()
       local expr = parse_expression(stream)
       stream.consume(TOKEN.RPAREN)
-      local nu = expr.type == "NumberLiteral"
-        or expr.type == "StringLiteral"
-        or expr.type == "BooleanLiteral"
-        or expr.type == "NullLiteral"
-        or expr.type == "UndefinedLiteral"
-      return parse_postfix(stream, expr, nu)
+      return parse_postfix(stream, expr, not is_valid_update_target(expr))
     end
   elseif stream.is(TOKEN.LBRACKET) then
-    return parse_postfix(stream, parse_array_literal(stream))
+    return parse_postfix(stream, parse_array_literal(stream), true)
   elseif stream.is(TOKEN.LBRACE) then
-    return parse_postfix(stream, parse_object_literal(stream))
+    return parse_postfix(stream, parse_object_literal(stream), true)
   elseif stream.is(TOKEN.FUNCTION) then
-    return parse_postfix(stream, parse_function_expression(stream))
+    return parse_postfix(stream, parse_function_expression(stream), true)
   elseif stream.is(TOKEN.ARROW) then
     parse_error("Unexpected arrow token", token.line, token.col)
   elseif stream.is(TOKEN.CLASS) then
@@ -2134,23 +2154,16 @@ function parse_postfix(stream, expr, no_update)
       break
     end
   end
-  -- Postfix ++/-- is checked once after the chain, not inside the loop,
-  -- because it's not chainable: x++++ is not valid JS.
-  if not no_update then
-    if stream.is(TOKEN.INCREMENT) then
-      stream.advance()
-      return update_expression("++", expr, false)
-    elseif stream.is(TOKEN.DECREMENT) then
-      stream.advance()
-      return update_expression("--", expr, false)
+  if stream.is(TOKEN.INCREMENT) or stream.is(TOKEN.DECREMENT) then
+    local tok = stream.advance()
+    if no_update then
+      parse_error(
+        "Invalid update target: cannot use " .. tok.type .. " on this expression",
+        tok.line,
+        tok.col
+      )
     end
-  elseif stream.is(TOKEN.INCREMENT) or stream.is(TOKEN.DECREMENT) then
-    local tok = stream.peek()
-    parse_error(
-      "Invalid update target: cannot use " .. tok.type .. " on this expression",
-      tok.line,
-      tok.col
-    )
+    return update_expression(tok.type, expr, false)
   end
   return expr
 end

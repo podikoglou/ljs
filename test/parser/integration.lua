@@ -53,9 +53,8 @@ test("error: postfix on null literal", function()
   assert_parse_fail("null++;", nil)
 end)
 
-test("postfix on undefined literal", function()
-  local ast = parser.parse("undefined++;")
-  assert(ast, "expected parse to succeed")
+test("error: postfix on undefined literal", function()
+  assert_parse_fail("undefined++;", "update")
 end)
 
 test("error: postfix on parenthesized number literal", function()
@@ -95,9 +94,8 @@ test("parse postfix on parenthesized expression", function()
   assert(ast, "expected parse to succeed")
 end)
 
-test("parse postfix on array literal", function()
-  local ast = parser.parse("[1, 2]++;")
-  assert(ast, "expected parse to succeed")
+test("error: postfix on array literal", function()
+  assert_parse_fail("[1, 2]++;", "update")
 end)
 
 test("error: double postfix x++ ++", function()

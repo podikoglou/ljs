@@ -331,9 +331,7 @@ test("parse prefix --x", function()
 end)
 
 test("parse nested prefix ++ ++ x", function()
-  assert_parse_ok("++ ++ x;", {
-    A.expr_stmt(A.update("++", A.update("++", A.id("x"), true), true)),
-  })
+  assert_parse_fail("++ ++ x;", "update")
 end)
 
 test("parse prefix ++ on member expression", function()
@@ -569,5 +567,211 @@ end)
 test("keyword chained: obj.if.else", function()
   assert_parse_ok("obj.if.else;", {
     A.expr_stmt(A.member(A.member(A.id("obj"), A.id("if")), A.id("else"))),
+  })
+end)
+
+-- ============================================================================
+-- INVALID UPDATE TARGETS (postfix ++/--)
+-- Per ECMA-262 §13.4 and §8.6.4, expressions with AssignmentTargetType ~invalid~
+-- must produce a SyntaxError when used with ++/--.
+-- ============================================================================
+
+test("reject this++ (postfix)", function()
+  assert_parse_fail("this++;", "update")
+end)
+
+test("reject this-- (postfix)", function()
+  assert_parse_fail("this--;", "update")
+end)
+
+test("reject super++ (postfix)", function()
+  assert_parse_fail("super++;", "update")
+end)
+
+test("reject super-- (postfix)", function()
+  assert_parse_fail("super--;", "update")
+end)
+
+test("reject undefined++ (postfix)", function()
+  assert_parse_fail("undefined++;", "update")
+end)
+
+test("reject undefined-- (postfix)", function()
+  assert_parse_fail("undefined--;", "update")
+end)
+
+test("reject []++ (array literal postfix)", function()
+  assert_parse_fail("[]++;", "update")
+end)
+
+test("reject []-- (array literal postfix)", function()
+  assert_parse_fail("[]--;", "update")
+end)
+
+test("reject {}++ (object literal postfix)", function()
+  assert_parse_fail("({})++;", "update")
+end)
+
+test("reject {}-- (object literal postfix)", function()
+  assert_parse_fail("({})--;", "update")
+end)
+
+test("reject function(){}++ (postfix)", function()
+  assert_parse_fail("(function(){})++;", "update")
+end)
+
+test("reject function(){}-- (postfix)", function()
+  assert_parse_fail("(function(){})--;", "update")
+end)
+
+test("reject new Foo()++ (postfix)", function()
+  assert_parse_fail("new Foo()++;", "update")
+end)
+
+test("reject new Foo()-- (postfix)", function()
+  assert_parse_fail("new Foo()--;", "update")
+end)
+
+test("reject (1+2)++ (parenthesized binary postfix)", function()
+  assert_parse_fail("(1 + 2)++;", "update")
+end)
+
+test("reject (this)++ (parenthesized this postfix)", function()
+  assert_parse_fail("(this)++;", "update")
+end)
+
+test("reject (super)++ (parenthesized super postfix)", function()
+  assert_parse_fail("(super)++;", "update")
+end)
+
+test("reject (new Foo())++ (parenthesized new postfix)", function()
+  assert_parse_fail("(new Foo())++;", "update")
+end)
+
+test("reject (null)++ (parenthesized null postfix)", function()
+  assert_parse_fail("(null)++;", "update")
+end)
+
+test("reject (true)++ (parenthesized boolean postfix)", function()
+  assert_parse_fail("(true)++;", "update")
+end)
+
+test("reject (42)++ (parenthesized number postfix)", function()
+  assert_parse_fail("(42)++;", "update")
+end)
+
+test("reject ('hello')++ (parenthesized string postfix)", function()
+  assert_parse_fail("('hello')++;", "update")
+end)
+
+test("reject ([] )++ (parenthesized array postfix)", function()
+  assert_parse_fail("([])++;", "update")
+end)
+
+test("reject ({})++ (parenthesized object postfix)", function()
+  assert_parse_fail("({})++;", "update")
+end)
+
+-- ============================================================================
+-- INVALID UPDATE TARGETS (prefix ++/--)
+-- ============================================================================
+
+test("reject ++this (prefix)", function()
+  assert_parse_fail("++this;", "update")
+end)
+
+test("reject --this (prefix)", function()
+  assert_parse_fail("--this;", "update")
+end)
+
+test("reject ++undefined (prefix)", function()
+  assert_parse_fail("++undefined;", "update")
+end)
+
+test("reject --undefined (prefix)", function()
+  assert_parse_fail("--undefined;", "update")
+end)
+
+test("reject ++[] (prefix on array literal)", function()
+  assert_parse_fail("++[];", "update")
+end)
+
+test("reject --[] (prefix on array literal)", function()
+  assert_parse_fail("--[];", "update")
+end)
+
+test("reject ++{} (prefix on object literal)", function()
+  assert_parse_fail("++({});", "update")
+end)
+
+test("reject ++function(){} (prefix on function expr)", function()
+  assert_parse_fail("++(function(){});", "update")
+end)
+
+test("reject ++new Foo() (prefix on new expression)", function()
+  assert_parse_fail("++new Foo();", "update")
+end)
+
+test("reject ++(1+2) (prefix on parenthesized binary)", function()
+  assert_parse_fail("++(1 + 2);", "update")
+end)
+
+test("reject ++(null) (prefix on parenthesized null)", function()
+  assert_parse_fail("++(null);", "update")
+end)
+
+test("reject ++(42) (prefix on parenthesized number)", function()
+  assert_parse_fail("++(42);", "update")
+end)
+
+-- ============================================================================
+-- Parenthesized VALID targets must still be accepted
+-- Per spec, parens are transparent for AssignmentTargetType: (x)++ is valid,
+-- (a.b)++ is valid, (a[0])++ is valid — these are runtime errors, not parse errors.
+-- ============================================================================
+
+test("(x)++ still accepted (parenthesized identifier)", function()
+  assert_parse_ok("(x)++;", { A.expr_stmt(A.update("++", A.id("x"), false)) })
+end)
+
+test("(a.b)++ still accepted (parenthesized member)", function()
+  assert_parse_ok("(a.b)++;", {
+    A.expr_stmt(A.update("++", A.member(A.id("a"), A.id("b")), false)),
+  })
+end)
+
+test("(a[0])++ still accepted (parenthesized computed member)", function()
+  assert_parse_ok("(a[0])++;", {
+    A.expr_stmt(A.update("++", A.member_c(A.id("a"), A.num(0)), false)),
+  })
+end)
+
+-- ============================================================================
+-- Valid update targets still work (regression guard)
+-- ============================================================================
+
+test("x++ still accepted (identifier)", function()
+  assert_parse_ok("x++;", { A.expr_stmt(A.update("++", A.id("x"), false)) })
+end)
+
+test("a.b++ still accepted (member expression)", function()
+  assert_parse_ok("a.b++;", {
+    A.expr_stmt(A.update("++", A.member(A.id("a"), A.id("b")), false)),
+  })
+end)
+
+test("a[0]++ still accepted (computed member)", function()
+  assert_parse_ok("a[0]++;", {
+    A.expr_stmt(A.update("++", A.member_c(A.id("a"), A.num(0)), false)),
+  })
+end)
+
+test("++x still accepted (prefix on identifier)", function()
+  assert_parse_ok("++x;", { A.expr_stmt(A.update("++", A.id("x"), true)) })
+end)
+
+test("++a.b still accepted (prefix on member)", function()
+  assert_parse_ok("++a.b;", {
+    A.expr_stmt(A.update("++", A.member(A.id("a"), A.id("b")), true)),
   })
 end)
