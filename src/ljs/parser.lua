@@ -457,6 +457,8 @@ local function tokenize(source)
             ch = "\b"
           elseif ch == "f" then
             ch = "\f"
+          elseif ch == "v" then
+            ch = "\v"
           elseif ch == "\\" then
             ch = "\\"
           elseif ch == '"' then

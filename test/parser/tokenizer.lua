@@ -386,6 +386,10 @@ test("tokenize escape \\f", function()
   assert_tok('"a\\fb"', 1, "String", "a\fb")
 end)
 
+test("tokenize escape \\v", function()
+  assert_tok('"a\\vb"', 1, "String", "a\vb")
+end)
+
 -- ============================================================================
 -- Unterminated multi-line comment: the tokenizer has a specific error path
 -- for /* without */. If this path breaks, the tokenizer might loop forever
