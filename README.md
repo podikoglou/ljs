@@ -1,5 +1,7 @@
 # ljs
 
+![CI](https://github.com/podikoglou/ljs/actions/workflows/ci.yml/badge.svg)
+
 Parse and transpile a well-defined subset of JavaScript into Lua. No external dependencies, Lua 5.2+.
 
 ```lua
