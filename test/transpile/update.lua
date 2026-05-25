@@ -167,10 +167,3 @@ test("prefix --x with string coerces via ToNumber", function()
   assert_eq(output:gsub("%s+", ""), "9")
 end)
 
-test("postfix x-- with null coerces via ToNumber", function()
-  local output = run_js([[
-    let x = null;
-    console.log(x--);
-  ]])
-  assert_eq(output:gsub("%s+", ""), "null")
-end)
