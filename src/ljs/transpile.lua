@@ -75,16 +75,34 @@ HELPERS._ljs_to_number = [[local function _ljs_to_number(x)
     return x
   end
   if tx == "string" then
-    if x == "" or x:match("^%s*$") then
+    local t = x:match("^%s*(.-)%s*$")
+    if t == "" then
       return 0
     end
-    if x == "Infinity" or x == "+Infinity" then
+    if t == "Infinity" or t == "+Infinity" then
       return math.huge
     end
-    if x == "-Infinity" then
+    if t == "-Infinity" then
       return -math.huge
     end
-    local n = tonumber(x)
+    local s, p = t:match("^([+-]?)(0[bBoOxX])")
+    if p then
+      if s ~= "" then return 0 / 0 end
+      local lo = p:lower()
+      local digits = t:sub(3)
+      if digits == "" then return 0 / 0 end
+      if lo == "0x" then
+        if not digits:match("^%x+$") then return 0 / 0 end
+        return tonumber(t)
+      elseif lo == "0o" then
+        if not digits:match("^[0-7]+$") then return 0 / 0 end
+        return tonumber(digits, 8)
+      else
+        if not digits:match("^[01]+$") then return 0 / 0 end
+        return tonumber(digits, 2)
+      end
+    end
+    local n = tonumber(t)
     if n then
       return n
     end
@@ -324,11 +342,28 @@ end]]
 -- StringToNumber per §7.1.4.1: converts a JS string to a number.
 -- Lua's tonumber() doesn't handle "", whitespace-only, "Infinity".
 HELPERS._ljs_str_to_num = [[local function _ljs_str_to_num(s)
-  local trimmed = s:match("^%s*(.-)%s*$")
-  if trimmed == "" then return 0 end
-  if trimmed == "Infinity" or trimmed == "+Infinity" then return math.huge end
-  if trimmed == "-Infinity" then return -math.huge end
-  return tonumber(trimmed) or (0 / 0)
+  local t = s:match("^%s*(.-)%s*$")
+  if t == "" then return 0 end
+  if t == "Infinity" or t == "+Infinity" then return math.huge end
+  if t == "-Infinity" then return -math.huge end
+  local s, p = t:match("^([+-]?)(0[bBoOxX])")
+  if p then
+    if s ~= "" then return 0 / 0 end
+    local lo = p:lower()
+    local digits = t:sub(3)
+    if digits == "" then return 0 / 0 end
+    if lo == "0x" then
+      if not digits:match("^%x+$") then return 0 / 0 end
+      return tonumber(t)
+    elseif lo == "0o" then
+      if not digits:match("^[0-7]+$") then return 0 / 0 end
+      return tonumber(digits, 8)
+    else
+      if not digits:match("^[01]+$") then return 0 / 0 end
+      return tonumber(digits, 2)
+    end
+  end
+  return tonumber(t) or (0 / 0)
 end]]
 
 -- IsLooselyEqual per §7.2.13. Handles == operator semantics.
