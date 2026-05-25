@@ -47,7 +47,7 @@ end
 -- ============================================================================
 -- Runtime helpers (emitted unconditionally in every preamble).
 -- These are the JS-ABI runtime functions that support operator semantics,
--- prototype chains, and constructor mechanics. All 19 are always emitted
+-- prototype chains, and constructor mechanics. All 22 are always emitted
 -- regardless of whether the source code uses them — no tree-shaking pass.
 -- See docs/ARCHITECTURE.md § "Runtime call ABI" and "Constructors".
 -- ============================================================================
@@ -228,6 +228,82 @@ end]]
 HELPERS._ljs_super_call = [[local function _ljs_super_call(proto, key, this_val, ...)
   return proto[key](this_val, ...)
   end]]
+
+-- ToPrimitive per §7.1.1: OrdinaryToPrimitive with hint=number.
+-- Tries valueOf first, then toString. Returns first primitive result.
+-- Throws TypeError if neither returns a primitive.
+-- Per §7.1.1.1 step 3.b: only calls method if IsCallable is true.
+HELPERS._ljs_to_primitive = [[local function _ljs_to_primitive(obj)
+  local function _callable(v)
+    if type(v) == "function" then return true end
+    if type(v) == "table" then
+      local mt = getmetatable(v)
+      return mt and mt.__call ~= nil
+    end
+    return false
+  end
+  local val_of = obj.valueOf
+  if _callable(val_of) then
+    local result = val_of(obj)
+    if type(result) ~= "table" then return result end
+  end
+  local to_str = obj.toString
+  if _callable(to_str) then
+    local result = to_str(obj)
+    if type(result) ~= "table" then return result end
+  end
+  error("TypeError: Cannot convert object to primitive value")
+end]]
+
+-- StringToNumber per §7.1.4.1: converts a JS string to a number.
+-- Lua's tonumber() doesn't handle "", whitespace-only, "Infinity".
+HELPERS._ljs_str_to_num = [[local function _ljs_str_to_num(s)
+  local trimmed = s:match("^%s*(.-)%s*$")
+  if trimmed == "" then return 0 end
+  if trimmed == "Infinity" or trimmed == "+Infinity" then return math.huge end
+  if trimmed == "-Infinity" then return -math.huge end
+  return tonumber(trimmed) or (0 / 0)
+end]]
+
+-- IsLooselyEqual per §7.2.13. Handles == operator semantics.
+-- Lua representation: nil = JS undefined, _ljs_null = JS null,
+-- number/string/boolean/table = JS Number/String/Boolean/Object.
+-- Depends on _ljs_to_primitive and _ljs_str_to_num (must be emitted first).
+HELPERS._ljs_eq = [[local function _ljs_eq(a, b)
+  local a_is_null = (a == _ljs_null)
+  local b_is_null = (b == _ljs_null)
+  local ta = a_is_null and "null" or (a == nil) and "undefined" or type(a)
+  local tb = b_is_null and "null" or (b == nil) and "undefined" or type(b)
+  if ta == tb then
+    if ta == "number" then
+      if a ~= a or b ~= b then return false end
+      return a == b
+    end
+    return a == b
+  end
+  if (ta == "null" and tb == "undefined") or (ta == "undefined" and tb == "null") then
+    return true
+  end
+  if ta == "number" and tb == "string" then
+    return _ljs_eq(a, _ljs_str_to_num(b))
+  end
+  if ta == "string" and tb == "number" then
+    return _ljs_eq(_ljs_str_to_num(a), b)
+  end
+  if ta == "boolean" then
+    return _ljs_eq(a and 1 or 0, b)
+  end
+  if tb == "boolean" then
+    return _ljs_eq(a, b and 1 or 0)
+  end
+  if (ta == "string" or ta == "number") and tb == "table" then
+    return _ljs_eq(a, _ljs_to_primitive(b))
+  end
+  if ta == "table" and (tb == "string" or tb == "number") then
+    return _ljs_eq(_ljs_to_primitive(a), b)
+  end
+  return false
+end]]
 
 -- ============================================================================
 -- Section 3: Continue detection helper
@@ -908,6 +984,10 @@ gen.BinaryExpression = function(node, indent, ctx)
   local right = emit(node.right, indent, ctx)
   if op == "+" then
     return cg.call("_ljs_add", { left, right })
+  elseif op == "==" then
+    return cg.call("_ljs_eq", { left, right })
+  elseif op == "!=" then
+    return cg.unop("not", cg.call("_ljs_eq", { left, right }))
   elseif op == "===" then
     return cg.binop("==", left, right)
   elseif op == "!==" then
@@ -1174,8 +1254,9 @@ end
 -- === Top-level preamble and emit ===
 
 -- Emission order: _ljs_to_int32 first (other helpers depend on it),
--- _ljs_fn second (_ljs_ctor depends on it), rest alphabetical.
--- All 19 helpers are always emitted unconditionally.
+-- _ljs_fn second (_ljs_ctor depends on it), rest alphabetical
+-- except _ljs_to_primitive and _ljs_str_to_num before _ljs_eq (dependency order).
+-- All 22 helpers are always emitted unconditionally.
 local HELPER_ORDER = {
   "_ljs_to_int32",
   "_ljs_fn",
@@ -1196,13 +1277,16 @@ local HELPER_ORDER = {
   "_ljs_ctor",
   "_ljs_new",
   "_ljs_instanceof",
+  "_ljs_str_to_num",
   "_ljs_super_call",
+  "_ljs_to_primitive",
+  "_ljs_eq",
 }
 
 local _preamble_cache = nil
 
 --- Build the runtime preamble (helpers + stdlib). Result is cached after first call.
--- Structure: proto declarations → _ljs_arrow_this → 19 helpers → runtime stdlib files.
+-- Structure: proto declarations → _ljs_arrow_this → 22 helpers → runtime stdlib files.
 -- Idempotent; safe to call for multi-file output (emit preamble once, then per-file emit).
 -- @return (string) Complete Lua preamble source
 function M.preamble()

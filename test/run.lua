@@ -108,4 +108,13 @@ T.describe("runtime/null_undefined", function()
   end
 end)
 
+T.describe("runtime/loose_equality", function()
+  local ok, err = pcall(require, "test.runtime.loose_equality")
+  if not ok then
+    print(
+      string.format("  \27[33m⚠\27[0m runtime/loose_equality: %s", tostring(err):match("^[^\n]*"))
+    )
+  end
+end)
+
 T.summary()

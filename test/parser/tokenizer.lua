@@ -96,8 +96,20 @@ test("tokenize keywords", function()
   assert_tok(src, 14, "return", "return")
 end)
 
+test("tokenize == (loose equality)", function()
+  local tokens = parser.tokenize("a == b")
+  assert(tokens)
+  assert_tok("a == b", 2, "==")
+end)
+
+test("tokenize != (loose inequality)", function()
+  local tokens = parser.tokenize("a != b")
+  assert(tokens)
+  assert_tok("a != b", 2, "!=")
+end)
+
 test("tokenize operators", function()
-  local src = "+ - * / % === !== < > <= >= && || = ! ~ ++ -- += -= *= /= %= ** **="
+  local src = "+ - * / % === !== == != < > <= >= && || = ! ~ ++ -- += -= *= /= %= ** **="
   assert_tok(src, 1, "+")
   assert_tok(src, 2, "-")
   assert_tok(src, 3, "*")
@@ -105,24 +117,26 @@ test("tokenize operators", function()
   assert_tok(src, 5, "%")
   assert_tok(src, 6, "===")
   assert_tok(src, 7, "!==")
-  assert_tok(src, 8, "<")
-  assert_tok(src, 9, ">")
-  assert_tok(src, 10, "<=")
-  assert_tok(src, 11, ">=")
-  assert_tok(src, 12, "&&")
-  assert_tok(src, 13, "||")
-  assert_tok(src, 14, "=")
-  assert_tok(src, 15, "!")
-  assert_tok(src, 16, "~")
-  assert_tok(src, 17, "++")
-  assert_tok(src, 18, "--")
-  assert_tok(src, 19, "+=")
-  assert_tok(src, 20, "-=")
-  assert_tok(src, 21, "*=")
-  assert_tok(src, 22, "/=")
-  assert_tok(src, 23, "%=")
-  assert_tok(src, 24, "**")
-  assert_tok(src, 25, "**=")
+  assert_tok(src, 8, "==")
+  assert_tok(src, 9, "!=")
+  assert_tok(src, 10, "<")
+  assert_tok(src, 11, ">")
+  assert_tok(src, 12, "<=")
+  assert_tok(src, 13, ">=")
+  assert_tok(src, 14, "&&")
+  assert_tok(src, 15, "||")
+  assert_tok(src, 16, "=")
+  assert_tok(src, 17, "!")
+  assert_tok(src, 18, "~")
+  assert_tok(src, 19, "++")
+  assert_tok(src, 20, "--")
+  assert_tok(src, 21, "+=")
+  assert_tok(src, 22, "-=")
+  assert_tok(src, 23, "*=")
+  assert_tok(src, 24, "/=")
+  assert_tok(src, 25, "%=")
+  assert_tok(src, 26, "**")
+  assert_tok(src, 27, "**=")
 end)
 
 test("tokenize punctuation", function()
@@ -163,10 +177,6 @@ end)
 
 test("tokenize error: unterminated string", function()
   assert_tokenize_fail('"hello', "Unterminated")
-end)
-
-test("tokenize error: == rejected", function()
-  assert_tokenize_fail("1 == 2", "Use ===")
 end)
 
 test("tokenize error: unexpected character", function()
@@ -415,6 +425,8 @@ test("invariant: token value type matches token type", function()
     ["%"] = true,
     ["==="] = true,
     ["!=="] = true,
+    ["=="] = true,
+    ["!="] = true,
     ["<"] = true,
     [">"] = true,
     ["<="] = true,
@@ -447,7 +459,7 @@ test("invariant: token value type matches token type", function()
     [">>>="] = true,
   }
 
-  local src = "+ - * / % === !== < > <= >= && || = ! ~ => ++ -- += -= *= **= /= %= & | ^ << >> >>> &= |= ^= <<= >>= >>>="
+  local src = "+ - * / % === !== == != < > <= >= && || = ! ~ => ++ -- += -= *= **= /= %= & | ^ << >> >>> &= |= ^= <<= >>= >>>="
     .. ' let x = 42; "hello" true false null undefined'
   local tokens = parser.tokenize(src)
   assert(tokens)

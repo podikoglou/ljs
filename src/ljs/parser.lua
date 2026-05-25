@@ -10,7 +10,7 @@
 -- typeof, delete, instanceof, in, if/else, while, do...while, for...of/in/(;;),
 -- switch/case, throw/try/catch/finally, this, console.log, comments.
 --
--- Rejected (parse error): async/await, == (use ===), regex literals.
+-- Rejected (parse error): async/await, regex literals.
 --
 -- Usage:
 --   local parser = require("ljs.parser")
@@ -79,6 +79,8 @@ local TOKEN = {
   -- Comparison
   EQ = "===",
   NEQ = "!==",
+  LOOSE_EQ = "==",
+  LOOSE_NEQ = "!=",
   LT = "<",
   GT = ">",
   LTE = "<=",
@@ -574,7 +576,8 @@ local function tokenize(source)
           table.insert(tokens, make_token(TOKEN.EQ))
           advance(3)
         else
-          return nil, make_parse_error("Use === instead of ==", line, col)
+          table.insert(tokens, make_token(TOKEN.LOOSE_EQ))
+          advance(2)
         end
       else
         table.insert(tokens, make_token(TOKEN.ASSIGN))
@@ -586,6 +589,9 @@ local function tokenize(source)
       if source:sub(pos, pos + 2) == "!==" then
         table.insert(tokens, make_token(TOKEN.NEQ))
         advance(3)
+      elseif source:sub(pos, pos + 1) == "!=" then
+        table.insert(tokens, make_token(TOKEN.LOOSE_NEQ))
+        advance(2)
       else
         table.insert(tokens, make_token(TOKEN.NOT))
         advance()
@@ -833,7 +839,7 @@ local function undefined_literal(token)
   return { type = "UndefinedLiteral", line = token.line, col = token.col }
 end
 
---- @param operator (string) One of: + - * / % ** === !== < > <= >= && || in = += -= *= /= %= **= & | ^ << >> >>> &= |= ^= <<= >>= >>>=
+--- @param operator (string) One of: + - * / % ** == != === !== < > <= >= && || in = += -= *= /= %= **= & | ^ << >> >>> &= |= ^= <<= >>= >>>=
 --- @param left (table) Left-hand AST expression
 --- @param right (table) Right-hand AST expression
 --- @return table {type="BinaryExpression", operator, left, right}
@@ -1971,6 +1977,8 @@ local PRECEDENCE = {
   [TOKEN.UNSIGNED_RIGHT_SHIFT] = 3.5,
   [TOKEN.EQ] = 3,
   [TOKEN.NEQ] = 3,
+  [TOKEN.LOOSE_EQ] = 3,
+  [TOKEN.LOOSE_NEQ] = 3,
   [TOKEN.LT] = 3,
   [TOKEN.GT] = 3,
   [TOKEN.LTE] = 3,
