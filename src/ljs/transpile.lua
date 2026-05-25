@@ -153,6 +153,22 @@ HELPERS._ljs_add = [[local function _ljs_add(a, b)
   return _ljs_to_number(a) + _ljs_to_number(b)
 end]]
 
+HELPERS._ljs_sub = [[local function _ljs_sub(a, b)
+  return _ljs_to_number(a) - _ljs_to_number(b)
+end]]
+
+HELPERS._ljs_mul = [[local function _ljs_mul(a, b)
+  return _ljs_to_number(a) * _ljs_to_number(b)
+end]]
+
+HELPERS._ljs_div = [[local function _ljs_div(a, b)
+  return _ljs_to_number(a) / _ljs_to_number(b)
+end]]
+
+HELPERS._ljs_pow = [[local function _ljs_pow(a, b)
+  return _ljs_to_number(a) ^ _ljs_to_number(b)
+end]]
+
 HELPERS._ljs_bnot = [[local function _ljs_bnot(x)
   return -_ljs_to_int32(x) - 1
 end]]
@@ -1131,14 +1147,23 @@ gen.BinaryExpression = function(node, indent, ctx)
   elseif op == "+=" then
     return cg.binop("=", left, cg.call("_ljs_add", { left, right }))
   elseif op == "**" then
-    return cg.binop("^", left, right)
+    return cg.call("_ljs_pow", { left, right })
   elseif op == "**=" then
-    return cg.binop("=", left, cg.binop("^", left, right))
-  elseif op == "-=" or op == "*=" or op == "/=" then
-    local base_op = op:sub(1, 1)
-    return cg.binop("=", left, cg.binop(base_op, left, right))
+    return cg.binop("=", left, cg.call("_ljs_pow", { left, right }))
+  elseif op == "-" then
+    return cg.call("_ljs_sub", { left, right })
+  elseif op == "*" then
+    return cg.call("_ljs_mul", { left, right })
+  elseif op == "/" then
+    return cg.call("_ljs_div", { left, right })
+  elseif op == "-=" then
+    return cg.binop("=", left, cg.call("_ljs_sub", { left, right }))
+  elseif op == "*=" then
+    return cg.binop("=", left, cg.call("_ljs_mul", { left, right }))
+  elseif op == "/=" then
+    return cg.binop("=", left, cg.call("_ljs_div", { left, right }))
   elseif op == "%=" then
-    return cg.binop("=", left, cg.call("_ljs_mod", { left, right }))
+    return cg.binop("=", left, cg.call("_ljs_mod", { cg.call("_ljs_to_number", { left }), cg.call("_ljs_to_number", { right }) }))
   elseif op == "&" then
     return cg.call("_ljs_band", { left, right })
   elseif op == "|" then
@@ -1179,7 +1204,7 @@ gen.BinaryExpression = function(node, indent, ctx)
     local right_expr = right:sub(1, 1) == "{" and cg.paren(right) or right
     return cg.paren(cg.binop("~=", cg.member_index(right_expr, key_code), cg.nil_val()))
   elseif op == "%" then
-    return cg.call("_ljs_mod", { left, right })
+    return cg.call("_ljs_mod", { cg.call("_ljs_to_number", { left }), cg.call("_ljs_to_number", { right }) })
   else
     return cg.binop(op, left, right)
   end
@@ -1251,7 +1276,7 @@ gen.UpdateExpression = function(node, indent, ctx)
   if node.operator == "++" then
     val = cg.call("_ljs_add", { arg, "1" })
   else
-    val = cg.call("_ljs_add", { arg, "-1" })
+    val = cg.call("_ljs_sub", { arg, "1" })
   end
   if node.prefix then
     return cg.iife({ cg.binop("=", arg, val), cg.return_inline(arg) })
@@ -1372,7 +1397,7 @@ gen_stmt.UpdateExpression = function(node, indent, ctx)
   if node.operator == "++" then
     return cg.expr_stmt(cg.binop("=", arg, cg.call("_ljs_add", { arg, "1" })), indent)
   end
-  return cg.expr_stmt(cg.binop("=", arg, cg.call("_ljs_add", { arg, "-1" })), indent)
+  return cg.expr_stmt(cg.binop("=", arg, cg.call("_ljs_sub", { arg, "1" })), indent)
 end
 
 gen_stmt.ConditionalExpression = function(node, indent, ctx)
@@ -1409,6 +1434,10 @@ local HELPER_ORDER = {
   "_ljs_to_object",
   "_ljs_tostring",
   "_ljs_add",
+  "_ljs_sub",
+  "_ljs_mul",
+  "_ljs_div",
+  "_ljs_pow",
   "_ljs_bnot",
   "_ljs_band",
   "_ljs_bor",

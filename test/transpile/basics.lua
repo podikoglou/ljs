@@ -101,14 +101,54 @@ test("false + false is 0", function()
   assert_eq(tonumber(output:match("[%d.]+")), 0)
 end)
 
-test("subtraction", function()
-  local code = expr_code("3 - 1")
-  assert_eq(code, "3 - 1")
+test("true - 1 coerces boolean to number", function()
+  local output = run_js("console.log(true - 1);")
+  assert_eq(tonumber(output:match("[%d.]+")), 0)
 end)
 
-test("multiplication", function()
+test("false * 5 coerces boolean to number", function()
+  local output = run_js("console.log(false * 5);")
+  assert_eq(tonumber(output:match("[%d.]+")), 0)
+end)
+
+test("true * 3 coerces boolean to number", function()
+  local output = run_js("console.log(true * 3);")
+  assert_eq(tonumber(output:match("[%d.]+")), 3)
+end)
+
+test("null - 1 coerces null to 0", function()
+  local output = run_js("console.log(null - 1);")
+  assert_eq(tonumber(output:match("-?[%d.]+")), -1)
+end)
+
+test("null * 3 coerces null to 0", function()
+  local output = run_js("console.log(null * 3);")
+  assert_eq(tonumber(output:match("[%d.]+")), 0)
+end)
+
+test("null / 2 coerces null to 0", function()
+  local output = run_js("console.log(null / 2);")
+  assert_eq(tonumber(output:match("[%d.]+")), 0)
+end)
+
+test("division uses helper", function()
+  local code = expr_code("6 / 2")
+  assert_eq(code, "_ljs_div(6, 2)")
+end)
+
+test("modulo uses _ljs_to_number wrapped _ljs_mod", function()
+  local code = expr_code("a % b")
+  assert_eq(code, "_ljs_mod(_ljs_to_number(a), _ljs_to_number(b))")
+end)
+
+test("subtraction uses helper", function()
+  local code = expr_code("3 - 1")
+  assert_eq(code, "_ljs_sub(3, 1)")
+end)
+
+test("multiplication uses helper", function()
   local code = expr_code("3 * 2")
-  assert_eq(code, "3 * 2")
+  assert_eq(code, "_ljs_mul(3, 2)")
 end)
 
 test("strict equality", function()
@@ -175,32 +215,32 @@ end)
 -- Unit tests — exponentiation (**)
 -- ============================================================================
 
-test("exponentiation ** maps to ^", function()
-  assert_eq(expr_code("2 ** 3"), "2 ^ 3")
+test("exponentiation ** uses helper", function()
+  assert_eq(expr_code("2 ** 3"), "_ljs_pow(2, 3)")
 end)
 
-test("exponentiation **= desugars", function()
-  assert_eq(expr_code("x **= 2"), "x = x ^ 2")
+test("exponentiation **= desugars with helper", function()
+  assert_eq(expr_code("x **= 2"), "x = _ljs_pow(x, 2)")
 end)
 
 test("exponentiation **= on member expression", function()
-  assert_eq(expr_code("obj.x **= 2"), "_ljs_to_object(obj).x = _ljs_to_object(obj).x ^ 2")
+  assert_eq(expr_code("obj.x **= 2"), "_ljs_to_object(obj).x = _ljs_pow(_ljs_to_object(obj).x, 2)")
 end)
 
 test("exponentiation **= on computed member", function()
   assert_eq(
     expr_code("arr[0] **= 2"),
-    "_ljs_to_object(arr)[(0) + 1] = _ljs_to_object(arr)[(0) + 1] ^ 2"
+    "_ljs_to_object(arr)[(0) + 1] = _ljs_pow(_ljs_to_object(arr)[(0) + 1], 2)"
   )
 end)
 
-test("exponentiation chained right-assoc", function()
-  assert_eq(expr_code("2 ** 3 ** 4"), "2 ^ 3 ^ 4")
+test("exponentiation chained right-assoc uses helper", function()
+  assert_eq(expr_code("2 ** 3 ** 4"), "_ljs_pow(2, _ljs_pow(3, 4))")
 end)
 
-test("exponentiation no helper emitted", function()
+test("exponentiation ** helper emitted", function()
   local code = emit_ok("let x = 2 ** 3;")
-  assert(not code:find("_ljs_pow"), "expected no _ljs_pow helper")
+  assert(code:find("_ljs_pow"), "expected _ljs_pow helper")
 end)
 
 -- ============================================================================
@@ -273,20 +313,20 @@ test("compound += desugars with _ljs_add", function()
   assert_eq(expr_code("x += 1"), "x = _ljs_add(x, 1)")
 end)
 
-test("compound -= desugars", function()
-  assert_eq(expr_code("x -= 1"), "x = x - 1")
+test("compound -= desugars with helper", function()
+  assert_eq(expr_code("x -= 1"), "x = _ljs_sub(x, 1)")
 end)
 
-test("compound *= desugars", function()
-  assert_eq(expr_code("x *= 2"), "x = x * 2")
+test("compound *= desugars with helper", function()
+  assert_eq(expr_code("x *= 2"), "x = _ljs_mul(x, 2)")
 end)
 
-test("compound /= desugars", function()
-  assert_eq(expr_code("x /= 2"), "x = x / 2")
+test("compound /= desugars with helper", function()
+  assert_eq(expr_code("x /= 2"), "x = _ljs_div(x, 2)")
 end)
 
-test("compound %= desugars", function()
-  assert_eq(expr_code("x %= 2"), "x = _ljs_mod(x, 2)")
+test("compound %= desugars with ToNumber", function()
+  assert_eq(expr_code("x %= 2"), "x = _ljs_mod(_ljs_to_number(x), _ljs_to_number(2))")
 end)
 
 test("compound += on member expression", function()

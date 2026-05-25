@@ -372,7 +372,7 @@ test("bitwise OR with strict inequality", function()
 end)
 
 test("shift inside multiplication", function()
-  assert_eq(expr_code("(1 << 3) * 2"), "_ljs_shl(1, 3) * 2")
+  assert_eq(expr_code("(1 << 3) * 2"), "_ljs_mul(_ljs_shl(1, 3), 2)")
 end)
 
 test("bitwise inside ternary", function()

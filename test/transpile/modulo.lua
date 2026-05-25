@@ -19,14 +19,14 @@ end
 -- Unit tests — code generation (% operator)
 -- ============================================================================
 
-test("% emits _ljs_mod call", function()
+test("% emits _ljs_mod with ToNumber coercion", function()
   local code = expr_code("a % b")
-  assert_eq(code, "_ljs_mod(a, b)")
+  assert_eq(code, "_ljs_mod(_ljs_to_number(a), _ljs_to_number(b))")
 end)
 
-test("%= emits _ljs_mod assignment", function()
+test("%= emits _ljs_mod with ToNumber assignment", function()
   local code = expr_code("a %= b")
-  assert_eq(code, "a = _ljs_mod(a, b)")
+  assert_eq(code, "a = _ljs_mod(_ljs_to_number(a), _ljs_to_number(b))")
 end)
 
 test("_ljs_mod helper in preamble when % used", function()
@@ -170,9 +170,9 @@ test("-0 % 0 = NaN", function()
 end)
 
 -- %= compound assignment
-test("x %= 3 uses _ljs_mod", function()
+test("x %= 3 uses _ljs_mod with ToNumber", function()
   local code = expr_code("x %= 3")
-  assert_eq(code, "x = _ljs_mod(x, 3)")
+  assert_eq(code, "x = _ljs_mod(_ljs_to_number(x), _ljs_to_number(3))")
 end)
 
 test("%= compound assignment runtime", function()
