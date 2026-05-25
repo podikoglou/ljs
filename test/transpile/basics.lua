@@ -266,7 +266,7 @@ test("compound /= desugars", function()
 end)
 
 test("compound %= desugars", function()
-  assert_eq(expr_code("x %= 2"), "x = x % 2")
+  assert_eq(expr_code("x %= 2"), "x = _ljs_mod(x, 2)")
 end)
 
 test("compound += on member expression", function()

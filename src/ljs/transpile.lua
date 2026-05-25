@@ -215,6 +215,19 @@ HELPERS._ljs_usr = [[local function _ljs_usr(a, b)
   return math.floor(a / 2^b)
 end]]
 
+HELPERS._ljs_mod = [[local function _ljs_mod(n, d)
+  if n ~= n or d ~= d then return 0/0 end
+  if n == math.huge or n == -math.huge then return 0/0 end
+  if d == math.huge or d == -math.huge then return n end
+  if d == 0 then return 0/0 end
+  if n == 0 then return n end
+  local q = n / d
+  local t = q >= 0 and math.floor(q) or math.ceil(q)
+  local r = n - t * d
+  if r == 0 and 1/n < 0 then return -0.0 end
+  return r
+end]]
+
 -- typeof per §13.5.3: nil (undefined) → "undefined", _ljs_null → "object".
 HELPERS._ljs_typeof = [[local function _ljs_typeof(x)
   if x == nil then return "undefined"
@@ -1125,9 +1138,11 @@ gen.BinaryExpression = function(node, indent, ctx)
     return cg.binop("^", left, right)
   elseif op == "**=" then
     return cg.binop("=", left, cg.binop("^", left, right))
-  elseif op == "-=" or op == "*=" or op == "/=" or op == "%=" then
+  elseif op == "-=" or op == "*=" or op == "/=" then
     local base_op = op:sub(1, 1)
     return cg.binop("=", left, cg.binop(base_op, left, right))
+  elseif op == "%=" then
+    return cg.binop("=", left, cg.call("_ljs_mod", { left, right }))
   elseif op == "&" then
     return cg.call("_ljs_band", { left, right })
   elseif op == "|" then
@@ -1167,6 +1182,8 @@ gen.BinaryExpression = function(node, indent, ctx)
     end
     local right_expr = right:sub(1, 1) == "{" and cg.paren(right) or right
     return cg.paren(cg.binop("~=", cg.member_index(right_expr, key_code), cg.nil_val()))
+  elseif op == "%" then
+    return cg.call("_ljs_mod", { left, right })
   else
     return cg.binop(op, left, right)
   end
@@ -1386,7 +1403,7 @@ end
 -- _ljs_to_number/_ljs_to_boolean before arithmetic and coercion helpers,
 -- _ljs_fn before _ljs_ctor (which depends on it), _ljs_to_object before
 -- _ljs_call_member (which calls it), _ljs_tostring, rest alphabetical.
--- All 26 helpers are always emitted unconditionally.
+-- All 27 helpers are always emitted unconditionally.
 local HELPER_ORDER = {
   "_ljs_to_int32",
   "_ljs_to_primitive",
@@ -1403,6 +1420,7 @@ local HELPER_ORDER = {
   "_ljs_shl",
   "_ljs_shr",
   "_ljs_usr",
+  "_ljs_mod",
   "_ljs_typeof",
   "_ljs_call",
   "_ljs_call_member",
