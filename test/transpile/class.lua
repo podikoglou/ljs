@@ -17,7 +17,7 @@ test("constructor body emitted", function()
     code:find("local Foo = _ljs_ctor(function(_ljs_this, x)", nil, true),
     "expected ctor with params"
   )
-  assert(code:find("_ljs_arrow_this%.x"), "expected this.x assignment")
+  assert(code:find("_ljs_to_object%(_ljs_arrow_this%)%.x"), "expected this.x assignment")
 end)
 
 test("method assigned to prototype", function()
@@ -64,7 +64,7 @@ end)
 
 test("super.prop property access", function()
   local code = H.transpile_ok("class Dog extends Animal { get() { return super.x; } }")
-  assert(code:find("Animal%.prototype%.x"), "expected super property access")
+  assert(code:find("_ljs_to_object%(Animal%.prototype%)%.x"), "expected super property access")
 end)
 
 test("basic class construct + method call", function()

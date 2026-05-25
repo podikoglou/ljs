@@ -248,23 +248,32 @@ end)
 -- ============================================================================
 
 test("compound &= on dot member", function()
-  assert_eq(expr_code("obj.x &= 1"), "obj.x = _ljs_band(obj.x, 1)")
+  assert_eq(expr_code("obj.x &= 1"), "_ljs_to_object(obj).x = _ljs_band(_ljs_to_object(obj).x, 1)")
 end)
 
 test("compound |= on dot member", function()
-  assert_eq(expr_code("obj.x |= 1"), "obj.x = _ljs_bor(obj.x, 1)")
+  assert_eq(expr_code("obj.x |= 1"), "_ljs_to_object(obj).x = _ljs_bor(_ljs_to_object(obj).x, 1)")
 end)
 
 test("compound <<= on computed member", function()
-  assert_eq(expr_code("arr[0] <<= 2"), "arr[(0) + 1] = _ljs_shl(arr[(0) + 1], 2)")
+  assert_eq(
+    expr_code("arr[0] <<= 2"),
+    "_ljs_to_object(arr)[(0) + 1] = _ljs_shl(_ljs_to_object(arr)[(0) + 1], 2)"
+  )
 end)
 
 test("compound >>>= on computed member", function()
-  assert_eq(expr_code("arr[0] >>>= 1"), "arr[(0) + 1] = _ljs_usr(arr[(0) + 1], 1)")
+  assert_eq(
+    expr_code("arr[0] >>>= 1"),
+    "_ljs_to_object(arr)[(0) + 1] = _ljs_usr(_ljs_to_object(arr)[(0) + 1], 1)"
+  )
 end)
 
 test("compound ^= on computed member", function()
-  assert_eq(expr_code("arr[0] ^= 3"), "arr[(0) + 1] = _ljs_bxor(arr[(0) + 1], 3)")
+  assert_eq(
+    expr_code("arr[0] ^= 3"),
+    "_ljs_to_object(arr)[(0) + 1] = _ljs_bxor(_ljs_to_object(arr)[(0) + 1], 3)"
+  )
 end)
 
 -- ============================================================================

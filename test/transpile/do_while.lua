@@ -73,7 +73,10 @@ end)
 
 test("do-while with member expression condition", function()
   local code = transpile_ok("do { y; } while (obj.active);")
-  assert(code:find("until not %(obj%.active%)"), "expected until not (obj.active)")
+  assert(
+    code:find("until not %(_ljs_to_object%(obj%)%.active%)"),
+    "expected until not (_ljs_to_object(obj).active)"
+  )
 end)
 
 test("do-while with ternary condition", function()

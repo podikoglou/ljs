@@ -38,7 +38,7 @@ end)
 
 test("new Foo.bar() emits _ljs_new with member callee", function()
   local code = expr_code("new Foo.bar()")
-  assert_eq(code, "_ljs_new(Foo.bar)")
+  assert_eq(code, "_ljs_new(_ljs_to_object(Foo).bar)")
 end)
 
 -- ============================================================================

@@ -29,7 +29,7 @@ end)
 
 test("delete a.b.c (nested member)", function()
   local code = transpile_ok("delete a.b.c;")
-  assert(code:find('rawset(a.b, "c", nil)', 1, true), "expected rawset call")
+  assert(code:find('rawset(_ljs_to_object(a).b, "c", nil)', 1, true), "expected rawset call")
 end)
 
 test("delete getObj().prop (call result member)", function()
