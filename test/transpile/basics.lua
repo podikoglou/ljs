@@ -103,12 +103,12 @@ end)
 
 test("logical AND", function()
   local code = expr_code("a && b")
-  assert_eq(code, "a and b")
+  assert_eq(code, "(function() local _ = a; if _ljs_to_boolean(_) then return b else return _ end end)()")
 end)
 
 test("logical OR", function()
   local code = expr_code("a || b")
-  assert_eq(code, "a or b")
+  assert_eq(code, "(function() local _ = a; if _ljs_to_boolean(_) then return _ else return b end end)()")
 end)
 
 test("logical NOT", function()
