@@ -60,10 +60,20 @@ HELPERS._ljs_to_int32 = [[local function _ljs_to_int32(x)
   return x
 end]]
 
+HELPERS._ljs_tostring = [[local function _ljs_tostring(x)
+  if x == _ljs_null then return "null"
+  elseif x == nil then return "undefined"
+  else return tostring(x) end
+end]]
+
 HELPERS._ljs_add = [[local function _ljs_add(a, b)
   if type(a) == "string" or type(b) == "string" then
-    return tostring(a) .. tostring(b)
+    return _ljs_tostring(a) .. _ljs_tostring(b)
   end
+  if a == _ljs_null then a = 0 end
+  if b == _ljs_null then b = 0 end
+  if a == nil then a = 0 / 0 end
+  if b == nil then b = 0 / 0 end
   return a + b
 end]]
 
@@ -1164,6 +1174,7 @@ end
 local HELPER_ORDER = {
   "_ljs_to_int32",
   "_ljs_fn",
+  "_ljs_tostring",
   "_ljs_add",
   "_ljs_bnot",
   "_ljs_band",
