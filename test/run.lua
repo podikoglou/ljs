@@ -53,6 +53,7 @@ describe("transpile/primitive_boxing", "test.transpile.primitive_boxing")
 describe("transpile/function_objects", "test.transpile.function_objects")
 describe("transpile/continue", "test.transpile.continue")
 describe("transpile/member_literals", "test.transpile.member_literals")
+describe("transpile/toboolean", "test.transpile.toboolean")
 
 describe("codegen", "test.codegen")
 

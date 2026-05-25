@@ -147,7 +147,7 @@ test('let r = typeof x === "number" ? 1 : 0', function()
   local code = expr_code('let r = typeof x === "number" ? 1 : 0')
   assert_eq(
     code,
-    'local r = (function() if _ljs_typeof(x) == "number" then return 1 else return 0 end end)()'
+    'local r = (function() if _ljs_to_boolean(_ljs_typeof(x) == "number") then return 1 else return 0 end end)()'
   )
 end)
 
@@ -155,7 +155,7 @@ test('let r = typeof f === "function" ? f() : null', function()
   local code = expr_code('let r = typeof f === "function" ? f() : null')
   assert_eq(
     code,
-    'local r = (function() if _ljs_typeof(f) == "function" then return _ljs_call(f) else return _ljs_null end end)()'
+    'local r = (function() if _ljs_to_boolean(_ljs_typeof(f) == "function") then return _ljs_call(f) else return _ljs_null end end)()'
   )
 end)
 
@@ -179,12 +179,12 @@ end)
 
 test("!typeof x", function()
   local code = expr_code("!typeof x")
-  assert_eq(code, "not _ljs_typeof(x)")
+  assert_eq(code, "not _ljs_to_boolean(_ljs_typeof(x))")
 end)
 
 test("let r = typeof !x", function()
   local code = expr_code("let r = typeof !x")
-  assert_eq(code, "local r = _ljs_typeof(not x)")
+  assert_eq(code, "local r = _ljs_typeof(not _ljs_to_boolean(x))")
 end)
 
 test("let r = typeof -x", function()
@@ -227,14 +227,14 @@ end)
 
 test("typeof in if condition", function()
   local code = transpile_ok('if (typeof x === "number") { x; }')
-  assert(code:find("if _ljs_typeof"), "expected if _ljs_typeof")
+  assert(code:find("if _ljs_to_boolean"), "expected if _ljs_to_boolean")
   assert(code:find("x\n"), "expected body")
   assert(code:find("end\n"), "expected end")
 end)
 
 test("typeof in while condition", function()
   local code = transpile_ok('while (typeof x !== "undefined") { x; }')
-  assert(code:find("while _ljs_typeof"), "expected while _ljs_typeof")
+  assert(code:find("while _ljs_to_boolean"), "expected while _ljs_to_boolean")
 end)
 
 test("typeof in return", function()

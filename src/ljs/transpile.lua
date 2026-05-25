@@ -561,7 +561,7 @@ end
 -- @param scopes (table) Transpilation context
 -- @return (string) test, (string) then_body, (table|nil) elseifs, (string|nil) else_body
 local function collect_if_chain(node, indent, ctx)
-  local test = emit(node.test, indent, ctx)
+  local test = cg.call("_ljs_to_boolean", { emit(node.test, indent, ctx) })
   local body = emit(node.consequent, indent, ctx)
   local elseifs = {}
   local else_body = nil
@@ -571,7 +571,7 @@ local function collect_if_chain(node, indent, ctx)
     if is_elseif_chain(alternate) then
       local inner = alternate.type == "IfStatement" and alternate or alternate.body[1]
       elseifs[#elseifs + 1] = {
-        test = emit(inner.test, indent, ctx),
+        test = cg.call("_ljs_to_boolean", { emit(inner.test, indent, ctx) }),
         body = emit(inner.consequent, indent, ctx),
       }
       alternate = inner.alternate
@@ -907,7 +907,7 @@ gen.IfStatement = function(node, indent, ctx)
 end
 
 gen.WhileStatement = function(node, indent, ctx)
-  local test_code = emit(node.test, indent, ctx)
+  local test_code = cg.call("_ljs_to_boolean", { emit(node.test, indent, ctx) })
   local body = emit(node.body, indent, ctx)
   if has_continue(node.body) then
     body = body .. cg.label("_continue", indent + 1)
@@ -923,7 +923,7 @@ gen.DoWhileStatement = function(node, indent, ctx)
   if has_continue(node.body) then
     body = body .. cg.label("_continue", indent + 1)
   end
-  local negated = cg.unop("not", "(" .. test_code .. ")")
+  local negated = cg.unop("not", cg.call("_ljs_to_boolean", { test_code }))
   return cg.repeat_until(negated, body, indent)
 end
 
@@ -973,7 +973,7 @@ gen.ForStatement = function(node, indent, ctx)
   if node.init then
     parts[#parts + 1] = emit(node.init, indent, ctx)
   end
-  local test_code = node.test and emit(node.test, indent, ctx) or "true"
+  local test_code = node.test and cg.call("_ljs_to_boolean", { emit(node.test, indent, ctx) }) or "true"
   scope_push(ctx)
   if node.init and node.init.type == "VariableDeclaration" then
     for _, decl in ipairs(node.init.declarations) do
@@ -1168,7 +1168,7 @@ gen.UnaryExpression = function(node, indent, ctx)
   end
   local expr = emit(node.argument, indent, ctx)
   if node.operator == "!" then
-    return cg.unop("not", expr)
+    return cg.unop("not", cg.call("_ljs_to_boolean", { expr }))
   elseif node.operator == "~" then
     return cg.call("_ljs_bnot", { expr })
   elseif node.operator == "+" then
@@ -1233,7 +1233,7 @@ gen.UpdateExpression = function(node, indent, ctx)
 end
 
 gen.ConditionalExpression = function(node, indent, ctx)
-  local test_code = emit(node.test, indent, ctx)
+  local test_code = cg.call("_ljs_to_boolean", { emit(node.test, indent, ctx) })
   local cons_code = emit(node.consequent, indent, ctx)
   local alt_code = emit(node.alternate, indent, ctx)
   return cg.iife({ cg.inline_if_return(test_code, cons_code, alt_code) })
