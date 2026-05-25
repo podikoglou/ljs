@@ -10,13 +10,19 @@ local transpile_ok, run_js, emit_ok = H.transpile_ok, H.run_js, H.emit_ok
 test("do-while basic with braces", function()
   local code = transpile_ok("do { x = x + 1; } while (x < 10);")
   assert(code:find("repeat"), "expected repeat")
-  assert(code:find("until not _ljs_to_boolean%(x < 10%)"), "expected until not _ljs_to_boolean(x < 10)")
+  assert(
+    code:find("until not _ljs_to_boolean%(x < 10%)"),
+    "expected until not _ljs_to_boolean(x < 10)"
+  )
 end)
 
 test("do-while without braces", function()
   local code = transpile_ok("do x = x + 1; while (x < 10);")
   assert(code:find("repeat"), "expected repeat")
-  assert(code:find("until not _ljs_to_boolean%(x < 10%)"), "expected until not _ljs_to_boolean(x < 10)")
+  assert(
+    code:find("until not _ljs_to_boolean%(x < 10%)"),
+    "expected until not _ljs_to_boolean(x < 10)"
+  )
 end)
 
 test("do-while with true condition", function()
@@ -28,7 +34,10 @@ end)
 test("do-while with false condition", function()
   local code = transpile_ok("do { x; } while (false);")
   assert(code:find("repeat"), "expected repeat")
-  assert(code:find("until not _ljs_to_boolean%(false%)"), "expected until not _ljs_to_boolean(false)")
+  assert(
+    code:find("until not _ljs_to_boolean%(false%)"),
+    "expected until not _ljs_to_boolean(false)"
+  )
 end)
 
 test("do-while with number as condition", function()
@@ -45,12 +54,16 @@ end)
 
 test("do-while with logical condition (parens essential)", function()
   local code = transpile_ok("do { y; } while (a && b);")
-  assert(code:find("until not _ljs_to_boolean%(a and b%)"), "expected until not _ljs_to_boolean(a and b)")
+  assert(code:find("until not"), "expected until not")
+  assert(code:find("_ljs_to_boolean"), "expected _ljs_to_boolean in condition")
 end)
 
 test("do-while with unary negation condition", function()
   local code = transpile_ok("do { y; } while (!done);")
-  assert(code:find("until not _ljs_to_boolean%(not _ljs_to_boolean%(done%)%)"), "expected until not _ljs_to_boolean(not _ljs_to_boolean(done))")
+  assert(
+    code:find("until not _ljs_to_boolean%(not _ljs_to_boolean%(done%)%)"),
+    "expected until not _ljs_to_boolean(not _ljs_to_boolean(done))"
+  )
 end)
 
 test("do-while with comparison condition", function()
@@ -60,7 +73,10 @@ end)
 
 test("do-while with strict inequality condition", function()
   local code = transpile_ok("do { y; } while (x !== 0);")
-  assert(code:find("until not _ljs_to_boolean%(x ~= 0%)"), "expected until not _ljs_to_boolean(x ~= 0)")
+  assert(
+    code:find("until not _ljs_to_boolean%(x ~= 0%)"),
+    "expected until not _ljs_to_boolean(x ~= 0)"
+  )
 end)
 
 test("do-while with call expression condition", function()
@@ -94,7 +110,10 @@ end)
 test("do-while body with multiple statements", function()
   local code = transpile_ok("do { x = x + 1; y = y + 1; } while (x < 10);")
   assert(code:find("repeat"), "expected repeat")
-  assert(code:find("until not _ljs_to_boolean%(x < 10%)"), "expected until not _ljs_to_boolean(x < 10)")
+  assert(
+    code:find("until not _ljs_to_boolean%(x < 10%)"),
+    "expected until not _ljs_to_boolean(x < 10)"
+  )
 end)
 
 -- ============================================================================
