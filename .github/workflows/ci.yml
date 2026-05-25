@@ -15,4 +15,21 @@ jobs:
       - uses: jdx/mise-action@v2
 
       - name: Run tests
-        run: make test
+        run: make test 2>&1 | tee test-output.txt
+
+      - name: Extract test count
+        if: success()
+        run: |
+          COUNT=$(grep -oP '\d+(?= tests? passed)' test-output.txt | tail -1)
+          echo "TEST_COUNT=${COUNT:-0}" >> $GITHUB_ENV
+
+      - name: Update test count badge
+        if: success() && github.ref == 'refs/heads/main'
+        uses: schneegans/dynamic-badges-action@v1.8.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: b09d93dbfcbd7570565f5702d4f57412
+          filename: tests.json
+          label: tests
+          message: ${{ env.TEST_COUNT }} passing
+          color: brightgreen
