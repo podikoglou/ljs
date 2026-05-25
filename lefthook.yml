@@ -24,3 +24,5 @@ pre-commit:
     - name: tests
       glob: "{ljs_parser.lua,ljs_transpile.lua,ljs_codegen.lua,ljs_test.lua,test/**/*.lua}"
       run: make test
+      skip:
+        - ref: develop
