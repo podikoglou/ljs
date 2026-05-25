@@ -204,6 +204,66 @@ test("ToNumber: '0B110' returns 6 (uppercase binary)", function()
   assert_eq(eval_js("Number('0B110')"), 6)
 end)
 
+test("ToNumber: '0o0' returns 0 (octal zero)", function()
+  assert_eq(eval_js("Number('0o0')"), 0)
+end)
+
+test("ToNumber: '0b0' returns 0 (binary zero)", function()
+  assert_eq(eval_js("Number('0b0')"), 0)
+end)
+
+test("ToNumber: '0o01' returns 1 (leading zero octal)", function()
+  assert_eq(eval_js("Number('0o01')"), 1)
+end)
+
+test("ToNumber: '0b0010' returns 2 (leading zeros binary)", function()
+  assert_eq(eval_js("Number('0b0010')"), 2)
+end)
+
+test("ToNumber: '0o' returns NaN (empty octal)", function()
+  assert_nan("Number('0o')")
+end)
+
+test("ToNumber: '0b' returns NaN (empty binary)", function()
+  assert_nan("Number('0b')")
+end)
+
+test("ToNumber: '0o89' returns NaN (invalid octal digit)", function()
+  assert_nan("Number('0o89')")
+end)
+
+test("ToNumber: '0b12' returns NaN (invalid binary digit)", function()
+  assert_nan("Number('0b12')")
+end)
+
+test("ToNumber: '0x' returns NaN (empty hex)", function()
+  assert_nan("Number('0x')")
+end)
+
+test("ToNumber: '+0x1F' returns NaN (signed hex not allowed)", function()
+  assert_nan("Number('+0x1F')")
+end)
+
+test("ToNumber: '-0o17' returns NaN (signed octal not allowed)", function()
+  assert_nan("Number('-0o17')")
+end)
+
+test("ToNumber: '+0b1010' returns NaN (signed binary not allowed)", function()
+  assert_nan("Number('+0b1010')")
+end)
+
+test("ToNumber: '0o1_7' returns NaN (separators not in StringToNumber)", function()
+  assert_nan("Number('0o1_7')")
+end)
+
+test("ToNumber: '0b1_0' returns NaN (separators not in StringToNumber)", function()
+  assert_nan("Number('0b1_0')")
+end)
+
+test("ToNumber: '0x1_F' returns NaN (separators not in StringToNumber)", function()
+  assert_nan("Number('0x1_F')")
+end)
+
 -- §7.1.4.1: whitespace-padded numeric strings (spec: trim before parse)
 test("ToNumber: '  42  ' returns 42 (whitespace-padded)", function()
   assert_eq(eval_js("Number('  42  ')"), 42)
@@ -221,12 +281,46 @@ test("ToNumber: '  -Infinity  ' returns -Infinity (whitespace-padded)", function
   assert_eq(eval_js("Number('  -Infinity  ')"), -math.huge)
 end)
 
+test("ToNumber: '  +Infinity  ' returns +Infinity (whitespace-padded)", function()
+  assert_eq(eval_js("Number('  +Infinity  ')"), math.huge)
+end)
+
+test("ToNumber: '\\nInfinity\\t' returns +Infinity (mixed whitespace)", function()
+  assert_eq(eval_js('Number("\\nInfinity\\t")'), math.huge)
+end)
+
+test("ToNumber: '\\n-Infinity\\r\\n' returns -Infinity (mixed whitespace)", function()
+  assert_eq(eval_js('Number("\\n-Infinity\\r\\n")'), -math.huge)
+end)
+
 test("ToNumber: '\\n42\\t' returns 42 (line terminator whitespace)", function()
   assert_eq(eval_js('Number("\\n42\\t")'), 42)
 end)
 
 test("ToNumber: '  0x1F  ' returns 31 (whitespace-padded hex)", function()
   assert_eq(eval_js("Number('  0x1F  ')"), 31)
+end)
+
+test("ToNumber: '  0o17  ' returns 15 (whitespace-padded octal)", function()
+  assert_eq(eval_js("Number('  0o17  ')"), 15)
+end)
+
+test("ToNumber: '  0b1010  ' returns 10 (whitespace-padded binary)", function()
+  assert_eq(eval_js("Number('  0b1010  ')"), 10)
+end)
+
+test("ToNumber: '  +0  ' returns +0 (whitespace-padded signed zero)", function()
+  assert_eq(eval_js("Number('  +0  ')"), 0)
+end)
+
+test("ToNumber: '  -0  ' returns -0 (whitespace-padded signed neg zero)", function()
+  local val = eval_js("Number('  -0  ')")
+  assert_eq(val, 0)
+  assert(1 / val == -math.huge, "'  -0  ' should give -Infinity on division")
+end)
+
+test("ToNumber: ' \\t\\n\\r\\f\\v ' returns +0 (mixed whitespace-only)", function()
+  assert_eq(eval_js('Number(" \\t\\n\\r\\f\\v ")'), 0)
 end)
 
 -- §7.1.4.1: strings that MUST produce NaN
@@ -284,6 +378,26 @@ end)
 
 test("ToNumber: '42f' returns NaN (trailing letter)", function()
   assert_nan("Number('42f')")
+end)
+
+test("ToNumber: 'Infinityx' returns NaN (trailing after Infinity)", function()
+  assert_nan("Number('Infinityx')")
+end)
+
+test("ToNumber: 'infinity' returns NaN (lowercase infinity)", function()
+  assert_nan("Number('infinity')")
+end)
+
+test("ToNumber: 'INFINITY' returns NaN (all-caps INFINITY)", function()
+  assert_nan("Number('INFINITY')")
+end)
+
+test("ToNumber: 'Infini' returns NaN (partial Infinity)", function()
+  assert_nan("Number('Infini')")
+end)
+
+test("ToNumber: '  Infinity x  ' returns NaN (Infinity + trailing)", function()
+  assert_nan("Number('  Infinity x  ')")
 end)
 
 -- Steps 7–9: Object → ToPrimitive → recurse
