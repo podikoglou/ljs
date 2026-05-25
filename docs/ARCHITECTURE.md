@@ -164,7 +164,7 @@ To add a new standard library function (e.g. `Array.prototype.forEach`, `String.
 
 Internal operator/expression helpers (e.g. `_ljs_add`, `_ljs_ctor`, `_ljs_bnot`) follow a different pattern:
 1. Define the helper in the `HELPERS` table (ordered by `HELPER_ORDER`)
-2. All 19 helpers are always emitted unconditionally in the preamble
+2. All 22 helpers are always emitted unconditionally in the preamble
 3. No analysis pass required — helpers are part of the compiler ABI, always available
 
 **Preamble structure** (emitted before user code):

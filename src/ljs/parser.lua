@@ -839,7 +839,7 @@ local function undefined_literal(token)
   return { type = "UndefinedLiteral", line = token.line, col = token.col }
 end
 
---- @param operator (string) One of: + - * / % ** === !== < > <= >= && || in = += -= *= /= %= **= & | ^ << >> >>> &= |= ^= <<= >>= >>>=
+--- @param operator (string) One of: + - * / % ** == != === !== < > <= >= && || in = += -= *= /= %= **= & | ^ << >> >>> &= |= ^= <<= >>= >>>=
 --- @param left (table) Left-hand AST expression
 --- @param right (table) Right-hand AST expression
 --- @return table {type="BinaryExpression", operator, left, right}
