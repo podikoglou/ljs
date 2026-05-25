@@ -23,33 +23,7 @@ local Number = _ljs_fn(function(_ljs_this, ...)
   if select("#", ...) == 0 then
     value = 0
   else
-    value = ...
-    if value == _ljs_null then
-      value = 0
-    elseif value == nil then
-      value = 0 / 0
-    elseif type(value) == "boolean" then
-      value = value and 1 or 0
-    elseif type(value) == "number" then
-      -- keep as-is
-    elseif type(value) == "string" then
-      if value == "" or value:match("^%s*$") then
-        value = 0
-      elseif value == "Infinity" or value == "+Infinity" then
-        value = math.huge
-      elseif value == "-Infinity" then
-        value = -math.huge
-      else
-        local n = tonumber(value)
-        if n then
-          value = n
-        else
-          value = 0 / 0
-        end
-      end
-    else
-      value = 0 / 0
-    end
+    value = _ljs_to_number(...)
   end
   if _ljs_this == nil then
     return value
