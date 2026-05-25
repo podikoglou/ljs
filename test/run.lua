@@ -54,6 +54,7 @@ describe("transpile/function_objects", "test.transpile.function_objects")
 describe("transpile/continue", "test.transpile.continue")
 describe("transpile/member_literals", "test.transpile.member_literals")
 describe("transpile/toboolean", "test.transpile.toboolean")
+describe("transpile/modulo", "test.transpile.modulo")
 
 describe("codegen", "test.codegen")
 
@@ -129,7 +130,12 @@ end)
 T.describe("runtime/logical_operators", function()
   local ok, err = pcall(require, "test.runtime.logical_operators")
   if not ok then
-    print(string.format("  \27[33m⚠\27[0m runtime/logical_operators: %s", tostring(err):match("^[^\n]*")))
+    print(
+      string.format(
+        "  \27[33m⚠\27[0m runtime/logical_operators: %s",
+        tostring(err):match("^[^\n]*")
+      )
+    )
   end
 end)
 
