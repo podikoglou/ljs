@@ -121,6 +121,10 @@ test("unary minus", function()
   assert_eq(code, "-x")
 end)
 
+test("unary minus -0 emits negative zero", function()
+  assert_eq(expr_code("-0;"), "(-1 / math.huge)")
+end)
+
 test("unary plus", function()
   local code = expr_code("+x")
   assert_eq(code, "tonumber(x)")
