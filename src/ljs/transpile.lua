@@ -111,6 +111,9 @@ HELPERS._ljs_to_number = [[local function _ljs_to_number(x)
     end
     return 0 / 0
   end
+  if tx == "table" then
+    return _ljs_to_number(_ljs_to_primitive(x))
+  end
   return 0 / 0
 end]]
 
@@ -1372,6 +1375,7 @@ end
 -- All 26 helpers are always emitted unconditionally.
 local HELPER_ORDER = {
   "_ljs_to_int32",
+  "_ljs_to_primitive",
   "_ljs_to_number",
   "_ljs_to_boolean",
   "_ljs_fn",
@@ -1395,7 +1399,6 @@ local HELPER_ORDER = {
   "_ljs_instanceof",
   "_ljs_str_to_num",
   "_ljs_super_call",
-  "_ljs_to_primitive",
   "_ljs_eq",
 }
 
