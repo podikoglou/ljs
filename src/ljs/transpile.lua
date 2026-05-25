@@ -1251,7 +1251,7 @@ gen.UpdateExpression = function(node, indent, ctx)
   if node.operator == "++" then
     val = cg.call("_ljs_add", { arg, "1" })
   else
-    val = cg.binop("-", arg, "1")
+    val = cg.call("_ljs_add", { arg, "-1" })
   end
   if node.prefix then
     return cg.iife({ cg.binop("=", arg, val), cg.return_inline(arg) })
@@ -1372,7 +1372,7 @@ gen_stmt.UpdateExpression = function(node, indent, ctx)
   if node.operator == "++" then
     return cg.expr_stmt(cg.binop("=", arg, cg.call("_ljs_add", { arg, "1" })), indent)
   end
-  return cg.expr_stmt(cg.binop("=", arg, cg.binop("-", arg, "1")), indent)
+  return cg.expr_stmt(cg.binop("=", arg, cg.call("_ljs_add", { arg, "-1" })), indent)
 end
 
 gen_stmt.ConditionalExpression = function(node, indent, ctx)
