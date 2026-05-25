@@ -27,7 +27,13 @@ local String = _ljs_fn(function(_ljs_this, ...)
       elseif value == -math.huge then
         value = "-Infinity"
       else
-        value = tostring(value)
+        if value == 0 then
+          value = "0"
+        elseif math.floor(value) == value then
+          value = tostring(math.floor(value))
+        else
+          value = tostring(value)
+        end
       end
     else
       value = tostring(value)
