@@ -135,15 +135,15 @@ HELPERS._ljs_usr = [[local function _ljs_usr(a, b)
   return math.floor(a / 2^b)
 end]]
 
--- Known gap: typeof null returns "undefined" because JS null → Lua nil.
+-- typeof per §13.5.3: nil (undefined) → "undefined", _ljs_null → "object".
 HELPERS._ljs_typeof = [[local function _ljs_typeof(x)
-  local t = type(x)
-  if t == "nil" then return "undefined"
-  elseif t == "table" then
+  if x == nil then return "undefined"
+  elseif x == _ljs_null then return "object"
+  elseif type(x) == "table" then
     local mt = getmetatable(x)
     if mt and mt.__call then return "function" end
     return "object"
-  else return t end
+  else return type(x) end
 end]]
 
 -- Direct call: f(a,b) → _ljs_call(f,a,b). Passes nil as _ljs_this (no receiver).
