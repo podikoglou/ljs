@@ -1,11 +1,12 @@
 local console = _ljs_object({})
 
 local function _console_write(handle, ...)
-  local args = { ... }
-  for i = 1, #args do
-    args[i] = tostring(args[i])
+  local n = select("#", ...)
+  local parts = {}
+  for i = 1, n do
+    parts[i] = _ljs_tostring((select(i, ...)))
   end
-  handle:write(table.concat(args, "\t") .. "\n")
+  handle:write(table.concat(parts, "\t") .. "\n")
 end
 
 console.log = _ljs_fn(function(_ljs_this, ...)

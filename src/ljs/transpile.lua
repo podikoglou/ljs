@@ -60,10 +60,20 @@ HELPERS._ljs_to_int32 = [[local function _ljs_to_int32(x)
   return x
 end]]
 
+HELPERS._ljs_tostring = [[local function _ljs_tostring(x)
+  if x == _ljs_null then return "null"
+  elseif x == nil then return "undefined"
+  else return tostring(x) end
+end]]
+
 HELPERS._ljs_add = [[local function _ljs_add(a, b)
   if type(a) == "string" or type(b) == "string" then
-    return tostring(a) .. tostring(b)
+    return _ljs_tostring(a) .. _ljs_tostring(b)
   end
+  if a == _ljs_null then a = 0 end
+  if b == _ljs_null then b = 0 end
+  if a == nil then a = 0 / 0 end
+  if b == nil then b = 0 / 0 end
   return a + b
 end]]
 
@@ -125,15 +135,15 @@ HELPERS._ljs_usr = [[local function _ljs_usr(a, b)
   return math.floor(a / 2^b)
 end]]
 
--- Known gap: typeof null returns "undefined" because JS null → Lua nil.
+-- typeof per §13.5.3: nil (undefined) → "undefined", _ljs_null → "object".
 HELPERS._ljs_typeof = [[local function _ljs_typeof(x)
-  local t = type(x)
-  if t == "nil" then return "undefined"
-  elseif t == "table" then
+  if x == nil then return "undefined"
+  elseif x == _ljs_null then return "object"
+  elseif type(x) == "table" then
     local mt = getmetatable(x)
     if mt and mt.__call then return "function" end
     return "object"
-  else return t end
+  else return type(x) end
 end]]
 
 -- Direct call: f(a,b) → _ljs_call(f,a,b). Passes nil as _ljs_this (no receiver).
@@ -142,7 +152,12 @@ HELPERS._ljs_call = [[local function _ljs_call(fn, ...)
 end]]
 
 -- Method call: obj.m(a,b) → _ljs_call_member(obj,"m",a,b). Passes obj as _ljs_this.
+-- Throws TypeError on null/undefined per RequireObjectCoercible (§7.2.1).
 HELPERS._ljs_call_member = [[local function _ljs_call_member(obj, key, ...)
+  if obj == nil or obj == _ljs_null then
+    local desc = obj == nil and "undefined" or "null"
+    error("TypeError: Cannot read properties of " .. desc .. " (reading '" .. tostring(key) .. "')")
+  end
   return obj[key](obj, ...)
 end]]
 
@@ -424,7 +439,7 @@ gen.BooleanLiteral = function(node)
 end
 
 gen.NullLiteral = function()
-  return cg.nil_val()
+  return "_ljs_null"
 end
 
 gen.UndefinedLiteral = function()
@@ -1164,6 +1179,7 @@ end
 local HELPER_ORDER = {
   "_ljs_to_int32",
   "_ljs_fn",
+  "_ljs_tostring",
   "_ljs_add",
   "_ljs_bnot",
   "_ljs_band",
@@ -1199,7 +1215,8 @@ function M.preamble()
   end
   local helpers_str = table.concat(helper_parts, "\n\n")
   _preamble_cache = read_runtime("proto")
-    .. "local _ljs_arrow_this = nil\n\n"
+    .. "local _ljs_arrow_this = nil\n"
+    .. "local _ljs_null = {}\n\n"
     .. helpers_str
     .. "\n\n"
     .. read_runtime("object")

@@ -37,7 +37,6 @@ Variables (`let`/`const`; `var` normalized to `let`), functions, arrow functions
 
 ### Known gaps
 
-- **`typeof null`**: Returns `"undefined"` instead of `"object"`. The transpiler maps JS `null` → Lua `nil`, which `_ljs_typeof` maps to `"undefined"`. All other `typeof` results match JS semantics.
 - **`f instanceof Object`**: Returns `false` for instances of user-defined constructors. `_ljs_ctor`-created prototypes inherit from `_ljs_object_prototype`, but `Object.prototype` identity checks (e.g., `Foo.prototype === Object.prototype`) return `false`.
 - **`console.log.prototype`**: Returns `nil` — `console.log` is wrapped in `_ljs_fn` (a callable table with `Function.prototype` chain), not `_ljs_ctor`. It has `.call` and `.apply` but no `.prototype`.
 
@@ -72,7 +71,7 @@ Objects created via `Object.create(proto)` have a prototype chain implemented us
 
 **Known gaps:**
 - `for...in` does not walk prototype chain (Lua `pairs()` only sees own properties). A `_ljs_pairs` iterator is deferred.
-- nil/null confusion: Lua tables cannot store `nil` as a value. Properties set to `null` are indistinguishable from missing properties.
+- nil/undefined confusion: Lua tables cannot store `nil` as a value. Properties set to `undefined` are indistinguishable from missing properties. `null` (`_ljs_null`) is storable and correctly preserved.
 - Multi-level `__index` chaining is correct for prototype inheritance but may conflict with future metatable-based getters/descriptors. Migration to explicit `_ljs_get`/`_ljs_set` helpers is expected when descriptors are added.
 
 ## Constructors
@@ -171,8 +170,9 @@ Internal operator/expression helpers (e.g. `_ljs_add`, `_ljs_ctor`, `_ljs_bnot`)
 **Preamble structure** (emitted before user code):
 1. Proto declarations (`_ljs_object_prototype`, `_ljs_function_prototype`) from `ljs.runtime.proto`
 2. `local _ljs_arrow_this = nil` — top-level `this` binding
-3. All 19 helpers in order: `_ljs_to_int32` first, `_ljs_fn` second, rest alphabetical
-4. Runtime std lib files: `object`, `function`, `array`, `console`
+3. `local _ljs_null = {}` — null sentinel (distinct from Lua nil / JS undefined)
+4. All 19 helpers in order: `_ljs_to_int32` first, `_ljs_fn` second, rest alphabetical
+5. Runtime std lib files: `object`, `function`, `array`, `console`
 
 **Public API:**
 - `ljs.preamble()` — cached preamble string (helpers + runtime, idempotent)

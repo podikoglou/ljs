@@ -99,4 +99,13 @@ T.describe("runtime/globals", function()
   end
 end)
 
+T.describe("runtime/null_undefined", function()
+  local ok, err = pcall(require, "test.runtime.null_undefined")
+  if not ok then
+    print(
+      string.format("  \27[33m⚠\27[0m runtime/null_undefined: %s", tostring(err):match("^[^\n]*"))
+    )
+  end
+end)
+
 T.summary()

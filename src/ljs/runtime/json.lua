@@ -72,13 +72,17 @@ end
 
 -- Custom stringify that understands ljs runtime objects: uses rawget for array
 -- elements (skips inherited properties), checks prototype chain for array type,
--- skips functions, handles nil → null. Circular reference detection via stack.
+-- skips functions. Circular reference detection via stack.
+-- _ljs_null (JS null) → "null", nil (JS undefined) → nil (omitted) per §25.5.4.2.
 local function _ljs_json_stringify(val, stack)
   stack = stack or {}
   if val == json.null then
     return "null"
   end
   if val == nil then
+    return nil
+  end
+  if val == _ljs_null then
     return "null"
   end
   if type(val) == "boolean" then
