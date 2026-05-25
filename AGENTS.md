@@ -8,6 +8,13 @@ This is a ~16k line codebase. No need for subagents or careful file loading — 
 
 Tests: `make test`
 
+## Git Flow
+- `develop` is the default branch — branch off it for all work
+- `main` only receives merges from `develop`
+- Always create PRs targeting `develop`
+- When starting work: `git checkout develop && git pull && git checkout -b <branch>`
+- Tests are skipped by lefthook on `develop` — CI catches failures
+
 For architecture and layer boundaries, see docs/ARCHITECTURE.md
 For AST node reference, see docs/AST.md
 For feature checklist and LuaDoc conventions, see docs/CONTRIBUTING.md
