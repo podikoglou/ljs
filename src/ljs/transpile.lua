@@ -104,6 +104,9 @@ HELPERS._ljs_to_number = [[local function _ljs_to_number(x)
     end
     local n = tonumber(t)
     if n then
+      if n == 0 and t:match("^%-") then
+        return -1 / math.huge
+      end
       return n
     end
     return 0 / 0
@@ -1153,6 +1156,13 @@ gen.BinaryExpression = function(node, indent, ctx)
 end
 
 gen.UnaryExpression = function(node, indent, ctx)
+  if
+    node.operator == "-"
+    and node.argument.type == "NumberLiteral"
+    and node.argument.value == 0
+  then
+    return cg.paren(cg.binop("/", cg.unop("-", "1"), "math.huge"))
+  end
   local expr = emit(node.argument, indent, ctx)
   if node.operator == "!" then
     return cg.unop("not", expr)
