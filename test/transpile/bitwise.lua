@@ -361,7 +361,10 @@ test("bitwise AND with strict equality", function()
 end)
 
 test("bitwise AND with logical AND", function()
-  assert_eq(expr_code("(a & b) && c"), "_ljs_band(a, b) and c")
+  assert_eq(
+    expr_code("(a & b) && c"),
+    "(function() local _ = _ljs_band(a, b); if _ljs_to_boolean(_) then return c else return _ end end)()"
+  )
 end)
 
 test("bitwise OR with strict inequality", function()
