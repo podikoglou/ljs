@@ -448,6 +448,34 @@ HELPERS._ljs_eq = [[local function _ljs_eq(a, b)
   return false
 end]]
 
+HELPERS._ljs_lt = [[local function _ljs_lt(a, b)
+  if type(a) == "string" and type(b) == "string" then
+    return a < b
+  end
+  return _ljs_to_number(a) < _ljs_to_number(b)
+end]]
+
+HELPERS._ljs_gt = [[local function _ljs_gt(a, b)
+  if type(a) == "string" and type(b) == "string" then
+    return a > b
+  end
+  return _ljs_to_number(a) > _ljs_to_number(b)
+end]]
+
+HELPERS._ljs_le = [[local function _ljs_le(a, b)
+  if type(a) == "string" and type(b) == "string" then
+    return a <= b
+  end
+  return _ljs_to_number(a) <= _ljs_to_number(b)
+end]]
+
+HELPERS._ljs_ge = [[local function _ljs_ge(a, b)
+  if type(a) == "string" and type(b) == "string" then
+    return a >= b
+  end
+  return _ljs_to_number(a) >= _ljs_to_number(b)
+end]]
+
 -- ============================================================================
 -- Section 3: Continue detection helper
 -- ============================================================================
@@ -1209,6 +1237,14 @@ gen.BinaryExpression = function(node, indent, ctx)
     return cg.paren(cg.binop("~=", cg.member_index(right_expr, key_code), cg.nil_val()))
   elseif op == "%" then
     return cg.call("_ljs_mod", { cg.call("_ljs_to_number", { left }), cg.call("_ljs_to_number", { right }) })
+  elseif op == "<" then
+    return cg.call("_ljs_lt", { left, right })
+  elseif op == ">" then
+    return cg.call("_ljs_gt", { left, right })
+  elseif op == "<=" then
+    return cg.call("_ljs_le", { left, right })
+  elseif op == ">=" then
+    return cg.call("_ljs_ge", { left, right })
   else
     return cg.binop(op, left, right)
   end
@@ -1461,6 +1497,10 @@ local HELPER_ORDER = {
   "_ljs_str_to_num",
   "_ljs_super_call",
   "_ljs_eq",
+  "_ljs_lt",
+  "_ljs_gt",
+  "_ljs_le",
+  "_ljs_ge",
 }
 
 local _preamble_cache = nil
