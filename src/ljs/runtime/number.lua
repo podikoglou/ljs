@@ -18,15 +18,37 @@ end)
 
 setmetatable(_ljs_number_prototype, { __index = _ljs_object_prototype })
 
-local Number = _ljs_fn(function(_ljs_this, value)
-  if value == nil then
+local Number = _ljs_fn(function(_ljs_this, ...)
+  local value
+  if select("#", ...) == 0 then
     value = 0
-  end
-  if type(value) ~= "number" then
-    if type(value) == "boolean" then
+  else
+    value = ...
+    if value == _ljs_null then
+      value = 0
+    elseif value == nil then
+      value = 0 / 0
+    elseif type(value) == "boolean" then
       value = value and 1 or 0
+    elseif type(value) == "number" then
+      -- keep as-is
+    elseif type(value) == "string" then
+      if value == "" or value:match("^%s*$") then
+        value = 0
+      elseif value == "Infinity" or value == "+Infinity" then
+        value = math.huge
+      elseif value == "-Infinity" then
+        value = -math.huge
+      else
+        local n = tonumber(value)
+        if n then
+          value = n
+        else
+          value = 0 / 0
+        end
+      end
     else
-      value = tonumber(value) or 0
+      value = 0 / 0
     end
   end
   if _ljs_this == nil then

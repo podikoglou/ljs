@@ -7,12 +7,31 @@ end)
 
 setmetatable(_ljs_string_prototype, { __index = _ljs_object_prototype })
 
-local String = _ljs_fn(function(_ljs_this, value)
-  if value == nil then
+local String = _ljs_fn(function(_ljs_this, ...)
+  local value
+  if select("#", ...) == 0 then
     value = ""
-  end
-  if type(value) ~= "string" then
-    value = tostring(value)
+  else
+    value = ...
+    if value == _ljs_null then
+      value = "null"
+    elseif value == nil then
+      value = "undefined"
+    elseif type(value) == "string" then
+      -- keep as-is
+    elseif type(value) == "number" then
+      if value ~= value then
+        value = "NaN"
+      elseif value == math.huge then
+        value = "Infinity"
+      elseif value == -math.huge then
+        value = "-Infinity"
+      else
+        value = tostring(value)
+      end
+    else
+      value = tostring(value)
+    end
   end
   if _ljs_this == nil then
     return value

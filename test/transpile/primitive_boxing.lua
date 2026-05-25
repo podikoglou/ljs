@@ -439,6 +439,16 @@ test("Number(null) returns 0", function()
   assert_eq(out, "0\n")
 end)
 
+test("Number(undefined) returns NaN", function()
+  local out = run_js([[ console.log(isNaN(Number(undefined))); ]])
+  assert_eq(out, "true\n")
+end)
+
+test("Number('hello') returns NaN", function()
+  local out = run_js([[ console.log(isNaN(Number("hello"))); ]])
+  assert_eq(out, "true\n")
+end)
+
 test("Number('42') returns 42", function()
   local out = run_js([[ console.log(Number("42")); ]])
   assert_eq(out, "42\n")
@@ -466,6 +476,16 @@ end)
 test("String() returns empty string (no args)", function()
   local out = run_js([[ console.log(String() === ""); ]])
   assert_eq(out, "true\n")
+end)
+
+test("String(undefined) returns 'undefined'", function()
+  local out = run_js([[ console.log(String(undefined)); ]])
+  assert_eq(out, "undefined\n")
+end)
+
+test("String(null) returns 'null'", function()
+  local out = run_js([[ console.log(String(null)); ]])
+  assert_eq(out, "null\n")
 end)
 
 test("String(0) returns '0'", function()
