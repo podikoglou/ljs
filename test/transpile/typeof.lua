@@ -195,17 +195,17 @@ end)
 
 test("let r = typeof -x", function()
   local code = expr_code("let r = typeof -x")
-  assert_eq(code, "local r = _ljs_typeof(-x)")
+  assert_eq(code, "local r = _ljs_typeof(-_ljs_to_number(x))")
 end)
 
 test("-typeof x", function()
   local code = expr_code("-typeof x")
-  assert_eq(code, "-_ljs_typeof(x)")
+  assert_eq(code, "-_ljs_to_number(_ljs_typeof(x))")
 end)
 
 test("let r = typeof +x", function()
   local code = expr_code("let r = typeof +x")
-  assert_eq(code, "local r = _ljs_typeof(tonumber(x))")
+  assert_eq(code, "local r = _ljs_typeof(_ljs_to_number(x))")
 end)
 
 test("let r = typeof ~x", function()

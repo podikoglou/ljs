@@ -24,7 +24,7 @@ end)
 
 test("bitwise NOT on negative", function()
   local code = expr_code("~-1")
-  assert_eq(code, "_ljs_bnot(-1)")
+  assert_eq(code, "_ljs_bnot(-_ljs_to_number(1))")
 end)
 
 test("bitwise NOT in binary context", function()
@@ -212,7 +212,7 @@ test("unsigned right shift nested left-assoc", function()
 end)
 
 test("unsigned right shift negative", function()
-  assert_eq(expr_code("-1 >>> 0"), "_ljs_usr(-1, 0)")
+  assert_eq(expr_code("-1 >>> 0"), "_ljs_usr(-_ljs_to_number(1), 0)")
 end)
 
 -- ============================================================================

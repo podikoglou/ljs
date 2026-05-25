@@ -150,11 +150,7 @@ HELPERS._ljs_add = [[local function _ljs_add(a, b)
   if type(a) == "string" or type(b) == "string" then
     return _ljs_tostring(a) .. _ljs_tostring(b)
   end
-  if a == _ljs_null then a = 0 end
-  if b == _ljs_null then b = 0 end
-  if a == nil then a = 0 / 0 end
-  if b == nil then b = 0 / 0 end
-  return a + b
+  return _ljs_to_number(a) + _ljs_to_number(b)
 end]]
 
 HELPERS._ljs_bnot = [[local function _ljs_bnot(x)
@@ -1203,9 +1199,9 @@ gen.UnaryExpression = function(node, indent, ctx)
   elseif node.operator == "~" then
     return cg.call("_ljs_bnot", { expr })
   elseif node.operator == "+" then
-    return cg.call("tonumber", { expr })
+    return cg.call("_ljs_to_number", { expr })
   end
-  return cg.unop("-", expr)
+  return cg.unop("-", cg.call("_ljs_to_number", { expr }))
 end
 
 --- Compute the Lua key for a MemberExpression.
