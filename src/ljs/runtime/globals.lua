@@ -8,8 +8,12 @@ local NaN = (0 / 0)
 local Infinity = math.huge
 
 -- ToNumber: mirrors JS Number() coercion (ECMA-262 §7.1.4).
--- nil → NaN, true → 1, false → 0, '' → 0, ' ' → 0, then tonumber().
+-- _ljs_null → +0, nil (undefined) → NaN, true → 1, false → 0,
+-- '' → 0, ' ' → 0, then tonumber().
 local function _ljs_toNumber(x)
+  if x == _ljs_null then
+    return 0
+  end
   if x == nil then
     return 0 / 0
   end
