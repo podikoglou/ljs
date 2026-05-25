@@ -346,8 +346,9 @@ HELPERS._ljs_str_to_num = [[local function _ljs_str_to_num(s)
   if t == "" then return 0 end
   if t == "Infinity" or t == "+Infinity" then return math.huge end
   if t == "-Infinity" then return -math.huge end
-  local p = t:match("^0[bBoOxX]")
+  local s, p = t:match("^([+-]?)(0[bBoOxX])")
   if p then
+    if s ~= "" then return 0 / 0 end
     local lo = p:lower()
     local digits = t:sub(3)
     if digits == "" then return 0 / 0 end
