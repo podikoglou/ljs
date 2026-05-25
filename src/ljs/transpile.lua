@@ -1161,7 +1161,7 @@ gen.UnaryExpression = function(node, indent, ctx)
     and node.argument.type == "NumberLiteral"
     and node.argument.value == 0
   then
-    return "(-1/math.huge)"
+    return cg.paren(cg.binop("/", cg.unop("-", "1"), "math.huge"))
   end
   local expr = emit(node.argument, indent, ctx)
   if node.operator == "!" then
