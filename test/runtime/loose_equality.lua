@@ -232,8 +232,32 @@ test("object with custom toString == string", function()
   assert_eq(exec_js('let o = {toString: function() { return "hi"; }}; return o == "hi";'), true)
 end)
 
-test("object with custom valueOf == string (valueOf returns number, then Number==String)", function()
-  assert_eq(exec_js('let o = {valueOf: function() { return 42; }}; return o == "42";'), true)
+test(
+  "object with custom valueOf == string (valueOf returns number, then Number==String)",
+  function()
+    assert_eq(exec_js('let o = {valueOf: function() { return 42; }}; return o == "42";'), true)
+  end
+)
+
+-- §7.1.1.1: Non-callable valueOf must be skipped (IsCallable check)
+test("non-callable valueOf is skipped, falls through to toString", function()
+  assert_eq(
+    exec_js('let o = {valueOf: 42, toString: function() { return "hello"; }}; return o == "hello";'),
+    true
+  )
+end)
+
+test("non-callable valueOf and toString both skipped → TypeError", function()
+  local ok, err = pcall(exec_js, "let o = {valueOf: 42, toString: 99}; return o == 1;")
+  assert(not ok, "expected TypeError")
+  assert(string.find(err, "TypeError"), "expected TypeError message, got: " .. tostring(err))
+end)
+
+test("non-callable toString is skipped, valueOf is used", function()
+  assert_eq(
+    exec_js("let o = {valueOf: function() { return 7; }, toString: 'notfunc'}; return o == 7;"),
+    true
+  )
 end)
 
 -- Arrays: Array.prototype.toString calls join(","), producing a string

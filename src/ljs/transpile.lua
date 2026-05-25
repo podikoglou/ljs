@@ -232,14 +232,23 @@ HELPERS._ljs_super_call = [[local function _ljs_super_call(proto, key, this_val,
 -- ToPrimitive per §7.1.1: OrdinaryToPrimitive with hint=number.
 -- Tries valueOf first, then toString. Returns first primitive result.
 -- Throws TypeError if neither returns a primitive.
+-- Per §7.1.1.1 step 3.b: only calls method if IsCallable is true.
 HELPERS._ljs_to_primitive = [[local function _ljs_to_primitive(obj)
+  local function _callable(v)
+    if type(v) == "function" then return true end
+    if type(v) == "table" then
+      local mt = getmetatable(v)
+      return mt and mt.__call ~= nil
+    end
+    return false
+  end
   local val_of = obj.valueOf
-  if val_of ~= nil then
+  if _callable(val_of) then
     local result = val_of(obj)
     if type(result) ~= "table" then return result end
   end
   local to_str = obj.toString
-  if to_str ~= nil then
+  if _callable(to_str) then
     local result = to_str(obj)
     if type(result) ~= "table" then return result end
   end
