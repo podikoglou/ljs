@@ -973,7 +973,8 @@ gen.ForStatement = function(node, indent, ctx)
   if node.init then
     parts[#parts + 1] = emit(node.init, indent, ctx)
   end
-  local test_code = node.test and cg.call("_ljs_to_boolean", { emit(node.test, indent, ctx) }) or "true"
+  local test_code = node.test and cg.call("_ljs_to_boolean", { emit(node.test, indent, ctx) })
+    or "true"
   scope_push(ctx)
   if node.init and node.init.type == "VariableDeclaration" then
     for _, decl in ipairs(node.init.declarations) do
@@ -1101,13 +1102,13 @@ gen.BinaryExpression = function(node, indent, ctx)
     return cg.binop("~=", left, right)
   elseif op == "&&" then
     return cg.iife({
-      cg.local_inline("_", left),
-      cg.inline_if_return(cg.call("_ljs_to_boolean", { "_" }), right, "_"),
+      cg.local_inline("_ljs_v", left),
+      cg.inline_if_return(cg.call("_ljs_to_boolean", { "_ljs_v" }), right, "_ljs_v"),
     })
   elseif op == "||" then
     return cg.iife({
-      cg.local_inline("_", left),
-      cg.inline_if_return(cg.call("_ljs_to_boolean", { "_" }), "_", right),
+      cg.local_inline("_ljs_v", left),
+      cg.inline_if_return(cg.call("_ljs_to_boolean", { "_ljs_v" }), "_ljs_v", right),
     })
   elseif op == "=" then
     return cg.binop("=", left, right)

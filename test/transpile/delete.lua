@@ -117,7 +117,7 @@ test("delete in logical: delete x && delete y", function()
   local code = expr_code("delete x && delete y")
   assert_eq(
     code,
-    "(function() local _ = true; if _ljs_to_boolean(_) then return true else return _ end end)()"
+    "(function() local _ljs_v = true; if _ljs_to_boolean(_ljs_v) then return true else return _ljs_v end end)()"
   )
 end)
 
@@ -125,7 +125,7 @@ test("delete in logical: delete obj.prop || delete y", function()
   local code = expr_code("delete obj.prop || delete y")
   assert_eq(
     code,
-    '(function() local _ = (rawset(obj, "prop", nil) and true); if _ljs_to_boolean(_) then return _ else return true end end)()'
+    '(function() local _ljs_v = (rawset(obj, "prop", nil) and true); if _ljs_to_boolean(_ljs_v) then return _ljs_v else return true end end)()'
   )
 end)
 

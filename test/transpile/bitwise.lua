@@ -363,7 +363,7 @@ end)
 test("bitwise AND with logical AND", function()
   assert_eq(
     expr_code("(a & b) && c"),
-    "(function() local _ = _ljs_band(a, b); if _ljs_to_boolean(_) then return c else return _ end end)()"
+    "(function() local _ljs_v = _ljs_band(a, b); if _ljs_to_boolean(_ljs_v) then return c else return _ljs_v end end)()"
   )
 end)
 

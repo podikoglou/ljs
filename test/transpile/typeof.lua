@@ -133,7 +133,7 @@ test("typeof x && typeof y", function()
   local code = expr_code("typeof x && typeof y")
   assert_eq(
     code,
-    "(function() local _ = _ljs_typeof(x); if _ljs_to_boolean(_) then return _ljs_typeof(y) else return _ end end)()"
+    "(function() local _ljs_v = _ljs_typeof(x); if _ljs_to_boolean(_ljs_v) then return _ljs_typeof(y) else return _ljs_v end end)()"
   )
 end)
 
@@ -141,7 +141,7 @@ test("typeof x || typeof y", function()
   local code = expr_code("typeof x || typeof y")
   assert_eq(
     code,
-    "(function() local _ = _ljs_typeof(x); if _ljs_to_boolean(_) then return _ else return _ljs_typeof(y) end end)()"
+    "(function() local _ljs_v = _ljs_typeof(x); if _ljs_to_boolean(_ljs_v) then return _ljs_v else return _ljs_typeof(y) end end)()"
   )
 end)
 
