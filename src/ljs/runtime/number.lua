@@ -1,16 +1,21 @@
 _ljs_number_prototype.toString = _ljs_fn(function(_ljs_this)
   local v = _ljs_this._ljs_data
-  local s = tostring(v)
-  if s == "nan" or s == "-nan" then
+  if v ~= v then
     return "NaN"
   end
-  if s == "inf" then
+  if v == math.huge then
     return "Infinity"
   end
-  if s == "-inf" then
+  if v == -math.huge then
     return "-Infinity"
   end
-  return s
+  if v == 0 then
+    return "0"
+  end
+  if math.floor(v) == v then
+    return tostring(math.floor(v))
+  end
+  return tostring(v)
 end)
 _ljs_number_prototype.valueOf = _ljs_fn(function(_ljs_this)
   return _ljs_this._ljs_data
