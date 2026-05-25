@@ -136,6 +136,13 @@ end]]
 HELPERS._ljs_tostring = [[local function _ljs_tostring(x)
   if x == _ljs_null then return "null"
   elseif x == nil then return "undefined"
+  elseif type(x) == "number" then
+    if x ~= x then return "NaN" end
+    if x == math.huge then return "Infinity" end
+    if x == -math.huge then return "-Infinity" end
+    if x == 0 then return "0" end
+    if math.floor(x) == x then return tostring(math.floor(x)) end
+    return tostring(x)
   else return tostring(x) end
 end]]
 
