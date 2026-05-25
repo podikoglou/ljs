@@ -126,4 +126,11 @@ T.describe("runtime/helpers", function()
   end
 end)
 
+T.describe("runtime/logical_operators", function()
+  local ok, err = pcall(require, "test.runtime.logical_operators")
+  if not ok then
+    print(string.format("  \27[33m⚠\27[0m runtime/logical_operators: %s", tostring(err):match("^[^\n]*")))
+  end
+end)
+
 T.summary()
