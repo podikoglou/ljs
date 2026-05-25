@@ -75,16 +75,34 @@ HELPERS._ljs_to_number = [[local function _ljs_to_number(x)
     return x
   end
   if tx == "string" then
-    if x == "" or x:match("^%s*$") then
+    local t = x:match("^%s*(.-)%s*$")
+    if t == "" then
       return 0
     end
-    if x == "Infinity" or x == "+Infinity" then
+    if t == "Infinity" or t == "+Infinity" then
       return math.huge
     end
-    if x == "-Infinity" then
+    if t == "-Infinity" then
       return -math.huge
     end
-    local n = tonumber(x)
+    local s, p = t:match("^([+-]?)(0[bBoOxX])")
+    if p then
+      if s ~= "" then return 0 / 0 end
+      local lo = p:lower()
+      local digits = t:sub(3)
+      if digits == "" then return 0 / 0 end
+      if lo == "0x" then
+        if not digits:match("^%x+$") then return 0 / 0 end
+        return tonumber(t)
+      elseif lo == "0o" then
+        if not digits:match("^[0-7]+$") then return 0 / 0 end
+        return tonumber(digits, 8)
+      else
+        if not digits:match("^[01]+$") then return 0 / 0 end
+        return tonumber(digits, 2)
+      end
+    end
+    local n = tonumber(t)
     if n then
       return n
     end
