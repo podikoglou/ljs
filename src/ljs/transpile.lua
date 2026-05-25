@@ -1100,9 +1100,15 @@ gen.BinaryExpression = function(node, indent, ctx)
   elseif op == "!==" then
     return cg.binop("~=", left, right)
   elseif op == "&&" then
-    return cg.binop("and", left, right)
+    return cg.iife({
+      cg.local_inline("_", left),
+      cg.inline_if_return(cg.call("_ljs_to_boolean", { "_" }), right, "_"),
+    })
   elseif op == "||" then
-    return cg.binop("or", left, right)
+    return cg.iife({
+      cg.local_inline("_", left),
+      cg.inline_if_return(cg.call("_ljs_to_boolean", { "_" }), "_", right),
+    })
   elseif op == "=" then
     return cg.binop("=", left, right)
   elseif op == "+=" then
