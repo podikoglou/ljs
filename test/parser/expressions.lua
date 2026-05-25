@@ -176,6 +176,61 @@ test("precedence: ** binds tighter than all binary operators (both directions)",
   end
 end)
 
+-- INVARIANT: relational operators (< > <= >=) bind tighter than equality (=== !== == !=).
+-- Contract: relational (precedence 3) is higher than equality (precedence 2.9).
+-- For a EQ b REL c → a EQ (b REL c)  (equality wraps relational on right)
+-- For a REL b EQ c → (a REL b) EQ c  (relational wraps on left, outer is equality)
+-- Catches: regression where equality is at same level as relational.
+test("precedence: equality (=== !== == !=) lower than relational (< > <= >=)", function()
+  local rel_ops = { "<", ">", "<=", ">=" }
+  local eq_ops = { "===", "!==", "==", "!=" }
+  for _, rel_op in ipairs(rel_ops) do
+    for _, eq_op in ipairs(eq_ops) do
+      -- a EQ b REL c → a EQ (b REL c)
+      local src_r = string.format("a %s b %s c;", eq_op, rel_op)
+      local ast_r = parser.parse(src_r)
+      assert(ast_r, "expected parse for: " .. src_r)
+      local expr_r = ast_r.body[1].expression
+      assert_table_eq(
+        expr_r.operator,
+        eq_op,
+        "outer operator should be " .. eq_op .. " for: " .. src_r
+      )
+      assert_table_eq(
+        expr_r.right.type,
+        "BinaryExpression",
+        "right child should be BinaryExpression for: " .. src_r
+      )
+      assert_table_eq(
+        expr_r.right.operator,
+        rel_op,
+        "right child operator should be " .. rel_op .. " for: " .. src_r
+      )
+
+      -- a REL b EQ c → (a REL b) EQ c
+      local src_l = string.format("a %s b %s c;", rel_op, eq_op)
+      local ast_l = parser.parse(src_l)
+      assert(ast_l, "expected parse for: " .. src_l)
+      local expr_l = ast_l.body[1].expression
+      assert_table_eq(
+        expr_l.operator,
+        eq_op,
+        "outer operator should be " .. eq_op .. " for: " .. src_l
+      )
+      assert_table_eq(
+        expr_l.left.type,
+        "BinaryExpression",
+        "left child should be BinaryExpression for: " .. src_l
+      )
+      assert_table_eq(
+        expr_l.left.operator,
+        rel_op,
+        "left child operator should be " .. rel_op .. " for: " .. src_l
+      )
+    end
+  end
+end)
+
 test("parse -2 ** 3 (unary minus before **)", function()
   assert_parse_ok("-2 ** 3;", {
     A.expr_stmt(A.bin("**", A.una("-", A.num(2)), A.num(3))),
