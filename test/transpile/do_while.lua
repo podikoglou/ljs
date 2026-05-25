@@ -11,8 +11,8 @@ test("do-while basic with braces", function()
   local code = transpile_ok("do { x = x + 1; } while (x < 10);")
   assert(code:find("repeat"), "expected repeat")
   assert(
-    code:find("until not _ljs_to_boolean%(x < 10%)"),
-    "expected until not _ljs_to_boolean(x < 10)"
+    code:find("until not _ljs_to_boolean%(_ljs_lt%(x, 10%)%)"),
+    "expected until not _ljs_to_boolean(_ljs_lt(x, 10))"
   )
 end)
 
@@ -20,8 +20,8 @@ test("do-while without braces", function()
   local code = transpile_ok("do x = x + 1; while (x < 10);")
   assert(code:find("repeat"), "expected repeat")
   assert(
-    code:find("until not _ljs_to_boolean%(x < 10%)"),
-    "expected until not _ljs_to_boolean(x < 10)"
+    code:find("until not _ljs_to_boolean%(_ljs_lt%(x, 10%)%)"),
+    "expected until not _ljs_to_boolean(_ljs_lt(x, 10))"
   )
 end)
 
@@ -111,8 +111,8 @@ test("do-while body with multiple statements", function()
   local code = transpile_ok("do { x = x + 1; y = y + 1; } while (x < 10);")
   assert(code:find("repeat"), "expected repeat")
   assert(
-    code:find("until not _ljs_to_boolean%(x < 10%)"),
-    "expected until not _ljs_to_boolean(x < 10)"
+    code:find("until not _ljs_to_boolean%(_ljs_lt%(x, 10%)%)"),
+    "expected until not _ljs_to_boolean(_ljs_lt(x, 10))"
   )
 end)
 

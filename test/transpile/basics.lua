@@ -332,11 +332,11 @@ end)
 -- Unit tests — compound operators (+= etc.)
 -- ============================================================================
 
-test("comparison operators", function()
-  assert_eq(expr_code("a < b"), "a < b")
-  assert_eq(expr_code("a > b"), "a > b")
-  assert_eq(expr_code("a <= b"), "a <= b")
-  assert_eq(expr_code("a >= b"), "a >= b")
+test("comparison operators use helpers", function()
+  assert_eq(expr_code("a < b"), "_ljs_lt(a, b)")
+  assert_eq(expr_code("a > b"), "_ljs_gt(a, b)")
+  assert_eq(expr_code("a <= b"), "_ljs_le(a, b)")
+  assert_eq(expr_code("a >= b"), "_ljs_ge(a, b)")
 end)
 
 test("addition emits helper definition", function()
@@ -375,4 +375,54 @@ end)
 test("compound += emits _ljs_add helper definition", function()
   local code = transpile_ok("x += 1;")
   assert(code:find("_ljs_add"), "expected _ljs_add helper in output")
+end)
+
+-- ============================================================================
+-- Integration tests — relational operators (< > <= >=) with coercion (#100)
+-- Per ECMAScript Abstract Relational Comparison (§7.2.15)
+-- ============================================================================
+
+test("null < 1 coerces null to 0 → true", function()
+  local output = run_js("console.log(null < 1);")
+  assert_eq(output:match("%S+"), "true")
+end)
+
+test("true < 2 coerces true to 1 → true", function()
+  local output = run_js("console.log(true < 2);")
+  assert_eq(output:match("%S+"), "true")
+end)
+
+test("false >= 0 coerces false to 0 → true", function()
+  local output = run_js("console.log(false >= 0);")
+  assert_eq(output:match("%S+"), "true")
+end)
+
+test("undefined < 1 → false (NaN)", function()
+  local output = run_js("console.log(undefined < 1);")
+  assert_eq(output:match("%S+"), "false")
+end)
+
+test("NaN < 1 → false", function()
+  local output = run_js("console.log(NaN < 1);")
+  assert_eq(output:match("%S+"), "false")
+end)
+
+test('"10" > 9 coerces string to number → true', function()
+  local output = run_js('console.log("10" > 9);')
+  assert_eq(output:match("%S+"), "true")
+end)
+
+test('"abc" < 1 → false (NaN)', function()
+  local output = run_js('console.log("abc" < 1);')
+  assert_eq(output:match("%S+"), "false")
+end)
+
+test('"b" > "a" → true (lexicographic)', function()
+  local output = run_js('console.log("b" > "a");')
+  assert_eq(output:match("%S+"), "true")
+end)
+
+test("true > null coerces to 1 > 0 → true", function()
+  local output = run_js("console.log(true > null);")
+  assert_eq(output:match("%S+"), "true")
 end)

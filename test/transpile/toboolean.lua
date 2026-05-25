@@ -52,7 +52,7 @@ end)
 test("for(;;) wraps test in _ljs_to_boolean", function()
   local code = emit_ok("for (let i = 0; i < 10; i = i + 1) { x; }")
   assert(
-    code:find("while _ljs_to_boolean(i < 10) do", 1, true),
+    code:find("while _ljs_to_boolean(_ljs_lt(i, 10)) do", 1, true),
     "expected _ljs_to_boolean in for test"
   )
 end)
