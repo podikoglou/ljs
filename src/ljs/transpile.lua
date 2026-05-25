@@ -152,7 +152,12 @@ HELPERS._ljs_call = [[local function _ljs_call(fn, ...)
 end]]
 
 -- Method call: obj.m(a,b) → _ljs_call_member(obj,"m",a,b). Passes obj as _ljs_this.
+-- Throws TypeError on null/undefined per RequireObjectCoercible (§7.2.1).
 HELPERS._ljs_call_member = [[local function _ljs_call_member(obj, key, ...)
+  if obj == nil or obj == _ljs_null then
+    local desc = obj == nil and "undefined" or "null"
+    error("TypeError: Cannot read properties of " .. desc .. " (reading '" .. tostring(key) .. "')")
+  end
   return obj[key](obj, ...)
 end]]
 
