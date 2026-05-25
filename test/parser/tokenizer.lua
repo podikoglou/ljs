@@ -519,3 +519,256 @@ test("invariant: null and undefined produce distinct token types", function()
   assert_eq(undef_t.type, "Undefined")
   assert(null_t.type ~= undef_t.type, "null and undefined must have distinct types")
 end)
+
+-- ============================================================================
+-- SCIENTIFIC NOTATION (EXPONENT) NUMBER LITERALS
+-- Spec: ES2026 §12.9.3 NumericLiteral → DecimalLiteral → ExponentPart
+--   ExponentPart :: ExponentIndicator SignedInteger
+--   ExponentIndicator :: one of e E
+--   SignedInteger :: [+/-] DecimalDigits
+-- ============================================================================
+
+-- Basic exponent forms (lowercase e)
+test("tokenize scientific notation: 1e10", function()
+  assert_tok("1e10", 1, "Number", 1e10)
+end)
+
+test("tokenize scientific notation: 1e0", function()
+  assert_tok("1e0", 1, "Number", 1)
+end)
+
+test("tokenize scientific notation: 1e1", function()
+  assert_tok("1e1", 1, "Number", 10)
+end)
+
+test("tokenize scientific notation: 1e+10", function()
+  assert_tok("1e+10", 1, "Number", 1e10)
+end)
+
+test("tokenize scientific notation: 1e-10", function()
+  assert_tok("1e-10", 1, "Number", 1e-10)
+end)
+
+-- Uppercase E
+test("tokenize scientific notation: 1E10", function()
+  assert_tok("1E10", 1, "Number", 1E10)
+end)
+
+test("tokenize scientific notation: 1E+4", function()
+  assert_tok("1E+4", 1, "Number", 1E4)
+end)
+
+test("tokenize scientific notation: 1E-2", function()
+  assert_tok("1E-2", 1, "Number", 1E-2)
+end)
+
+-- Float with exponent (DecimalIntegerLiteral . DecimalDigits ExponentPart)
+test("tokenize scientific notation: 1.5e2", function()
+  assert_tok("1.5e2", 1, "Number", 150)
+end)
+
+test("tokenize scientific notation: 1.5e-2", function()
+  assert_tok("1.5e-2", 1, "Number", 0.015)
+end)
+
+test("tokenize scientific notation: 3.14e+0", function()
+  assert_tok("3.14e+0", 1, "Number", 3.14)
+end)
+
+test("tokenize scientific notation: 0.5e3", function()
+  assert_tok("0.5e3", 1, "Number", 500)
+end)
+
+test("tokenize scientific notation: 0.1e-1", function()
+  assert_tok("0.1e-1", 1, "Number", 0.01)
+end)
+
+-- Large and small exponents
+test("tokenize scientific notation: 1e308", function()
+  assert_tok("1e308", 1, "Number", 1e308)
+end)
+
+test("tokenize scientific notation: 1e-308", function()
+  assert_tok("1e-308", 1, "Number", 1e-308)
+end)
+
+test("tokenize scientific notation: 9.99e99", function()
+  assert_tok("9.99e99", 1, "Number", 9.99e99)
+end)
+
+-- Zero with exponent
+test("tokenize scientific notation: 0e10", function()
+  assert_tok("0e10", 1, "Number", 0)
+end)
+
+test("tokenize scientific notation: 0e0", function()
+  assert_tok("0e0", 1, "Number", 0)
+end)
+
+test("tokenize scientific notation: 0e+5", function()
+  assert_tok("0e+5", 1, "Number", 0)
+end)
+
+test("tokenize scientific notation: 0e-5", function()
+  assert_tok("0e-5", 1, "Number", 0)
+end)
+
+-- Multi-digit integer base
+test("tokenize scientific notation: 123e4", function()
+  assert_tok("123e4", 1, "Number", 123e4)
+end)
+
+test("tokenize scientific notation: 999e1", function()
+  assert_tok("999e1", 1, "Number", 9990)
+end)
+
+-- Multi-digit exponent
+test("tokenize scientific notation: 1e20", function()
+  assert_tok("1e20", 1, "Number", 1e20)
+end)
+
+test("tokenize scientific notation: 1e+20", function()
+  assert_tok("1e+20", 1, "Number", 1e20)
+end)
+
+test("tokenize scientific notation: 1e-20", function()
+  assert_tok("1e-20", 1, "Number", 1e-20)
+end)
+
+-- Exponent in expression context (token boundary tests)
+test("tokenize scientific notation in expression: x + 1e10", function()
+  assert_tok("x + 1e10", 1, "Identifier", "x")
+  assert_tok("x + 1e10", 2, "+")
+  assert_tok("x + 1e10", 3, "Number", 1e10)
+end)
+
+test("tokenize scientific notation in expression: 1e10 + 2e5", function()
+  assert_tok("1e10 + 2e5", 1, "Number", 1e10)
+  assert_tok("1e10 + 2e5", 2, "+")
+  assert_tok("1e10 + 2e5", 3, "Number", 2e5)
+end)
+
+test("tokenize scientific notation followed by semicolon: 1e10;", function()
+  assert_tok("1e10;", 1, "Number", 1e10)
+  assert_tok("1e10;", 2, ";")
+end)
+
+test("tokenize scientific notation in parens: (1e10)", function()
+  assert_tok("(1e10)", 1, "(")
+  assert_tok("(1e10)", 2, "Number", 1e10)
+  assert_tok("(1e10)", 3, ")")
+end)
+
+test("tokenize scientific notation as function arg: f(1e10)", function()
+  assert_tok("f(1e10)", 1, "Identifier", "f")
+  assert_tok("f(1e10)", 2, "(")
+  assert_tok("f(1e10)", 3, "Number", 1e10)
+  assert_tok("f(1e10)", 4, ")")
+end)
+
+-- NOT scientific notation: e/E as identifier or part of identifier
+test("tokenize: e10 is identifier, not exponent", function()
+  assert_tok("e10", 1, "Identifier", "e10")
+end)
+
+test("tokenize: E10 is identifier, not exponent", function()
+  assert_tok("E10", 1, "Identifier", "E10")
+end)
+
+test("tokenize: xe10 is identifier", function()
+  assert_tok("xe10", 1, "Identifier", "xe10")
+end)
+
+test("tokenize: 1e is not a valid number (no exponent digits)", function()
+  assert_tokenize_fail("1e", "number")
+end)
+
+test("tokenize: 1E is not a valid number (no exponent digits)", function()
+  assert_tokenize_fail("1E", "number")
+end)
+
+test("tokenize: 1e+ is not a valid number (no exponent digits)", function()
+  assert_tokenize_fail("1e+", "number")
+end)
+
+test("tokenize: 1e- is not a valid number (no exponent digits)", function()
+  assert_tokenize_fail("1e-", "number")
+end)
+
+test("tokenize: 1e+x is not a valid number", function()
+  assert_tokenize_fail("1e+x", "number")
+end)
+
+test("tokenize: 1.5e is not a valid number", function()
+  assert_tokenize_fail("1.5e", "number")
+end)
+
+test("tokenize: 1.5e- is not a valid number", function()
+  assert_tokenize_fail("1.5e-", "number")
+end)
+
+-- Exponent must have digits after e/E, even with sign
+test("tokenize: 1e; should tokenize as number 1, then semicolon", function()
+  assert_tok("1e;", 1, "Number", 1)
+  assert_tok("1e;", 2, ";")
+end)
+
+test("tokenize: 1e+; should fail (sign but no digits)", function()
+  assert_tokenize_fail("1e+;", "number")
+end)
+
+test("tokenize: 1e-; should fail (sign but no digits)", function()
+  assert_tokenize_fail("1e-;", "number")
+end)
+
+-- Exponent with decimal in exponent is NOT valid (e.g. 1e1.5)
+test("tokenize: 1e1.5 should parse 1e1 as number then .5 as number", function()
+  assert_tok("1e1.5", 1, "Number", 1e1)
+  assert_tok("1e1.5", 2, "Number", 0.5)
+end)
+
+-- Multiple exponent indicators is invalid
+test("tokenize: 1e1e2 should parse as 1e1 then identifier e2", function()
+  assert_tok("1e1e2", 1, "Number", 1e1)
+  assert_tok("1e1e2", 2, "Identifier", "e2")
+end)
+
+-- Exponent on zero-fraction: "0.0e5"
+test("tokenize scientific notation: 0.0e5", function()
+  assert_tok("0.0e5", 1, "Number", 0)
+end)
+
+-- Negative number is NOT a literal; it's unary minus + number
+-- This tests that the tokenizer doesn't try to handle -e as exponent
+test("tokenize: -1e10 is unary minus then number", function()
+  assert_tok("-1e10", 1, "-")
+  assert_tok("-1e10", 2, "Number", 1e10)
+end)
+
+-- Scientific notation value type invariant
+test("invariant: scientific notation token has number value", function()
+  local t = P.tok("1e10", 1)
+  assert_eq(t.type, "Number")
+  assert_eq(type(t.value), "number")
+end)
+
+-- EOF invariant with scientific notation
+test("invariant: scientific notation tokenize ends with EOF", function()
+  local tokens = parser.tokenize("1e10")
+  assert(tokens)
+  assert_eq(tokens[#tokens].type, "EOF")
+end)
+
+-- Position tracking: exponent chars should advance column correctly
+test("invariant: scientific notation token has valid position", function()
+  local t = P.tok("  1e10", 1)
+  assert(t.line >= 1)
+  assert(t.col >= 1)
+  assert_eq(t.col, 3)
+end)
+
+-- Hex literal should NOT get exponent (hex floats not in scope)
+test("tokenize: 0xFFe10 should parse as hex 0xFF then identifier e10", function()
+  assert_tok("0xFFe10", 1, "Number", 255)
+  assert_tok("0xFFe10", 2, "Identifier", "e10")
+end)

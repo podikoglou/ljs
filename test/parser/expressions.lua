@@ -33,6 +33,56 @@ test("parse hex in variable", function()
   assert_parse_ok("let x = 0xFF;", { A.let("x", A.num(255)) })
 end)
 
+test("parse scientific notation: 1e10 as expression", function()
+  assert_parse_ok("1e10;", { A.expr_stmt(A.num(1e10)) })
+end)
+
+test("parse scientific notation: 1.5e-2 as expression", function()
+  assert_parse_ok("1.5e-2;", { A.expr_stmt(A.num(1.5e-2)) })
+end)
+
+test("parse scientific notation: 1E+4 as expression", function()
+  assert_parse_ok("1E+4;", { A.expr_stmt(A.num(1E4)) })
+end)
+
+test("parse scientific notation in variable assignment", function()
+  assert_parse_ok("let x = 1e10;", { A.let("x", A.num(1e10)) })
+end)
+
+test("parse scientific notation in binary expression", function()
+  assert_parse_ok("1e10 + 2e5;", {
+    A.expr_stmt(A.binop("+", A.num(1e10), A.num(2e5))),
+  })
+end)
+
+test("parse scientific notation as function argument", function()
+  assert_parse_ok("f(1e10);", {
+    A.expr_stmt(A.call(A.id("f"), { A.num(1e10) })),
+  })
+end)
+
+test("parse scientific notation in array literal", function()
+  assert_parse_ok("[1e10, 2e5];", {
+    A.expr_stmt(A.arr({ A.num(1e10), A.num(2e5) })),
+  })
+end)
+
+test("parse scientific notation in return statement", function()
+  assert_parse_ok("function f() { return 1e10; }", {
+    A.func("f", {}, {
+      A.ret(A.num(1e10)),
+    }),
+  })
+end)
+
+test("parse error: 1e is not a valid expression", function()
+  assert_parse_fail("1e;", "number")
+end)
+
+test("parse error: 1e+ is not a valid expression", function()
+  assert_parse_fail("1e+;", "number")
+end)
+
 test("parse StringLiteral", function()
   assert_parse_ok('"hello";', { A.expr_stmt(A.str("hello")) })
 end)
