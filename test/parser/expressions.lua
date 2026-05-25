@@ -51,7 +51,7 @@ end)
 
 test("parse scientific notation in binary expression", function()
   assert_parse_ok("1e10 + 2e5;", {
-    A.expr_stmt(A.binop("+", A.num(1e10), A.num(2e5))),
+    A.expr_stmt(A.bin("+", A.num(1e10), A.num(2e5))),
   })
 end)
 
@@ -69,9 +69,7 @@ end)
 
 test("parse scientific notation in return statement", function()
   assert_parse_ok("function f() { return 1e10; }", {
-    A.func("f", {}, {
-      A.ret(A.num(1e10)),
-    }),
+    A.func("f", {}, A.block({ A.ret(A.num(1e10)) })),
   })
 end)
 

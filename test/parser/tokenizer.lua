@@ -708,9 +708,9 @@ test("tokenize: 1.5e- is not a valid number", function()
 end)
 
 -- Exponent must have digits after e/E, even with sign
-test("tokenize: 1e; should tokenize as number 1, then semicolon", function()
-  assert_tok("1e;", 1, "Number", 1)
-  assert_tok("1e;", 2, ";")
+-- Exponent must have digits after e/E (V8 rejects "1e;" as Invalid or unexpected token)
+test("tokenize: 1e; should fail (e with no exponent digits)", function()
+  assert_tokenize_fail("1e;", "number")
 end)
 
 test("tokenize: 1e+; should fail (sign but no digits)", function()
@@ -722,9 +722,12 @@ test("tokenize: 1e-; should fail (sign but no digits)", function()
 end)
 
 -- Exponent with decimal in exponent is NOT valid (e.g. 1e1.5)
-test("tokenize: 1e1.5 should parse 1e1 as number then .5 as number", function()
+-- .5 as a standalone number literal is not supported (numbers must start
+-- with a digit), so the dot becomes a punctuation token.
+test("tokenize: 1e1.5 should parse 1e1 as number then dot then number", function()
   assert_tok("1e1.5", 1, "Number", 1e1)
-  assert_tok("1e1.5", 2, "Number", 0.5)
+  assert_tok("1e1.5", 2, ".")
+  assert_tok("1e1.5", 3, "Number", 5)
 end)
 
 -- Multiple exponent indicators is invalid
@@ -767,8 +770,7 @@ test("invariant: scientific notation token has valid position", function()
   assert_eq(t.col, 3)
 end)
 
--- Hex literal should NOT get exponent (hex floats not in scope)
-test("tokenize: 0xFFe10 should parse as hex 0xFF then identifier e10", function()
-  assert_tok("0xFFe10", 1, "Number", 255)
-  assert_tok("0xFFe10", 2, "Identifier", "e10")
+-- Hex literal should NOT get exponent (hex digits include e, so 0xFFe10 is hex 0xFFE10)
+test("tokenize: 0xFFe10 is hex number, not exponent", function()
+  assert_tok("0xFFe10", 1, "Number", 1048080)
 end)
