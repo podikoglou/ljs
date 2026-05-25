@@ -1953,7 +1953,8 @@ end
 --   5   * / %
 --   4   + -
 --   3.5 << >> >>> (bitwise shifts)
---   3   === !== < > <= >= in
+--   3   < > <= >= in instanceof
+--   2.9 === !== == != (equality)
 --   2.75 & (bitwise AND)
 --   2.5 ^ (bitwise XOR)
 --   2.25 | (bitwise OR)
@@ -1975,10 +1976,10 @@ local PRECEDENCE = {
   [TOKEN.LEFT_SHIFT] = 3.5,
   [TOKEN.RIGHT_SHIFT] = 3.5,
   [TOKEN.UNSIGNED_RIGHT_SHIFT] = 3.5,
-  [TOKEN.EQ] = 3,
-  [TOKEN.NEQ] = 3,
-  [TOKEN.LOOSE_EQ] = 3,
-  [TOKEN.LOOSE_NEQ] = 3,
+  [TOKEN.EQ] = 2.9,
+  [TOKEN.NEQ] = 2.9,
+  [TOKEN.LOOSE_EQ] = 2.9,
+  [TOKEN.LOOSE_NEQ] = 2.9,
   [TOKEN.LT] = 3,
   [TOKEN.GT] = 3,
   [TOKEN.LTE] = 3,
