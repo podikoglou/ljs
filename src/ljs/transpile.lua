@@ -60,6 +60,55 @@ HELPERS._ljs_to_int32 = [[local function _ljs_to_int32(x)
   return x
 end]]
 
+HELPERS._ljs_to_number = [[local function _ljs_to_number(x)
+  if x == _ljs_null then
+    return 0
+  end
+  if x == nil then
+    return 0 / 0
+  end
+  local tx = type(x)
+  if tx == "boolean" then
+    return x and 1 or 0
+  end
+  if tx == "number" then
+    return x
+  end
+  if tx == "string" then
+    if x == "" or x:match("^%s*$") then
+      return 0
+    end
+    if x == "Infinity" or x == "+Infinity" then
+      return math.huge
+    end
+    if x == "-Infinity" then
+      return -math.huge
+    end
+    local n = tonumber(x)
+    if n then
+      return n
+    end
+    return 0 / 0
+  end
+  return 0 / 0
+end]]
+
+HELPERS._ljs_to_boolean = [[local function _ljs_to_boolean(x)
+  if x == nil or x == _ljs_null then
+    return false
+  end
+  if type(x) == "boolean" then
+    return x
+  end
+  if type(x) == "number" then
+    return x ~= 0 and x == x
+  end
+  if type(x) == "string" then
+    return #x > 0
+  end
+  return true
+end]]
+
 HELPERS._ljs_tostring = [[local function _ljs_tostring(x)
   if x == _ljs_null then return "null"
   elseif x == nil then return "undefined"
@@ -1272,11 +1321,14 @@ end
 -- === Top-level preamble and emit ===
 
 -- Emission order: _ljs_to_int32 first (other helpers depend on it),
--- _ljs_fn second (_ljs_ctor depends on it), _ljs_to_object before
+-- _ljs_to_number/_ljs_to_boolean before arithmetic and coercion helpers,
+-- _ljs_fn before _ljs_ctor (which depends on it), _ljs_to_object before
 -- _ljs_call_member (which calls it), _ljs_tostring, rest alphabetical.
--- All 24 helpers are always emitted unconditionally.
+-- All 26 helpers are always emitted unconditionally.
 local HELPER_ORDER = {
   "_ljs_to_int32",
+  "_ljs_to_number",
+  "_ljs_to_boolean",
   "_ljs_fn",
   "_ljs_to_object",
   "_ljs_tostring",
