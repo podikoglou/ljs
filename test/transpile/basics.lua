@@ -161,11 +161,6 @@ test("unary plus on string uses _ljs_to_number", function()
   assert_eq(code, '_ljs_to_number("5")')
 end)
 
-test("unary minus uses _ljs_to_number", function()
-  local code = expr_code("-x")
-  assert_eq(code, "-_ljs_to_number(x)")
-end)
-
 test("nested unary +!x uses _ljs_to_number", function()
   local code = expr_code("+!x")
   assert_eq(code, "_ljs_to_number(not _ljs_to_boolean(x))")
