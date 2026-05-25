@@ -11,18 +11,7 @@ end)
 setmetatable(_ljs_boolean_prototype, { __index = _ljs_object_prototype })
 
 local Boolean = _ljs_fn(function(_ljs_this, value)
-  if value == nil or value == _ljs_null then
-    value = false
-  elseif type(value) ~= "boolean" then
-    local vt = type(value)
-    if vt == "number" then
-      value = value ~= 0 and value == value
-    elseif vt == "string" then
-      value = #value > 0
-    else
-      value = true
-    end
-  end
+  value = _ljs_to_boolean(value)
   if _ljs_this == nil then
     return value
   end
