@@ -424,7 +424,7 @@ gen.BooleanLiteral = function(node)
 end
 
 gen.NullLiteral = function()
-  return cg.nil_val()
+  return "_ljs_null"
 end
 
 gen.UndefinedLiteral = function()
@@ -1199,7 +1199,8 @@ function M.preamble()
   end
   local helpers_str = table.concat(helper_parts, "\n\n")
   _preamble_cache = read_runtime("proto")
-    .. "local _ljs_arrow_this = nil\n\n"
+    .. "local _ljs_arrow_this = nil\n"
+    .. "local _ljs_null = {}\n\n"
     .. helpers_str
     .. "\n\n"
     .. read_runtime("object")

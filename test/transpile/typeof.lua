@@ -54,7 +54,7 @@ end)
 
 test("let r = typeof null", function()
   local code = expr_code("let r = typeof null")
-  assert_eq(code, "local r = _ljs_typeof(nil)")
+  assert_eq(code, "local r = _ljs_typeof(_ljs_null)")
 end)
 
 test("let r = typeof obj.prop", function()
@@ -155,7 +155,7 @@ test('let r = typeof f === "function" ? f() : null', function()
   local code = expr_code('let r = typeof f === "function" ? f() : null')
   assert_eq(
     code,
-    'local r = (function() if _ljs_typeof(f) == "function" then return _ljs_call(f) else return nil end end)()'
+    'local r = (function() if _ljs_typeof(f) == "function" then return _ljs_call(f) else return _ljs_null end end)()'
   )
 end)
 

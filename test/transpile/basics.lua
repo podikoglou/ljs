@@ -44,7 +44,7 @@ test("BooleanLiteral false", function()
 end)
 
 test("NullLiteral", function()
-  assert_eq(expr_code("null;"), "nil")
+  assert_eq(expr_code("null;"), "_ljs_null")
 end)
 
 -- ============================================================================
