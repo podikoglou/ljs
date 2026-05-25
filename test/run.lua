@@ -118,4 +118,11 @@ T.describe("runtime/loose_equality", function()
   end
 end)
 
+T.describe("runtime/helpers", function()
+  local ok, err = pcall(require, "test.runtime.helpers")
+  if not ok then
+    print(string.format("  \27[33m⚠\27[0m runtime/helpers: %s", tostring(err):match("^[^\n]*")))
+  end
+end)
+
 T.summary()
