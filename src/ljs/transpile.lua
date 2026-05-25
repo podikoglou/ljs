@@ -166,7 +166,11 @@ HELPERS._ljs_div = [[local function _ljs_div(a, b)
 end]]
 
 HELPERS._ljs_pow = [[local function _ljs_pow(a, b)
-  return _ljs_to_number(a) ^ _ljs_to_number(b)
+  a = _ljs_to_number(a)
+  b = _ljs_to_number(b)
+  if b ~= b then return 0 / 0 end
+  if (a == 1 or a == -1) and (b == math.huge or b == -math.huge) then return 0 / 0 end
+  return a ^ b
 end]]
 
 HELPERS._ljs_bnot = [[local function _ljs_bnot(x)

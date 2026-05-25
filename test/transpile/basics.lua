@@ -294,6 +294,41 @@ test("exponentiation in function body", function()
 end)
 
 -- ============================================================================
+-- Integration tests — exponentiation ±1^±Infinity and NaN edge cases (#102)
+-- Per ECMA-262 §6.1.6.1.3 Number::exponentiate steps 9.2, 10.2
+-- ============================================================================
+
+test("1 ** Infinity = NaN", function()
+  local output = run_js("console.log(1 ** Infinity);")
+  assert_eq(output:match("%S+"), "NaN")
+end)
+
+test("1 ** -Infinity = NaN", function()
+  local output = run_js("console.log(1 ** -Infinity);")
+  assert_eq(output:match("%S+"), "NaN")
+end)
+
+test("(-1) ** Infinity = NaN", function()
+  local output = run_js("console.log((-1) ** Infinity);")
+  assert_eq(output:match("%S+"), "NaN")
+end)
+
+test("(-1) ** -Infinity = NaN", function()
+  local output = run_js("console.log((-1) ** -Infinity);")
+  assert_eq(output:match("%S+"), "NaN")
+end)
+
+test("1 ** NaN = NaN", function()
+  local output = run_js("console.log(1 ** NaN);")
+  assert_eq(output:match("%S+"), "NaN")
+end)
+
+test("regression: 2 ** 3 still = 8 after NaN edge-case fix", function()
+  local output = run_js("console.log(2 ** 3);")
+  assert_eq(tonumber(output:match("[%d.]+")), 8)
+end)
+
+-- ============================================================================
 -- Unit tests — compound operators (+= etc.)
 -- ============================================================================
 
