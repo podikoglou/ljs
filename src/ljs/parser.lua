@@ -413,6 +413,18 @@ local function tokenize(source)
             advance()
           end
         end
+        if current() and (current() == "e" or current() == "E") then
+          advance()
+          if current() == "+" or current() == "-" then
+            advance()
+          end
+          if not current() or not is_digit(current()) then
+            return nil, make_parse_error("Invalid number literal", line, start_col)
+          end
+          while current() and is_digit(current()) do
+            advance()
+          end
+        end
       end
       local text = source:sub(start_pos, pos - 1)
       local num = tonumber(text)
