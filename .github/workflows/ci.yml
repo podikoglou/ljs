@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - name: Run tests
+        run: make test 2>&1 | tee test-output.txt
+
+      - name: Extract test results
+        if: always()
+        run: |
+          PASSED=$(grep -oP '\d+(?= passed)' test-output.txt | tail -1)
+          FAILED=$(grep -oP '\d+(?= failed)' test-output.txt | tail -1)
+          PASSED=${PASSED:-0}
+          FAILED=${FAILED:-0}
+          echo "TEST_PASSED=$PASSED" >> $GITHUB_ENV
+          echo "TEST_FAILED=$FAILED" >> $GITHUB_ENV
+          if [ "$FAILED" -gt 0 ]; then
+            echo "TEST_COLOR=red" >> $GITHUB_ENV
+          else
+            echo "TEST_COLOR=brightgreen" >> $GITHUB_ENV
+          fi
+
+      - name: Update test count badge
+        if: always() && github.ref == 'refs/heads/main'
+        uses: schneegans/dynamic-badges-action@v1.8.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: b09d93dbfcbd7570565f5702d4f57412
+          filename: tests.json
+          label: tests
+          message: "${{ env.TEST_PASSED }} passed, ${{ env.TEST_FAILED }} failed"
+          color: ${{ env.TEST_COLOR }}
