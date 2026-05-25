@@ -29,11 +29,11 @@ If you find yourself writing `.. "goto "` or `.. "(function()"` in the transpile
 
 ### Supported
 
-Variables (`let`/`const`; `var` normalized to `let`), functions, arrow functions (expression bodies desugared to `BlockStatement` wrapping `ReturnStatement`), `this` keyword (with correct lexical binding for arrow functions), objects, arrays (with `Array.prototype.push`/`pop`), arithmetic (`+` `-` `*` `/` `%`), exponentiation (`**`, right-associative), strict equality (`===`/`!==`; `==` rejected at tokenizer level), comparison (`<` `>` `<=` `>=`), `in`, `instanceof`, bitwise (`&` `|` `^` `<<` `>>` `>>>`), logical (`&&` `||`), ternary (`? :`), assignment (`=`), compound assignment (`+=` `-=` `*=` `/=` `%=` `**=` `&=` `|=` `^=` `<<=` `>>=` `>>>=`), unary (`!` `-` `+` `~`), `delete`, `typeof`, update (`++`/`--`, prefix and postfix), hex literals (`0xFF`, `0X1A`), `new`, `if`/`else`, `while`, `do...while`, `for...of`, `for...in`, `for(;;)` (C-style for with optional init/test/update), `switch`/`case`/`default`/`break`, `continue`, `throw`, `try`/`catch`, `return`, `console.log` (parsed as regular `CallExpression` with `MemberExpression` callee), constructors (`new Foo()`), `instanceof`, `typeof` on constructors returns `"function"`, `class` declarations and expressions with `extends`, `super()` (constructor) and `super.method()` (method), `static` methods, `Object.prototype.toString`/`hasOwnProperty`/`valueOf`, `Array.prototype.push`/`pop`, `Function.prototype.call`/`apply`.
+Variables (`let`/`const`; `var` normalized to `let`), functions, arrow functions (expression bodies desugared to `BlockStatement` wrapping `ReturnStatement`), `this` keyword (with correct lexical binding for arrow functions), objects, arrays (with `Array.prototype.push`/`pop`), arithmetic (`+` `-` `*` `/` `%`), exponentiation (`**`, right-associative), strict equality (`===`/`!==`), loose equality (`==`/`!=`, per §7.2.13 `IsLooselyEqual`), comparison (`<` `>` `<=` `>=`), `in`, `instanceof`, bitwise (`&` `|` `^` `<<` `>>` `>>>`), logical (`&&` `||`), ternary (`? :`), assignment (`=`), compound assignment (`+=` `-=` `*=` `/=` `%=` `**=` `&=` `|=` `^=` `<<=` `>>=` `>>>=`), unary (`!` `-` `+` `~`), `delete`, `typeof`, update (`++`/`--`, prefix and postfix), hex literals (`0xFF`, `0X1A`), `new`, `if`/`else`, `while`, `do...while`, `for...of`, `for...in`, `for(;;)` (C-style for with optional init/test/update), `switch`/`case`/`default`/`break`, `continue`, `throw`, `try`/`catch`, `return`, `console.log` (parsed as regular `CallExpression` with `MemberExpression` callee), constructors (`new Foo()`), `instanceof`, `typeof` on constructors returns `"function"`, `class` declarations and expressions with `extends`, `super()` (constructor) and `super.method()` (method), `static` methods, `Object.prototype.toString`/`hasOwnProperty`/`valueOf`, `Array.prototype.push`/`pop`, `Function.prototype.call`/`apply`.
 
 ### Rejected (parse error)
 
-`async`/`await`, `==`, regex literals, Promises.
+`async`/`await`, regex literals, Promises.
 
 ### Known gaps
 
@@ -171,7 +171,7 @@ Internal operator/expression helpers (e.g. `_ljs_add`, `_ljs_ctor`, `_ljs_bnot`)
 1. Proto declarations (`_ljs_object_prototype`, `_ljs_function_prototype`) from `ljs.runtime.proto`
 2. `local _ljs_arrow_this = nil` — top-level `this` binding
 3. `local _ljs_null = {}` — null sentinel (distinct from Lua nil / JS undefined)
-4. All 19 helpers in order: `_ljs_to_int32` first, `_ljs_fn` second, rest alphabetical
+4. All 22 helpers in order: `_ljs_to_int32` first, `_ljs_fn` second, rest alphabetical
 5. Runtime std lib files: `object`, `function`, `array`, `console`
 
 **Public API:**

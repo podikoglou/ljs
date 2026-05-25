@@ -34,12 +34,18 @@ end
 -- TOKENIZER ERRORS: message + position
 -- ============================================================================
 
-test("tokenizer: == rejected with message and position", function()
-  check_tokenize_err("x == y", "Use ===", 1, 3, "== operator")
+test("tokenizer: == accepted as loose equality", function()
+  local tokens = parser.tokenize("x == y")
+  assert(tokens, "expected successful tokenization")
+  assert_eq(tokens[2].type, "==")
 end)
 
-test("tokenizer: == on second line has correct line number", function()
-  check_tokenize_err("let x = 1;\nx == y", "Use ===", 2, 3, "== on line 2")
+test("tokenizer: == on second line tokenizes correctly", function()
+  local tokens = parser.tokenize("let x = 1;\nx == y")
+  assert(tokens, "expected successful tokenization")
+  assert_eq(tokens[7].type, "==")
+  assert_eq(tokens[7].line, 2)
+  assert_eq(tokens[7].col, 3)
 end)
 
 test("tokenizer: unexpected character with message and position", function()
@@ -156,10 +162,10 @@ test("parser: consume mismatch shows expected and actual", function()
   check_parse_err("function f( { }", "Expected Identifier, got {", 1, 13, "missing param name")
 end)
 
-test("parser: != produces an error (excluded operator)", function()
+test("parser: != accepted as loose inequality", function()
   local ast, err = parser.parse("x != y")
-  assert(ast == nil, "expected nil ast for !=")
-  assert(parser.is_parse_error(err), "expected ParseError for !=")
+  assert(ast ~= nil, "expected successful parse for !=")
+  assert_eq(ast.body[1].expression.operator, "!=")
 end)
 
 test("parser: error on third line has correct line number", function()
@@ -210,8 +216,6 @@ end)
 
 test("all tokenize errors have line >= 1, col >= 1, non-empty message", function()
   local sources = {
-    "==",
-    "x == y",
     "@",
     "0xG",
     '"hello',
@@ -263,6 +267,8 @@ test("parse returns ast with no error for valid source", function()
     "switch (x) { case 1: break; }",
     "(a) => a + 1",
     "class C {}",
+    "1 == 2",
+    "x != y",
   }
   for _, src in ipairs(valid) do
     local ast, err = parser.parse(src)
@@ -291,7 +297,6 @@ end)
 
 test("error col points at or after the bad construct", function()
   local cases = {
-    { src = "x == y", min_col = 3 },
     { src = "let x = @;", min_col = 9 },
     { src = "0xG", min_col = 1 },
   }

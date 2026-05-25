@@ -166,7 +166,6 @@ end)
 test("invariant: transpile_source returns nil, err for invalid JS", function()
   local cases = {
     "async function f() {}",
-    "1 == 2",
   }
   for _, src in ipairs(cases) do
     local code, err = transpile.transpile_source(src)
