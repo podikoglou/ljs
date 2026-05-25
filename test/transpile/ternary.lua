@@ -9,20 +9,20 @@ local transpile_ok, expr_code, run_js, run_lua_source =
 -- ============================================================================
 
 test("ternary basic", function()
-  assert_eq(expr_code("x ? 1 : 0"), "(function() if x then return 1 else return 0 end end)()")
+  assert_eq(expr_code("x ? 1 : 0"), "(function() if _ljs_to_boolean(x) then return 1 else return 0 end end)()")
 end)
 
 test("ternary falsy consequent correctness", function()
   assert_eq(
     expr_code("true ? false : 0"),
-    "(function() if true then return false else return 0 end end)()"
+    "(function() if _ljs_to_boolean(true) then return false else return 0 end end)()"
   )
 end)
 
 test("ternary in variable init", function()
   assert_eq(
     expr_code("let x = a ? 1 : 0;"),
-    "local x = (function() if a then return 1 else return 0 end end)()"
+    "local x = (function() if _ljs_to_boolean(a) then return 1 else return 0 end end)()"
   )
 end)
 

@@ -60,7 +60,7 @@ end)
 test("for with i++ update emits _ljs_add helper", function()
   local code = transpile_ok("for (let i = 0; i < 10; i++) { x; }")
   assert(code:find("_ljs_add"), "expected _ljs_add helper")
-  assert(code:find("while i < 10 do"), "expected while condition")
+  assert(code:find("while _ljs_to_boolean%(i < 10%) do"), "expected while condition")
 end)
 
 test("for with --i update still has _ljs_add in preamble", function()

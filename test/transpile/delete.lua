@@ -126,21 +126,21 @@ end)
 test("delete in ternary: delete obj.prop ? 1 : 0", function()
   assert_eq(
     expr_code("let r = delete obj.prop ? 1 : 0;"),
-    'local r = (function() if (rawset(obj, "prop", nil) and true) then return 1 else return 0 end end)()'
+    'local r = (function() if _ljs_to_boolean((rawset(obj, "prop", nil) and true)) then return 1 else return 0 end end)()'
   )
 end)
 
 test("delete in ternary: flag ? delete obj.prop : delete y", function()
   assert_eq(
     expr_code("let r = flag ? delete obj.prop : delete y;"),
-    'local r = (function() if flag then return (rawset(obj, "prop", nil) and true) else return true end end)()'
+    'local r = (function() if _ljs_to_boolean(flag) then return (rawset(obj, "prop", nil) and true) else return true end end)()'
   )
 end)
 
 test("delete in if condition", function()
   local code = transpile_ok("if (delete obj.prop) { x; }")
   assert(
-    code:find('if (rawset(obj, "prop", nil) and true) then', 1, true),
+    code:find('if _ljs_to_boolean((rawset(obj, "prop", nil) and true)) then', 1, true),
     "expected if with rawset"
   )
 end)
@@ -148,7 +148,7 @@ end)
 test("delete in while condition", function()
   local code = transpile_ok("while (delete obj.prop) { x; }")
   assert(
-    code:find('while (rawset(obj, "prop", nil) and true) do', 1, true),
+    code:find('while _ljs_to_boolean((rawset(obj, "prop", nil) and true)) do', 1, true),
     "expected while with rawset"
   )
 end)
@@ -181,7 +181,7 @@ end)
 
 test("!delete x (unary NOT of delete)", function()
   local code = expr_code("!delete x")
-  assert_eq(code, "not true")
+  assert_eq(code, "not _ljs_to_boolean(true)")
 end)
 
 test("delete !x (delete of unary NOT)", function()
@@ -213,13 +213,13 @@ end)
 test("delete member in for loop init", function()
   local code = transpile_ok("for (delete obj.prop; x; y) {}")
   assert(code:find('rawset(obj, "prop", nil)', 1, true), "expected rawset in init")
-  assert(code:find("while x do", 1, true), "expected while")
+  assert(code:find("while _ljs_to_boolean(x) do", 1, true), "expected while")
 end)
 
 test("delete member in do-while body", function()
   local code = transpile_ok("do { delete obj.prop; } while (x);")
   assert(code:find('rawset(obj, "prop", nil)', 1, true), "expected rawset in body")
-  assert(code:find("until not (x)", 1, true), "expected until")
+  assert(code:find("until not _ljs_to_boolean(x)", 1, true), "expected until")
 end)
 
 test("delete member in switch case", function()

@@ -9,23 +9,23 @@ local transpile_ok, emit_ok, run_js, run_lua_source =
 -- ============================================================================
 
 test("if statement wraps test in _ljs_to_boolean", function()
-  local code = transpile_ok("if (x) { y; }")
-  assert(code:find("if _ljs_to_boolean%(x%) then", 1, true), "expected _ljs_to_boolean(x) in if")
+  local code = emit_ok("if (x) { y; }")
+  assert(code:find("if _ljs_to_boolean(x) then", 1, true), "expected _ljs_to_boolean(x) in if")
 end)
 
 test("if/else wraps test in _ljs_to_boolean", function()
-  local code = transpile_ok("if (x) { a; } else { b; }")
+  local code = emit_ok("if (x) { a; } else { b; }")
   assert(
-    code:find("if _ljs_to_boolean%(x%) then", 1, true),
+    code:find("if _ljs_to_boolean(x) then", 1, true),
     "expected _ljs_to_boolean(x) in if/else"
   )
 end)
 
 test("else-if chain wraps each test in _ljs_to_boolean", function()
-  local code = transpile_ok("if (x) { a; } else if (y) { b; }")
+  local code = emit_ok("if (x) { a; } else if (y) { b; }")
   assert(
     code:find(
-      "if _ljs_to_boolean%(x%) then\n  a\nelseif _ljs_to_boolean%(y%) then\n  b\nend\n",
+      "if _ljs_to_boolean(x) then\n  a\nelseif _ljs_to_boolean(y) then\n  b\nend\n",
       1,
       true
     ),
@@ -34,38 +34,38 @@ test("else-if chain wraps each test in _ljs_to_boolean", function()
 end)
 
 test("while loop wraps test in _ljs_to_boolean", function()
-  local code = transpile_ok("while (x) { y; }")
+  local code = emit_ok("while (x) { y; }")
   assert(
-    code:find("while _ljs_to_boolean%(x%) do", 1, true),
+    code:find("while _ljs_to_boolean(x) do", 1, true),
     "expected _ljs_to_boolean(x) in while"
   )
 end)
 
 test("do-while wraps test in _ljs_to_boolean", function()
-  local code = transpile_ok("do { x; } while (done);")
+  local code = emit_ok("do { x; } while (done);")
   assert(
-    code:find("until not _ljs_to_boolean%(done%)", 1, true),
+    code:find("until not _ljs_to_boolean(done)", 1, true),
     "expected not _ljs_to_boolean(done) in do-while"
   )
 end)
 
 test("for(;;) wraps test in _ljs_to_boolean", function()
-  local code = transpile_ok("for (let i = 0; i < 10; i = i + 1) { x; }")
+  local code = emit_ok("for (let i = 0; i < 10; i = i + 1) { x; }")
   assert(
-    code:find("while _ljs_to_boolean%(i < 10%) do", 1, true),
+    code:find("while _ljs_to_boolean(i < 10) do", 1, true),
     "expected _ljs_to_boolean in for test"
   )
 end)
 
 test("!x emits not _ljs_to_boolean(x)", function()
   local code = emit_ok("!x;")
-  assert(code:find("not _ljs_to_boolean%(x%)", 1, true), "expected not _ljs_to_boolean(x)")
+  assert(code:find("not _ljs_to_boolean(x)", 1, true), "expected not _ljs_to_boolean(x)")
 end)
 
 test("ternary wraps test in _ljs_to_boolean", function()
   local code = emit_ok("x ? 1 : 0")
   assert(
-    code:find("if _ljs_to_boolean%(x%) then", 1, true),
+    code:find("if _ljs_to_boolean(x) then", 1, true),
     "expected _ljs_to_boolean(x) in ternary IIFE"
   )
 end)
@@ -160,9 +160,22 @@ end)
 
 -- ============================================================================
 -- Integration tests — while/do-while/for with falsy values
--- NOTE: while(0), do-while(0), for(;;0) integration tests added after the fix
--- to avoid infinite loops from the unfixed transpiler.
 -- ============================================================================
+
+test("while(0) never enters loop", function()
+  local out = run_js('while (0) { console.log("BUG"); }')
+  assert_eq(out:gsub("%s+", ""), "")
+end)
+
+test("do-while(0) exits after one iteration", function()
+  local out = run_js("let x = 1; do { x = 0; } while (0); console.log(x);")
+  assert_eq(out:gsub("%s+", ""), "0")
+end)
+
+test("for with falsy init test never enters loop", function()
+  local out = run_js('for (let i = 0; 0; i = i + 1) { console.log("BUG"); }')
+  assert_eq(out:gsub("%s+", ""), "")
+end)
 
 -- ============================================================================
 -- Integration tests — ternary with falsy values

@@ -113,7 +113,7 @@ end)
 
 test("logical NOT", function()
   local code = expr_code("!x")
-  assert_eq(code, "not x")
+  assert_eq(code, "not _ljs_to_boolean(x)")
 end)
 
 test("unary minus", function()
@@ -137,7 +137,7 @@ end)
 
 test("nested unary +!x", function()
   local code = expr_code("+!x")
-  assert_eq(code, "tonumber(not x)")
+  assert_eq(code, "tonumber(not _ljs_to_boolean(x))")
 end)
 
 test("unary + in binary context", function()
