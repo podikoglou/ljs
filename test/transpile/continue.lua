@@ -320,3 +320,34 @@ test("continue integration: for-of inside while with continue in both", function
   assert(output:find("1:20"), "expected 1:20")
   assert(output:find("3:20"), "expected 3:20")
 end)
+
+test("continue integration: C-style for with local after continue runs correctly", function()
+  local output = run_js([[
+    let result = "";
+    for (let i = 0; i < 5; i++) {
+      if (i === 2) { continue; }
+      let y = i * 10;
+      result = result + y + " ";
+    }
+    console.log(result);
+  ]])
+  assert_eq(output:gsub("%s+", ""), "0103040")
+end)
+
+test("continue integration: nested for loops with locals after continue", function()
+  local output = run_js([[
+    let result = "";
+    for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 3; j++) {
+        if (j === 1) { continue; }
+        let v = i * 10 + j;
+        result = result + v + " ";
+      }
+    }
+    console.log(result);
+  ]])
+  assert(not output:find("1 "), "j=1 should be skipped")
+  assert(output:find("0 "), "expected i=0,j=0")
+  assert(output:find("2 "), "expected j=2")
+  assert(output:find("20 "), "expected i=2,j=0")
+end)
