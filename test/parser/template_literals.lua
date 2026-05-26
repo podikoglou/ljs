@@ -69,14 +69,44 @@ test("parse multi-line template literal", function()
   })
 end)
 
-test("parse simple template literal as expression statement", function()
-  assert_parse_ok("`hello`", {
+test("tokenize template with escape \\n", function()
+  local tokens, err = parser.tokenize("`a\\nb`")
+  if not tokens then error("tokenize failed: " .. tostring(err)) end
+  assert_eq(tokens[1].value.quasis[1], "a\nb")
+end)
+
+test("tokenize template with escape \\t", function()
+  local tokens, err = parser.tokenize("`a\\tb`")
+  if not tokens then error("tokenize failed: " .. tostring(err)) end
+  assert_eq(tokens[1].value.quasis[1], "a\tb")
+end)
+
+test("tokenize template with escaped backtick", function()
+  local tokens, err = parser.tokenize("`a\\`b`")
+  if not tokens then error("tokenize failed: " .. tostring(err)) end
+  assert_eq(tokens[1].value.quasis[1], "a`b")
+end)
+
+test("tokenize template with escaped backslash", function()
+  local tokens, err = parser.tokenize("`a\\\\b`")
+  if not tokens then error("tokenize failed: " .. tostring(err)) end
+  assert_eq(tokens[1].value.quasis[1], "a\\b")
+end)
+
+test("tokenize template with escaped dollar sign", function()
+  local tokens, err = parser.tokenize("`\\$not_expr`")
+  if not tokens then error("tokenize failed: " .. tostring(err)) end
+  assert_eq(tokens[1].value.quasis[1], "$not_expr")
+end)
+
+test("parse template with escape", function()
+  assert_parse_ok("`a\\nb`", {
     {
       type = ast.TYPE_EXPRESSION_STATEMENT,
       expression = {
         type = ast.TYPE_TEMPLATE_LITERAL,
         quasis = {
-          { type = "TemplateElement", value = "hello", tail = true },
+          { type = "TemplateElement", value = "a\nb", tail = true },
         },
         expressions = {},
       },
