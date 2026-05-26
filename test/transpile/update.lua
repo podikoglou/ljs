@@ -9,7 +9,7 @@ local transpile_ok, run_js, emit_ok = H.transpile_ok, H.run_js, H.emit_ok
 
 test("i++ expression form transpiles to IIFE", function()
   local code = transpile_ok("let x = i++;")
-  assert(code:find("local _t = i"), "expected save of old value")
+  assert(code:find("local _t = _ljs_to_number%(i%)"), "expected _t = _ljs_to_number(i)")
   assert(code:find("return _t"), "expected return of old value")
   assert(code:find("i = _ljs_add%(i, 1%)"), "expected increment")
 end)
@@ -24,7 +24,7 @@ end)
 
 test("i-- expression form transpiles to IIFE", function()
   local code = transpile_ok("let x = i--;")
-  assert(code:find("local _t = i"), "expected save of old value")
+  assert(code:find("local _t = _ljs_to_number%(i%)"), "expected save of old value")
   assert(code:find("i = _ljs_sub%(i, 1%)"), "expected decrement via _ljs_sub")
   assert(code:find("return _t"), "expected return of old value")
 end)
@@ -165,5 +165,90 @@ test("prefix --x with string coerces via ToNumber", function()
     console.log(--x);
   ]])
   assert_eq(output:gsub("%s+", ""), "9")
+end)
+
+test("postfix i++ unit: _t holds _ljs_to_number(arg)", function()
+  local code = transpile_ok("let x = i++;")
+  assert(code:find("local _t = _ljs_to_number%(i%)"), "expected _t = _ljs_to_number(i)")
+end)
+
+test("postfix x++ with null returns 0", function()
+  local output = run_js([[
+    let x = null;
+    console.log(x++);
+  ]])
+  assert_eq(output:gsub("%s+", ""), "0")
+end)
+
+test("postfix x-- with null returns 0", function()
+  local output = run_js([[
+    let x = null;
+    console.log(x--);
+  ]])
+  assert_eq(output:gsub("%s+", ""), "0")
+end)
+
+test("postfix x++ with true returns 1", function()
+  local output = run_js([[
+    let x = true;
+    console.log(x++);
+  ]])
+  assert_eq(output:gsub("%s+", ""), "1")
+end)
+
+test("postfix x-- with true returns 1", function()
+  local output = run_js([[
+    let x = true;
+    console.log(x--);
+  ]])
+  assert_eq(output:gsub("%s+", ""), "1")
+end)
+
+test("postfix x++ with false returns 0", function()
+  local output = run_js([[
+    let x = false;
+    console.log(x++);
+  ]])
+  assert_eq(output:gsub("%s+", ""), "0")
+end)
+
+test("postfix x-- with false returns 0", function()
+  local output = run_js([[
+    let x = false;
+    console.log(x--);
+  ]])
+  assert_eq(output:gsub("%s+", ""), "0")
+end)
+
+test("postfix x++ with string returns ToNumber", function()
+  local output = run_js([[
+    let x = "7";
+    console.log(x++);
+  ]])
+  assert_eq(output:gsub("%s+", ""), "7")
+end)
+
+test("postfix x-- with string returns ToNumber", function()
+  local output = run_js([[
+    let x = "5";
+    console.log(x--);
+  ]])
+  assert_eq(output:gsub("%s+", ""), "5")
+end)
+
+test("postfix x-- with undefined returns NaN", function()
+  local output = run_js([[
+    let x = undefined;
+    console.log(x--);
+  ]])
+  assert_eq(output:gsub("%s+", ""), "NaN")
+end)
+
+test("postfix x++ with undefined returns NaN", function()
+  local output = run_js([[
+    let x = undefined;
+    console.log(x++);
+  ]])
+  assert_eq(output:gsub("%s+", ""), "NaN")
 end)
 

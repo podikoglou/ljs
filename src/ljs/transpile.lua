@@ -1321,7 +1321,7 @@ gen.UpdateExpression = function(node, indent, ctx)
   if node.prefix then
     return cg.iife({ cg.binop("=", arg, val), cg.return_inline(arg) })
   end
-  return cg.iife({ cg.local_inline("_t", arg), cg.binop("=", arg, val), cg.return_inline("_t") })
+  return cg.iife({ cg.local_inline("_t", cg.call("_ljs_to_number", { arg })), cg.binop("=", arg, val), cg.return_inline("_t") })
 end
 
 gen.ConditionalExpression = function(node, indent, ctx)
