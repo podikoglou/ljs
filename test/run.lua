@@ -30,6 +30,7 @@ describe("parser/error_handling", "test.parser.error_handling")
 describe("parser/member_literals", "test.parser.member_literals")
 describe("parser/default_rest_params", "test.parser.default_rest_params")
 describe("parser/template_literals", "test.parser.template_literals")
+describe("parser/spread", "test.parser.spread")
 
 describe("transpile/basics", "test.transpile.basics")
 describe("transpile/control_flow", "test.transpile.control_flow")

@@ -1001,6 +1001,7 @@ local parse_array_literal
 local parse_object_literal
 local parse_function_expression
 local parse_postfix
+local parse_maybe_spread
 local parse_do_while_statement
 local parse_c_style_for
 local parse_c_style_for_from_test
@@ -1884,7 +1885,7 @@ function parse_unary_expression(stream)
     local args = {}
     if stream.is(TOKEN.LPAREN) then
       stream.advance()
-      args = parse_comma_list(stream, TOKEN.RPAREN, parse_expression)
+      args = parse_comma_list(stream, TOKEN.RPAREN, parse_maybe_spread)
       stream.consume(TOKEN.RPAREN)
     end
     return parse_postfix(stream, ast.new_expression(callee, args, new_kw), true)
@@ -2079,7 +2080,7 @@ function parse_postfix(stream, expr, no_update)
       no_update = false
     elseif stream.is(TOKEN.LPAREN) then
       local lparen = stream.advance()
-      local args = parse_comma_list(stream, TOKEN.RPAREN, parse_expression)
+      local args = parse_comma_list(stream, TOKEN.RPAREN, parse_maybe_spread)
       stream.consume(TOKEN.RPAREN)
       expr = ast.call_expression(expr, args, lparen)
       no_update = false
@@ -2127,17 +2128,26 @@ end
 -- @param callee (table) The expression being called
 function parse_call_expression(stream, callee)
   local lparen = stream.consume(TOKEN.LPAREN)
-  local arguments = parse_comma_list(stream, TOKEN.RPAREN, parse_expression)
+  local arguments = parse_comma_list(stream, TOKEN.RPAREN, parse_maybe_spread)
   stream.consume(TOKEN.RPAREN)
   local expr = ast.call_expression(callee, arguments, lparen)
   return parse_postfix(stream, expr)
+end
+
+function parse_maybe_spread(stream)
+  if stream.is(TOKEN.ELLIPSIS) then
+    local ellipsis = stream.advance()
+    local expr = parse_expression(stream)
+    return ast.spread_element(expr, ellipsis)
+  end
+  return parse_expression(stream)
 end
 
 --- Parse array literal: [expr, expr, ...]
 -- Empty arrays [] are valid.
 function parse_array_literal(stream)
   local lbracket = stream.consume(TOKEN.LBRACKET)
-  local elements = parse_comma_list(stream, TOKEN.RBRACKET, parse_expression, true)
+  local elements = parse_comma_list(stream, TOKEN.RBRACKET, parse_maybe_spread, true)
   stream.consume(TOKEN.RBRACKET)
   return ast.array_expression(elements, lbracket)
 end

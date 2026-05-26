@@ -52,6 +52,7 @@ M.TYPE_CONTINUE_STATEMENT = "ContinueStatement"
 M.TYPE_PROGRAM = "Program"
 M.TYPE_ASSIGNMENT_PATTERN = "AssignmentPattern"
 M.TYPE_REST_ELEMENT = "RestElement"
+M.TYPE_SPREAD_ELEMENT = "SpreadElement"
 M.TYPE_TEMPLATE_LITERAL = "TemplateLiteral"
 M.TYPE_TEMPLATE_ELEMENT = "TemplateElement"
 
@@ -351,6 +352,15 @@ end
 function M.rest_element(argument, token)
   return {
     type = M.TYPE_REST_ELEMENT,
+    argument = argument,
+    line = token.line,
+    col = token.col,
+  }
+end
+
+function M.spread_element(argument, token)
+  return {
+    type = M.TYPE_SPREAD_ELEMENT,
     argument = argument,
     line = token.line,
     col = token.col,
