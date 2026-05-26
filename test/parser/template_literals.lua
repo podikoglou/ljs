@@ -1,7 +1,16 @@
 local T = require("test.ljs_test")
 local P = require("test.helpers.parser")
 local parser = require("ljs.parser")
+local ast = require("ljs.ast")
 local test, assert_eq, assert_table_eq = T.test, T.assert_eq, T.assert_table_eq
+
+local function assert_parse_ok(source, expected_body, msg)
+  local result, err = parser.parse(source)
+  if not result then
+    error(string.format("%s: parse failed: %s", msg or source, tostring(err)))
+  end
+  assert_table_eq(result, { type = "Program", body = expected_body }, msg or source)
+end
 
 test("tokenize simple template literal", function()
   local tokens, err = parser.tokenize("`hello`")
@@ -37,4 +46,37 @@ test("tokenize template with expression containing braces", function()
   assert_eq(tokens[1].value.quasis[1], "result: ")
   assert_eq(tokens[1].value.quasis[2], "")
   assert_eq(tokens[1].value.expression_sources[1], "obj[key]")
+end)
+
+test("parse simple template literal as expression statement", function()
+  assert_parse_ok("`hello`", {
+    {
+      type = ast.TYPE_EXPRESSION_STATEMENT,
+      expression = {
+        type = ast.TYPE_TEMPLATE_LITERAL,
+        quasis = {
+          { type = "TemplateElement", value = "hello", tail = true },
+        },
+        expressions = {},
+      },
+    },
+  })
+end)
+
+test("parse template literal with interpolation", function()
+  assert_parse_ok("`hello ${name}`", {
+    {
+      type = ast.TYPE_EXPRESSION_STATEMENT,
+      expression = {
+        type = ast.TYPE_TEMPLATE_LITERAL,
+        quasis = {
+          { type = "TemplateElement", value = "hello ", tail = false },
+          { type = "TemplateElement", value = "", tail = true },
+        },
+        expressions = {
+          { type = ast.TYPE_IDENTIFIER, name = "name" },
+        },
+      },
+    },
+  })
 end)

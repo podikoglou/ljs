@@ -52,6 +52,8 @@ M.TYPE_CONTINUE_STATEMENT = "ContinueStatement"
 M.TYPE_PROGRAM = "Program"
 M.TYPE_ASSIGNMENT_PATTERN = "AssignmentPattern"
 M.TYPE_REST_ELEMENT = "RestElement"
+M.TYPE_TEMPLATE_LITERAL = "TemplateLiteral"
+M.TYPE_TEMPLATE_ELEMENT = "TemplateElement"
 
 --- @param name (string) Variable/parameter name
 --- @return table {type=M.TYPE_IDENTIFIER, name=name}
@@ -350,6 +352,26 @@ function M.rest_element(argument, token)
   return {
     type = M.TYPE_REST_ELEMENT,
     argument = argument,
+    line = token.line,
+    col = token.col,
+  }
+end
+
+function M.template_literal(quasis, expressions, token)
+  return {
+    type = M.TYPE_TEMPLATE_LITERAL,
+    quasis = quasis,
+    expressions = expressions,
+    line = token.line,
+    col = token.col,
+  }
+end
+
+function M.template_element(value, tail, token)
+  return {
+    type = M.TYPE_TEMPLATE_ELEMENT,
+    value = value,
+    tail = tail,
     line = token.line,
     col = token.col,
   }

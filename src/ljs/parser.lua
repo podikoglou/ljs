@@ -2014,9 +2014,24 @@ function parse_primary_expression(stream)
   elseif stream.is(TOKEN.ARROW) then
     parse_error("Unexpected arrow token", token.line, token.col)
   elseif stream.is(TOKEN.CLASS) then
-    -- NOTE: no parse_postfix wrapper — class expressions can't be directly
-    -- chained with .prop or (args). They're always parenthesized in practice.
-    return parse_class_expression(stream)
+    return parse_postfix(stream, parse_class_expression(stream), true)
+  elseif stream.is(TOKEN.TEMPLATE_LITERAL) then
+    local token = stream.advance()
+    local quasis = {}
+    local expressions = {}
+    for i, q in ipairs(token.value.quasis) do
+      local is_tail = (i == #token.value.quasis)
+      quasis[#quasis + 1] = ast.template_element(q, is_tail, token)
+    end
+    for _, expr_src in ipairs(token.value.expression_sources) do
+      local expr_tokens = tokenize(expr_src)
+      if not expr_tokens then
+        parse_error("Failed to tokenize template expression", token.line, token.col)
+      end
+      local expr_stream = make_token_stream(expr_tokens)
+      expressions[#expressions + 1] = parse_expression(expr_stream)
+    end
+    return parse_postfix(stream, ast.template_literal(quasis, expressions, token), true)
   else
     parse_error(string.format("Unexpected token %s", token.type), token.line, token.col)
   end
