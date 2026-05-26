@@ -715,12 +715,38 @@ end
 
 -- === Statements ===
 
+local function expr_produces_valid_stmt(node)
+  local t = node.type
+  if t == ast.TYPE_CALL_EXPRESSION then return true end
+  if t == ast.TYPE_NEW_EXPRESSION then return true end
+  if t == ast.TYPE_OBJECT_EXPRESSION then return true end
+  if t == ast.TYPE_ARRAY_EXPRESSION then return true end
+  if t == ast.TYPE_FUNCTION_EXPRESSION then return true end
+  if t == ast.TYPE_ARROW_FUNCTION_EXPRESSION then return true end
+  if t == ast.TYPE_CLASS_EXPRESSION then return true end
+  if t == ast.TYPE_BINARY_EXPRESSION then
+    local op = node.operator
+    if op == "===" or op == "!==" or op == "!=" or op == "in" then return false end
+    return true
+  end
+  if t == ast.TYPE_UNARY_EXPRESSION then
+    local op = node.operator
+    if op == "~" or op == "+" then return true end
+    return false
+  end
+  return false
+end
+
 gen.ExpressionStatement = function(node, indent, ctx)
   local stmt_fn = gen_stmt[node.expression.type]
   if stmt_fn then
     return stmt_fn(node.expression, indent, ctx)
   end
-  return cg.expr_stmt(emit(node.expression, indent, ctx), indent)
+  local expr = emit(node.expression, indent, ctx)
+  if expr_produces_valid_stmt(node.expression) then
+    return cg.expr_stmt(expr, indent)
+  end
+  return cg.discard_stmt(expr, indent)
 end
 
 gen.VariableDeclaration = function(node, indent, ctx)

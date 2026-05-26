@@ -1,7 +1,7 @@
 local T = require("test.ljs_test")
 local H = require("test.helpers.transpile")
 local test, assert_eq = T.test, T.assert_eq
-local transpile_ok, emit_ok = H.transpile_ok, H.emit_ok
+local transpile_ok, emit_ok, run_js = H.transpile_ok, H.emit_ok, H.run_js
 
 -- ============================================================================
 -- Unit tests — functions
@@ -40,30 +40,30 @@ end)
 
 test("if statement", function()
   local code = transpile_ok("if (x) { y; }")
-  assert(code:find("if _ljs_to_boolean(x) then\n  y\nend\n", 1, true), "expected if x then y end")
+  assert(code:find("if _ljs_to_boolean(x) then\n  local _ = y\nend\n", 1, true), "expected if x then local _ = y end")
 end)
 
 test("if/else", function()
   local code = transpile_ok("if (x) { a; } else { b; }")
-  assert(code:find("if _ljs_to_boolean(x) then\n  a\nelse\n  b\nend\n", 1, true), "expected if/else")
+  assert(code:find("if _ljs_to_boolean(x) then\n  local _ = a\nelse\n  local _ = b\nend\n", 1, true), "expected if/else")
 end)
 
 test("else if flattens to elseif", function()
   local code = transpile_ok("if (x) { a; } else if (y) { b; }")
-  assert(code:find("if _ljs_to_boolean(x) then\n  a\nelseif _ljs_to_boolean(y) then\n  b\nend\n", 1, true), "expected elseif")
+  assert(code:find("if _ljs_to_boolean(x) then\n  local _ = a\nelseif _ljs_to_boolean(y) then\n  local _ = b\nend\n", 1, true), "expected elseif")
 end)
 
 test("nested else-if chain from blocks", function()
   local code = transpile_ok("if (a) { 1; } else { if (b) { 2; } else { 3; } }")
   assert(
-    code:find("if _ljs_to_boolean(a) then\n  1\nelseif _ljs_to_boolean(b) then\n  2\nelse\n  3\nend\n", 1, true),
+    code:find("if _ljs_to_boolean(a) then\n  local _ = 1\nelseif _ljs_to_boolean(b) then\n  local _ = 2\nelse\n  local _ = 3\nend\n", 1, true),
     "expected nested elseif"
   )
 end)
 
 test("while loop", function()
   local code = transpile_ok("while (x) { y; }")
-  assert(code:find("while _ljs_to_boolean(x) do\n  y\nend\n", 1, true), "expected while x do y end")
+  assert(code:find("while _ljs_to_boolean(x) do\n  local _ = y\nend\n", 1, true), "expected while x do local _ = y end")
 end)
 
 test("for...of", function()
@@ -208,4 +208,69 @@ test("for(;;) var init transpiles same as let", function()
   local code = transpile_ok("for (var i = 0; i < 3; i = i + 1) { x; }")
   assert(code:find("local i = 0"), "var normalized to local")
   assert(code:find("while _ljs_to_boolean%(_ljs_lt%(i, 3%)%) do"), "expected while condition")
+end)
+
+-- ============================================================================
+-- Expression-only bodies — bare expressions wrapped in local _ = <expr>
+-- ============================================================================
+
+test("bare number in if body is wrapped", function()
+  local code = transpile_ok("if (true) { 42; }")
+  assert(code:find("local _ = 42", 1, true), "expected 'local _ = 42'")
+end)
+
+test("bare number in if/else is wrapped", function()
+  local code = transpile_ok("if (true) { 42; } else { 0; }")
+  assert(code:find("local _ = 42", 1, true), "expected 'local _ = 42' in then")
+  assert(code:find("local _ = 0", 1, true), "expected 'local _ = 0' in else")
+end)
+
+test("bare string in if body is wrapped", function()
+  local code = transpile_ok('if (true) { "hello"; }')
+  assert(code:find('local _ = "hello"', 1, true), 'expected local _ = "hello"')
+end)
+
+test("bare identifier in while body is wrapped", function()
+  local code = transpile_ok("while (false) { x; }")
+  assert(code:find("local _ = x", 1, true), "expected 'local _ = x'")
+end)
+
+test("bare member expression in if body is wrapped", function()
+  local code = transpile_ok("if (true) { obj.prop; }")
+  assert(code:find("local _ = _ljs_to_object(obj).prop", 1, true), "expected local _ = member")
+end)
+
+test("strict equality in body is wrapped", function()
+  local code = transpile_ok("if (true) { x === 1; }")
+  assert(code:find("local _ = x == 1", 1, true), "expected local _ = x == 1")
+end)
+
+test("logical NOT in body is wrapped", function()
+  local code = transpile_ok("if (true) { !x; }")
+  assert(code:find("local _ = not _ljs_to_boolean(x)", 1, true), "expected local _ = not ...")
+end)
+
+test("unary minus in body is wrapped", function()
+  local code = transpile_ok("if (true) { -x; }")
+  assert(code:find("local _ = -_ljs_to_number(x)", 1, true), "expected local _ = -...")
+end)
+
+test("call expression in body is NOT wrapped", function()
+  local code = transpile_ok("if (true) { foo(); }")
+  assert(not code:find("local _ ="), "call expression should not be wrapped")
+end)
+
+test("assignment expression in body is NOT wrapped", function()
+  local code = transpile_ok("if (true) { x = 1; }")
+  assert(not code:find("local _ ="), "assignment should not be wrapped")
+end)
+
+test("bare expr in if body produces valid Lua (integration)", function()
+  local output = run_js("if (true) { 42; } else { 0; }")
+  assert_eq(output, "")
+end)
+
+test("bare expr in while body produces valid Lua (integration)", function()
+  local output = run_js("let x = 0; while (x < 1) { x; x = x + 1; }")
+  assert_eq(output, "")
 end)

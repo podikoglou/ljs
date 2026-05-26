@@ -102,17 +102,17 @@ end)
 
 test('typeof x === "number" (bare expression)', function()
   local code = expr_code('typeof x === "number"')
-  assert_eq(code, '_ljs_typeof(x) == "number"')
+  assert_eq(code, 'local _ = _ljs_typeof(x) == "number"')
 end)
 
 test('typeof x !== "undefined" (bare expression)', function()
   local code = expr_code('typeof x !== "undefined"')
-  assert_eq(code, '_ljs_typeof(x) ~= "undefined"')
+  assert_eq(code, 'local _ = _ljs_typeof(x) ~= "undefined"')
 end)
 
 test('typeof x === "function" (bare expression)', function()
   local code = expr_code('typeof x === "function"')
-  assert_eq(code, '_ljs_typeof(x) == "function"')
+  assert_eq(code, 'local _ = _ljs_typeof(x) == "function"')
 end)
 
 test('let ok = typeof x === "number"', function()
@@ -185,7 +185,7 @@ end)
 
 test("!typeof x", function()
   local code = expr_code("!typeof x")
-  assert_eq(code, "not _ljs_to_boolean(_ljs_typeof(x))")
+  assert_eq(code, "local _ = not _ljs_to_boolean(_ljs_typeof(x))")
 end)
 
 test("let r = typeof !x", function()
@@ -200,7 +200,7 @@ end)
 
 test("-typeof x", function()
   local code = expr_code("-typeof x")
-  assert_eq(code, "-_ljs_to_number(_ljs_typeof(x))")
+  assert_eq(code, "local _ = -_ljs_to_number(_ljs_typeof(x))")
 end)
 
 test("let r = typeof +x", function()

@@ -377,7 +377,7 @@ test("transpiler: a == b emits _ljs_eq(a, b)", function()
 end)
 
 test("transpiler: a != b emits not _ljs_eq(a, b)", function()
-  assert_eq(expr_code("a != b"), "not _ljs_eq(a, b)")
+  assert_eq(expr_code("a != b"), "local _ = not _ljs_eq(a, b)")
 end)
 
 -- ============================================================================

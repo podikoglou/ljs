@@ -357,7 +357,7 @@ test("addition inside bitwise AND", function()
 end)
 
 test("bitwise AND with strict equality", function()
-  assert_eq(expr_code("(a & b) === c"), "_ljs_band(a, b) == c")
+  assert_eq(expr_code("(a & b) === c"), "local _ = _ljs_band(a, b) == c")
 end)
 
 test("bitwise AND with logical AND", function()
@@ -368,7 +368,7 @@ test("bitwise AND with logical AND", function()
 end)
 
 test("bitwise OR with strict inequality", function()
-  assert_eq(expr_code("(a | b) !== c"), "_ljs_bor(a, b) ~= c")
+  assert_eq(expr_code("(a | b) !== c"), "local _ = _ljs_bor(a, b) ~= c")
 end)
 
 test("shift inside multiplication", function()

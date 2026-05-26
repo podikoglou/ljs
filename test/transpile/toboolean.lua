@@ -25,7 +25,7 @@ test("else-if chain wraps each test in _ljs_to_boolean", function()
   local code = emit_ok("if (x) { a; } else if (y) { b; }")
   assert(
     code:find(
-      "if _ljs_to_boolean(x) then\n  a\nelseif _ljs_to_boolean(y) then\n  b\nend\n",
+      "if _ljs_to_boolean(x) then\n  local _ = a\nelseif _ljs_to_boolean(y) then\n  local _ = b\nend\n",
       1,
       true
     ),

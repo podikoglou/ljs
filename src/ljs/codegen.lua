@@ -132,6 +132,15 @@ function M.expr_stmt(expr, indent)
   return M.pad(indent) .. expr .. "\n"
 end
 
+--- Emit a discard statement (local _ = <expr>) for bare expressions
+--- that would not be valid Lua statements on their own.
+-- @param expr (string) Expression code
+-- @param indent (number) Indentation level
+-- @return (string) Formatted discard statement with trailing newline
+function M.discard_stmt(expr, indent)
+  return M.pad(indent) .. "local _ = " .. expr .. "\n"
+end
+
 --- Emit a return-from-expression statement (used in eval mode).
 -- @param expr (string) Expression code
 -- @param indent (number) Indentation level
