@@ -33,3 +33,8 @@ test("run template with number interpolation", function()
   local output = run_js("let x = 42; console.log(`value: ${x}`);")
   assert_eq(output, "value: 42\n")
 end)
+
+test("multi-line template literal", function()
+  local output = run_js("let s = `line1\nline2`; console.log(s);")
+  assert_eq(output, "line1\nline2\n")
+end)

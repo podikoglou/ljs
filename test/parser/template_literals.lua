@@ -48,6 +48,27 @@ test("tokenize template with expression containing braces", function()
   assert_eq(tokens[1].value.expression_sources[1], "obj[key]")
 end)
 
+test("tokenize multi-line template literal", function()
+  local tokens, err = parser.tokenize("`line1\nline2`")
+  if not tokens then error("tokenize failed: " .. tostring(err)) end
+  assert_eq(tokens[1].value.quasis[1], "line1\nline2")
+end)
+
+test("parse multi-line template literal", function()
+  assert_parse_ok("`line1\nline2`", {
+    {
+      type = ast.TYPE_EXPRESSION_STATEMENT,
+      expression = {
+        type = ast.TYPE_TEMPLATE_LITERAL,
+        quasis = {
+          { type = "TemplateElement", value = "line1\nline2", tail = true },
+        },
+        expressions = {},
+      },
+    },
+  })
+end)
+
 test("parse simple template literal as expression statement", function()
   assert_parse_ok("`hello`", {
     {
