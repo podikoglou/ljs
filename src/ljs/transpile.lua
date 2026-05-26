@@ -768,104 +768,17 @@ gen.FunctionDeclaration = function(node, indent, ctx)
     .. cg.expr_stmt(cg.binop("=", node.name, cg.call("_ljs_ctor", { fn })), indent)
 end
 
---- Class declaration lowering: syntactic sugar over _ljs_ctor + prototype assignments.
--- Emits: 1) `_ljs_ctor`-wrapped constructor, 2) prototype chain setup if extends,
--- 3) prototype method assignments, 4) static method assignments.
--- See docs/ARCHITECTURE.md § "Class syntax" for the full lowering spec.
-gen.ClassDeclaration = function(node, indent, ctx)
-  scope_declare(ctx, node.name)
-
-  local class_name = node.name
-  local has_super = node.superClass ~= nil
-  local super_code = has_super and emit(node.superClass, indent, ctx) or nil
-
-  -- super_stack tracks the current superclass for super()/super.method() resolution.
-  -- Pushed here, popped after emission — supports nested classes.
-  if has_super then
-    ctx.super_stack[#ctx.super_stack + 1] = super_code
-  end
-
-  local constructor_method = nil
-  local methods = {}
-  local statics = {}
-
-  for _, m in ipairs(node.body) do
-    if m.kind == "constructor" then
-      constructor_method = m
-    elseif m.static then
-      statics[#statics + 1] = m
-    else
-      methods[#methods + 1] = m
-    end
-  end
-
-  -- Default constructor: empty body if no extends, forwards all args to parent otherwise.
-  local ctor_fn
-  if constructor_method then
-    ctor_fn = emit_fn(constructor_method.value, indent, ctx)
-  elseif has_super then
-    local params = { "_ljs_this", "..." }
-    local body_code = cg.expr_stmt(cg.call(super_code, { "_ljs_arrow_this", "..." }), indent + 1)
-    body_code = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. body_code
-    ctor_fn = cg.fn_expr(cg.join(params), body_code, indent)
-  else
-    ctor_fn = cg.fn_expr("_ljs_this", "", indent)
-  end
-
-  local out = cg.local_decl(class_name, cg.call("_ljs_ctor", { ctor_fn }), indent)
-
-  if has_super then
-    local proto_setup = cg.expr_stmt(
-      cg.binop(
-        "=",
-        cg.member_dot(class_name, "prototype"),
-        cg.call("_ljs_object_create", { cg.nil_val(), cg.member_dot(super_code, "prototype") })
-      ),
-      indent
-    )
-    out = out .. proto_setup
-    out = out
-      .. cg.expr_stmt(
-        cg.binop(
-          "=",
-          cg.member_dot(cg.member_dot(class_name, "prototype"), "constructor"),
-          class_name
-        ),
-        indent
-      )
-  end
-
-  for _, m in ipairs(methods) do
-    local m_fn = emit_fn(m.value, indent, ctx)
-    out = out
-      .. cg.expr_stmt(
-        cg.binop(
-          "=",
-          cg.member_index(cg.member_dot(class_name, "prototype"), method_key(m)),
-          cg.call("_ljs_fn", { m_fn })
-        ),
-        indent
-      )
-  end
-
-  for _, m in ipairs(statics) do
-    local m_fn = emit_fn(m.value, indent, ctx)
-    out = out
-      .. cg.expr_stmt(
-        cg.binop("=", cg.member_index(class_name, method_key(m)), cg.call("_ljs_fn", { m_fn })),
-        indent
-      )
-  end
-
-  if has_super then
-    ctx.super_stack[#ctx.super_stack] = nil
-  end
-
-  return out
-end
-
-gen.ClassExpression = function(node, indent, ctx)
-  local class_name = node.name or "_ljs_class"
+--- Shared lowering logic for ClassDeclaration and ClassExpression.
+-- Extracts the common class compilation into a single function; callers format
+-- the result as either a statement (declaration) or expression (IIFE).
+-- @param node (table) ClassDeclaration or ClassExpression AST node
+-- @param indent (number) Current indentation level
+-- @param ctx (table) Transpilation context
+-- @param opts (table) { class_name: string, extra_scope: table|nil }
+-- @return (table) { class_name, ctor_init_expr, stmts }
+local function lower_class(node, indent, ctx, opts)
+  local class_name = opts.class_name
+  local extra_scope = opts.extra_scope
   local has_super = node.superClass ~= nil
   local super_code = has_super and emit(node.superClass, indent, ctx) or nil
 
@@ -886,8 +799,6 @@ gen.ClassExpression = function(node, indent, ctx)
       methods[#methods + 1] = m
     end
   end
-
-  local extra_scope = node.name and { node.name } or nil
 
   local ctor_fn
   if constructor_method then
@@ -901,16 +812,15 @@ gen.ClassExpression = function(node, indent, ctx)
     ctor_fn = cg.fn_expr("_ljs_this", "", indent)
   end
 
-  local iife_stmts = {}
-  iife_stmts[#iife_stmts + 1] = cg.local_inline(class_name, cg.call("_ljs_ctor", { ctor_fn }))
+  local stmts = {}
 
   if has_super then
-    iife_stmts[#iife_stmts + 1] = cg.binop(
+    stmts[#stmts + 1] = cg.binop(
       "=",
       cg.member_dot(class_name, "prototype"),
       cg.call("_ljs_object_create", { cg.nil_val(), cg.member_dot(super_code, "prototype") })
     )
-    iife_stmts[#iife_stmts + 1] = cg.binop(
+    stmts[#stmts + 1] = cg.binop(
       "=",
       cg.member_dot(cg.member_dot(class_name, "prototype"), "constructor"),
       class_name
@@ -919,7 +829,7 @@ gen.ClassExpression = function(node, indent, ctx)
 
   for _, m in ipairs(methods) do
     local m_fn = emit_fn(m.value, indent, ctx, extra_scope)
-    iife_stmts[#iife_stmts + 1] = cg.binop(
+    stmts[#stmts + 1] = cg.binop(
       "=",
       cg.member_index(cg.member_dot(class_name, "prototype"), method_key(m)),
       cg.call("_ljs_fn", { m_fn })
@@ -928,16 +838,46 @@ gen.ClassExpression = function(node, indent, ctx)
 
   for _, m in ipairs(statics) do
     local m_fn = emit_fn(m.value, indent, ctx, extra_scope)
-    iife_stmts[#iife_stmts + 1] =
+    stmts[#stmts + 1] =
       cg.binop("=", cg.member_index(class_name, method_key(m)), cg.call("_ljs_fn", { m_fn }))
   end
-
-  iife_stmts[#iife_stmts + 1] = cg.return_inline(class_name)
 
   if has_super then
     ctx.super_stack[#ctx.super_stack] = nil
   end
 
+  return {
+    class_name = class_name,
+    ctor_init_expr = cg.call("_ljs_ctor", { ctor_fn }),
+    stmts = stmts,
+  }
+end
+
+gen.ClassDeclaration = function(node, indent, ctx)
+  scope_declare(ctx, node.name)
+  local result = lower_class(node, indent, ctx, {
+    class_name = node.name,
+    extra_scope = nil,
+  })
+  local out = cg.local_decl(result.class_name, result.ctor_init_expr, indent)
+  for _, s in ipairs(result.stmts) do
+    out = out .. cg.expr_stmt(s, indent)
+  end
+  return out
+end
+
+gen.ClassExpression = function(node, indent, ctx)
+  local extra_scope = node.name and { node.name } or nil
+  local result = lower_class(node, indent, ctx, {
+    class_name = node.name or "_ljs_class",
+    extra_scope = extra_scope,
+  })
+  local iife_stmts = {}
+  iife_stmts[#iife_stmts + 1] = cg.local_inline(result.class_name, result.ctor_init_expr)
+  for _, s in ipairs(result.stmts) do
+    iife_stmts[#iife_stmts + 1] = s
+  end
+  iife_stmts[#iife_stmts + 1] = cg.return_inline(result.class_name)
   return cg.iife(iife_stmts)
 end
 
