@@ -46,3 +46,57 @@ end)
 test("string .length via bracket notation", function()
   assert_js('"hello"["length"]', 5)
 end)
+
+test("string charCodeAt returns code at index", function()
+  assert_js('"A".charCodeAt(0)', 65)
+end)
+
+test("string charCodeAt mid-string", function()
+  assert_js('"ABC".charCodeAt(2)', 67)
+end)
+
+test("string charCodeAt last char", function()
+  assert_js('"hello".charCodeAt(4)', 111)
+end)
+
+test("string charCodeAt out of range returns NaN", function()
+  local result = exec_js('return "hello".charCodeAt(10);')
+  assert_eq(result ~= result, true)
+end)
+
+test("string charCodeAt negative index returns NaN", function()
+  local result = exec_js('return "hello".charCodeAt(-1);')
+  assert_eq(result ~= result, true)
+end)
+
+test("String.fromCharCode single char", function()
+  assert_js('String.fromCharCode(65)', "A")
+end)
+
+test("String.fromCharCode multiple chars", function()
+  assert_js('String.fromCharCode(72, 101, 108, 108, 111)', "Hello")
+end)
+
+test("String.fromCharCode no args returns empty string", function()
+  assert_js('String.fromCharCode()', "")
+end)
+
+test("string charCodeAt NaN returns first char", function()
+  assert_js('"hello".charCodeAt(NaN)', 104)
+end)
+
+test("string charCodeAt negative fraction truncates toward zero", function()
+  assert_js('"hello".charCodeAt(-0.5)', 104)
+end)
+
+test("string charCodeAt positive fraction truncates toward zero", function()
+  assert_js('"hello".charCodeAt(0.9)', 104)
+end)
+
+test("String.fromCharCode NaN returns null char", function()
+  assert_js('String.fromCharCode(NaN)', "\0")
+end)
+
+test("String.fromCharCode negative fraction truncates toward zero", function()
+  assert_js('String.fromCharCode(-0.5)', "\0")
+end)
