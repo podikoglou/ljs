@@ -49,6 +49,7 @@ M.TYPE_SWITCH_STATEMENT = "SwitchStatement"
 M.TYPE_SWITCH_CASE = "SwitchCase"
 M.TYPE_BREAK_STATEMENT = "BreakStatement"
 M.TYPE_CONTINUE_STATEMENT = "ContinueStatement"
+M.TYPE_PROGRAM = "Program"
 
 --- @param name (string) Variable/parameter name
 --- @return table {type=M.TYPE_IDENTIFIER, name=name}
