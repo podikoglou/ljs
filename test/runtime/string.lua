@@ -72,3 +72,11 @@ end)
 test("String.fromCharCode single char", function()
   assert_js('String.fromCharCode(65)', "A")
 end)
+
+test("String.fromCharCode multiple chars", function()
+  assert_js('String.fromCharCode(72, 101, 108, 108, 111)', "Hello")
+end)
+
+test("String.fromCharCode no args returns empty string", function()
+  assert_js('String.fromCharCode()', "")
+end)
