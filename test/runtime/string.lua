@@ -80,3 +80,23 @@ end)
 test("String.fromCharCode no args returns empty string", function()
   assert_js('String.fromCharCode()', "")
 end)
+
+test("string charCodeAt NaN returns first char", function()
+  assert_js('"hello".charCodeAt(NaN)', 104)
+end)
+
+test("string charCodeAt negative fraction truncates toward zero", function()
+  assert_js('"hello".charCodeAt(-0.5)', 104)
+end)
+
+test("string charCodeAt positive fraction truncates toward zero", function()
+  assert_js('"hello".charCodeAt(0.9)', 104)
+end)
+
+test("String.fromCharCode NaN returns null char", function()
+  assert_js('String.fromCharCode(NaN)', "\0")
+end)
+
+test("String.fromCharCode negative fraction truncates toward zero", function()
+  assert_js('String.fromCharCode(-0.5)', "\0")
+end)
