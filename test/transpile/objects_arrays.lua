@@ -34,17 +34,17 @@ end)
 
 test("dot access", function()
   local code = expr_code("obj.prop")
-  assert_eq(code, "_ljs_to_object(obj).prop")
+  assert_eq(code, "local _ = _ljs_to_object(obj).prop")
 end)
 
 test("computed string key no offset", function()
   local code = expr_code('obj["key"]')
-  assert_eq(code, '_ljs_to_object(obj)["key"]')
+  assert_eq(code, 'local _ = _ljs_to_object(obj)["key"]')
 end)
 
 test("computed expression key adds offset", function()
   local code = expr_code("arr[i]")
-  assert_eq(code, "_ljs_to_object(arr)[(i) + 1]")
+  assert_eq(code, "local _ = _ljs_to_object(arr)[(i) + 1]")
 end)
 
 -- ============================================================================

@@ -110,7 +110,7 @@ end)
 
 test("delete in binary: delete obj.prop === true", function()
   local code = expr_code("delete obj.prop === true")
-  assert_eq(code, '(rawset(obj, "prop", nil) and true) == true')
+  assert_eq(code, 'local _ = (rawset(obj, "prop", nil) and true) == true')
 end)
 
 test("delete in logical: delete x && delete y", function()
@@ -187,7 +187,7 @@ end)
 
 test("!delete x (unary NOT of delete)", function()
   local code = expr_code("!delete x")
-  assert_eq(code, "not _ljs_to_boolean(true)")
+  assert_eq(code, "local _ = not _ljs_to_boolean(true)")
 end)
 
 test("delete !x (delete of unary NOT)", function()
