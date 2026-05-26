@@ -58,8 +58,12 @@ end)
 Array.prototype.toString = _ljs_fn(function(_ljs_this)
   local join = _ljs_to_object(_ljs_this).join
   if _ljs_typeof(join) == "function" then
+    local raw = rawget(join, "_ljs_raw")
+    if raw then return raw(_ljs_this, ",") end
     return join(_ljs_this, ",")
   end
+  local ts_raw = rawget(_ljs_object_prototype.toString, "_ljs_raw")
+  if ts_raw then return ts_raw(_ljs_this) end
   return _ljs_object_prototype.toString(_ljs_this)
 end)
 

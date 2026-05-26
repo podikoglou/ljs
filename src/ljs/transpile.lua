@@ -258,6 +258,10 @@ end]]
 
 -- Direct call: f(a,b) → _ljs_call(f,a,b). Passes nil as _ljs_this (no receiver).
 HELPERS._ljs_call = [[local function _ljs_call(fn, ...)
+  if type(fn) == "table" then
+    local raw = rawget(fn, "_ljs_raw")
+    if raw then return raw(nil, ...) end
+  end
   return fn(nil, ...)
 end]]
 
@@ -285,7 +289,12 @@ HELPERS._ljs_call_member = [[local function _ljs_call_member(obj, key, ...)
     error("TypeError: Cannot read properties of " .. desc .. " (reading '" .. tostring(key) .. "')")
   end
   local boxed = _ljs_to_object(obj)
-  return boxed[key](boxed, ...)
+  local method = boxed[key]
+  if type(method) == "table" then
+    local raw = rawget(method, "_ljs_raw")
+    if raw then return raw(boxed, ...) end
+  end
+  return method(boxed, ...)
 end]]
 
 -- Wraps a table with Object.prototype as __index. Used for all object literals.
@@ -300,12 +309,14 @@ end]]
 -- Wraps a plain Lua function as a callable table with Function.prototype chain.
 -- Used for arrow functions and method shorthand — no .prototype property.
 HELPERS._ljs_fn = [[local function _ljs_fn(fn)
-  return setmetatable({}, {
+  local t = setmetatable({}, {
     __call = function(_, ...)
-      return fn(...)
+      return fn(nil, ...)
     end,
     __index = _ljs_function_prototype,
   })
+  rawset(t, "_ljs_raw", fn)
+  return t
 end]]
 
 -- Wraps a function as a constructor: callable table + .prototype inheriting
@@ -323,11 +334,25 @@ end]]
 HELPERS._ljs_new = [[local function _ljs_new(ctor, ...)
   local proto = ctor.prototype
   local instance = setmetatable({}, {__index = proto})
-  local result = ctor(instance, ...)
+  local raw = rawget(ctor, "_ljs_raw")
+  local result
+  if raw then
+    result = raw(instance, ...)
+  else
+    result = ctor(instance, ...)
+  end
   if type(result) == "table" then
     return result
   end
   return instance
+end]]
+
+HELPERS._ljs_call_this = [[local function _ljs_call_this(fn, this_val, ...)
+  if type(fn) == "table" then
+    local raw = rawget(fn, "_ljs_raw")
+    if raw then return raw(this_val, ...) end
+  end
+  return fn(this_val, ...)
 end]]
 
 -- Walks __index chain checking for ctor.prototype. Primitives always false.
@@ -353,8 +378,13 @@ end]]
 
 -- super.method() → looks up proto[key] and calls with the current instance.
 HELPERS._ljs_super_call = [[local function _ljs_super_call(proto, key, this_val, ...)
-  return proto[key](this_val, ...)
-  end]]
+  local method = proto[key]
+  if type(method) == "table" then
+    local raw = rawget(method, "_ljs_raw")
+    if raw then return raw(this_val, ...) end
+  end
+  return method(this_val, ...)
+end]]
 
 -- ToPrimitive per §7.1.1: OrdinaryToPrimitive with hint=number.
 -- Tries valueOf first, then toString. Returns first primitive result.
@@ -369,14 +399,21 @@ HELPERS._ljs_to_primitive = [[local function _ljs_to_primitive(obj)
     end
     return false
   end
+  local function _ljs_invoke(fn, this_val)
+    if type(fn) == "table" then
+      local raw = rawget(fn, "_ljs_raw")
+      if raw then return raw(this_val) end
+    end
+    return fn(this_val)
+  end
   local val_of = obj.valueOf
   if _callable(val_of) then
-    local result = val_of(obj)
+    local result = _ljs_invoke(val_of, obj)
     if type(result) ~= "table" then return result end
   end
   local to_str = obj.toString
   if _callable(to_str) then
-    local result = to_str(obj)
+    local result = _ljs_invoke(to_str, obj)
     if type(result) ~= "table" then return result end
   end
   error("TypeError: Cannot convert object to primitive value")
@@ -862,7 +899,7 @@ local function lower_class(node, indent, ctx, opts)
     ctor_fn = emit_fn(constructor_method.value, indent, ctx, extra_scope)
   elseif has_super then
     local params = { "_ljs_this", "..." }
-    local body_code = cg.expr_stmt(cg.call(super_code, { "_ljs_arrow_this", "..." }), indent + 1)
+    local body_code = cg.expr_stmt(cg.call("_ljs_call_this", { super_code, "_ljs_arrow_this", "..." }), indent + 1)
     body_code = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. body_code
     ctor_fn = cg.fn_expr(cg.join(params), body_code, indent)
   else
@@ -1478,6 +1515,7 @@ local HELPER_ORDER = {
   "_ljs_object_create",
   "_ljs_ctor",
   "_ljs_new",
+  "_ljs_call_this",
   "_ljs_instanceof",
   "_ljs_str_to_num",
   "_ljs_super_call",
