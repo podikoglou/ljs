@@ -1133,17 +1133,23 @@ gen.BinaryExpression = function(node, indent, ctx)
   if compound_helper then
     return cg.binop("=", left, cg.call(compound_helper, { left, right }))
   end
+  -- Compound special: modulo
   if op == "%=" then
     return cg.binop("=", left, cg.call("_ljs_mod", { cg.call("_ljs_to_number", { left }), cg.call("_ljs_to_number", { right }) }))
   end
-  if op == "==" then
-    return cg.call("_ljs_eq", { left, right })
-  elseif op == "!=" then
-    return cg.unop("not", cg.call("_ljs_eq", { left, right }))
+  -- Direct mappings
+  if op == "=" then
+    return cg.binop("=", left, right)
   elseif op == "===" then
     return cg.binop("==", left, right)
   elseif op == "!==" then
     return cg.binop("~=", left, right)
+  -- Equality with helper
+  elseif op == "==" then
+    return cg.call("_ljs_eq", { left, right })
+  elseif op == "!=" then
+    return cg.unop("not", cg.call("_ljs_eq", { left, right }))
+  -- Logical (IIFE short-circuit)
   elseif op == "&&" then
     return cg.iife({
       cg.local_inline("_ljs_v", left),
@@ -1154,12 +1160,7 @@ gen.BinaryExpression = function(node, indent, ctx)
       cg.local_inline("_ljs_v", left),
       cg.inline_if_return(cg.call("_ljs_to_boolean", { "_ljs_v" }), "_ljs_v", right),
     })
-  elseif op == "=" then
-    return cg.binop("=", left, right)
-  -- The `in` operator: `key in obj` → `obj[key] ~= nil`.
-  -- For non-string computed keys, adds 1 to convert JS 0-based to Lua 1-based index
-  -- (so `"prop" in obj` with a numeric key works against Lua array indices).
-  -- Wraps object literal RHS in parens to avoid ambiguous Lua syntax.
+  -- in operator
   elseif op == "in" then
     local key_code
     if node.left.type == ast.TYPE_STRING_LITERAL then
@@ -1169,6 +1170,7 @@ gen.BinaryExpression = function(node, indent, ctx)
     end
     local right_expr = right:sub(1, 1) == "{" and cg.paren(right) or right
     return cg.paren(cg.binop("~=", cg.member_index(right_expr, key_code), cg.nil_val()))
+  -- Arithmetic special: modulo
   elseif op == "%" then
     return cg.call("_ljs_mod", { cg.call("_ljs_to_number", { left }), cg.call("_ljs_to_number", { right }) })
   else
