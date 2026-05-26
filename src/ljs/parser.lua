@@ -342,11 +342,11 @@ local function tokenize(source)
   end
 
   local function is_digit(c)
-    return c:match("%d")
+    return c and c:match("%d")
   end
 
   local function is_alpha(c)
-    return c:match("[%a_]")
+    return c and c:match("[%a_]")
   end
 
   -- %w matches [0-9a-zA-Z] but NOT underscore, so we add it explicitly.
