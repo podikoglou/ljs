@@ -24,7 +24,7 @@ end)
 
 test("bitwise NOT on negative", function()
   local code = expr_code("~-1")
-  assert_eq(code, "_ljs_bnot(-1)")
+  assert_eq(code, "_ljs_bnot(-_ljs_to_number(1))")
 end)
 
 test("bitwise NOT in binary context", function()
@@ -212,7 +212,7 @@ test("unsigned right shift nested left-assoc", function()
 end)
 
 test("unsigned right shift negative", function()
-  assert_eq(expr_code("-1 >>> 0"), "_ljs_usr(-1, 0)")
+  assert_eq(expr_code("-1 >>> 0"), "_ljs_usr(-_ljs_to_number(1), 0)")
 end)
 
 -- ============================================================================
@@ -361,7 +361,10 @@ test("bitwise AND with strict equality", function()
 end)
 
 test("bitwise AND with logical AND", function()
-  assert_eq(expr_code("(a & b) && c"), "_ljs_band(a, b) and c")
+  assert_eq(
+    expr_code("(a & b) && c"),
+    "(function() local _ljs_v = _ljs_band(a, b); if _ljs_to_boolean(_ljs_v) then return c else return _ljs_v end end)()"
+  )
 end)
 
 test("bitwise OR with strict inequality", function()
@@ -369,7 +372,7 @@ test("bitwise OR with strict inequality", function()
 end)
 
 test("shift inside multiplication", function()
-  assert_eq(expr_code("(1 << 3) * 2"), "_ljs_shl(1, 3) * 2")
+  assert_eq(expr_code("(1 << 3) * 2"), "_ljs_mul(_ljs_shl(1, 3), 2)")
 end)
 
 test("bitwise inside ternary", function()

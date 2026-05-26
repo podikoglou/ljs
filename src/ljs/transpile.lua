@@ -136,6 +136,13 @@ end]]
 HELPERS._ljs_tostring = [[local function _ljs_tostring(x)
   if x == _ljs_null then return "null"
   elseif x == nil then return "undefined"
+  elseif type(x) == "number" then
+    if x ~= x then return "NaN" end
+    if x == math.huge then return "Infinity" end
+    if x == -math.huge then return "-Infinity" end
+    if x == 0 then return "0" end
+    if math.floor(x) == x then return tostring(math.floor(x)) end
+    return tostring(x)
   else return tostring(x) end
 end]]
 
@@ -143,11 +150,27 @@ HELPERS._ljs_add = [[local function _ljs_add(a, b)
   if type(a) == "string" or type(b) == "string" then
     return _ljs_tostring(a) .. _ljs_tostring(b)
   end
-  if a == _ljs_null then a = 0 end
-  if b == _ljs_null then b = 0 end
-  if a == nil then a = 0 / 0 end
-  if b == nil then b = 0 / 0 end
-  return a + b
+  return _ljs_to_number(a) + _ljs_to_number(b)
+end]]
+
+HELPERS._ljs_sub = [[local function _ljs_sub(a, b)
+  return _ljs_to_number(a) - _ljs_to_number(b)
+end]]
+
+HELPERS._ljs_mul = [[local function _ljs_mul(a, b)
+  return _ljs_to_number(a) * _ljs_to_number(b)
+end]]
+
+HELPERS._ljs_div = [[local function _ljs_div(a, b)
+  return _ljs_to_number(a) / _ljs_to_number(b)
+end]]
+
+HELPERS._ljs_pow = [[local function _ljs_pow(a, b)
+  a = _ljs_to_number(a)
+  b = _ljs_to_number(b)
+  if b ~= b then return 0 / 0 end
+  if (a == 1 or a == -1) and (b == math.huge or b == -math.huge) then return 0 / 0 end
+  return a ^ b
 end]]
 
 HELPERS._ljs_bnot = [[local function _ljs_bnot(x)
@@ -206,6 +229,19 @@ HELPERS._ljs_usr = [[local function _ljs_usr(a, b)
   b = math.floor(b) % 32
   if b == 0 then return a end
   return math.floor(a / 2^b)
+end]]
+
+HELPERS._ljs_mod = [[local function _ljs_mod(n, d)
+  if n ~= n or d ~= d then return 0/0 end
+  if n == math.huge or n == -math.huge then return 0/0 end
+  if d == math.huge or d == -math.huge then return n end
+  if d == 0 then return 0/0 end
+  if n == 0 then return n end
+  local q = n / d
+  local t = q >= 0 and math.floor(q) or math.ceil(q)
+  local r = n - t * d
+  if r == 0 and 1/n < 0 then return -0.0 end
+  return r
 end]]
 
 -- typeof per §13.5.3: nil (undefined) → "undefined", _ljs_null → "object".
@@ -412,6 +448,34 @@ HELPERS._ljs_eq = [[local function _ljs_eq(a, b)
   return false
 end]]
 
+HELPERS._ljs_lt = [[local function _ljs_lt(a, b)
+  if type(a) == "string" and type(b) == "string" then
+    return a < b
+  end
+  return _ljs_to_number(a) < _ljs_to_number(b)
+end]]
+
+HELPERS._ljs_gt = [[local function _ljs_gt(a, b)
+  if type(a) == "string" and type(b) == "string" then
+    return a > b
+  end
+  return _ljs_to_number(a) > _ljs_to_number(b)
+end]]
+
+HELPERS._ljs_le = [[local function _ljs_le(a, b)
+  if type(a) == "string" and type(b) == "string" then
+    return a <= b
+  end
+  return _ljs_to_number(a) <= _ljs_to_number(b)
+end]]
+
+HELPERS._ljs_ge = [[local function _ljs_ge(a, b)
+  if type(a) == "string" and type(b) == "string" then
+    return a >= b
+  end
+  return _ljs_to_number(a) >= _ljs_to_number(b)
+end]]
+
 -- ============================================================================
 -- Section 3: Continue detection helper
 -- ============================================================================
@@ -561,7 +625,7 @@ end
 -- @param scopes (table) Transpilation context
 -- @return (string) test, (string) then_body, (table|nil) elseifs, (string|nil) else_body
 local function collect_if_chain(node, indent, ctx)
-  local test = emit(node.test, indent, ctx)
+  local test = cg.call("_ljs_to_boolean", { emit(node.test, indent, ctx) })
   local body = emit(node.consequent, indent, ctx)
   local elseifs = {}
   local else_body = nil
@@ -571,7 +635,7 @@ local function collect_if_chain(node, indent, ctx)
     if is_elseif_chain(alternate) then
       local inner = alternate.type == "IfStatement" and alternate or alternate.body[1]
       elseifs[#elseifs + 1] = {
-        test = emit(inner.test, indent, ctx),
+        test = cg.call("_ljs_to_boolean", { emit(inner.test, indent, ctx) }),
         body = emit(inner.consequent, indent, ctx),
       }
       alternate = inner.alternate
@@ -907,7 +971,7 @@ gen.IfStatement = function(node, indent, ctx)
 end
 
 gen.WhileStatement = function(node, indent, ctx)
-  local test_code = emit(node.test, indent, ctx)
+  local test_code = cg.call("_ljs_to_boolean", { emit(node.test, indent, ctx) })
   local body = emit(node.body, indent, ctx)
   if has_continue(node.body) then
     body = body .. cg.label("_continue", indent + 1)
@@ -923,7 +987,7 @@ gen.DoWhileStatement = function(node, indent, ctx)
   if has_continue(node.body) then
     body = body .. cg.label("_continue", indent + 1)
   end
-  local negated = cg.unop("not", "(" .. test_code .. ")")
+  local negated = cg.unop("not", cg.call("_ljs_to_boolean", { test_code }))
   return cg.repeat_until(negated, body, indent)
 end
 
@@ -973,7 +1037,8 @@ gen.ForStatement = function(node, indent, ctx)
   if node.init then
     parts[#parts + 1] = emit(node.init, indent, ctx)
   end
-  local test_code = node.test and emit(node.test, indent, ctx) or "true"
+  local test_code = node.test and cg.call("_ljs_to_boolean", { emit(node.test, indent, ctx) })
+    or "true"
   scope_push(ctx)
   if node.init and node.init.type == "VariableDeclaration" then
     for _, decl in ipairs(node.init.declarations) do
@@ -1100,20 +1165,37 @@ gen.BinaryExpression = function(node, indent, ctx)
   elseif op == "!==" then
     return cg.binop("~=", left, right)
   elseif op == "&&" then
-    return cg.binop("and", left, right)
+    return cg.iife({
+      cg.local_inline("_ljs_v", left),
+      cg.inline_if_return(cg.call("_ljs_to_boolean", { "_ljs_v" }), right, "_ljs_v"),
+    })
   elseif op == "||" then
-    return cg.binop("or", left, right)
+    return cg.iife({
+      cg.local_inline("_ljs_v", left),
+      cg.inline_if_return(cg.call("_ljs_to_boolean", { "_ljs_v" }), "_ljs_v", right),
+    })
   elseif op == "=" then
     return cg.binop("=", left, right)
   elseif op == "+=" then
     return cg.binop("=", left, cg.call("_ljs_add", { left, right }))
   elseif op == "**" then
-    return cg.binop("^", left, right)
+    return cg.call("_ljs_pow", { left, right })
   elseif op == "**=" then
-    return cg.binop("=", left, cg.binop("^", left, right))
-  elseif op == "-=" or op == "*=" or op == "/=" or op == "%=" then
-    local base_op = op:sub(1, 1)
-    return cg.binop("=", left, cg.binop(base_op, left, right))
+    return cg.binop("=", left, cg.call("_ljs_pow", { left, right }))
+  elseif op == "-" then
+    return cg.call("_ljs_sub", { left, right })
+  elseif op == "*" then
+    return cg.call("_ljs_mul", { left, right })
+  elseif op == "/" then
+    return cg.call("_ljs_div", { left, right })
+  elseif op == "-=" then
+    return cg.binop("=", left, cg.call("_ljs_sub", { left, right }))
+  elseif op == "*=" then
+    return cg.binop("=", left, cg.call("_ljs_mul", { left, right }))
+  elseif op == "/=" then
+    return cg.binop("=", left, cg.call("_ljs_div", { left, right }))
+  elseif op == "%=" then
+    return cg.binop("=", left, cg.call("_ljs_mod", { cg.call("_ljs_to_number", { left }), cg.call("_ljs_to_number", { right }) }))
   elseif op == "&" then
     return cg.call("_ljs_band", { left, right })
   elseif op == "|" then
@@ -1153,6 +1235,16 @@ gen.BinaryExpression = function(node, indent, ctx)
     end
     local right_expr = right:sub(1, 1) == "{" and cg.paren(right) or right
     return cg.paren(cg.binop("~=", cg.member_index(right_expr, key_code), cg.nil_val()))
+  elseif op == "%" then
+    return cg.call("_ljs_mod", { cg.call("_ljs_to_number", { left }), cg.call("_ljs_to_number", { right }) })
+  elseif op == "<" then
+    return cg.call("_ljs_lt", { left, right })
+  elseif op == ">" then
+    return cg.call("_ljs_gt", { left, right })
+  elseif op == "<=" then
+    return cg.call("_ljs_le", { left, right })
+  elseif op == ">=" then
+    return cg.call("_ljs_ge", { left, right })
   else
     return cg.binop(op, left, right)
   end
@@ -1168,13 +1260,13 @@ gen.UnaryExpression = function(node, indent, ctx)
   end
   local expr = emit(node.argument, indent, ctx)
   if node.operator == "!" then
-    return cg.unop("not", expr)
+    return cg.unop("not", cg.call("_ljs_to_boolean", { expr }))
   elseif node.operator == "~" then
     return cg.call("_ljs_bnot", { expr })
   elseif node.operator == "+" then
-    return cg.call("tonumber", { expr })
+    return cg.call("_ljs_to_number", { expr })
   end
-  return cg.unop("-", expr)
+  return cg.unop("-", cg.call("_ljs_to_number", { expr }))
 end
 
 --- Compute the Lua key for a MemberExpression.
@@ -1224,7 +1316,7 @@ gen.UpdateExpression = function(node, indent, ctx)
   if node.operator == "++" then
     val = cg.call("_ljs_add", { arg, "1" })
   else
-    val = cg.binop("-", arg, "1")
+    val = cg.call("_ljs_sub", { arg, "1" })
   end
   if node.prefix then
     return cg.iife({ cg.binop("=", arg, val), cg.return_inline(arg) })
@@ -1233,7 +1325,7 @@ gen.UpdateExpression = function(node, indent, ctx)
 end
 
 gen.ConditionalExpression = function(node, indent, ctx)
-  local test_code = emit(node.test, indent, ctx)
+  local test_code = cg.call("_ljs_to_boolean", { emit(node.test, indent, ctx) })
   local cons_code = emit(node.consequent, indent, ctx)
   local alt_code = emit(node.alternate, indent, ctx)
   return cg.iife({ cg.inline_if_return(test_code, cons_code, alt_code) })
@@ -1345,7 +1437,7 @@ gen_stmt.UpdateExpression = function(node, indent, ctx)
   if node.operator == "++" then
     return cg.expr_stmt(cg.binop("=", arg, cg.call("_ljs_add", { arg, "1" })), indent)
   end
-  return cg.expr_stmt(cg.binop("=", arg, cg.binop("-", arg, "1")), indent)
+  return cg.expr_stmt(cg.binop("=", arg, cg.call("_ljs_sub", { arg, "1" })), indent)
 end
 
 gen_stmt.ConditionalExpression = function(node, indent, ctx)
@@ -1372,7 +1464,7 @@ end
 -- _ljs_to_number/_ljs_to_boolean before arithmetic and coercion helpers,
 -- _ljs_fn before _ljs_ctor (which depends on it), _ljs_to_object before
 -- _ljs_call_member (which calls it), _ljs_tostring, rest alphabetical.
--- All 26 helpers are always emitted unconditionally.
+-- All 27 helpers are always emitted unconditionally.
 local HELPER_ORDER = {
   "_ljs_to_int32",
   "_ljs_to_primitive",
@@ -1382,6 +1474,10 @@ local HELPER_ORDER = {
   "_ljs_to_object",
   "_ljs_tostring",
   "_ljs_add",
+  "_ljs_sub",
+  "_ljs_mul",
+  "_ljs_div",
+  "_ljs_pow",
   "_ljs_bnot",
   "_ljs_band",
   "_ljs_bor",
@@ -1389,6 +1485,7 @@ local HELPER_ORDER = {
   "_ljs_shl",
   "_ljs_shr",
   "_ljs_usr",
+  "_ljs_mod",
   "_ljs_typeof",
   "_ljs_call",
   "_ljs_call_member",
@@ -1400,6 +1497,10 @@ local HELPER_ORDER = {
   "_ljs_str_to_num",
   "_ljs_super_call",
   "_ljs_eq",
+  "_ljs_lt",
+  "_ljs_gt",
+  "_ljs_le",
+  "_ljs_ge",
 }
 
 local _preamble_cache = nil

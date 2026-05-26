@@ -81,14 +81,74 @@ test("addition uses helper", function()
   assert_eq(code, "_ljs_add(1, 2)")
 end)
 
-test("subtraction", function()
-  local code = expr_code("3 - 1")
-  assert_eq(code, "3 - 1")
+test("true + 1 coerces boolean to number", function()
+  local output = run_js("console.log(true + 1);")
+  assert_eq(tonumber(output:match("[%d.]+")), 2)
 end)
 
-test("multiplication", function()
+test("false + 1 coerces boolean to number", function()
+  local output = run_js("console.log(false + 1);")
+  assert_eq(tonumber(output:match("[%d.]+")), 1)
+end)
+
+test("true + true is 2", function()
+  local output = run_js("console.log(true + true);")
+  assert_eq(tonumber(output:match("[%d.]+")), 2)
+end)
+
+test("false + false is 0", function()
+  local output = run_js("console.log(false + false);")
+  assert_eq(tonumber(output:match("[%d.]+")), 0)
+end)
+
+test("true - 1 coerces boolean to number", function()
+  local output = run_js("console.log(true - 1);")
+  assert_eq(tonumber(output:match("[%d.]+")), 0)
+end)
+
+test("false * 5 coerces boolean to number", function()
+  local output = run_js("console.log(false * 5);")
+  assert_eq(tonumber(output:match("[%d.]+")), 0)
+end)
+
+test("true * 3 coerces boolean to number", function()
+  local output = run_js("console.log(true * 3);")
+  assert_eq(tonumber(output:match("[%d.]+")), 3)
+end)
+
+test("null - 1 coerces null to 0", function()
+  local output = run_js("console.log(null - 1);")
+  assert_eq(tonumber(output:match("-?[%d.]+")), -1)
+end)
+
+test("null * 3 coerces null to 0", function()
+  local output = run_js("console.log(null * 3);")
+  assert_eq(tonumber(output:match("[%d.]+")), 0)
+end)
+
+test("null / 2 coerces null to 0", function()
+  local output = run_js("console.log(null / 2);")
+  assert_eq(tonumber(output:match("[%d.]+")), 0)
+end)
+
+test("division uses helper", function()
+  local code = expr_code("6 / 2")
+  assert_eq(code, "_ljs_div(6, 2)")
+end)
+
+test("modulo uses _ljs_to_number wrapped _ljs_mod", function()
+  local code = expr_code("a % b")
+  assert_eq(code, "_ljs_mod(_ljs_to_number(a), _ljs_to_number(b))")
+end)
+
+test("subtraction uses helper", function()
+  local code = expr_code("3 - 1")
+  assert_eq(code, "_ljs_sub(3, 1)")
+end)
+
+test("multiplication uses helper", function()
   local code = expr_code("3 * 2")
-  assert_eq(code, "3 * 2")
+  assert_eq(code, "_ljs_mul(3, 2)")
 end)
 
 test("strict equality", function()
@@ -103,78 +163,84 @@ end)
 
 test("logical AND", function()
   local code = expr_code("a && b")
-  assert_eq(code, "a and b")
+  assert_eq(
+    code,
+    "(function() local _ljs_v = a; if _ljs_to_boolean(_ljs_v) then return b else return _ljs_v end end)()"
+  )
 end)
 
 test("logical OR", function()
   local code = expr_code("a || b")
-  assert_eq(code, "a or b")
+  assert_eq(
+    code,
+    "(function() local _ljs_v = a; if _ljs_to_boolean(_ljs_v) then return _ljs_v else return b end end)()"
+  )
 end)
 
 test("logical NOT", function()
   local code = expr_code("!x")
-  assert_eq(code, "not x")
+  assert_eq(code, "not _ljs_to_boolean(x)")
 end)
 
 test("unary minus", function()
   local code = expr_code("-x")
-  assert_eq(code, "-x")
+  assert_eq(code, "-_ljs_to_number(x)")
 end)
 
 test("unary minus -0 emits negative zero", function()
   assert_eq(expr_code("-0;"), "(-1 / math.huge)")
 end)
 
-test("unary plus", function()
+test("unary plus uses _ljs_to_number", function()
   local code = expr_code("+x")
-  assert_eq(code, "tonumber(x)")
+  assert_eq(code, "_ljs_to_number(x)")
 end)
 
-test("unary plus on string", function()
+test("unary plus on string uses _ljs_to_number", function()
   local code = expr_code('+"5"')
-  assert_eq(code, 'tonumber("5")')
+  assert_eq(code, '_ljs_to_number("5")')
 end)
 
-test("nested unary +!x", function()
+test("nested unary +!x uses _ljs_to_number", function()
   local code = expr_code("+!x")
-  assert_eq(code, "tonumber(not x)")
+  assert_eq(code, "_ljs_to_number(not _ljs_to_boolean(x))")
 end)
 
-test("unary + in binary context", function()
+test("unary + in binary context uses _ljs_to_number", function()
   local code = expr_code("1 + +x")
-  assert_eq(code, "_ljs_add(1, tonumber(x))")
+  assert_eq(code, "_ljs_add(1, _ljs_to_number(x))")
 end)
 
 -- ============================================================================
 -- Unit tests — exponentiation (**)
 -- ============================================================================
 
-test("exponentiation ** maps to ^", function()
-  assert_eq(expr_code("2 ** 3"), "2 ^ 3")
+test("exponentiation ** uses helper", function()
+  assert_eq(expr_code("2 ** 3"), "_ljs_pow(2, 3)")
 end)
 
-test("exponentiation **= desugars", function()
-  assert_eq(expr_code("x **= 2"), "x = x ^ 2")
+test("exponentiation **= desugars with helper", function()
+  assert_eq(expr_code("x **= 2"), "x = _ljs_pow(x, 2)")
 end)
 
 test("exponentiation **= on member expression", function()
-  assert_eq(expr_code("obj.x **= 2"), "_ljs_to_object(obj).x = _ljs_to_object(obj).x ^ 2")
+  assert_eq(expr_code("obj.x **= 2"), "_ljs_to_object(obj).x = _ljs_pow(_ljs_to_object(obj).x, 2)")
 end)
 
 test("exponentiation **= on computed member", function()
   assert_eq(
     expr_code("arr[0] **= 2"),
-    "_ljs_to_object(arr)[(0) + 1] = _ljs_to_object(arr)[(0) + 1] ^ 2"
+    "_ljs_to_object(arr)[(0) + 1] = _ljs_pow(_ljs_to_object(arr)[(0) + 1], 2)"
   )
 end)
 
-test("exponentiation chained right-assoc", function()
-  assert_eq(expr_code("2 ** 3 ** 4"), "2 ^ 3 ^ 4")
+test("exponentiation chained right-assoc uses helper", function()
+  assert_eq(expr_code("2 ** 3 ** 4"), "_ljs_pow(2, _ljs_pow(3, 4))")
 end)
 
-test("exponentiation no helper emitted", function()
+test("exponentiation ** helper emitted", function()
   local code = emit_ok("let x = 2 ** 3;")
-  assert(not code:find("_ljs_pow"), "expected no _ljs_pow helper")
+  assert(code:find("_ljs_pow"), "expected _ljs_pow helper")
 end)
 
 -- ============================================================================
@@ -228,14 +294,49 @@ test("exponentiation in function body", function()
 end)
 
 -- ============================================================================
+-- Integration tests — exponentiation ±1^±Infinity and NaN edge cases (#102)
+-- Per ECMA-262 §6.1.6.1.3 Number::exponentiate steps 9.2, 10.2
+-- ============================================================================
+
+test("1 ** Infinity = NaN", function()
+  local output = run_js("console.log(1 ** Infinity);")
+  assert_eq(output:match("%S+"), "NaN")
+end)
+
+test("1 ** -Infinity = NaN", function()
+  local output = run_js("console.log(1 ** -Infinity);")
+  assert_eq(output:match("%S+"), "NaN")
+end)
+
+test("(-1) ** Infinity = NaN", function()
+  local output = run_js("console.log((-1) ** Infinity);")
+  assert_eq(output:match("%S+"), "NaN")
+end)
+
+test("(-1) ** -Infinity = NaN", function()
+  local output = run_js("console.log((-1) ** -Infinity);")
+  assert_eq(output:match("%S+"), "NaN")
+end)
+
+test("1 ** NaN = NaN", function()
+  local output = run_js("console.log(1 ** NaN);")
+  assert_eq(output:match("%S+"), "NaN")
+end)
+
+test("regression: 2 ** 3 still = 8 after NaN edge-case fix", function()
+  local output = run_js("console.log(2 ** 3);")
+  assert_eq(tonumber(output:match("[%d.]+")), 8)
+end)
+
+-- ============================================================================
 -- Unit tests — compound operators (+= etc.)
 -- ============================================================================
 
-test("comparison operators", function()
-  assert_eq(expr_code("a < b"), "a < b")
-  assert_eq(expr_code("a > b"), "a > b")
-  assert_eq(expr_code("a <= b"), "a <= b")
-  assert_eq(expr_code("a >= b"), "a >= b")
+test("comparison operators use helpers", function()
+  assert_eq(expr_code("a < b"), "_ljs_lt(a, b)")
+  assert_eq(expr_code("a > b"), "_ljs_gt(a, b)")
+  assert_eq(expr_code("a <= b"), "_ljs_le(a, b)")
+  assert_eq(expr_code("a >= b"), "_ljs_ge(a, b)")
 end)
 
 test("addition emits helper definition", function()
@@ -247,20 +348,20 @@ test("compound += desugars with _ljs_add", function()
   assert_eq(expr_code("x += 1"), "x = _ljs_add(x, 1)")
 end)
 
-test("compound -= desugars", function()
-  assert_eq(expr_code("x -= 1"), "x = x - 1")
+test("compound -= desugars with helper", function()
+  assert_eq(expr_code("x -= 1"), "x = _ljs_sub(x, 1)")
 end)
 
-test("compound *= desugars", function()
-  assert_eq(expr_code("x *= 2"), "x = x * 2")
+test("compound *= desugars with helper", function()
+  assert_eq(expr_code("x *= 2"), "x = _ljs_mul(x, 2)")
 end)
 
-test("compound /= desugars", function()
-  assert_eq(expr_code("x /= 2"), "x = x / 2")
+test("compound /= desugars with helper", function()
+  assert_eq(expr_code("x /= 2"), "x = _ljs_div(x, 2)")
 end)
 
-test("compound %= desugars", function()
-  assert_eq(expr_code("x %= 2"), "x = x % 2")
+test("compound %= desugars with ToNumber", function()
+  assert_eq(expr_code("x %= 2"), "x = _ljs_mod(_ljs_to_number(x), _ljs_to_number(2))")
 end)
 
 test("compound += on member expression", function()
@@ -274,4 +375,54 @@ end)
 test("compound += emits _ljs_add helper definition", function()
   local code = transpile_ok("x += 1;")
   assert(code:find("_ljs_add"), "expected _ljs_add helper in output")
+end)
+
+-- ============================================================================
+-- Integration tests — relational operators (< > <= >=) with coercion (#100)
+-- Per ECMAScript Abstract Relational Comparison (§7.2.15)
+-- ============================================================================
+
+test("null < 1 coerces null to 0 → true", function()
+  local output = run_js("console.log(null < 1);")
+  assert_eq(output:match("%S+"), "true")
+end)
+
+test("true < 2 coerces true to 1 → true", function()
+  local output = run_js("console.log(true < 2);")
+  assert_eq(output:match("%S+"), "true")
+end)
+
+test("false >= 0 coerces false to 0 → true", function()
+  local output = run_js("console.log(false >= 0);")
+  assert_eq(output:match("%S+"), "true")
+end)
+
+test("undefined < 1 → false (NaN)", function()
+  local output = run_js("console.log(undefined < 1);")
+  assert_eq(output:match("%S+"), "false")
+end)
+
+test("NaN < 1 → false", function()
+  local output = run_js("console.log(NaN < 1);")
+  assert_eq(output:match("%S+"), "false")
+end)
+
+test('"10" > 9 coerces string to number → true', function()
+  local output = run_js('console.log("10" > 9);')
+  assert_eq(output:match("%S+"), "true")
+end)
+
+test('"abc" < 1 → false (NaN)', function()
+  local output = run_js('console.log("abc" < 1);')
+  assert_eq(output:match("%S+"), "false")
+end)
+
+test('"b" > "a" → true (lexicographic)', function()
+  local output = run_js('console.log("b" > "a");')
+  assert_eq(output:match("%S+"), "true")
+end)
+
+test("true > null coerces to 1 > 0 → true", function()
+  local output = run_js("console.log(true > null);")
+  assert_eq(output:match("%S+"), "true")
 end)
