@@ -355,6 +355,32 @@ HELPERS._ljs_call_this = [[local function _ljs_call_this(fn, this_val, ...)
   return fn(this_val, ...)
 end]]
 
+HELPERS._ljs_spread_build = [[local function _ljs_spread_build(...)
+  local result = {}
+  result.n = 0
+  local nargs = select('#', ...)
+  local i = 1
+  while i <= nargs do
+    local val = select(i, ...)
+    local is_spread = select(i + 1, ...)
+    if is_spread then
+      for j = 1, val.length do
+        result.n = result.n + 1
+        result[result.n] = val[j]
+      end
+    else
+      result.n = result.n + 1
+      result[result.n] = val
+    end
+    i = i + 2
+  end
+  return result
+end]]
+
+HELPERS._ljs_unpack = [[local function _ljs_unpack(arr)
+  return table.unpack(arr, 1, arr.n)
+end]]
+
 -- Walks __index chain checking for ctor.prototype. Primitives always false.
 HELPERS._ljs_instanceof = [[local function _ljs_instanceof(value, ctor)
   if type(value) ~= "table" then
@@ -1374,7 +1400,70 @@ end
 --   2) super.method() → _ljs_super_call with parent prototype
 --   3) obj.method() → _ljs_call_member (passes obj as _ljs_this)
 --   4) fn() → _ljs_call (passes nil as _ljs_this)
+local function has_spread_element(nodes)
+  for _, n in ipairs(nodes) do
+    if n.type == ast.TYPE_SPREAD_ELEMENT then
+      return true
+    end
+  end
+  return false
+end
+
+local function emit_spread_args(nodes, indent, ctx)
+  local args = {}
+  for _, n in ipairs(nodes) do
+    if n.type == ast.TYPE_SPREAD_ELEMENT then
+      args[#args + 1] = emit(n.argument, indent, ctx)
+      args[#args + 1] = "true"
+    else
+      args[#args + 1] = emit(n, indent, ctx)
+      args[#args + 1] = "false"
+    end
+  end
+  return args
+end
+
 gen.CallExpression = function(node, indent, ctx)
+  local has_spread = has_spread_element(node.arguments)
+
+  if has_spread then
+    local spread_args = emit_spread_args(node.arguments, indent, ctx)
+    local build_call = cg.call("_ljs_spread_build", spread_args)
+    local unpack_call = cg.call("_ljs_unpack", { "_s" })
+
+    if node.callee.type == ast.TYPE_SUPER_EXPRESSION then
+      local super_parent = ctx.super_stack[#ctx.super_stack]
+      return cg.iife({
+        cg.local_inline("_s", build_call),
+        cg.return_inline(cg.call(super_parent, { "_ljs_arrow_this", unpack_call })),
+      })
+    end
+
+    if node.callee.type == ast.TYPE_MEMBER_EXPRESSION and node.callee.object.type == ast.TYPE_SUPER_EXPRESSION then
+      local super_parent = ctx.super_stack[#ctx.super_stack]
+      local proto = cg.member_dot(super_parent, "prototype")
+      local key_expr = member_key(node.callee, indent, ctx)
+      return cg.iife({
+        cg.local_inline("_s", build_call),
+        cg.return_inline(cg.call("_ljs_super_call", { proto, key_expr, "_ljs_arrow_this", unpack_call })),
+      })
+    end
+
+    if node.callee.type == ast.TYPE_MEMBER_EXPRESSION then
+      local obj_expr = emit(node.callee.object, indent, ctx)
+      local key_expr = member_key(node.callee, indent, ctx)
+      return cg.iife({
+        cg.local_inline("_s", build_call),
+        cg.return_inline(cg.call("_ljs_call_member", { obj_expr, key_expr, unpack_call })),
+      })
+    end
+
+    return cg.iife({
+      cg.local_inline("_s", build_call),
+      cg.return_inline(cg.call("_ljs_call", { emit(node.callee, indent, ctx), unpack_call })),
+    })
+  end
+
   local args = {}
   for _, a in ipairs(node.arguments) do
     args[#args + 1] = emit(a, indent, ctx)
@@ -1418,6 +1507,13 @@ gen.CallExpression = function(node, indent, ctx)
 end
 
 gen.NewExpression = function(node, indent, ctx)
+  if has_spread_element(node.arguments) then
+    local spread_args = emit_spread_args(node.arguments, indent, ctx)
+    return cg.iife({
+      cg.local_inline("_s", cg.call("_ljs_spread_build", spread_args)),
+      cg.return_inline(cg.call("_ljs_new", { emit(node.callee, indent, ctx), cg.call("_ljs_unpack", { "_s" }) })),
+    })
+  end
   local args = { emit(node.callee, indent, ctx) }
   for _, a in ipairs(node.arguments) do
     args[#args + 1] = emit(a, indent, ctx)
@@ -1457,11 +1553,34 @@ gen.ObjectExpression = function(node, indent, ctx)
 end
 
 gen.ArrayExpression = function(node, indent, ctx)
-  local args = { "Array" }
+  local has_spread = false
   for _, e in ipairs(node.elements) do
-    args[#args + 1] = emit(e, indent, ctx)
+    if e.type == ast.TYPE_SPREAD_ELEMENT then
+      has_spread = true
+      break
+    end
   end
-  return cg.call("_ljs_new", args)
+  if not has_spread then
+    local args = { "Array" }
+    for _, e in ipairs(node.elements) do
+      args[#args + 1] = emit(e, indent, ctx)
+    end
+    return cg.call("_ljs_new", args)
+  end
+  local spread_args = {}
+  for _, e in ipairs(node.elements) do
+    if e.type == ast.TYPE_SPREAD_ELEMENT then
+      spread_args[#spread_args + 1] = emit(e.argument, indent, ctx)
+      spread_args[#spread_args + 1] = "true"
+    else
+      spread_args[#spread_args + 1] = emit(e, indent, ctx)
+      spread_args[#spread_args + 1] = "false"
+    end
+  end
+  return cg.iife({
+    cg.local_inline("_s", cg.call("_ljs_spread_build", spread_args)),
+    cg.return_inline(cg.call("_ljs_new", { "Array", cg.call("_ljs_unpack", { "_s" }) })),
+  })
 end
 
 -- === Statement-context emission ===
@@ -1535,6 +1654,8 @@ local HELPER_ORDER = {
   "_ljs_instanceof",
   "_ljs_str_to_num",
   "_ljs_super_call",
+  "_ljs_spread_build",
+  "_ljs_unpack",
   "_ljs_eq",
   "_ljs_lt",
   "_ljs_gt",

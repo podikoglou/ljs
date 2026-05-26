@@ -239,4 +239,8 @@ A.tpl_elem = function(value, tail)
   return { type = ast.TYPE_TEMPLATE_ELEMENT, value = value, tail = tail }
 end
 
+A.spread = function(arg)
+  return { type = ast.TYPE_SPREAD_ELEMENT, argument = arg }
+end
+
 return A

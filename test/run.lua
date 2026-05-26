@@ -30,6 +30,7 @@ describe("parser/error_handling", "test.parser.error_handling")
 describe("parser/member_literals", "test.parser.member_literals")
 describe("parser/default_rest_params", "test.parser.default_rest_params")
 describe("parser/template_literals", "test.parser.template_literals")
+describe("parser/spread", "test.parser.spread")
 
 describe("transpile/basics", "test.transpile.basics")
 describe("transpile/control_flow", "test.transpile.control_flow")
@@ -59,6 +60,7 @@ describe("transpile/toboolean", "test.transpile.toboolean")
 describe("transpile/modulo", "test.transpile.modulo")
 describe("transpile/default_rest_params", "test.transpile.default_rest_params")
 describe("transpile/template_literals", "test.transpile.template_literals")
+describe("transpile/spread", "test.transpile.spread")
 
 describe("codegen", "test.codegen")
 

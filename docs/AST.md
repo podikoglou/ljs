@@ -225,6 +225,17 @@ Rest parameter (must be the last parameter).
 
 **Source:** `function f(...args) {}`, `(...rest) => rest`
 
+### SpreadElement
+
+Spread element in array literals or function call arguments.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"SpreadElement"` | |
+| `argument` | `node` | Expression to spread |
+
+**Source:** `[...a]`, `fn(...args)`, `new F(...a)`
+
 ---
 
 ## Expressions
@@ -333,9 +344,9 @@ Both branches allow full expressions including assignment and nested ternaries. 
 |-------|------|-------------|
 | `type` | `"CallExpression"` | |
 | `callee` | `node` | Expression being called |
-| `arguments` | `node[]` | Argument list (can be empty) |
+| `arguments` | `(node | SpreadElement)[]` | Argument list (can be empty) |
 
-**Source:** `f()`, `f(a, b)`, `console.log("hello")`
+**Source:** `f()`, `f(a, b)`, `console.log("hello")`, `fn(...args)`
 
 `console.log` is not a special node — it parses as a `CallExpression` whose `callee` is a `MemberExpression`.
 
@@ -345,7 +356,7 @@ Both branches allow full expressions including assignment and nested ternaries. 
 |-------|------|-------------|
 | `type` | `"NewExpression"` | |
 | `callee` | `node` | Constructor expression (identifier or member expression) |
-| `arguments` | `node[]` | Argument list (can be empty) |
+| `arguments` | `(node | SpreadElement)[]` | Argument list (can be empty) |
 
 **Source:** `new Foo()`, `new Foo(a, b)`, `new Foo`, `new Foo.bar()`
 
@@ -412,9 +423,9 @@ Wraps any expression used as a statement. Semicolons are optional.
 | Field | Type | Description |
 |-------|------|-------------|
 | `type` | `"ArrayExpression"` | |
-| `elements` | `node[]` | Element list (can be empty) |
+| `elements` | `(node | SpreadElement)[]` | Element list (can be empty) |
 
-**Source:** `[]`, `[1, 2, 3]`
+**Source:** `[]`, `[1, 2, 3]`, `[...a, 1]`
 
 ---
 
