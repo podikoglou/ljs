@@ -48,7 +48,7 @@ end)
 test("default ctor with extends forwards args", function()
   local code = H.transpile_ok("class Dog extends Animal {}")
   assert(code:find("function%(_ljs_this, %.%.%.%)"), "expected vararg params")
-  assert(code:find("Animal%(_ljs_arrow_this, %.%.%.%)"), "expected super forwarding")
+  assert(code:find("_ljs_call_this%(Animal, _ljs_arrow_this, %.%.%.%)"), "expected super forwarding")
 end)
 
 test("super() in constructor", function()
