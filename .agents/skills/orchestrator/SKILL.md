@@ -24,7 +24,7 @@ Run these steps **strictly in order**. No parallel subagents within a phase.
 
 - [ ] **1. Planning subagent**
   - Pull `develop`, create branch (naming: `fix/`, `refactor/`, `feat/` as appropriate)
-  - Study code + ECMA spec + Node.js behavior
+  - Study code + ECMA spec (use `ecma-query` skill — **never** from memory) + Node.js behavior
   - Determine if issue is still valid
   - Determine if TDD is the right approach, or if a different methodology fits better
   - Classify issue as **AFK** (agent can complete autonomously) or **HITL** (needs human checkpoint)
@@ -42,7 +42,7 @@ Run these steps **strictly in order**. No parallel subagents within a phase.
 - [ ] **3. Review subagent**
   - Read handoff artifact from `/tmp/ljs-handoff-<issue>.md` (avoids redundant spec lookups)
   - Load `review` skill
-  - Thorough spec + Node.js verification
+  - Thorough spec (use `ecma-query` skill — **never** from memory) + Node.js verification
   - Report findings: ready to merge or needs fixes
 
 - [ ] **4. Fix subagent** (only if review found issues)
@@ -68,6 +68,11 @@ Each subagent must receive these universal instructions:
 
 ```
 ## CRITICAL INSTRUCTIONS
+- **ECMAScript spec verification MUST use the `ecma-query` skill. NEVER rely on
+  memory or training data for spec details.** If you need to check an abstract
+  operation, grammar production, algorithm, or any spec section, load the
+  `ecma-query` skill and query it. Spec claims without ecma-query backing are
+  invalid.
 - If you come across language features that ljs doesn't support yet, CONTINUE
   using them despite tests not passing. Create a GitHub issue if one doesn't
   already exist. Use git commit --no-verify to commit.
