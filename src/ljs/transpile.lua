@@ -912,7 +912,7 @@ gen.WhileStatement = function(node, indent, ctx)
   local test_code = cg.call("_ljs_to_boolean", { emit(node.test, indent, ctx) })
   local body = emit(node.body, indent, ctx)
   if has_continue(node.body) then
-    body = body .. cg.label("_continue", indent + 1)
+    body = cg.do_block(body, indent + 1) .. cg.label("_continue", indent + 1)
   end
   return cg.while_stmt(test_code, body, indent)
 end
@@ -923,7 +923,7 @@ gen.DoWhileStatement = function(node, indent, ctx)
   local test_code = emit(node.test, indent, ctx)
   local body = emit(node.body, indent, ctx)
   if has_continue(node.body) then
-    body = body .. cg.label("_continue", indent + 1)
+    body = cg.do_block(body, indent + 1) .. cg.label("_continue", indent + 1)
   end
   local negated = cg.unop("not", cg.call("_ljs_to_boolean", { test_code }))
   return cg.repeat_until(negated, body, indent)
@@ -940,7 +940,7 @@ gen.ForOfStatement = function(node, indent, ctx)
   scope_declare(ctx, var_name)
   local body = emit(node.body, indent, ctx)
   if has_continue(node.body) then
-    body = body .. cg.label("_continue", indent + 1)
+    body = cg.do_block(body, indent + 1) .. cg.label("_continue", indent + 1)
   end
   scope_pop(ctx)
   local iter = cg.call("ipairs", { emit(node.right, indent, ctx) })
@@ -960,7 +960,7 @@ gen.ForInStatement = function(node, indent, ctx)
   scope_declare(ctx, var_name)
   local body = emit(node.body, indent, ctx)
   if has_continue(node.body) then
-    body = body .. cg.label("_continue", indent + 1)
+    body = cg.do_block(body, indent + 1) .. cg.label("_continue", indent + 1)
   end
   scope_pop(ctx)
   local iter = cg.call("pairs", { emit(node.right, indent, ctx) })
@@ -985,7 +985,7 @@ gen.ForStatement = function(node, indent, ctx)
   end
   local body = emit(node.body, indent, ctx)
   if has_continue(node.body) then
-    body = body .. cg.label("_continue", indent + 1)
+    body = cg.do_block(body, indent + 1) .. cg.label("_continue", indent + 1)
   end
   if node.update then
     local stmt_fn = gen_stmt[node.update.type]
