@@ -1088,13 +1088,34 @@ end
 
 -- === Expressions ===
 
+local SIMPLE_OPS = {
+  ["+"] = "_ljs_add",
+  ["-"] = "_ljs_sub",
+  ["*"] = "_ljs_mul",
+  ["/"] = "_ljs_div",
+  ["**"] = "_ljs_pow",
+  ["&"] = "_ljs_band",
+  ["|"] = "_ljs_bor",
+  ["^"] = "_ljs_bxor",
+  ["<<"] = "_ljs_shl",
+  [">>"] = "_ljs_shr",
+  [">>>"] = "_ljs_usr",
+  ["<"] = "_ljs_lt",
+  [">"] = "_ljs_gt",
+  ["<="] = "_ljs_le",
+  [">="] = "_ljs_ge",
+  ["instanceof"] = "_ljs_instanceof",
+}
+
 gen.BinaryExpression = function(node, indent, ctx)
   local op = node.operator
   local left = emit(node.left, indent, ctx)
   local right = emit(node.right, indent, ctx)
-  if op == "+" then
-    return cg.call("_ljs_add", { left, right })
-  elseif op == "==" then
+  local helper = SIMPLE_OPS[op]
+  if helper then
+    return cg.call(helper, { left, right })
+  end
+  if op == "==" then
     return cg.call("_ljs_eq", { left, right })
   elseif op == "!=" then
     return cg.unop("not", cg.call("_ljs_eq", { left, right }))
@@ -1116,16 +1137,8 @@ gen.BinaryExpression = function(node, indent, ctx)
     return cg.binop("=", left, right)
   elseif op == "+=" then
     return cg.binop("=", left, cg.call("_ljs_add", { left, right }))
-  elseif op == "**" then
-    return cg.call("_ljs_pow", { left, right })
   elseif op == "**=" then
     return cg.binop("=", left, cg.call("_ljs_pow", { left, right }))
-  elseif op == "-" then
-    return cg.call("_ljs_sub", { left, right })
-  elseif op == "*" then
-    return cg.call("_ljs_mul", { left, right })
-  elseif op == "/" then
-    return cg.call("_ljs_div", { left, right })
   elseif op == "-=" then
     return cg.binop("=", left, cg.call("_ljs_sub", { left, right }))
   elseif op == "*=" then
@@ -1134,18 +1147,6 @@ gen.BinaryExpression = function(node, indent, ctx)
     return cg.binop("=", left, cg.call("_ljs_div", { left, right }))
   elseif op == "%=" then
     return cg.binop("=", left, cg.call("_ljs_mod", { cg.call("_ljs_to_number", { left }), cg.call("_ljs_to_number", { right }) }))
-  elseif op == "&" then
-    return cg.call("_ljs_band", { left, right })
-  elseif op == "|" then
-    return cg.call("_ljs_bor", { left, right })
-  elseif op == "^" then
-    return cg.call("_ljs_bxor", { left, right })
-  elseif op == "<<" then
-    return cg.call("_ljs_shl", { left, right })
-  elseif op == ">>" then
-    return cg.call("_ljs_shr", { left, right })
-  elseif op == ">>>" then
-    return cg.call("_ljs_usr", { left, right })
   elseif op == "&=" then
     return cg.binop("=", left, cg.call("_ljs_band", { left, right }))
   elseif op == "|=" then
@@ -1158,8 +1159,6 @@ gen.BinaryExpression = function(node, indent, ctx)
     return cg.binop("=", left, cg.call("_ljs_shr", { left, right }))
   elseif op == ">>>=" then
     return cg.binop("=", left, cg.call("_ljs_usr", { left, right }))
-  elseif op == "instanceof" then
-    return cg.call("_ljs_instanceof", { left, right })
   -- The `in` operator: `key in obj` → `obj[key] ~= nil`.
   -- For non-string computed keys, adds 1 to convert JS 0-based to Lua 1-based index
   -- (so `"prop" in obj` with a numeric key works against Lua array indices).
@@ -1175,14 +1174,6 @@ gen.BinaryExpression = function(node, indent, ctx)
     return cg.paren(cg.binop("~=", cg.member_index(right_expr, key_code), cg.nil_val()))
   elseif op == "%" then
     return cg.call("_ljs_mod", { cg.call("_ljs_to_number", { left }), cg.call("_ljs_to_number", { right }) })
-  elseif op == "<" then
-    return cg.call("_ljs_lt", { left, right })
-  elseif op == ">" then
-    return cg.call("_ljs_gt", { left, right })
-  elseif op == "<=" then
-    return cg.call("_ljs_le", { left, right })
-  elseif op == ">=" then
-    return cg.call("_ljs_ge", { left, right })
   else
     return cg.binop(op, left, right)
   end
