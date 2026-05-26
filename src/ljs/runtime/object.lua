@@ -3,9 +3,6 @@
 -- constructor (via _ljs_ctor) and wires up Object.create.
 --
 -- hasOwnProperty uses rawget to check own properties only (no prototype chain walk).
-_ljs_object_prototype.toString = _ljs_fn(function(_ljs_this)
-  return "[object Object]"
-end)
 _ljs_object_prototype.hasOwnProperty = _ljs_fn(function(_ljs_this, key)
   return rawget(_ljs_this, key) ~= nil
 end)

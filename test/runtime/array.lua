@@ -267,15 +267,15 @@ test("toString with mixed types", function()
 end)
 
 test("toString falls back to Object.prototype.toString when join is null", function()
-  assert_eq(exec_js("let arr = [1, 2, 3]; arr.join = null; return arr.toString();"), "[object Object]")
+  assert_eq(exec_js("let arr = [1, 2, 3]; arr.join = null; return arr.toString();"), "[object Array]")
 end)
 
 test("toString falls back to Object.prototype.toString when join is a number", function()
-  assert_eq(exec_js("let arr = [1, 2, 3]; arr.join = 42; return arr.toString();"), "[object Object]")
+  assert_eq(exec_js("let arr = [1, 2, 3]; arr.join = 42; return arr.toString();"), "[object Array]")
 end)
 
 test("toString falls back to Object.prototype.toString when join is a string", function()
-  assert_eq(exec_js("let arr = [1, 2, 3]; arr.join = 'hello'; return arr.toString();"), "[object Object]")
+  assert_eq(exec_js("let arr = [1, 2, 3]; arr.join = 'hello'; return arr.toString();"), "[object Array]")
 end)
 
 test("toString uses custom join when join is callable", function()
