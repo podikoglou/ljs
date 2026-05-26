@@ -777,6 +777,22 @@ gen.Identifier = function(node)
   return cg.ident(node.name)
 end
 
+gen.TemplateLiteral = function(node, indent, ctx)
+  if #node.expressions == 0 then
+    return cg.string(node.quasis[1].value)
+  end
+  local parts = {}
+  for i, quasi in ipairs(node.quasis) do
+    if #quasi.value > 0 then
+      parts[#parts + 1] = cg.string(quasi.value)
+    end
+    if i <= #node.expressions then
+      parts[#parts + 1] = cg.call("_ljs_tostring", { emit(node.expressions[i], indent, ctx) })
+    end
+  end
+  return table.concat(parts, " .. ")
+end
+
 gen.ThisExpression = function()
   return "_ljs_arrow_this"
 end
