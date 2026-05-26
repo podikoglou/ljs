@@ -38,3 +38,29 @@ test("multi-line template literal", function()
   local output = run_js("let s = `line1\nline2`; console.log(s);")
   assert_eq(output, "line1\nline2\n")
 end)
+
+test("template in variable assignment", function()
+  assert_eq(expr_code("let s = `hello`;"), 'local s = "hello"')
+end)
+
+test("template concatenated with +", function()
+  local output = run_js("let a = 'hello'; let b = `${a} world`; console.log(b);")
+  assert_eq(output, "hello world\n")
+end)
+
+test("template with complex expression", function()
+  local output = run_js("let x = 3; let y = 4; console.log(`${x} + ${y} = ${x + y}`);")
+  assert_eq(output, "3 + 4 = 7\n")
+end)
+
+test("empty template literal", function()
+  assert_eq(expr_code("``;"), 'local _ = ""')
+end)
+
+test("template with only interpolation", function()
+  assert_eq(expr_code("`${x}`;"), "local _ = _ljs_tostring(x)")
+end)
+
+test("template with adjacent interpolations", function()
+  assert_eq(expr_code("`${a}${b}`;"), "local _ = _ljs_tostring(a) .. _ljs_tostring(b)")
+end)
