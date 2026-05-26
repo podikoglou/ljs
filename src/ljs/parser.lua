@@ -707,6 +707,8 @@ local function make_token_stream(tokens)
   local len = #tokens
 
   local stream = {}
+  stream.loop_depth = 0
+  stream.switch_depth = 0
 
   --- Peek at the current token without consuming it.
   -- Falls back to the last token (EOF) if past the end.
@@ -1569,7 +1571,9 @@ function parse_while_statement(stream)
   stream.consume(TOKEN.LPAREN)
   local test = parse_expression(stream)
   stream.consume(TOKEN.RPAREN)
+  stream.loop_depth = stream.loop_depth + 1
   local body = parse_statement(stream)
+  stream.loop_depth = stream.loop_depth - 1
   return while_statement(test, body, kw)
 end
 
@@ -1580,7 +1584,9 @@ end
 -- @return (string|nil) Error message if parsing failed
 function parse_do_while_statement(stream)
   local kw = stream.consume(TOKEN.DO)
+  stream.loop_depth = stream.loop_depth + 1
   local body = parse_statement(stream)
+  stream.loop_depth = stream.loop_depth - 1
   stream.consume(TOKEN.WHILE)
   stream.consume(TOKEN.LPAREN)
   local test = parse_expression(stream)
@@ -1621,7 +1627,9 @@ function parse_for_statement(stream)
     stream.consume(TOKEN.OF)
     local right = parse_expression(stream)
     stream.consume(TOKEN.RPAREN)
+    stream.loop_depth = stream.loop_depth + 1
     local body = parse_statement(stream)
+    stream.loop_depth = stream.loop_depth - 1
     return for_of_statement(expr, right, body, kw)
   end
 
@@ -1629,7 +1637,9 @@ function parse_for_statement(stream)
     stream.consume(TOKEN.IN)
     local right = parse_expression(stream)
     stream.consume(TOKEN.RPAREN)
+    stream.loop_depth = stream.loop_depth + 1
     local body = parse_statement(stream)
+    stream.loop_depth = stream.loop_depth - 1
     return for_in_statement(expr, right, body, kw)
   end
 
@@ -1664,7 +1674,9 @@ function parse_c_style_for_from_test(stream, init, kw)
   end
   stream.consume(TOKEN.RPAREN)
 
+  stream.loop_depth = stream.loop_depth + 1
   local body = parse_statement(stream)
+  stream.loop_depth = stream.loop_depth - 1
   return for_statement(init, test, update, body, kw)
 end
 
@@ -1677,7 +1689,9 @@ function parse_for_of_from_left(stream, left, kw)
   stream.consume(TOKEN.OF)
   local right = parse_expression(stream)
   stream.consume(TOKEN.RPAREN)
+  stream.loop_depth = stream.loop_depth + 1
   local body = parse_statement(stream)
+  stream.loop_depth = stream.loop_depth - 1
   return for_of_statement(left, right, body, kw)
 end
 
@@ -1701,7 +1715,9 @@ function parse_for_in_from_left(stream, left, kw)
   stream.consume(TOKEN.IN)
   local right = parse_expression(stream)
   stream.consume(TOKEN.RPAREN)
+  stream.loop_depth = stream.loop_depth + 1
   local body = parse_statement(stream)
+  stream.loop_depth = stream.loop_depth - 1
   return for_in_statement(left, right, body, kw)
 end
 
@@ -1756,7 +1772,10 @@ function parse_function_declaration(stream)
   local params = parse_parameters(stream)
   stream.consume(TOKEN.RPAREN)
 
+  local saved_loop, saved_switch = stream.loop_depth, stream.switch_depth
+  stream.loop_depth, stream.switch_depth = 0, 0
   local body = parse_block_statement(stream)
+  stream.loop_depth, stream.switch_depth = saved_loop, saved_switch
   return function_declaration(name, params, body, kw)
 end
 
@@ -1796,7 +1815,10 @@ function parse_class_body(stream)
     stream.consume(TOKEN.LPAREN)
     local params = parse_parameters(stream)
     stream.consume(TOKEN.RPAREN)
+    local saved_loop, saved_switch = stream.loop_depth, stream.switch_depth
+    stream.loop_depth, stream.switch_depth = 0, 0
     local body = parse_block_statement(stream)
+    stream.loop_depth, stream.switch_depth = saved_loop, saved_switch
     local fn = function_expression(params, body, key_token)
     fn.is_method = true
     if kind == "constructor" then
@@ -1876,6 +1898,7 @@ function parse_switch_statement(stream)
 
   local cases = {}
   local has_default = false
+  stream.switch_depth = stream.switch_depth + 1
 
   while not stream.is(TOKEN.RBRACE) and not stream.eof() do
     local test = nil
@@ -1913,6 +1936,7 @@ function parse_switch_statement(stream)
     table.insert(cases, switch_case(test, consequent, case_token))
   end
 
+  stream.switch_depth = stream.switch_depth - 1
   stream.consume(TOKEN.RBRACE)
   return switch_statement(discriminant, cases, kw)
 end
@@ -1920,6 +1944,9 @@ end
 --- Parse break: break ;
 function parse_break_statement(stream)
   local kw = stream.consume(TOKEN.BREAK)
+  if stream.loop_depth == 0 and stream.switch_depth == 0 then
+    parse_error("break not allowed outside of loop or switch", kw.line, kw.col)
+  end
   if stream.is(TOKEN.SEMICOLON) then
     stream.advance()
   end
@@ -1929,6 +1956,9 @@ end
 --- Parse continue: continue ;
 function parse_continue_statement(stream)
   local kw = stream.consume(TOKEN.CONTINUE)
+  if stream.loop_depth == 0 then
+    parse_error("continue not allowed outside of loop", kw.line, kw.col)
+  end
   if stream.is(TOKEN.SEMICOLON) then
     stream.advance()
   end
@@ -2287,7 +2317,11 @@ end
 -- containing a single ExpressionStatement (desugared form).
 function parse_arrow_function_body(stream)
   if stream.is(TOKEN.LBRACE) then
-    return parse_block_statement(stream)
+    local saved_loop, saved_switch = stream.loop_depth, stream.switch_depth
+    stream.loop_depth, stream.switch_depth = 0, 0
+    local body = parse_block_statement(stream)
+    stream.loop_depth, stream.switch_depth = saved_loop, saved_switch
+    return body
   else
     local expr_token = stream.peek()
     local expr = parse_expression(stream)
@@ -2497,7 +2531,10 @@ function parse_function_expression(stream)
   local params = parse_parameters(stream)
   stream.consume(TOKEN.RPAREN)
 
+  local saved_loop, saved_switch = stream.loop_depth, stream.switch_depth
+  stream.loop_depth, stream.switch_depth = 0, 0
   local body = parse_block_statement(stream)
+  stream.loop_depth, stream.switch_depth = saved_loop, saved_switch
 
   if name then
     local fn = function_expression(params, body, kw)
