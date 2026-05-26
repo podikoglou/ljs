@@ -9,5 +9,6 @@ local _ljs_function_prototype = {}
 local _ljs_number_prototype = {}
 
 local _ljs_string_prototype = {}
+local _ljs_string_box_index
 
 local _ljs_boolean_prototype = {}

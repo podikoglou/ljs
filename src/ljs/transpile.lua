@@ -268,7 +268,7 @@ HELPERS._ljs_to_object = [[local function _ljs_to_object(obj)
     return setmetatable({ _ljs_data = obj }, { __index = _ljs_number_prototype })
   end
   if t == "string" then
-    return setmetatable({ _ljs_data = obj }, { __index = _ljs_string_prototype })
+    return setmetatable({ _ljs_data = obj }, { __index = _ljs_string_box_index or _ljs_string_prototype })
   end
   if t == "boolean" then
     return setmetatable({ _ljs_data = obj }, { __index = _ljs_boolean_prototype })

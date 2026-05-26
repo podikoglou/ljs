@@ -7,6 +7,20 @@ end)
 
 setmetatable(_ljs_string_prototype, { __index = _ljs_object_prototype })
 
+_ljs_string_box_index = function(t, k)
+  if k == "length" then
+    return #(rawget(t, "_ljs_data") or "")
+  end
+  if type(k) == "number" then
+    local s = rawget(t, "_ljs_data") or ""
+    if k >= 1 and k <= #s and math.floor(k) == k then
+      return s:sub(k, k)
+    end
+    return nil
+  end
+  return _ljs_string_prototype[k]
+end
+
 local String = _ljs_fn(function(_ljs_this, ...)
   local value
   if select("#", ...) == 0 then
