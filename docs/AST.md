@@ -55,6 +55,40 @@ let x = 1; x;
 **Source:** `"hello"`, `'world'`  
 Escape sequences (`\n`, `\t`, `\\`, etc.) are resolved during tokenization.
 
+### TemplateLiteral
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"TemplateLiteral"` | |
+| `quasis` | `TemplateElement[]` | String segments (always one more than expressions) |
+| `expressions` | `node[]` | Interpolated expressions |
+
+**Source:** `` `hello` ``, `` `hello ${name}` ``, `` `${a} and ${b}` ``
+
+Multi-line content is supported. Escape sequences follow the same rules as `StringLiteral`, plus `` \` `` for literal backticks and `\$` for literal dollar signs.
+
+### TemplateElement
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"TemplateElement"` | |
+| `value` | `string` | Unescaped text of this segment |
+| `tail` | `boolean` | `true` if this is the final (closing) quasi |
+
+**Example:** `` `hello ${world}!` `` produces:
+```lua
+{
+  type = "TemplateLiteral",
+  quasis = {
+    { type = "TemplateElement", value = "hello ", tail = false },
+    { type = "TemplateElement", value = "!", tail = true },
+  },
+  expressions = {
+    { type = "Identifier", name = "world" }
+  }
+}
+```
+
 ### BooleanLiteral
 
 | Field | Type | Description |
