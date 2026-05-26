@@ -24,6 +24,7 @@
 local M = {}
 
 local cg = require("ljs.codegen")
+local ast = require("ljs.ast")
 
 --- Read a runtime template file from the runtime/ directory.
 -- Uses debug.getinfo to resolve the path relative to this source file,
@@ -488,22 +489,22 @@ local function has_continue(node)
   if not node or type(node) ~= "table" then
     return false
   end
-  if node.type == "ContinueStatement" then
+  if node.type == ast.TYPE_CONTINUE_STATEMENT then
     return true
   end
   if
-    node.type == "WhileStatement"
-    or node.type == "ForOfStatement"
-    or node.type == "ForInStatement"
-    or node.type == "ForStatement"
-    or node.type == "DoWhileStatement"
+    node.type == ast.TYPE_WHILE_STATEMENT
+    or node.type == ast.TYPE_FOR_OF_STATEMENT
+    or node.type == ast.TYPE_FOR_IN_STATEMENT
+    or node.type == ast.TYPE_FOR_STATEMENT
+    or node.type == ast.TYPE_DO_WHILE_STATEMENT
   then
     return false
   end
   if
-    node.type == "FunctionDeclaration"
-    or node.type == "FunctionExpression"
-    or node.type == "ArrowFunctionExpression"
+    node.type == ast.TYPE_FUNCTION_DECLARATION
+    or node.type == ast.TYPE_FUNCTION_EXPRESSION
+    or node.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION
   then
     return false
   end
@@ -603,17 +604,17 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
   -- Selects the source variable for _ljs_arrow_this:
   --   ArrowFunctionExpression → "_ljs_arrow_this" (captures enclosing scope via closure)
   --   everything else → "_ljs_this" (saves the received hidden-this parameter)
-  local save_src = fn_node.type == "ArrowFunctionExpression" and "_ljs_arrow_this" or "_ljs_this"
+  local save_src = fn_node.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION and "_ljs_arrow_this" or "_ljs_this"
   body = cg.local_decl("_ljs_arrow_this", save_src, indent + 1) .. body
   scope_pop(ctx)
   return cg.fn_expr(cg.join(params), body, indent)
 end
 
 local function is_elseif_chain(node)
-  if node.type == "IfStatement" then
+  if node.type == ast.TYPE_IF_STATEMENT then
     return true
   end
-  if node.type == "BlockStatement" and #node.body == 1 and node.body[1].type == "IfStatement" then
+  if node.type == ast.TYPE_BLOCK_STATEMENT and #node.body == 1 and node.body[1].type == ast.TYPE_IF_STATEMENT then
     return true
   end
   return false
@@ -633,7 +634,7 @@ local function collect_if_chain(node, indent, ctx)
   local alternate = node.alternate
   while alternate do
     if is_elseif_chain(alternate) then
-      local inner = alternate.type == "IfStatement" and alternate or alternate.body[1]
+      local inner = alternate.type == ast.TYPE_IF_STATEMENT and alternate or alternate.body[1]
       elseifs[#elseifs + 1] = {
         test = cg.call("_ljs_to_boolean", { emit(inner.test, indent, ctx) }),
         body = emit(inner.consequent, indent, ctx),
@@ -655,7 +656,7 @@ gen.Program = function(node, indent, ctx)
   local body = node.body
 
   -- In eval mode the last expression is returned as the program's value.
-  if ctx.eval_mode and #body > 0 and body[#body].type == "ExpressionStatement" then
+  if ctx.eval_mode and #body > 0 and body[#body].type == ast.TYPE_EXPRESSION_STATEMENT then
     local code = ""
     for i = 1, #body - 1 do
       code = code .. emit(body[i], indent, ctx)
@@ -721,11 +722,11 @@ gen.VariableDeclaration = function(node, indent, ctx)
     -- Split pattern: `local x; x = _ljs_ctor(fn)` instead of `local x = _ljs_ctor(fn)`.
     -- Works around Lua 5.5 closure upvalue issue where the function's self-reference
     -- would resolve to nil if the local hasn't been assigned yet.
-    elseif init.type == "ArrowFunctionExpression" or init.type == "FunctionExpression" then
+    elseif init.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION or init.type == ast.TYPE_FUNCTION_EXPRESSION then
       local fn = emit_fn(init, indent, ctx)
       -- Non-method FunctionExpressions get _ljs_ctor (has .prototype);
       -- arrows and method shorthand get _ljs_fn (no .prototype).
-      local wrapper = (init.type == "FunctionExpression" and not init.is_method) and "_ljs_ctor"
+      local wrapper = (init.type == ast.TYPE_FUNCTION_EXPRESSION and not init.is_method) and "_ljs_ctor"
         or "_ljs_fn"
       out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
       out[#out + 1] = cg.expr_stmt(cg.binop("=", decl.name.name, cg.call(wrapper, { fn })), indent)
@@ -824,7 +825,7 @@ gen.ClassDeclaration = function(node, indent, ctx)
   end
 
   local function method_key(m)
-    if m.key.type == "Identifier" then
+    if m.key.type == ast.TYPE_IDENTIFIER then
       return cg.string(m.key.name)
     end
     return cg.string(m.key.value)
@@ -913,7 +914,7 @@ gen.ClassExpression = function(node, indent, ctx)
   end
 
   local function method_key(m)
-    if m.key.type == "Identifier" then
+    if m.key.type == ast.TYPE_IDENTIFIER then
       return cg.string(m.key.name)
     end
     return cg.string(m.key.value)
@@ -993,7 +994,7 @@ end
 
 gen.ForOfStatement = function(node, indent, ctx)
   local var_name
-  if node.left.type == "VariableDeclaration" then
+  if node.left.type == ast.TYPE_VARIABLE_DECLARATION then
     var_name = node.left.declarations[1].name.name
   else
     var_name = node.left.name
@@ -1013,7 +1014,7 @@ end
 -- only yields keys. Note: does not walk prototype chain (Lua pairs() limitation).
 gen.ForInStatement = function(node, indent, ctx)
   local var_name
-  if node.left.type == "VariableDeclaration" then
+  if node.left.type == ast.TYPE_VARIABLE_DECLARATION then
     var_name = node.left.declarations[1].name.name
   else
     var_name = node.left.name
@@ -1040,7 +1041,7 @@ gen.ForStatement = function(node, indent, ctx)
   local test_code = node.test and cg.call("_ljs_to_boolean", { emit(node.test, indent, ctx) })
     or "true"
   scope_push(ctx)
-  if node.init and node.init.type == "VariableDeclaration" then
+  if node.init and node.init.type == ast.TYPE_VARIABLE_DECLARATION then
     for _, decl in ipairs(node.init.declarations) do
       scope_declare(ctx, decl.name.name)
     end
@@ -1228,7 +1229,7 @@ gen.BinaryExpression = function(node, indent, ctx)
   -- Wraps object literal RHS in parens to avoid ambiguous Lua syntax.
   elseif op == "in" then
     local key_code
-    if node.left.type == "StringLiteral" then
+    if node.left.type == ast.TYPE_STRING_LITERAL then
       key_code = left
     else
       key_code = cg.binop("+", cg.paren(left), "1")
@@ -1253,7 +1254,7 @@ end
 gen.UnaryExpression = function(node, indent, ctx)
   if
     node.operator == "-"
-    and node.argument.type == "NumberLiteral"
+    and node.argument.type == ast.TYPE_NUMBER_LITERAL
     and node.argument.value == 0
   then
     return cg.paren(cg.binop("/", cg.unop("-", "1"), "math.huge"))
@@ -1279,7 +1280,7 @@ end
 -- @return (string) Lua expression for the key
 local function member_key(node, indent, ctx)
   if node.computed then
-    if node.property.type == "StringLiteral" then
+    if node.property.type == ast.TYPE_STRING_LITERAL then
       return emit(node.property, indent, ctx)
     end
     return cg.binop("+", cg.paren(emit(node.property, indent, ctx)), "1")
@@ -1288,7 +1289,7 @@ local function member_key(node, indent, ctx)
 end
 
 local function delete_key_and_obj(arg, indent, ctx)
-  if arg.type ~= "MemberExpression" then
+  if arg.type ~= ast.TYPE_MEMBER_EXPRESSION then
     return nil, nil
   end
   local obj = emit(arg.object, indent, ctx)
@@ -1342,7 +1343,7 @@ gen.CallExpression = function(node, indent, ctx)
     args[#args + 1] = emit(a, indent, ctx)
   end
 
-  if node.callee.type == "SuperExpression" then
+  if node.callee.type == ast.TYPE_SUPER_EXPRESSION then
     local super_parent = ctx.super_stack[#ctx.super_stack]
     local call_args = { "_ljs_arrow_this" }
     for _, a in ipairs(args) do
@@ -1351,7 +1352,7 @@ gen.CallExpression = function(node, indent, ctx)
     return cg.call(super_parent, call_args)
   end
 
-  if node.callee.type == "MemberExpression" and node.callee.object.type == "SuperExpression" then
+  if node.callee.type == ast.TYPE_MEMBER_EXPRESSION and node.callee.object.type == ast.TYPE_SUPER_EXPRESSION then
     local super_parent = ctx.super_stack[#ctx.super_stack]
     local proto = cg.member_dot(super_parent, "prototype")
     local key_expr = member_key(node.callee, indent, ctx)
@@ -1362,7 +1363,7 @@ gen.CallExpression = function(node, indent, ctx)
     return cg.call("_ljs_super_call", call_args)
   end
 
-  if node.callee.type == "MemberExpression" then
+  if node.callee.type == ast.TYPE_MEMBER_EXPRESSION then
     local obj_expr = emit(node.callee.object, indent, ctx)
     local key_expr = member_key(node.callee, indent, ctx)
     local call_args = { obj_expr, key_expr }
@@ -1389,7 +1390,7 @@ end
 
 gen.MemberExpression = function(node, indent, ctx)
   local obj
-  if node.object.type == "SuperExpression" then
+  if node.object.type == ast.TYPE_SUPER_EXPRESSION then
     local super_parent = ctx.super_stack[#ctx.super_stack]
     obj = cg.member_dot(super_parent, "prototype")
   else
@@ -1408,7 +1409,7 @@ gen.ObjectExpression = function(node, indent, ctx)
   local fields = {}
   for _, prop in ipairs(node.properties) do
     local key
-    if prop.key.type == "Identifier" then
+    if prop.key.type == ast.TYPE_IDENTIFIER then
       key = prop.key.name
     else
       key = cg.bracket_key(cg.string(prop.key.value))
