@@ -131,3 +131,19 @@ test("parse template literal with interpolation", function()
     },
   })
 end)
+
+test("unterminated template literal errors", function()
+  P.assert_tokenize_fail("`hello", "Unterminated template")
+end)
+
+test("unterminated template expression errors", function()
+  P.assert_tokenize_fail("`${x`", "Unterminated template")
+end)
+
+test("template with expression containing string", function()
+  local tokens, err = parser.tokenize("`a ${\"} not end\"} b`")
+  if not tokens then error("tokenize failed: " .. tostring(err)) end
+  assert_eq(tokens[1].value.quasis[1], "a ")
+  assert_eq(tokens[1].value.quasis[2], " b")
+  assert_eq(tokens[1].value.expression_sources[1], "\"} not end\"")
+end)
