@@ -870,6 +870,14 @@ local parse_array_literal
 local parse_object_literal
 local parse_function_expression
 local parse_postfix
+local parse_do_while_statement
+local parse_c_style_for
+local parse_c_style_for_from_test
+local parse_for_of_from_left
+local parse_for_in_from_left
+local parse_class_body
+local parse_class_declaration
+local parse_class_expression
 
 --- Parse JavaScript source into an AST.
 -- @param source (string) JavaScript source code
@@ -888,7 +896,7 @@ function M.parse(source)
     while not stream.eof() do
       table.insert(stmts, parse_statement(stream))
     end
-    return { type = "Program", body = stmts, line = 1, col = 1 }
+    return { type = ast.TYPE_PROGRAM, body = stmts, line = 1, col = 1 }
   end)
 
   if ok then
@@ -915,7 +923,7 @@ function M.parse_tokens(tokens)
     while not stream.eof() do
       table.insert(stmts, parse_statement(stream))
     end
-    return { type = "Program", body = stmts, line = 1, col = 1 }
+    return { type = ast.TYPE_PROGRAM, body = stmts, line = 1, col = 1 }
   end)
 
   if ok then
@@ -1768,7 +1776,7 @@ function parse_primary_expression(stream)
 
     while true do
       local t = stream.peek_n(n + 1)
-      if t.type == "EOF" then
+      if t.type == TOKEN.EOF then
         break
       end
       if t.type == TOKEN.LPAREN then
