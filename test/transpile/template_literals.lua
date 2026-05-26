@@ -64,3 +64,13 @@ end)
 test("template with adjacent interpolations", function()
   assert_eq(expr_code("`${a}${b}`;"), "local _ = _ljs_tostring(a) .. _ljs_tostring(b)")
 end)
+
+test("template as function argument", function()
+  local output = run_js("function greet(n) { return 'hi ' + n; } console.log(greet(`${'world'}`));")
+  assert_eq(output, "hi world\n")
+end)
+
+test("template with boolean interpolation", function()
+  local output = run_js("console.log(`value: ${true}`);")
+  assert_eq(output, "value: true\n")
+end)
