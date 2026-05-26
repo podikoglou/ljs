@@ -1781,9 +1781,10 @@ function parse_primary_expression(stream)
 
   if stream.is(TOKEN.NUMBER) then
     stream.advance()
-    -- NOTE: NumberLiteral deliberately NOT wrapped in parse_postfix because
-    -- `42.toString()` is a SyntaxError in JS (the dot after a number literal
-    -- is parsed as a decimal point). Use (42).toString() instead.
+    if stream.is(TOKEN.DOT) and stream.peek_n(2).type == TOKEN.DOT then
+      stream.advance()
+      return parse_postfix(stream, ast.number_literal(token.value, token), true)
+    end
     return ast.number_literal(token.value, token)
   elseif stream.is(TOKEN.STRING) then
     stream.advance()
