@@ -28,6 +28,7 @@ describe("parser/integration", "test.parser.integration")
 describe("parser/this_expression", "test.parser.this_expression")
 describe("parser/error_handling", "test.parser.error_handling")
 describe("parser/member_literals", "test.parser.member_literals")
+describe("parser/default_rest_params", "test.parser.default_rest_params")
 
 describe("transpile/basics", "test.transpile.basics")
 describe("transpile/control_flow", "test.transpile.control_flow")
@@ -55,6 +56,7 @@ describe("transpile/continue", "test.transpile.continue")
 describe("transpile/member_literals", "test.transpile.member_literals")
 describe("transpile/toboolean", "test.transpile.toboolean")
 describe("transpile/modulo", "test.transpile.modulo")
+describe("transpile/default_rest_params", "test.transpile.default_rest_params")
 
 describe("codegen", "test.codegen")
 

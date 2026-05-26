@@ -139,7 +139,7 @@ Represents the `this` keyword. Binds to the calling context at runtime: the rece
 |-------|------|-------------|
 | `type` | `"FunctionDeclaration"` | |
 | `name` | `string` | Function name |
-| `params` | `Identifier[]` | Parameter list |
+| `params` | `(Identifier | AssignmentPattern | RestElement)[]` | Parameter list |
 | `body` | `BlockStatement` | Function body |
 
 **Source:** `function add(a, b) { return a + b; }`
@@ -150,7 +150,7 @@ Represents the `this` keyword. Binds to the calling context at runtime: the rece
 |-------|------|-------------|
 | `type` | `"FunctionExpression"` | |
 | `name` | `string?` | Name (present for named expressions like `function fact(n) {...}`), absent for anonymous |
-| `params` | `Identifier[]` | Parameter list |
+| `params` | `(Identifier | AssignmentPattern | RestElement)[]` | Parameter list |
 | `body` | `BlockStatement` | Function body |
 | `is_method` | `boolean?` | `true` when created by method shorthand `{ m() {} }` — skips `_ljs_ctor` wrapping |
 
@@ -161,12 +161,35 @@ Represents the `this` keyword. Binds to the calling context at runtime: the rece
 | Field | Type | Description |
 |-------|------|-------------|
 | `type` | `"ArrowFunctionExpression"` | |
-| `params` | `Identifier[]` | Parameter list |
+| `params` | `(Identifier | AssignmentPattern | RestElement)[]` | Parameter list |
 | `body` | `BlockStatement` | Always a BlockStatement |
 
 Expression bodies are desugared: `x => x + 1` becomes a `BlockStatement` containing a single `ReturnStatement`.
 
 **Source:** `x => x + 1`, `(a, b) => a + b`, `(x) => { return x; }`
+
+### AssignmentPattern
+
+Default parameter value.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"AssignmentPattern"` | |
+| `left` | `Identifier` | Parameter name |
+| `right` | `node` | Default value expression |
+
+**Source:** `function f(x = 10) {}`, `(s = "hi") => s`
+
+### RestElement
+
+Rest parameter (must be the last parameter).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"RestElement"` | |
+| `argument` | `Identifier` | Parameter name |
+
+**Source:** `function f(...args) {}`, `(...rest) => rest`
 
 ---
 

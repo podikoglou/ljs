@@ -50,6 +50,8 @@ M.TYPE_SWITCH_CASE = "SwitchCase"
 M.TYPE_BREAK_STATEMENT = "BreakStatement"
 M.TYPE_CONTINUE_STATEMENT = "ContinueStatement"
 M.TYPE_PROGRAM = "Program"
+M.TYPE_ASSIGNMENT_PATTERN = "AssignmentPattern"
+M.TYPE_REST_ELEMENT = "RestElement"
 
 --- @param name (string) Variable/parameter name
 --- @return table {type=M.TYPE_IDENTIFIER, name=name}
@@ -329,6 +331,25 @@ function M.arrow_function_expression(params, body, token)
     type = M.TYPE_ARROW_FUNCTION_EXPRESSION,
     params = params,
     body = body,
+    line = token.line,
+    col = token.col,
+  }
+end
+
+function M.assignment_pattern(left, right, token)
+  return {
+    type = M.TYPE_ASSIGNMENT_PATTERN,
+    left = left,
+    right = right,
+    line = token.line,
+    col = token.col,
+  }
+end
+
+function M.rest_element(argument, token)
+  return {
+    type = M.TYPE_REST_ELEMENT,
+    argument = argument,
     line = token.line,
     col = token.col,
   }

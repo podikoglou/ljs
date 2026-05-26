@@ -69,6 +69,7 @@ local TOKEN = {
   SEMICOLON = ";",
   COLON = ":",
   DOT = ".",
+  ELLIPSIS = "...",
   QUESTION = "?",
 
   -- Arithmetic
@@ -524,8 +525,13 @@ local function tokenize(source)
       table.insert(tokens, make_token(TOKEN.COLON))
       advance()
     elseif c == "." then
-      table.insert(tokens, make_token(TOKEN.DOT))
-      advance()
+      if source:sub(pos, pos + 2) == "..." then
+        table.insert(tokens, make_token(TOKEN.ELLIPSIS))
+        advance(3)
+      else
+        table.insert(tokens, make_token(TOKEN.DOT))
+        advance()
+      end
     elseif c == "?" then
       table.insert(tokens, make_token(TOKEN.QUESTION))
       advance()
@@ -1521,10 +1527,39 @@ end
 -- Assumes opening ( has been consumed; does NOT consume closing ).
 function parse_parameters(stream)
   local function parse_param_item(s)
-    local param_token = s.consume(TOKEN.IDENTIFIER)
-    return ast.identifier(param_token.value, param_token)
+    if s.is(TOKEN.ELLIPSIS) then
+      local ellipsis = s.advance()
+      local id_token = s.consume(TOKEN.IDENTIFIER)
+      return ast.rest_element(ast.identifier(id_token.value, id_token), ellipsis)
+    end
+    local id_token = s.consume(TOKEN.IDENTIFIER)
+    local param = ast.identifier(id_token.value, id_token)
+    if s.is(TOKEN.ASSIGN) then
+      local assign_tok = s.advance()
+      local default_expr = parse_expression(s)
+      return ast.assignment_pattern(param, default_expr, assign_tok)
+    end
+    return param
   end
-  return parse_comma_list(stream, TOKEN.RPAREN, parse_param_item)
+  local params = {}
+  local found_rest = false
+  if not stream.is(TOKEN.RPAREN) then
+    while true do
+      if found_rest then
+        parse_error("Rest parameter must be the last parameter", stream.peek().line, stream.peek().col)
+      end
+      local item = parse_param_item(stream)
+      if item.type == ast.TYPE_REST_ELEMENT then
+        found_rest = true
+      end
+      table.insert(params, item)
+      if not stream.is(TOKEN.COMMA) then
+        break
+      end
+      stream.advance()
+    end
+  end
+  return params
 end
 
 -- ============================================================================
@@ -1801,11 +1836,27 @@ function parse_primary_expression(stream)
       local arrow_token = token
       stream.advance()
       local params = {}
+      local found_rest = false
       if not stream.is(TOKEN.RPAREN) then
         while true do
-          if stream.is(TOKEN.IDENTIFIER) then
+          if found_rest then
+            parse_error("Rest parameter must be the last parameter", stream.peek().line, stream.peek().col)
+          end
+          if stream.is(TOKEN.ELLIPSIS) then
+            local ellipsis = stream.advance()
+            local id_token = stream.consume(TOKEN.IDENTIFIER)
+            table.insert(params, ast.rest_element(ast.identifier(id_token.value, id_token), ellipsis))
+            found_rest = true
+          elseif stream.is(TOKEN.IDENTIFIER) then
             local id_token = stream.advance()
-            table.insert(params, ast.identifier(id_token.value, id_token))
+            local param = ast.identifier(id_token.value, id_token)
+            if stream.is(TOKEN.ASSIGN) then
+              local assign_tok = stream.advance()
+              local default_expr = parse_expression(stream)
+              table.insert(params, ast.assignment_pattern(param, default_expr, assign_tok))
+            else
+              table.insert(params, param)
+            end
           else
             parse_error(
               "Arrow function parameters must be identifiers",
