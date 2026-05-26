@@ -423,6 +423,30 @@ test("parse string member in expression statement", function()
   })
 end)
 
+test("parse double-dot number method call (42..toString())", function()
+  assert_parse_ok("42..toString();", {
+    A.expr_stmt(A.call(A.member(A.num(42), A.id("toString")), {})),
+  })
+end)
+
+test("parse double-dot number method call with args (42..toFixed(2))", function()
+  assert_parse_ok("42..toFixed(2);", {
+    A.expr_stmt(A.call(A.member(A.num(42), A.id("toFixed")), { A.num(2) })),
+  })
+end)
+
+test("parse double-dot on zero (0..toString())", function()
+  assert_parse_ok("0..toString();", {
+    A.expr_stmt(A.call(A.member(A.num(0), A.id("toString")), {})),
+  })
+end)
+
+test("parse chained double-dot (42..toString().length)", function()
+  assert_parse_ok("42..toString().length;", {
+    A.expr_stmt(A.member(A.call(A.member(A.num(42), A.id("toString")), {}), A.id("length"))),
+  })
+end)
+
 test("error: number literal member access fails (5.toString is invalid JS)", function()
   assert_parse_fail("5.toString();", nil)
 end)
