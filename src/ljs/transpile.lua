@@ -1314,7 +1314,7 @@ gen.UpdateExpression = function(node, indent, ctx)
   local arg = emit(node.argument, indent, ctx)
   local val
   if node.operator == "++" then
-    val = cg.call("_ljs_add", { arg, "1" })
+    val = cg.binop("+", cg.call("_ljs_to_number", { arg }), "1")
   else
     val = cg.call("_ljs_sub", { arg, "1" })
   end
@@ -1435,7 +1435,7 @@ end
 gen_stmt.UpdateExpression = function(node, indent, ctx)
   local arg = emit(node.argument, indent, ctx)
   if node.operator == "++" then
-    return cg.expr_stmt(cg.binop("=", arg, cg.call("_ljs_add", { arg, "1" })), indent)
+    return cg.expr_stmt(cg.binop("=", arg, cg.binop("+", cg.call("_ljs_to_number", { arg }), "1")), indent)
   end
   return cg.expr_stmt(cg.binop("=", arg, cg.call("_ljs_sub", { arg, "1" })), indent)
 end
