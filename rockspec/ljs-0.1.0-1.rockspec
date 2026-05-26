@@ -35,5 +35,13 @@ build = {
     ["ljs.runtime.object"] = "src/ljs/runtime/object.lua",
     ["ljs.runtime.function"] = "src/ljs/runtime/function.lua",
     ["ljs.runtime.array"] = "src/ljs/runtime/array.lua",
+    ["ljs.runtime.boolean"] = "src/ljs/runtime/boolean.lua",
+    ["ljs.runtime.error"] = "src/ljs/runtime/error.lua",
+    ["ljs.runtime.globals"] = "src/ljs/runtime/globals.lua",
+    ["ljs.runtime.json"] = "src/ljs/runtime/json.lua",
+    ["ljs.runtime.json_lib"] = "src/ljs/runtime/json_lib.lua",
+    ["ljs.runtime.math"] = "src/ljs/runtime/math.lua",
+    ["ljs.runtime.number"] = "src/ljs/runtime/number.lua",
+    ["ljs.runtime.string"] = "src/ljs/runtime/string.lua",
   },
 }
