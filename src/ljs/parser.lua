@@ -870,6 +870,14 @@ local parse_array_literal
 local parse_object_literal
 local parse_function_expression
 local parse_postfix
+local parse_do_while_statement
+local parse_c_style_for
+local parse_c_style_for_from_test
+local parse_for_of_from_left
+local parse_for_in_from_left
+local parse_class_body
+local parse_class_declaration
+local parse_class_expression
 
 --- Parse JavaScript source into an AST.
 -- @param source (string) JavaScript source code
@@ -953,94 +961,6 @@ end
 -- ============================================================================
 -- STATEMENT PARSERS
 -- ============================================================================
-
---- Parse do...while: do body while (test);
--- Body always executes at least once. Semicolon after is optional.
--- @param stream (table) Token stream
--- @return (table|nil) DoWhileStatement AST node, or nil on error
--- @return (string|nil) Error message if parsing failed
-local function parse_do_while_statement(stream)
-  local kw = stream.consume(TOKEN.DO)
-  stream.loop_depth = stream.loop_depth + 1
-  local body = parse_statement(stream)
-  stream.loop_depth = stream.loop_depth - 1
-  stream.consume(TOKEN.WHILE)
-  stream.consume(TOKEN.LPAREN)
-  local test = parse_expression(stream)
-  stream.consume(TOKEN.RPAREN)
-  if stream.is(TOKEN.SEMICOLON) then
-    stream.advance()
-  end
-  return ast.do_while_statement(body, test, kw)
-end
-
---- Parse class body: { constructor(){} method(){} static fn(){} }
--- Disambiguates static modifier from method named "static": static foo() is a
--- static method, static() is a regular method named "static".
--- @param stream (table) Token stream
--- @return (table) Array of MethodDefinition nodes
-local function parse_class_body(stream)
-  stream.consume(TOKEN.LBRACE)
-  local methods = {}
-  while not stream.is(TOKEN.RBRACE) and not stream.eof() do
-    local is_static = false
-    if stream.is(TOKEN.STATIC) then
-      local next_tok = stream.peek_n(2)
-      -- If next token after "static" is (, then "static" is the method name, not a modifier
-      if next_tok and next_tok.type ~= TOKEN.LPAREN then
-        stream.advance()
-        is_static = true
-      end
-    end
-    local key
-    local key_token
-    local kind = "method"
-    if stream.is_property_name() then
-      key_token = stream.advance()
-      key = ast.identifier(key_token.value, key_token)
-      if key_token.value == "constructor" then
-        kind = "constructor"
-      end
-    elseif stream.is(TOKEN.STRING) then
-      key_token = stream.advance()
-      key = ast.string_literal(key_token.value, key_token)
-    else
-      parse_error("Expected method name in class body", stream.peek().line, stream.peek().col)
-    end
-    stream.consume(TOKEN.LPAREN)
-    local params = parse_parameters(stream)
-    stream.consume(TOKEN.RPAREN)
-    local saved_loop, saved_switch = stream.loop_depth, stream.switch_depth
-    stream.loop_depth, stream.switch_depth = 0, 0
-    local body = parse_block_statement(stream)
-    stream.loop_depth, stream.switch_depth = saved_loop, saved_switch
-    local fn = ast.function_expression(params, body, key_token)
-    fn.is_method = true
-    if kind == "constructor" then
-      fn.is_method = false
-    end
-    table.insert(methods, ast.method_definition(kind, key, fn, is_static, key_token))
-  end
-  stream.consume(TOKEN.RBRACE)
-  return methods
-end
-
---- Parse class declaration: class Name [extends Super] { body }
--- Always requires a name (unlike class expressions).
--- @param stream (table) Token stream
--- @return table ClassDeclaration AST node
-local function parse_class_declaration(stream)
-  local kw = stream.consume(TOKEN.CLASS)
-  local name_token = stream.consume(TOKEN.IDENTIFIER)
-  local name = name_token.value
-  local superClass = nil
-  if stream.is(TOKEN.EXTENDS) then
-    stream.advance()
-    superClass = parse_expression(stream)
-  end
-  local body = parse_class_body(stream)
-  return ast.class_declaration(name, superClass, body, kw)
-end
 
 --- Dispatch to the correct statement parser based on the current token.
 -- Falls through to expression statement for anything unrecognized.
@@ -1188,78 +1108,24 @@ function parse_while_statement(stream)
   return ast.while_statement(test, body, kw)
 end
 
-
---- Parse C-style for loop test and update clauses after init has been consumed.
+--- Parse do...while: do body while (test);
+-- Body always executes at least once. Semicolon after is optional.
 -- @param stream (table) Token stream
--- @param init (table|nil) Initialization expression or VariableDeclaration
--- @return (table|nil) ForStatement AST node, or nil on error
-local function parse_c_style_for_from_test(stream, init, kw)
-  local test
-  if not stream.is(TOKEN.SEMICOLON) then
-    test = parse_expression(stream)
-  end
-  stream.consume(TOKEN.SEMICOLON)
-
-  local update
-  if not stream.is(TOKEN.RPAREN) then
-    update = parse_expression(stream)
-  end
-  stream.consume(TOKEN.RPAREN)
-
-  stream.loop_depth = stream.loop_depth + 1
-  local body = parse_statement(stream)
-  stream.loop_depth = stream.loop_depth - 1
-  return ast.for_statement(init, test, update, body, kw)
-end
-
---- Parse C-style for loop starting from the first semicolon (no init clause).
--- @param stream (table) Token stream
--- @param init (table|nil) Initialization expression or nil
--- @return (table|nil) ForStatement AST node, or nil on error
-local function parse_c_style_for(stream, init, kw)
-  stream.consume(TOKEN.SEMICOLON)
-  return parse_c_style_for_from_test(stream, init, kw)
-end
-
---- Parse for...of loop after the left-hand variable declaration has been consumed.
--- @param stream (table) Token stream
--- @param left (table) VariableDeclaration for the loop variable
--- @return (table|nil) ForOfStatement AST node, or nil on error
+-- @return (table|nil) DoWhileStatement AST node, or nil on error
 -- @return (string|nil) Error message if parsing failed
-local function parse_for_of_from_left(stream, left, kw)
-  stream.consume(TOKEN.OF)
-  local right = parse_expression(stream)
-  stream.consume(TOKEN.RPAREN)
+function parse_do_while_statement(stream)
+  local kw = stream.consume(TOKEN.DO)
   stream.loop_depth = stream.loop_depth + 1
   local body = parse_statement(stream)
   stream.loop_depth = stream.loop_depth - 1
-  return ast.for_of_statement(left, right, body, kw)
-end
-
---- Parse for...in loop after the left-hand variable declaration has been consumed.
--- Validates that there is exactly one declarator with no initializer.
--- @param stream (table) Token stream
--- @param left (table) VariableDeclaration for the loop variable
--- @return (table|nil) ForInStatement AST node, or nil on error
--- @return (string|nil) Error message if parsing failed
-local function parse_for_in_from_left(stream, left, kw)
-  if #left.declarations ~= 1 then
-    parse_error("for-in loop requires a single variable", stream.peek().line, stream.peek().col)
-  end
-  if left.declarations[1].init ~= nil then
-    parse_error(
-      "for-in loop variable cannot have an initializer",
-      stream.peek().line,
-      stream.peek().col
-    )
-  end
-  stream.consume(TOKEN.IN)
-  local right = parse_expression(stream)
+  stream.consume(TOKEN.WHILE)
+  stream.consume(TOKEN.LPAREN)
+  local test = parse_expression(stream)
   stream.consume(TOKEN.RPAREN)
-  stream.loop_depth = stream.loop_depth + 1
-  local body = parse_statement(stream)
-  stream.loop_depth = stream.loop_depth - 1
-  return ast.for_in_statement(left, right, body, kw)
+  if stream.is(TOKEN.SEMICOLON) then
+    stream.advance()
+  end
+  return ast.do_while_statement(body, test, kw)
 end
 
 --- Parse for statement: dispatches between for...of, for...in, and C-style for(;;).
@@ -1313,9 +1179,78 @@ function parse_for_statement(stream)
   return parse_c_style_for_from_test(stream, init, kw)
 end
 
+--- Parse C-style for loop starting from the first semicolon (no init clause).
+-- @param stream (table) Token stream
+-- @param init (table|nil) Initialization expression or nil
+-- @return (table|nil) ForStatement AST node, or nil on error
+function parse_c_style_for(stream, init, kw)
+  stream.consume(TOKEN.SEMICOLON)
+  return parse_c_style_for_from_test(stream, init, kw)
+end
 
+--- Parse C-style for loop test and update clauses after init has been consumed.
+-- @param stream (table) Token stream
+-- @param init (table|nil) Initialization expression or VariableDeclaration
+-- @return (table|nil) ForStatement AST node, or nil on error
+function parse_c_style_for_from_test(stream, init, kw)
+  local test
+  if not stream.is(TOKEN.SEMICOLON) then
+    test = parse_expression(stream)
+  end
+  stream.consume(TOKEN.SEMICOLON)
 
+  local update
+  if not stream.is(TOKEN.RPAREN) then
+    update = parse_expression(stream)
+  end
+  stream.consume(TOKEN.RPAREN)
 
+  stream.loop_depth = stream.loop_depth + 1
+  local body = parse_statement(stream)
+  stream.loop_depth = stream.loop_depth - 1
+  return ast.for_statement(init, test, update, body, kw)
+end
+
+--- Parse for...of loop after the left-hand variable declaration has been consumed.
+-- @param stream (table) Token stream
+-- @param left (table) VariableDeclaration for the loop variable
+-- @return (table|nil) ForOfStatement AST node, or nil on error
+-- @return (string|nil) Error message if parsing failed
+function parse_for_of_from_left(stream, left, kw)
+  stream.consume(TOKEN.OF)
+  local right = parse_expression(stream)
+  stream.consume(TOKEN.RPAREN)
+  stream.loop_depth = stream.loop_depth + 1
+  local body = parse_statement(stream)
+  stream.loop_depth = stream.loop_depth - 1
+  return ast.for_of_statement(left, right, body, kw)
+end
+
+--- Parse for...in loop after the left-hand variable declaration has been consumed.
+-- Validates that there is exactly one declarator with no initializer.
+-- @param stream (table) Token stream
+-- @param left (table) VariableDeclaration for the loop variable
+-- @return (table|nil) ForInStatement AST node, or nil on error
+-- @return (string|nil) Error message if parsing failed
+function parse_for_in_from_left(stream, left, kw)
+  if #left.declarations ~= 1 then
+    parse_error("for-in loop requires a single variable", stream.peek().line, stream.peek().col)
+  end
+  if left.declarations[1].init ~= nil then
+    parse_error(
+      "for-in loop variable cannot have an initializer",
+      stream.peek().line,
+      stream.peek().col
+    )
+  end
+  stream.consume(TOKEN.IN)
+  local right = parse_expression(stream)
+  stream.consume(TOKEN.RPAREN)
+  stream.loop_depth = stream.loop_depth + 1
+  local body = parse_statement(stream)
+  stream.loop_depth = stream.loop_depth - 1
+  return ast.for_in_statement(left, right, body, kw)
+end
 
 --- Parse throw: throw expression;
 function parse_throw_statement(stream)
@@ -1375,8 +1310,99 @@ function parse_function_declaration(stream)
   return ast.function_declaration(name, params, body, kw)
 end
 
+--- Parse class body: { constructor(){} method(){} static fn(){} }
+-- Disambiguates static modifier from method named "static": static foo() is a
+-- static method, static() is a regular method named "static".
+-- @param stream (table) Token stream
+-- @return (table) Array of MethodDefinition nodes
+function parse_class_body(stream)
+  stream.consume(TOKEN.LBRACE)
+  local methods = {}
+  while not stream.is(TOKEN.RBRACE) and not stream.eof() do
+    local is_static = false
+    if stream.is(TOKEN.STATIC) then
+      local next_tok = stream.peek_n(2)
+      -- If next token after "static" is (, then "static" is the method name, not a modifier
+      if next_tok and next_tok.type ~= TOKEN.LPAREN then
+        stream.advance()
+        is_static = true
+      end
+    end
+    local key
+    local key_token
+    local kind = "method"
+    if stream.is_property_name() then
+      key_token = stream.advance()
+      key = ast.identifier(key_token.value, key_token)
+      if key_token.value == "constructor" then
+        kind = "constructor"
+      end
+    elseif stream.is(TOKEN.STRING) then
+      key_token = stream.advance()
+      key = ast.string_literal(key_token.value, key_token)
+    else
+      parse_error("Expected method name in class body", stream.peek().line, stream.peek().col)
+    end
+    stream.consume(TOKEN.LPAREN)
+    local params = parse_parameters(stream)
+    stream.consume(TOKEN.RPAREN)
+    local saved_loop, saved_switch = stream.loop_depth, stream.switch_depth
+    stream.loop_depth, stream.switch_depth = 0, 0
+    local body = parse_block_statement(stream)
+    stream.loop_depth, stream.switch_depth = saved_loop, saved_switch
+    local fn = ast.function_expression(params, body, key_token)
+    fn.is_method = true
+    if kind == "constructor" then
+      fn.is_method = false
+    end
+    table.insert(methods, ast.method_definition(kind, key, fn, is_static, key_token))
+  end
+  stream.consume(TOKEN.RBRACE)
+  return methods
+end
 
+--- Parse class declaration: class Name [extends Super] { body }
+-- Always requires a name (unlike class expressions).
+-- @param stream (table) Token stream
+-- @return table ClassDeclaration AST node
+function parse_class_declaration(stream)
+  local kw = stream.consume(TOKEN.CLASS)
+  local name_token = stream.consume(TOKEN.IDENTIFIER)
+  local name = name_token.value
+  local superClass = nil
+  if stream.is(TOKEN.EXTENDS) then
+    stream.advance()
+    superClass = parse_expression(stream)
+  end
+  local body = parse_class_body(stream)
+  return ast.class_declaration(name, superClass, body, kw)
+end
 
+--- Parse class expression: class [Name] [extends Super] { body }
+-- Name is optional and only consumed if followed by something other than (
+-- (to disambiguate from a call expression in certain contexts).
+-- @param stream (table) Token stream
+-- @return table ClassExpression AST node
+function parse_class_expression(stream)
+  local kw = stream.consume(TOKEN.CLASS)
+  local name = nil
+  if stream.is(TOKEN.IDENTIFIER) then
+    local next_tok = stream.peek_n(2)
+    -- Consume identifier as class name only if next token isn't ( — distinguishes
+    -- class Foo {} (named) from class {} (anonymous)
+    if next_tok and next_tok.type ~= TOKEN.LPAREN then
+      local name_token = stream.advance()
+      name = name_token.value
+    end
+  end
+  local superClass = nil
+  if stream.is(TOKEN.EXTENDS) then
+    stream.advance()
+    superClass = parse_expression(stream)
+  end
+  local body = parse_class_body(stream)
+  return ast.class_expression(name, superClass, body, kw)
+end
 
 --- Parse return: return expression?;
 -- Bare return (no expression) is allowed — argument will be nil.
@@ -1700,32 +1726,6 @@ function parse_unary_expression(stream)
     return parse_postfix(stream, ast.new_expression(callee, args, new_kw), true)
   end
   return parse_primary_expression(stream)
-end
-
---- Parse class expression: class [Name] [extends Super] { body }
--- Name is optional and only consumed if followed by something other than (
--- (to disambiguate from a call expression in certain contexts).
--- @param stream (table) Token stream
--- @return table ClassExpression AST node
-local function parse_class_expression(stream)
-  local kw = stream.consume(TOKEN.CLASS)
-  local name = nil
-  if stream.is(TOKEN.IDENTIFIER) then
-    local next_tok = stream.peek_n(2)
-    -- Consume identifier as class name only if next token isn't ( — distinguishes
-    -- class Foo {} (named) from class {} (anonymous)
-    if next_tok and next_tok.type ~= TOKEN.LPAREN then
-      local name_token = stream.advance()
-      name = name_token.value
-    end
-  end
-  local superClass = nil
-  if stream.is(TOKEN.EXTENDS) then
-    stream.advance()
-    superClass = parse_expression(stream)
-  end
-  local body = parse_class_body(stream)
-  return ast.class_expression(name, superClass, body, kw)
 end
 
 --- Parse primary (leaf) expressions — the atomic units that operators combine.
