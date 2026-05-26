@@ -211,6 +211,11 @@ test("expr_stmt", function()
   assert_eq(cg.expr_stmt("x = 1", 1), "  x = 1\n")
 end)
 
+test("discard_stmt", function()
+  assert_eq(cg.discard_stmt("42", 0), "local _ = 42\n")
+  assert_eq(cg.discard_stmt("x == 1", 1), "  local _ = x == 1\n")
+end)
+
 test("while_stmt", function()
   assert_eq(cg.while_stmt("x > 0", "  x = x - 1\n", 0), "while x > 0 do\n  x = x - 1\nend\n")
 end)
