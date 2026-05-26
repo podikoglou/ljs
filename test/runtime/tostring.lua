@@ -319,3 +319,48 @@ end)
 test('String(-0) → "0" (negative zero formats as "0")', function()
   assert_eq(eval_js("String(-0)"), "0")
 end)
+
+-- ============================================================================
+-- Additional characterization tests for deduplication refactor (#99)
+-- String() delegation, Number.prototype.toString() zero, string passthrough
+-- ============================================================================
+
+test('String("hello") → "hello" (string passthrough)', function()
+  assert_eq(eval_js('String("hello")'), "hello")
+end)
+
+test('String("") → "" (empty string passthrough)', function()
+  assert_eq(eval_js('String("")'), "")
+end)
+
+test('String("abc" + "def") → "abcdef" (string concat passthrough)', function()
+  assert_eq(eval_js('String("abc" + "def")'), "abcdef")
+end)
+
+test('(0).toString() → "0" (zero via Number.prototype.toString)', function()
+  assert_eq(eval_js("(0).toString()"), "0")
+end)
+
+test('(-0).toString() → "0" (negative zero via Number.prototype.toString)', function()
+  assert_eq(eval_js("(-0).toString()"), "0")
+end)
+
+test('(1).toString() → "1" (positive integer via Number.prototype.toString)', function()
+  assert_eq(eval_js("(1).toString()"), "1")
+end)
+
+test('(-1).toString() → "-1" (negative integer via Number.prototype.toString)', function()
+  assert_eq(eval_js("(-1).toString()"), "-1")
+end)
+
+test('(0.1).toString() → "0.1" (decimal via Number.prototype.toString)', function()
+  assert_eq(eval_js("(0.1).toString()"), "0.1")
+end)
+
+test('String(1+2) → "3" (integer-valued float from addition)', function()
+  assert_eq(eval_js("String(1+2)"), "3")
+end)
+
+test('(1+2).toString() → "3" (integer-valued float from addition)', function()
+  assert_eq(eval_js("(1+2).toString()"), "3")
+end)
