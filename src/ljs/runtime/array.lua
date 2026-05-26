@@ -56,7 +56,11 @@ end)
 -- ---------------------------------------------------------------------------
 -- Per spec: calls .join(",") on this.
 Array.prototype.toString = _ljs_fn(function(_ljs_this)
-  return _ljs_call_member(_ljs_this, "join", ",")
+  local join = _ljs_to_object(_ljs_this).join
+  if _ljs_typeof(join) == "function" then
+    return join(_ljs_this, ",")
+  end
+  return _ljs_object_prototype.toString(_ljs_this)
 end)
 
 -- ---------------------------------------------------------------------------
