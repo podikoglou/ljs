@@ -6,9 +6,10 @@
 -- thrown via error()/pcall(). Public API catches and returns nil, ParseError.
 --
 -- Supported: let/const/var, functions, arrows, classes (extends/super/static),
--- objects, arrays, all arithmetic/comparison/logical/bitwise/assignment ops, new,
--- typeof, delete, instanceof, in, if/else, while, do...while, for...of/in/(;;),
--- switch/case, throw/try/catch/finally, this, console.log, comments.
+-- objects, arrays, template literals, all arithmetic/comparison/logical/bitwise/
+-- assignment ops, new, typeof, delete, instanceof, in, if/else, while,
+-- do...while, for...of/in/(;;), switch/case, throw/try/catch/finally, this,
+-- console.log, comments.
 --
 -- Rejected (parse error): async/await, regex literals.
 --
