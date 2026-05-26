@@ -50,3 +50,21 @@ end)
 test("string charCodeAt returns code at index", function()
   assert_js('"A".charCodeAt(0)', 65)
 end)
+
+test("string charCodeAt mid-string", function()
+  assert_js('"ABC".charCodeAt(2)', 67)
+end)
+
+test("string charCodeAt last char", function()
+  assert_js('"hello".charCodeAt(4)', 111)
+end)
+
+test("string charCodeAt out of range returns NaN", function()
+  local result = exec_js('return "hello".charCodeAt(10);')
+  assert_eq(result ~= result, true)
+end)
+
+test("string charCodeAt negative index returns NaN", function()
+  local result = exec_js('return "hello".charCodeAt(-1);')
+  assert_eq(result ~= result, true)
+end)
