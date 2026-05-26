@@ -1496,22 +1496,35 @@ function parse_continue_statement(stream)
   return ast.continue_statement(kw)
 end
 
+--- Parse a comma-separated list of items.
+-- @param stream (table) Token stream
+-- @param close_token (number) Token type that ends the list
+-- @param parse_fn (function) Function to parse each item; receives stream, returns item
+-- @param allow_trailing (boolean|nil) If true, trailing comma before close_token is allowed
+-- @return (table) Array of parsed items
+local function parse_comma_list(stream, close_token, parse_fn, allow_trailing)
+  local items = {}
+  if not stream.is(close_token) then
+    while true do
+      local item = parse_fn(stream)
+      table.insert(items, item)
+      if not stream.is(TOKEN.COMMA) then break end
+      stream.advance()
+      if allow_trailing and stream.is(close_token) then break end
+    end
+  end
+  return items
+end
+
 --- Parse a comma-separated list of identifier parameters.
 -- Used by both function declarations and function expressions.
 -- Assumes opening ( has been consumed; does NOT consume closing ).
 function parse_parameters(stream)
-  local params = {}
-  if not stream.is(TOKEN.RPAREN) then
-    while true do
-      local param_token = stream.consume(TOKEN.IDENTIFIER)
-      table.insert(params, ast.identifier(param_token.value, param_token))
-      if not stream.is(TOKEN.COMMA) then
-        break
-      end
-      stream.advance()
-    end
+  local function parse_param_item(s)
+    local param_token = s.consume(TOKEN.IDENTIFIER)
+    return ast.identifier(param_token.value, param_token)
   end
-  return params
+  return parse_comma_list(stream, TOKEN.RPAREN, parse_param_item)
 end
 
 -- ============================================================================
@@ -1711,16 +1724,7 @@ function parse_unary_expression(stream)
     local args = {}
     if stream.is(TOKEN.LPAREN) then
       stream.advance()
-      if not stream.is(TOKEN.RPAREN) then
-        while true do
-          local arg = parse_expression(stream)
-          table.insert(args, arg)
-          if not stream.is(TOKEN.COMMA) then
-            break
-          end
-          stream.advance()
-        end
-      end
+      args = parse_comma_list(stream, TOKEN.RPAREN, parse_expression)
       stream.consume(TOKEN.RPAREN)
     end
     return parse_postfix(stream, ast.new_expression(callee, args, new_kw), true)
@@ -1883,17 +1887,7 @@ function parse_postfix(stream, expr, no_update)
       no_update = false
     elseif stream.is(TOKEN.LPAREN) then
       local lparen = stream.advance()
-      local args = {}
-      if not stream.is(TOKEN.RPAREN) then
-        while true do
-          local arg = parse_expression(stream)
-          table.insert(args, arg)
-          if not stream.is(TOKEN.COMMA) then
-            break
-          end
-          stream.advance()
-        end
-      end
+      local args = parse_comma_list(stream, TOKEN.RPAREN, parse_expression)
       stream.consume(TOKEN.RPAREN)
       expr = ast.call_expression(expr, args, lparen)
       no_update = false
@@ -1941,17 +1935,7 @@ end
 -- @param callee (table) The expression being called
 function parse_call_expression(stream, callee)
   local lparen = stream.consume(TOKEN.LPAREN)
-  local arguments = {}
-  if not stream.is(TOKEN.RPAREN) then
-    while true do
-      local arg = parse_expression(stream)
-      table.insert(arguments, arg)
-      if not stream.is(TOKEN.COMMA) then
-        break
-      end
-      stream.advance()
-    end
-  end
+  local arguments = parse_comma_list(stream, TOKEN.RPAREN, parse_expression)
   stream.consume(TOKEN.RPAREN)
   local expr = ast.call_expression(callee, arguments, lparen)
   return parse_postfix(stream, expr)
@@ -1961,20 +1945,7 @@ end
 -- Empty arrays [] are valid.
 function parse_array_literal(stream)
   local lbracket = stream.consume(TOKEN.LBRACKET)
-  local elements = {}
-  if not stream.is(TOKEN.RBRACKET) then
-    while true do
-      local element = parse_expression(stream)
-      table.insert(elements, element)
-      if not stream.is(TOKEN.COMMA) then
-        break
-      end
-      stream.advance()
-      if stream.is(TOKEN.RBRACKET) then
-        break
-      end
-    end
-  end
+  local elements = parse_comma_list(stream, TOKEN.RBRACKET, parse_expression, true)
   stream.consume(TOKEN.RBRACKET)
   return ast.array_expression(elements, lbracket)
 end
@@ -1989,54 +1960,46 @@ end
 -- Empty objects {} are valid.
 function parse_object_literal(stream)
   local lbrace = stream.consume(TOKEN.LBRACE)
-  local properties = {}
-  if not stream.is(TOKEN.RBRACE) then
-    while true do
-      local key
-      local key_is_identifier = false
-      if stream.is_property_name() then
-        local key_token = stream.advance()
-        key = ast.identifier(key_token.value, key_token)
-        key_is_identifier = true
-      elseif stream.is(TOKEN.STRING) then
-        local key_token = stream.advance()
-        key = ast.string_literal(key_token.value, key_token)
-      else
-        parse_error("Expected property key", stream.peek().line, stream.peek().col)
-      end
 
-      if stream.is(TOKEN.COLON) then
-        stream.advance()
-        local value = parse_expression(stream)
-        table.insert(properties, ast.property(key, value, false, key))
-      elseif key_is_identifier and stream.is(TOKEN.LPAREN) then
-        stream.consume(TOKEN.LPAREN)
-        local params = parse_parameters(stream)
-        stream.consume(TOKEN.RPAREN)
-        local body = parse_block_statement(stream)
-        local fn = ast.function_expression(params, body, key)
-        fn.name = key.name
-        fn.is_method = true
-        table.insert(properties, ast.property(key, fn, false, key))
-      elseif key_is_identifier and (stream.is(TOKEN.COMMA) or stream.is(TOKEN.RBRACE)) then
-        table.insert(properties, ast.property(key, ast.identifier(key.name, key), false, key))
-      else
-        parse_error(
-          "Expected ':', '(', ',', or '}' after property key",
-          stream.peek().line,
-          stream.peek().col
-        )
-      end
+  local function parse_property(s)
+    local key
+    local key_is_identifier = false
+    if s.is_property_name() then
+      local key_token = s.advance()
+      key = ast.identifier(key_token.value, key_token)
+      key_is_identifier = true
+    elseif s.is(TOKEN.STRING) then
+      local key_token = s.advance()
+      key = ast.string_literal(key_token.value, key_token)
+    else
+      parse_error("Expected property key", s.peek().line, s.peek().col)
+    end
 
-      if not stream.is(TOKEN.COMMA) then
-        break
-      end
-      stream.advance()
-      if stream.is(TOKEN.RBRACE) then
-        break
-      end
+    if s.is(TOKEN.COLON) then
+      s.advance()
+      local value = parse_expression(s)
+      return ast.property(key, value, false, key)
+    elseif key_is_identifier and s.is(TOKEN.LPAREN) then
+      s.consume(TOKEN.LPAREN)
+      local params = parse_parameters(s)
+      s.consume(TOKEN.RPAREN)
+      local body = parse_block_statement(s)
+      local fn = ast.function_expression(params, body, key)
+      fn.name = key.name
+      fn.is_method = true
+      return ast.property(key, fn, false, key)
+    elseif key_is_identifier and (s.is(TOKEN.COMMA) or s.is(TOKEN.RBRACE)) then
+      return ast.property(key, ast.identifier(key.name, key), false, key)
+    else
+      parse_error(
+        "Expected ':', '(', ',', or '}' after property key",
+        s.peek().line,
+        s.peek().col
+      )
     end
   end
+
+  local properties = parse_comma_list(stream, TOKEN.RBRACE, parse_property, true)
   stream.consume(TOKEN.RBRACE)
   return ast.object_expression(properties, lbrace)
 end
