@@ -231,4 +231,12 @@ A.program = function(body)
   return { type = ast.TYPE_PROGRAM, body = body }
 end
 
+A.tpl = function(quasis, expressions)
+  return { type = ast.TYPE_TEMPLATE_LITERAL, quasis = quasis, expressions = expressions }
+end
+
+A.tpl_elem = function(value, tail)
+  return { type = ast.TYPE_TEMPLATE_ELEMENT, value = value, tail = tail }
+end
+
 return A
