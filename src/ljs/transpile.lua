@@ -594,10 +594,29 @@ end
 -- @param extra_scope_names (table|nil) Additional names to declare in scope
 --   (used for class expression self-references like the class name inside its body)
 -- @return (string) Lua function expression string
+local function param_name(p)
+  if p.type == ast.TYPE_IDENTIFIER then
+    return p.name
+  elseif p.type == ast.TYPE_ASSIGNMENT_PATTERN then
+    return p.left.name
+  elseif p.type == ast.TYPE_REST_ELEMENT then
+    return p.argument.name
+  end
+  return nil
+end
+
 local function emit_fn(fn_node, indent, ctx, extra_scope_names)
   local params = { "_ljs_this" }
+  local has_rest = false
   for _, p in ipairs(fn_node.params) do
-    params[#params + 1] = p.name
+    if p.type == ast.TYPE_REST_ELEMENT then
+      has_rest = true
+    else
+      params[#params + 1] = param_name(p)
+    end
+  end
+  if has_rest then
+    params[#params + 1] = "..."
   end
   scope_push(ctx)
   if extra_scope_names then
@@ -609,14 +628,26 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
     scope_declare(ctx, fn_node.name)
   end
   for _, p in ipairs(fn_node.params) do
-    scope_declare(ctx, p.name)
+    scope_declare(ctx, param_name(p))
   end
   local body = emit(fn_node.body, indent, ctx)
-  -- Selects the source variable for _ljs_arrow_this:
-  --   ArrowFunctionExpression → "_ljs_arrow_this" (captures enclosing scope via closure)
-  --   everything else → "_ljs_this" (saves the received hidden-this parameter)
+  local preamble = ""
+  for _, p in ipairs(fn_node.params) do
+    if p.type == ast.TYPE_REST_ELEMENT then
+      preamble = preamble .. cg.local_decl(p.argument.name, cg.array({ "..." }), indent + 1)
+    elseif p.type == ast.TYPE_ASSIGNMENT_PATTERN then
+      local pname = p.left.name
+      local default_code = emit(p.right, indent + 1, ctx)
+      preamble = preamble
+        .. cg.if_stmt(
+          pname .. " == nil",
+          cg.expr_stmt(cg.binop("=", pname, default_code), indent + 2),
+          nil, nil, indent + 1
+        )
+    end
+  end
   local save_src = fn_node.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION and "_ljs_arrow_this" or "_ljs_this"
-  body = cg.local_decl("_ljs_arrow_this", save_src, indent + 1) .. body
+  body = cg.local_decl("_ljs_arrow_this", save_src, indent + 1) .. preamble .. body
   scope_pop(ctx)
   return cg.fn_expr(cg.join(params), body, indent)
 end

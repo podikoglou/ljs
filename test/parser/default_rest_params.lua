@@ -88,11 +88,11 @@ end)
 -- ============================================================================
 
 test("rest parameter must be last", function()
-  assert_parse_fail("function f(...a, b) {}", "rest")
+  assert_parse_fail("function f(...a, b) {}", "Rest")
 end)
 
 test("only one rest parameter allowed", function()
-  assert_parse_fail("function f(...a, ...b) {}", "rest")
+  assert_parse_fail("function f(...a, ...b) {}", "Rest")
 end)
 
 -- ============================================================================
