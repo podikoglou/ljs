@@ -1859,7 +1859,7 @@ function parse_primary_expression(stream)
             end
           else
             parse_error(
-              "Expected parameter name",
+              "Arrow function parameters must be identifiers",
               stream.peek().line,
               stream.peek().col
             )
