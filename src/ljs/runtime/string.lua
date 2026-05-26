@@ -12,32 +12,7 @@ local String = _ljs_fn(function(_ljs_this, ...)
   if select("#", ...) == 0 then
     value = ""
   else
-    value = ...
-    if value == _ljs_null then
-      value = "null"
-    elseif value == nil then
-      value = "undefined"
-    elseif type(value) == "string" then
-      -- keep as-is
-    elseif type(value) == "number" then
-      if value ~= value then
-        value = "NaN"
-      elseif value == math.huge then
-        value = "Infinity"
-      elseif value == -math.huge then
-        value = "-Infinity"
-      else
-        if value == 0 then
-          value = "0"
-        elseif math.floor(value) == value then
-          value = tostring(math.floor(value))
-        else
-          value = tostring(value)
-        end
-      end
-    else
-      value = tostring(value)
-    end
+    value = _ljs_tostring(...)
   end
   if _ljs_this == nil then
     return value
