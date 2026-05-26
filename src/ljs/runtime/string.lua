@@ -44,3 +44,11 @@ local String = _ljs_fn(function(_ljs_this, ...)
 end)
 String.prototype = _ljs_string_prototype
 _ljs_string_prototype.constructor = String
+String.fromCharCode = _ljs_fn(function(_ljs_this, ...)
+  local chars = {}
+  for i = 1, select("#", ...) do
+    local code = select(i, ...)
+    chars[#chars + 1] = string.char(math.floor(code) % 256)
+  end
+  return table.concat(chars)
+end)

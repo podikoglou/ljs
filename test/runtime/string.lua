@@ -68,3 +68,7 @@ test("string charCodeAt negative index returns NaN", function()
   local result = exec_js('return "hello".charCodeAt(-1);')
   assert_eq(result ~= result, true)
 end)
+
+test("String.fromCharCode single char", function()
+  assert_js('String.fromCharCode(65)', "A")
+end)
