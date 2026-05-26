@@ -46,3 +46,7 @@ end)
 test("string .length via bracket notation", function()
   assert_js('"hello"["length"]', 5)
 end)
+
+test("string charCodeAt returns code at index", function()
+  assert_js('"A".charCodeAt(0)', 65)
+end)

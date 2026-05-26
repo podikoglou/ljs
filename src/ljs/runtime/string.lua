@@ -4,6 +4,14 @@ end)
 _ljs_string_prototype.valueOf = _ljs_fn(function(_ljs_this)
   return _ljs_this._ljs_data
 end)
+_ljs_string_prototype.charCodeAt = _ljs_fn(function(_ljs_this, index)
+  local s = _ljs_this._ljs_data
+  index = math.floor(index or 0)
+  if index < 0 or index >= #s then
+    return (0 / 0)
+  end
+  return s:byte(index + 1)
+end)
 
 setmetatable(_ljs_string_prototype, { __index = _ljs_object_prototype })
 
