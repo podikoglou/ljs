@@ -128,6 +128,7 @@ local TOKEN = {
   STATIC = "static",
 
   UNDEFINED = "Undefined",
+  TEMPLATE_LITERAL = "TemplateLiteral",
   DELETE = "delete",
   -- Error-triggering keywords: tokenized normally but rejected by the parser
   THIS = "this",
@@ -493,6 +494,129 @@ local function tokenize(source)
       end
       local str = table.concat(chars, "")
       table.insert(tokens, make_token(TOKEN.STRING, str, line, start_col))
+
+    elseif c == "`" then
+      local start_col = col
+      advance()
+      local quasis = {}
+      local expression_sources = {}
+      local chars = {}
+      local found_closing = false
+      while current() do
+        local ch = current()
+        if ch == "`" then
+          advance()
+          quasis[#quasis + 1] = table.concat(chars, "")
+          chars = {}
+          found_closing = true
+          break
+        elseif ch == "$" then
+          advance()
+          if current() == "{" then
+            advance()
+            quasis[#quasis + 1] = table.concat(chars, "")
+            chars = {}
+            local depth = 1
+            local expr_start = pos
+            while current() and depth > 0 do
+              local ec = current()
+              if ec == "{" then
+                depth = depth + 1
+              elseif ec == "}" then
+                depth = depth - 1
+                if depth == 0 then
+                  break
+                end
+              elseif ec == '"' or ec == "'" then
+                local quote = ec
+                advance()
+                while current() and current() ~= quote do
+                  if current() == "\\" then
+                    advance()
+                  end
+                  if current() then advance() end
+                end
+                if current() then advance() end
+              elseif ec == "`" then
+                advance()
+                local inner_depth = 0
+                while current() do
+                  local ic = current()
+                  if ic == "`" then
+                    advance()
+                    break
+                  elseif ic == "$" then
+                    advance()
+                    if current() == "{" then
+                      advance()
+                      inner_depth = inner_depth + 1
+                    end
+                  elseif ic == "}" and inner_depth > 0 then
+                    advance()
+                    inner_depth = inner_depth - 1
+                  elseif ic == "\\" then
+                    advance()
+                    if current() then advance() end
+                  else
+                    advance()
+                  end
+                end
+              else
+                advance()
+              end
+            end
+            if depth ~= 0 then
+              return nil, make_parse_error("Unterminated template expression", line, start_col)
+            end
+            expression_sources[#expression_sources + 1] = source:sub(expr_start, pos - 1)
+            advance()
+          else
+            chars[#chars + 1] = "$"
+          end
+        elseif ch == "\\" then
+          advance()
+          local esc = current()
+          if not esc then
+            return nil, make_parse_error("Unterminated template escape", line, start_col)
+          end
+          if esc == "n" then
+            chars[#chars + 1] = "\n"
+          elseif esc == "r" then
+            chars[#chars + 1] = "\r"
+          elseif esc == "t" then
+            chars[#chars + 1] = "\t"
+          elseif esc == "b" then
+            chars[#chars + 1] = "\b"
+          elseif esc == "f" then
+            chars[#chars + 1] = "\f"
+          elseif esc == "v" then
+            chars[#chars + 1] = "\v"
+          elseif esc == "\\" then
+            chars[#chars + 1] = "\\"
+          elseif esc == "`" then
+            chars[#chars + 1] = "`"
+          elseif esc == "$" then
+            chars[#chars + 1] = "$"
+          elseif esc == '"' then
+            chars[#chars + 1] = '"'
+          elseif esc == "'" then
+            chars[#chars + 1] = "'"
+          else
+            return nil, make_parse_error("Invalid escape sequence in template literal", line, col)
+          end
+          advance()
+        else
+          chars[#chars + 1] = ch
+          advance()
+        end
+      end
+      if not found_closing then
+        return nil, make_parse_error("Unterminated template literal", line, start_col)
+      end
+      table.insert(
+        tokens,
+        make_token(TOKEN.TEMPLATE_LITERAL, { quasis = quasis, expression_sources = expression_sources }, line, start_col)
+      )
 
     -- Punctuation and operators.
     -- Order matters: multi-char tokens must be checked before single-char
