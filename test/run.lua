@@ -60,6 +60,7 @@ describe("transpile/toboolean", "test.transpile.toboolean")
 describe("transpile/modulo", "test.transpile.modulo")
 describe("transpile/default_rest_params", "test.transpile.default_rest_params")
 describe("transpile/template_literals", "test.transpile.template_literals")
+describe("transpile/spread", "test.transpile.spread")
 
 describe("codegen", "test.codegen")
 
