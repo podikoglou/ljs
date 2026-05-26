@@ -547,6 +547,17 @@ end
 local gen = {}
 local gen_stmt = {}
 
+--- Compute the Lua string key for a class method definition.
+-- Identifier keys use `.name`; literal keys use `.value`.
+-- @param m (table) MethodDefinition AST node
+-- @return (string) Lua expression for the key (always a cg.string result)
+local function method_key(m)
+  if m.key.type == ast.TYPE_IDENTIFIER then
+    return cg.string(m.key.name)
+  end
+  return cg.string(m.key.value)
+end
+
 --- Dispatch to the type-specific emitter for the given AST node.
 -- @param node (table) AST node with a `type` field
 -- @param indent (number) Current indentation level
@@ -824,13 +835,6 @@ gen.ClassDeclaration = function(node, indent, ctx)
       )
   end
 
-  local function method_key(m)
-    if m.key.type == ast.TYPE_IDENTIFIER then
-      return cg.string(m.key.name)
-    end
-    return cg.string(m.key.value)
-  end
-
   for _, m in ipairs(methods) do
     local m_fn = emit_fn(m.value, indent, ctx)
     out = out
@@ -911,13 +915,6 @@ gen.ClassExpression = function(node, indent, ctx)
       cg.member_dot(cg.member_dot(class_name, "prototype"), "constructor"),
       class_name
     )
-  end
-
-  local function method_key(m)
-    if m.key.type == ast.TYPE_IDENTIFIER then
-      return cg.string(m.key.name)
-    end
-    return cg.string(m.key.value)
   end
 
   for _, m in ipairs(methods) do
