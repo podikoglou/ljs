@@ -112,6 +112,30 @@ test("for-in without continue has no label", function()
   assert(not code:find("::_continue::"), "unexpected ::_continue:: label")
 end)
 
+test("for loop with continue: body wrapped in do..end when local after goto", function()
+  local code = transpile_ok("for (var i = 0; i < 3; i++) { if (i === 1) continue; var y = i * 2; }")
+  assert(code:find("goto _continue"), "expected goto _continue")
+  assert(code:find("::_continue::"), "expected ::_continue:: label")
+  assert(code:match("do\n"), "expected do..end wrapping when continue is present")
+end)
+
+test("for loop with continue + local after: generated Lua loads without error", function()
+  local code = transpile_ok("for (var i = 0; i < 3; i++) { if (i === 1) continue; var y = i * 2; }")
+  local ok, err = load(code)
+  assert(ok, "generated Lua should load: " .. tostring(err))
+end)
+
+test("while loop with continue + local after: generated Lua loads", function()
+  local code = transpile_ok([[
+    while (x) {
+      if (a) continue;
+      var y = 1;
+    }
+  ]])
+  local ok, err = load(code)
+  assert(ok, "generated Lua should load: " .. tostring(err))
+end)
+
 -- ============================================================================
 -- Integration tests — continue
 -- ============================================================================
