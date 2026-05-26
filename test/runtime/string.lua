@@ -6,3 +6,43 @@ local eval_js, exec_js = R.eval_js, R.exec_js
 test("string .length returns correct length", function()
   assert_js('"hello".length', 5)
 end)
+
+test("empty string .length is 0", function()
+  assert_js('"".length', 0)
+end)
+
+test("string bracket indexing returns character", function()
+  assert_js('"hello"[0]', "h")
+end)
+
+test("string bracket indexing last character", function()
+  assert_js('"hello"[4]', "o")
+end)
+
+test("string bracket indexing OOB returns nil", function()
+  assert_eq(exec_js('return "hello"[5];'), nil)
+end)
+
+test("string bracket indexing negative returns nil", function()
+  assert_eq(exec_js('return "hello"[-1];'), nil)
+end)
+
+test("string toString still works", function()
+  assert_js('"hello".toString()', "hello")
+end)
+
+test("string valueOf still works", function()
+  assert_js('"hello".valueOf()', "hello")
+end)
+
+test("string length via variable", function()
+  assert_eq(exec_js('var s = "hello"; return s.length;'), 5)
+end)
+
+test("string bracket access via variable", function()
+  assert_eq(exec_js('var s = "hello"; return s[0];'), "h")
+end)
+
+test("string .length via bracket notation", function()
+  assert_js('"hello"["length"]', 5)
+end)
