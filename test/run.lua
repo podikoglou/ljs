@@ -56,6 +56,7 @@ describe("transpile/continue", "test.transpile.continue")
 describe("transpile/member_literals", "test.transpile.member_literals")
 describe("transpile/toboolean", "test.transpile.toboolean")
 describe("transpile/modulo", "test.transpile.modulo")
+describe("transpile/default_rest_params", "test.transpile.default_rest_params")
 
 describe("codegen", "test.codegen")
 
