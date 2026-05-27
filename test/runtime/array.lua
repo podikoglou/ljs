@@ -717,6 +717,10 @@ test("every returns true when all elements match", function()
   assert_eq(exec_js("return [2, 4, 6].every(function(x) { return x % 2 === 0; });"), true)
 end)
 
+test("every returns false when any element fails", function()
+  assert_eq(exec_js("return [2, 3, 6].every(function(x) { return x % 2 === 0; });"), false)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
