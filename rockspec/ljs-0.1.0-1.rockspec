@@ -45,4 +45,10 @@ build = {
     ["ljs.runtime.number"] = "src/ljs/runtime/number.lua",
     ["ljs.runtime.string"] = "src/ljs/runtime/string.lua",
   },
+  install = {
+    bin = {
+      ["parser-dump"] = "bin/parser-dump",
+      ["transpile-dump"] = "bin/transpile-dump",
+    }
+  }
 }
