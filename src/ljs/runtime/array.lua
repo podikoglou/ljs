@@ -73,7 +73,7 @@ Array.prototype.some = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
     local v = rawget(_ljs_this, i)
     if v ~= nil then
       local testResult = _ljs_call_member(callbackFn, "call", thisArg, v, i - 1, _ljs_this)
-      if testResult then
+      if _ljs_to_boolean(testResult) then
         return true
       end
     end
@@ -93,7 +93,7 @@ Array.prototype.every = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
     local v = rawget(_ljs_this, i)
     if v ~= nil then
       local testResult = _ljs_call_member(callbackFn, "call", thisArg, v, i - 1, _ljs_this)
-      if not testResult then
+      if not _ljs_to_boolean(testResult) then
         return false
       end
     end
@@ -338,7 +338,7 @@ Array.prototype.find = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
   for i = 1, len do
     local v = rawget(_ljs_this, i)
     local testResult = _ljs_call_member(callbackFn, "call", thisArg, v, i - 1, _ljs_this)
-    if testResult then return v end
+    if _ljs_to_boolean(testResult) then return v end
   end
   return nil
 end)
@@ -354,7 +354,7 @@ Array.prototype.findIndex = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
   for i = 1, len do
     local v = rawget(_ljs_this, i)
     local testResult = _ljs_call_member(callbackFn, "call", thisArg, v, i - 1, _ljs_this)
-    if testResult then return i - 1 end
+    if _ljs_to_boolean(testResult) then return i - 1 end
   end
   return -1
 end)

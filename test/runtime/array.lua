@@ -709,6 +709,18 @@ test("some with arrow function callback", function()
   assert_eq(exec_js("return [1, 2, 3].some(x => x > 2);"), true)
 end)
 
+test("some with callback returning 0 is falsy (#243)", function()
+  assert_eq(exec_js("return [0].some(x => x);"), false)
+end)
+
+test("some with callback returning empty string is falsy (#243)", function()
+  assert_eq(exec_js("return [''].some(x => x);"), false)
+end)
+
+test("some with callback returning 1 is truthy (#243)", function()
+  assert_eq(exec_js("return [1].some(x => x);"), true)
+end)
+
 -- ============================================================================
 -- Array.prototype.every
 -- ============================================================================
@@ -777,6 +789,18 @@ end)
 
 test("every with arrow function callback", function()
   assert_eq(exec_js("return [2, 4, 6].every(x => x % 2 === 0);"), true)
+end)
+
+test("every with callback returning 0 is falsy (#243)", function()
+  assert_eq(exec_js("return [0].every(x => x);"), false)
+end)
+
+test("every with callback returning empty string is falsy (#243)", function()
+  assert_eq(exec_js("return [''].every(x => x);"), false)
+end)
+
+test("every with callback returning 1 is truthy (#243)", function()
+  assert_eq(exec_js("return [1].every(x => x);"), true)
 end)
 
 -- ============================================================================
@@ -974,6 +998,18 @@ test("find with arrow function callback", function()
   assert_eq(exec_js("return [1, 2, 3].find(x => x > 1);"), 2)
 end)
 
+test("find with callback returning 0 is falsy (#243)", function()
+  assert_eq(exec_js("return [0, 1].find(x => x);"), 1)
+end)
+
+test("find with callback returning empty string is falsy (#243)", function()
+  assert_eq(exec_js("return ['', 'a'].find(x => x);"), "a")
+end)
+
+test("find with all falsy elements returns nil (#243)", function()
+  assert_eq(exec_js("return [0].find(x => x);"), nil)
+end)
+
 test("find does not skip holes", function()
   assert_eq(exec_js([=[
     var found = false;
@@ -1027,6 +1063,18 @@ end)
 
 test("findIndex with arrow function callback", function()
   assert_eq(exec_js("return [1, 2, 3].findIndex(x => x > 1);"), 1)
+end)
+
+test("findIndex with callback returning 0 is falsy (#243)", function()
+  assert_eq(exec_js("return [0, 1].findIndex(x => x);"), 1)
+end)
+
+test("findIndex with callback returning empty string is falsy (#243)", function()
+  assert_eq(exec_js("return ['', 'a'].findIndex(x => x);"), 1)
+end)
+
+test("findIndex with all falsy elements returns -1 (#243)", function()
+  assert_eq(exec_js("return [0].findIndex(x => x);"), -1)
 end)
 
 test("findIndex does not skip holes", function()
