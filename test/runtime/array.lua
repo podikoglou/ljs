@@ -1722,6 +1722,86 @@ test("splice returns deleted elements", function()
   assert_eq(arr[2], 3)
 end)
 
+test("splice insert only", function()
+  local arr = exec_js([=[
+    var a = [1, 4];
+    a.splice(1, 0, 2, 3);
+    return a;
+  ]=])
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+  assert_eq(arr[4], 4)
+end)
+
+test("splice delete and insert", function()
+  local arr = exec_js([=[
+    var a = [1, 2, 5];
+    a.splice(1, 1, 3, 4);
+    return a;
+  ]=])
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 3)
+  assert_eq(arr[3], 4)
+  assert_eq(arr[4], 5)
+end)
+
+test("splice negative start", function()
+  local arr = exec_js([=[
+    var a = [1, 2, 3, 4, 5];
+    a.splice(-2, 1);
+    return a;
+  ]=])
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+  assert_eq(arr[4], 5)
+end)
+
+test("splice deleteCount exceeds remaining", function()
+  local arr = exec_js([=[
+    var a = [1, 2, 3];
+    a.splice(1, 100);
+    return a;
+  ]=])
+  assert_eq(arr.length, 1)
+  assert_eq(arr[1], 1)
+end)
+
+test("splice no args", function()
+  local arr = exec_js([=[
+    var a = [1, 2, 3];
+    a.splice();
+    return a;
+  ]=])
+  assert_eq(arr.length, 3)
+end)
+
+test("splice with no deleteCount", function()
+  local arr = exec_js([=[
+    var a = [1, 2, 3];
+    a.splice(1);
+    return a;
+  ]=])
+  assert_eq(arr.length, 1)
+  assert_eq(arr[1], 1)
+end)
+
+test("splice at end inserts", function()
+  local arr = exec_js([=[
+    var a = [1, 2];
+    a.splice(2, 0, 3);
+    return a;
+  ]=])
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
