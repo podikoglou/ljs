@@ -120,3 +120,8 @@ test("bare object destructuring assignment — runtime values (#181)", function(
   local out = run_js('let x, y; ({x, y} = {x: 1, y: 2});\nconsole.log(x, y);')
   assert_eq(out, "1\t2\n")
 end)
+
+test("nested array destructuring assignment — runtime values (#181)", function()
+  local out = run_js("let a, b; [a, [b]] = [1, [2]];\nconsole.log(a, b);")
+  assert_eq(out, "1\t2\n")
+end)
