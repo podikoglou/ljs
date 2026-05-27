@@ -705,6 +705,10 @@ test("some throws TypeError on missing callback", function()
   assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
 end)
 
+test("some with arrow function callback", function()
+  assert_eq(exec_js("return [1, 2, 3].some(x => x > 2);"), true)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
