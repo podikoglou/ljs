@@ -150,3 +150,8 @@ test("destructuring assignment returns RHS value (#181)", function()
   local out = run_js("let a, b; let c = [a, b] = [42, 99];\nconsole.log(c[0], c[1]);")
   assert_eq(out, "42\t99\n")
 end)
+
+test("object destructuring assignment with rename (#181)", function()
+  local out = run_js('let y; ({x: y} = {x: 42});\nconsole.log(y);')
+  assert_eq(out, "42\n")
+end)
