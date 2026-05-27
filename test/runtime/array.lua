@@ -421,6 +421,97 @@ test("slice with start and end", function()
   assert_eq(arr[2], 3)
 end)
 
+test("slice with no args returns full copy", function()
+  local arr = exec_js("return [1, 2, 3].slice();")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+end)
+
+test("slice with only start", function()
+  local arr = exec_js("return [1, 2, 3, 4].slice(2);")
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 3)
+  assert_eq(arr[2], 4)
+end)
+
+test("slice with negative start", function()
+  local arr = exec_js("return [1, 2, 3].slice(-2);")
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 2)
+  assert_eq(arr[2], 3)
+end)
+
+test("slice with negative end", function()
+  local arr = exec_js("return [1, 2, 3, 4, 5].slice(1, -1);")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 2)
+  assert_eq(arr[2], 3)
+  assert_eq(arr[3], 4)
+end)
+
+test("slice with both negative", function()
+  local arr = exec_js("return [1, 2, 3, 4, 5].slice(-3, -1);")
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 3)
+  assert_eq(arr[2], 4)
+end)
+
+test("slice start beyond length returns empty", function()
+  local arr = exec_js("return [1, 2, 3].slice(10);")
+  assert_eq(arr.length, 0)
+end)
+
+test("slice large negative start clamped to 0", function()
+  local arr = exec_js("return [1, 2, 3].slice(-100);")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[3], 3)
+end)
+
+test("slice empty range start equals end", function()
+  local arr = exec_js("return [1, 2, 3].slice(1, 1);")
+  assert_eq(arr.length, 0)
+end)
+
+test("slice empty array", function()
+  local arr = exec_js("return [].slice(0, 2);")
+  assert_eq(arr.length, 0)
+end)
+
+test("slice sparse array preserves holes", function()
+  local arr = exec_js("return [1,,3].slice(0, 3);")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], nil)
+  assert_eq(arr[3], 3)
+end)
+
+test("slice result is independent of original", function()
+  local arr = exec_js([=[
+    var orig = [1, 2, 3];
+    var copy = orig.slice();
+    orig[1] = 99;
+    return [copy[1], orig[1]];
+  ]=])
+  assert_eq(arr[1], 2)
+  assert_eq(arr[2], 99)
+end)
+
+-- ============================================================================
+-- Array.prototype.concat
+-- ============================================================================
+
+test("concat two arrays", function()
+  local arr = exec_js("return [1, 2].concat([3, 4]);")
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+  assert_eq(arr[4], 4)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
