@@ -1975,3 +1975,13 @@ end)
 test("toLocaleString with object having toString", function()
   assert_eq(exec_js("return [{toString: function() { return 'a'; }}].toLocaleString();"), "a")
 end)
+
+test("toLocaleString generic call", function()
+  local out = exec_js([[
+    var obj = {};
+    obj[0] = 'a'; obj[1] = 'b'; obj[2] = 'c';
+    obj.length = 3;
+    return Array.prototype.toLocaleString.call(obj);
+  ]])
+  assert_eq(out, "a,b,c")
+end)

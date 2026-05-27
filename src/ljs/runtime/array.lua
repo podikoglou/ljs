@@ -816,7 +816,7 @@ Array.prototype.toLocaleString = _ljs_fn(function(_ljs_this)
     if i > 1 then
       result = result .. separator
     end
-    local element = rawget(array, i)
+    local element = array[i]
     if element ~= nil and element ~= _ljs_null then
       local element_str = _ljs_call_member(element, "toLocaleString")
       result = result .. _ljs_tostring(element_str)
