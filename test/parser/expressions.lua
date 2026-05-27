@@ -923,3 +923,25 @@ test("++a.b still accepted (prefix on member)", function()
     A.expr_stmt(A.update("++", A.member(A.id("a"), A.id("b")), true)),
   })
 end)
+
+test("parse 4.2.toString()", function()
+  assert_parse_ok("4.2.toString();", {
+    A.expr_stmt(A.call(A.member(A.num(4.2), A.id("toString")), {})),
+  })
+end)
+
+test("parse 4.2.toFixed(2)", function()
+  assert_parse_ok("4.2.toFixed(2);", {
+    A.expr_stmt(A.call(A.member(A.num(4.2), A.id("toFixed")), { A.num(2) })),
+  })
+end)
+
+test("parse 0.5.valueOf()", function()
+  assert_parse_ok("0.5.valueOf();", {
+    A.expr_stmt(A.call(A.member(A.num(0.5), A.id("valueOf")), {})),
+  })
+end)
+
+test("parse 4.2 without member access", function()
+  assert_parse_ok("4.2;", { A.expr_stmt(A.num(4.2)) })
+end)
