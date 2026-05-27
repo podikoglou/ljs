@@ -8,6 +8,7 @@ const root = path.resolve(__dirname, "..");
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  base: "/",
   resolve: {
     alias: {
       "@ljs": root,
@@ -17,6 +18,9 @@ export default defineConfig({
     fs: {
       allow: [root],
     },
+  },
+  build: {
+    outDir: "dist",
   },
   test: {},
 });
