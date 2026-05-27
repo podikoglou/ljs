@@ -364,9 +364,17 @@ HELPERS._ljs_spread_build = [[local function _ljs_spread_build(...)
     local val = select(i, ...)
     local is_spread = select(i + 1, ...)
     if is_spread then
-      for j = 1, val.length do
-        result.n = result.n + 1
-        result[result.n] = val[j]
+      local vt = type(val)
+      if vt == "string" then
+        for j = 1, #val do
+          result.n = result.n + 1
+          result[result.n] = val:sub(j, j)
+        end
+      else
+        for j = 1, val.length do
+          result.n = result.n + 1
+          result[result.n] = val[j]
+        end
       end
     else
       result.n = result.n + 1

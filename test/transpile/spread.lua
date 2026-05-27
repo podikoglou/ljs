@@ -52,3 +52,23 @@ test("method call with spread obj.fn(...a)", function()
   local out = run_js("let obj = { add: function(a, b) { return a + b; } };\nlet args = [5, 3]; console.log(obj.add(...args));")
   assert_eq(out, "8\n")
 end)
+
+test("spread string in array [...\"abc\"] produces chars", function()
+  local out = run_js([[let r = [..."abc"]; console.log(r.length, r[0], r[1], r[2]);]])
+  assert_eq(out, "3\ta\tb\tc\n")
+end)
+
+test("mixed literal and string spread [1, ...\"xy\"]", function()
+  local out = run_js([[let r = [1, ..."xy"]; console.log(r.length, r[0], r[1], r[2]);]])
+  assert_eq(out, "3\t1\tx\ty\n")
+end)
+
+test("spread string in function call fn(...\"ab\")", function()
+  local out = run_js([[function f(a, b) { console.log(a, b); } let r = f(..."ab");]])
+  assert_eq(out, "a\tb\n")
+end)
+
+test("mixed array and string spread [...a, ...\"de\"]", function()
+  local out = run_js([[let a = [1, 2]; let r = [...a, ..."de"]; console.log(r.length, r[0], r[1], r[2], r[3]);]])
+  assert_eq(out, "4\t1\t2\td\te\n")
+end)
