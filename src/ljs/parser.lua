@@ -1402,7 +1402,9 @@ function parse_array_pattern(stream)
   end
 
   stream.consume(TOKEN.RBRACKET)
-  return ast.array_pattern(elements, lbracket)
+  local result = ast.array_pattern(elements, lbracket)
+  result.count = idx - 1
+  return result
 end
 
 function parse_binding_element(stream)
