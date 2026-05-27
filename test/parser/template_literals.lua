@@ -105,6 +105,12 @@ test("tokenize template with escape \\0", function()
   assert_eq(tokens[1].value.quasis[1], "a" .. string.char(0) .. "b")
 end)
 
+test("tokenize template with escape \\xHH", function()
+  local tokens, err = parser.tokenize("`\\x41`")
+  if not tokens then error("tokenize failed: " .. tostring(err)) end
+  assert_eq(tokens[1].value.quasis[1], "A")
+end)
+
 test("parse template with escape", function()
   assert_parse_ok("`a\\nb`", {
     {
