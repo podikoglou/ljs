@@ -344,6 +344,22 @@ Array.prototype.find = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
 end)
 
 -- ---------------------------------------------------------------------------
+-- Array.prototype.findIndex
+-- ---------------------------------------------------------------------------
+Array.prototype.findIndex = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
+  if not _ljs_is_function(callbackFn) then
+    error("TypeError: " .. _ljs_value_repr(callbackFn) .. " is not a function")
+  end
+  local len = _ljs_this.length or 0
+  for i = 1, len do
+    local v = rawget(_ljs_this, i)
+    local testResult = _ljs_call_member(callbackFn, "call", thisArg, v, i - 1, _ljs_this)
+    if testResult then return i - 1 end
+  end
+  return -1
+end)
+
+-- ---------------------------------------------------------------------------
 -- Array.prototype.join
 -- ---------------------------------------------------------------------------
 -- Converts each element to a string (using tostring; nil/undefined → ""),

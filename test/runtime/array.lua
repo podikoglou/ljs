@@ -987,6 +987,14 @@ test("find on empty array returns nil", function()
 end)
 
 -- ============================================================================
+-- Array.prototype.findIndex
+-- ============================================================================
+
+test("findIndex returns index of first match", function()
+  assert_eq(exec_js("return [1, 2, 3].findIndex(function(x) { return x > 1; });"), 1)
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 
