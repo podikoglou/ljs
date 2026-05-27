@@ -538,6 +538,49 @@ Array.prototype.reverse = _ljs_fn(function(_ljs_this)
 end)
 
 -- ---------------------------------------------------------------------------
+-- Array.prototype.fill
+-- ---------------------------------------------------------------------------
+local function _to_integer_or_inf(v, default)
+  if v == nil then return default or 0 end
+  local n = tonumber(v)
+  if n == nil or n ~= n then return 0 end
+  if n == math.huge then return math.huge end
+  if n == -math.huge then return -math.huge end
+  return (n >= 0 and math.floor or math.ceil)(n)
+end
+
+Array.prototype.fill = _ljs_fn(function(_ljs_this, value, start_val, end_val)
+  local len = _ljs_this.length or 0
+  local relative_start = _to_integer_or_inf(start_val)
+  local k
+  if relative_start == -math.huge then
+    k = 0
+  elseif relative_start < 0 then
+    k = math.max(len + relative_start, 0)
+  else
+    k = math.min(relative_start, len)
+  end
+  local relative_end
+  if end_val == nil then
+    relative_end = len
+  else
+    relative_end = _to_integer_or_inf(end_val)
+  end
+  local final_
+  if relative_end == -math.huge then
+    final_ = 0
+  elseif relative_end < 0 then
+    final_ = math.max(len + relative_end, 0)
+  else
+    final_ = math.min(relative_end, len)
+  end
+  for i = k + 1, final_ do
+    rawset(_ljs_this, i, value)
+  end
+  return _ljs_this
+end)
+
+-- ---------------------------------------------------------------------------
 -- Array.prototype.join
 -- ---------------------------------------------------------------------------
 -- Converts each element to a string (using tostring; nil/undefined → ""),
