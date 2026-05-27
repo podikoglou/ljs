@@ -18,6 +18,11 @@ local function setup_lua_path()
   local bin_dir = script_path:match("(.*/)")
   local project_root = bin_dir:match("(.+)/bin/")
 
+  -- Fallback: if relative path "bin/" doesn't match, try current directory
+  if not project_root and bin_dir == "bin/" then
+    project_root = "."
+  end
+
   if project_root and bin_dir then
     -- Development setup: add src/ to path so we can require ljs modules
     package.path = project_root .. "/src/?.lua;" .. package.path
