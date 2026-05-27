@@ -53,6 +53,8 @@ M.TYPE_PROGRAM = "Program"
 M.TYPE_ASSIGNMENT_PATTERN = "AssignmentPattern"
 M.TYPE_REST_ELEMENT = "RestElement"
 M.TYPE_SPREAD_ELEMENT = "SpreadElement"
+M.TYPE_OBJECT_PATTERN = "ObjectPattern"
+M.TYPE_ARRAY_PATTERN = "ArrayPattern"
 M.TYPE_TEMPLATE_LITERAL = "TemplateLiteral"
 M.TYPE_TEMPLATE_ELEMENT = "TemplateElement"
 
@@ -387,6 +389,24 @@ function M.template_element(value, tail, token)
   }
 end
 
+function M.object_pattern(properties, token)
+  return {
+    type = M.TYPE_OBJECT_PATTERN,
+    properties = properties,
+    line = token.line,
+    col = token.col,
+  }
+end
+
+function M.array_pattern(elements, token)
+  return {
+    type = M.TYPE_ARRAY_PATTERN,
+    elements = elements,
+    line = token.line,
+    col = token.col,
+  }
+end
+
 --- @param test (table) Condition expression
 --- @param consequent (table) Statement to run if truthy
 --- @param alternate (table|nil) else branch, or nil
@@ -524,12 +544,13 @@ end
 --- @param value (table) Expression node
 --- @param computed (boolean) true if key is a computed [expr] property
 --- @return table {type=M.TYPE_PROPERTY, key, value, computed}
-function M.property(key, value, computed, token)
+function M.property(key, value, computed, token, shorthand)
   return {
     type = M.TYPE_PROPERTY,
     key = key,
     value = value,
     computed = computed or false,
+    shorthand = shorthand or false,
     line = token.line,
     col = token.col,
   }

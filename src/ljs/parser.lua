@@ -1194,11 +1194,20 @@ function parse_variable_declaration(stream, no_in)
 end
 
 --- Parse a single variable declarator: name or name = init
+-- Supports destructuring: let [a, b] = arr; let {x, y} = obj;
 -- @param stream (table) Token stream
 -- @param no_in (boolean|nil) If true, suppress 'in' in initializer expression
 function parse_variable_declarator(stream, no_in)
-  local token = stream.consume(TOKEN.IDENTIFIER)
-  local name = ast.identifier(token.value, token)
+  local token = stream.peek()
+  local name
+  if token.type == TOKEN.LBRACE then
+    name = parse_object_pattern(stream)
+  elseif token.type == TOKEN.LBRACKET then
+    name = parse_array_pattern(stream)
+  else
+    stream.consume(TOKEN.IDENTIFIER)
+    name = ast.identifier(token.value, token)
+  end
 
   local init = nil
   if stream.is(TOKEN.ASSIGN) then
@@ -1207,6 +1216,98 @@ function parse_variable_declarator(stream, no_in)
   end
 
   return ast.variable_declarator(name, init, token)
+end
+
+function parse_object_pattern(stream)
+  local lbrace = stream.consume(TOKEN.LBRACE)
+  local properties = {}
+
+  while not stream.is(TOKEN.RBRACE) and not stream.eof() do
+    if stream.is(TOKEN.ELLIPSIS) then
+      local ellipsis = stream.advance()
+      local id_token = stream.consume(TOKEN.IDENTIFIER)
+      properties[#properties + 1] = ast.rest_element(ast.identifier(id_token.value, id_token), ellipsis)
+    else
+      local key_token = stream.consume_property_name()
+      local key = ast.identifier(key_token.value, key_token)
+
+      if stream.is(TOKEN.COLON) then
+        stream.advance()
+        local value = parse_binding_element(stream)
+        properties[#properties + 1] = ast.property(key, value, false, key_token, false)
+      elseif stream.is(TOKEN.ASSIGN) then
+        stream.advance()
+        local default_expr = parse_expression(stream)
+        properties[#properties + 1] = ast.property(
+          key,
+          ast.assignment_pattern(ast.identifier(key.name, key_token), default_expr, key_token),
+          false,
+          key_token,
+          true
+        )
+      else
+        properties[#properties + 1] = ast.property(
+          key,
+          ast.identifier(key.name, key_token),
+          false,
+          key_token,
+          true
+        )
+      end
+    end
+
+    if not stream.is(TOKEN.COMMA) then break end
+    stream.advance()
+  end
+
+  stream.consume(TOKEN.RBRACE)
+  return ast.object_pattern(properties, lbrace)
+end
+
+function parse_array_pattern(stream)
+  local lbracket = stream.consume(TOKEN.LBRACKET)
+  local elements = {}
+  local idx = 1
+
+  while not stream.is(TOKEN.RBRACKET) and not stream.eof() do
+    if stream.is(TOKEN.COMMA) then
+      elements[idx] = nil
+      idx = idx + 1
+      stream.advance()
+    elseif stream.is(TOKEN.ELLIPSIS) then
+      local ellipsis = stream.advance()
+      local id_token = stream.consume(TOKEN.IDENTIFIER)
+      elements[idx] = ast.rest_element(ast.identifier(id_token.value, id_token), ellipsis)
+      idx = idx + 1
+      if stream.is(TOKEN.COMMA) then stream.advance() end
+    else
+      local elem = parse_binding_element(stream)
+      elements[idx] = elem
+      idx = idx + 1
+      if stream.is(TOKEN.COMMA) then stream.advance() end
+    end
+  end
+
+  stream.consume(TOKEN.RBRACKET)
+  return ast.array_pattern(elements, lbracket)
+end
+
+function parse_binding_element(stream)
+  local token = stream.peek()
+  if token.type == TOKEN.LBRACE then
+    return parse_object_pattern(stream)
+  elseif token.type == TOKEN.LBRACKET then
+    return parse_array_pattern(stream)
+  else
+    stream.consume(TOKEN.IDENTIFIER)
+    local name = ast.identifier(token.value, token)
+    if stream.is(TOKEN.ASSIGN) then
+      local assign_tok = stream.advance()
+      local default_expr = parse_expression(stream)
+      return ast.assignment_pattern(name, default_expr, assign_tok)
+    end
+    return name
+  end
 end
 
 --- Parse if/else: if (test) consequent [else alternate]

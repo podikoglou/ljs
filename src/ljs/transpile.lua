@@ -381,6 +381,18 @@ HELPERS._ljs_unpack = [[local function _ljs_unpack(arr)
   return table.unpack(arr, 1, arr.n)
 end]]
 
+HELPERS._ljs_rest = [[local function _ljs_rest(obj, excluded)
+  local result = {}
+  for k, v in pairs(obj) do
+    local skip = false
+    for _, e in ipairs(excluded) do
+      if k == e then skip = true; break end
+    end
+    if not skip then result[k] = v end
+  end
+  return setmetatable(result, { __index = _ljs_object_prototype })
+end]]
+
 -- Walks __index chain checking for ctor.prototype. Primitives always false.
 HELPERS._ljs_instanceof = [[local function _ljs_instanceof(value, ctor)
   if type(value) ~= "table" then
@@ -859,26 +871,127 @@ gen.ExpressionStatement = function(node, indent, ctx)
   return cg.discard_stmt(expr, indent)
 end
 
+local destructure_counter = 0
+
+local function fresh_tmp()
+  destructure_counter = destructure_counter + 1
+  return "_ljs_d" .. destructure_counter
+end
+
+local emit_destructure
+
+local function emit_binding(target, access, indent, ctx, out)
+  if target.type == ast.TYPE_IDENTIFIER then
+    scope_declare(ctx, target.name)
+    out[#out + 1] = cg.local_decl(target.name, access, indent)
+  elseif target.type == ast.TYPE_ASSIGNMENT_PATTERN then
+    local inner = target.left
+    local default_expr = emit(target.right, indent, ctx)
+    local var_name
+    if inner.type == ast.TYPE_IDENTIFIER then
+      var_name = inner.name
+      scope_declare(ctx, var_name)
+    else
+      var_name = fresh_tmp()
+    end
+    out[#out + 1] = cg.local_decl(var_name, access, indent)
+    out[#out + 1] = cg.if_stmt(
+      var_name .. " == nil",
+      cg.expr_stmt(cg.binop("=", var_name, default_expr), indent + 1),
+      nil, nil, indent
+    )
+    if inner.type ~= ast.TYPE_IDENTIFIER then
+      emit_destructure(inner, var_name, indent, ctx, out)
+    end
+  elseif target.type == ast.TYPE_OBJECT_PATTERN or target.type == ast.TYPE_ARRAY_PATTERN then
+    local tmp = fresh_tmp()
+    out[#out + 1] = cg.local_decl(tmp, access, indent)
+    emit_destructure(target, tmp, indent, ctx, out)
+  end
+end
+
+emit_destructure = function(pattern, rhs, indent, ctx, out)
+  if pattern.type == ast.TYPE_OBJECT_PATTERN then
+    for _, prop_node in ipairs(pattern.properties) do
+      if prop_node.type == ast.TYPE_REST_ELEMENT then
+        local rest_name = prop_node.argument.name
+        scope_declare(ctx, rest_name)
+        local collected = {}
+        for _, p in ipairs(pattern.properties) do
+          if p.type == ast.TYPE_PROPERTY then
+            if p.key.type == ast.TYPE_IDENTIFIER then
+              collected[#collected + 1] = cg.string(p.key.name)
+            end
+          end
+        end
+        local keys_expr = cg.array(collected)
+        out[#out + 1] = cg.local_decl(
+          rest_name,
+          cg.call("_ljs_rest", { rhs, keys_expr }),
+          indent
+        )
+      else
+        local key_str
+        if prop_node.key.type == ast.TYPE_IDENTIFIER then
+          key_str = cg.string(prop_node.key.name)
+        else
+          key_str = emit(prop_node.key, indent, ctx)
+        end
+        local access = cg.member_index(rhs, key_str)
+        emit_binding(prop_node.value, access, indent, ctx, out)
+      end
+    end
+  elseif pattern.type == ast.TYPE_ARRAY_PATTERN then
+    local count = pattern.count or #pattern.elements
+    for i = 1, count do
+      local elem = pattern.elements[i]
+      if elem == nil then
+        -- hole: skip
+      elseif elem.type == ast.TYPE_REST_ELEMENT then
+        local rest_name = elem.argument.name
+        scope_declare(ctx, rest_name)
+        out[#out + 1] = cg.local_decl(
+          rest_name,
+          cg.iife({
+            cg.local_inline("_r", cg.array({ cg.call("table.unpack", { rhs, tostring(i) }) })),
+            "_r.n = #" .. rhs .. " - " .. tostring(i - 1),
+            cg.return_inline(cg.call("_ljs_new", { "Array", cg.call("_ljs_unpack", { "_r" }) })),
+          }),
+          indent
+        )
+      else
+        local access = cg.member_index(rhs, tostring(i))
+        emit_binding(elem, access, indent, ctx, out)
+      end
+    end
+  end
+end
+
 gen.VariableDeclaration = function(node, indent, ctx)
   local out = {}
   for _, decl in ipairs(node.declarations) do
-    scope_declare(ctx, decl.name.name)
-    local init = decl.init
-    if not init then
-      out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
-    -- Split pattern: `local x; x = _ljs_ctor(fn)` instead of `local x = _ljs_ctor(fn)`.
-    -- Works around Lua 5.5 closure upvalue issue where the function's self-reference
-    -- would resolve to nil if the local hasn't been assigned yet.
-    elseif init.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION or init.type == ast.TYPE_FUNCTION_EXPRESSION then
-      local fn = emit_fn(init, indent, ctx)
-      -- Non-method FunctionExpressions get _ljs_ctor (has .prototype);
-      -- arrows and method shorthand get _ljs_fn (no .prototype).
-      local wrapper = (init.type == ast.TYPE_FUNCTION_EXPRESSION and not init.is_method) and "_ljs_ctor"
-        or "_ljs_fn"
-      out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
-      out[#out + 1] = cg.expr_stmt(cg.binop("=", decl.name.name, cg.call(wrapper, { fn })), indent)
+    local name_type = decl.name.type
+    if name_type == ast.TYPE_OBJECT_PATTERN or name_type == ast.TYPE_ARRAY_PATTERN then
+      if decl.init then
+        local init_expr = emit(decl.init, indent, ctx)
+        local tmp = fresh_tmp()
+        out[#out + 1] = cg.local_decl(tmp, init_expr, indent)
+        emit_destructure(decl.name, tmp, indent, ctx, out)
+      end
     else
-      out[#out + 1] = cg.local_decl(decl.name.name, emit(init, indent, ctx), indent)
+      scope_declare(ctx, decl.name.name)
+      local init = decl.init
+      if not init then
+        out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
+      elseif init.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION or init.type == ast.TYPE_FUNCTION_EXPRESSION then
+        local fn = emit_fn(init, indent, ctx)
+        local wrapper = (init.type == ast.TYPE_FUNCTION_EXPRESSION and not init.is_method) and "_ljs_ctor"
+          or "_ljs_fn"
+        out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
+        out[#out + 1] = cg.expr_stmt(cg.binop("=", decl.name.name, cg.call(wrapper, { fn })), indent)
+      else
+        out[#out + 1] = cg.local_decl(decl.name.name, emit(init, indent, ctx), indent)
+      end
     end
   end
   return table.concat(out)
@@ -1656,6 +1769,7 @@ local HELPER_ORDER = {
   "_ljs_super_call",
   "_ljs_spread_build",
   "_ljs_unpack",
+  "_ljs_rest",
   "_ljs_eq",
   "_ljs_lt",
   "_ljs_gt",
