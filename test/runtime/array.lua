@@ -1408,6 +1408,83 @@ test("flat returns new array", function()
 end)
 
 -- ============================================================================
+-- Array.prototype.flatMap
+-- ============================================================================
+
+test("flatMap basic map and flatten", function()
+  local arr = exec_js("return [1, 2, 3].flatMap(function(x) { return [x, x * 2]; });")
+  assert_eq(arr.length, 6)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 2)
+  assert_eq(arr[4], 4)
+  assert_eq(arr[5], 3)
+  assert_eq(arr[6], 6)
+end)
+
+test("flatMap with non-array return values", function()
+  local arr = exec_js("return [1, 2, 3].flatMap(function(x) { return x; });")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+end)
+
+test("flatMap with thisArg", function()
+  local arr = exec_js([[
+    var ctx = { mult: 10 };
+    return [1, 2].flatMap(function(x) { return [x * this.mult]; }, ctx);
+  ]])
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 10)
+  assert_eq(arr[2], 20)
+end)
+
+test("flatMap with index argument", function()
+  local arr = exec_js("return [10, 20].flatMap(function(x, i) { return [x, i]; });")
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 10)
+  assert_eq(arr[2], 0)
+  assert_eq(arr[3], 20)
+  assert_eq(arr[4], 1)
+end)
+
+test("flatMap on empty array", function()
+  local arr = exec_js("return [].flatMap(function(x) { return [x]; });")
+  assert_eq(arr.length, 0)
+end)
+
+test("flatMap skips holes in sparse array", function()
+  local arr = exec_js("return [1,,3].flatMap(function(x) { return [x]; });")
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 3)
+end)
+
+test("flatMap throws TypeError on non-function", function()
+  local ok, err = pcall(exec_js, "return [].flatMap(42);")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("flatMap throws TypeError on missing callback", function()
+  local ok, err = pcall(exec_js, "return [].flatMap();")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("flatMap with arrow function callback", function()
+  local arr = exec_js("return [1, 2, 3].flatMap(x => [x, x * 2]);")
+  assert_eq(arr.length, 6)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 2)
+  assert_eq(arr[4], 4)
+  assert_eq(arr[5], 3)
+  assert_eq(arr[6], 6)
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 

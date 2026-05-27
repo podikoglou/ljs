@@ -194,6 +194,20 @@ Array.prototype.flat = _ljs_fn(function(_ljs_this, depth_val)
 end)
 
 -- ---------------------------------------------------------------------------
+-- Array.prototype.flatMap
+-- ---------------------------------------------------------------------------
+Array.prototype.flatMap = _ljs_fn(function(_ljs_this, mapperFunction, thisArg)
+  if not _ljs_is_function(mapperFunction) then
+    error("TypeError: " .. _ljs_value_repr(mapperFunction) .. " is not a function")
+  end
+  local len = _ljs_this.length or 0
+  local result = _ljs_new(Array)
+  local final_idx = flatten_into_array(result, _ljs_this, len, 1, 1, mapperFunction, thisArg)
+  rawset(result, "length", final_idx - 1)
+  return result
+end)
+
+-- ---------------------------------------------------------------------------
 -- Array.prototype.some
 -- ---------------------------------------------------------------------------
 Array.prototype.some = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
