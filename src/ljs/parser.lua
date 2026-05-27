@@ -1423,6 +1423,53 @@ function parse_binding_element(stream)
   end
 end
 
+local convert_expression_to_pattern
+
+convert_expression_to_pattern = function(node)
+  if node.type == ast.TYPE_ARRAY_EXPRESSION then
+    local elements = {}
+    for i, elem in ipairs(node.elements) do
+      if elem == nil then
+        elements[i] = nil
+      elseif elem.type == ast.TYPE_SPREAD_ELEMENT then
+        elements[i] = ast.rest_element(elem.argument, elem)
+      elseif elem.type == ast.TYPE_IDENTIFIER then
+        elements[i] = elem
+      elseif elem.type == ast.TYPE_ASSIGNMENT_PATTERN then
+        elements[i] = elem
+      else
+        elements[i] = convert_expression_to_pattern(elem)
+      end
+    end
+    return ast.array_pattern(elements, node)
+  elseif node.type == ast.TYPE_OBJECT_EXPRESSION then
+    local properties = {}
+    for _, prop_node in ipairs(node.properties) do
+      if prop_node.type == ast.TYPE_SPREAD_ELEMENT then
+        properties[#properties + 1] = ast.rest_element(prop_node.argument, prop_node)
+      else
+        local new_value = prop_node.value
+        if new_value.type == ast.TYPE_IDENTIFIER then
+          -- keep as-is
+        elseif new_value.type == ast.TYPE_ASSIGNMENT_PATTERN then
+          -- keep as-is
+        else
+          new_value = convert_expression_to_pattern(new_value)
+        end
+        properties[#properties + 1] = ast.property(
+          prop_node.key,
+          new_value,
+          prop_node.computed,
+          prop_node,
+          prop_node.shorthand
+        )
+      end
+    end
+    return ast.object_pattern(properties, node)
+  end
+  return node
+end
+
 --- Parse if/else: if (test) consequent [else alternate]
 -- The consequent and alternate are single statements (can be blocks).
 function parse_if_statement(stream)
@@ -2018,6 +2065,11 @@ function parse_binary_expression(stream, min_precedence, no_in)
       or op == TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN
     then
       stream.advance()
+      if op == TOKEN.ASSIGN then
+        if left.type == ast.TYPE_ARRAY_EXPRESSION or left.type == ast.TYPE_OBJECT_EXPRESSION then
+          left = convert_expression_to_pattern(left)
+        end
+      end
       local right = parse_expression(stream, no_in)
       left = ast.binary_expression(op, left, right, op_token)
     elseif op == TOKEN.STARSTAR then
