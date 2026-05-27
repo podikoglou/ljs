@@ -320,6 +320,18 @@ test("index assignment on new Array", function()
 end)
 
 -- ============================================================================
+-- Array.prototype.map
+-- ============================================================================
+
+test("map basic doubling", function()
+  local arr = exec_js("return [1, 2, 3].map(function(x) { return x * 2; });")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 2)
+  assert_eq(arr[2], 4)
+  assert_eq(arr[3], 6)
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 

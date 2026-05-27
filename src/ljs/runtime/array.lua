@@ -42,6 +42,26 @@ Array.prototype.pop = _ljs_fn(function(_ljs_this)
 end)
 
 -- ---------------------------------------------------------------------------
+-- Array.prototype.map
+-- ---------------------------------------------------------------------------
+Array.prototype.map = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
+  if not _ljs_is_function(callbackFn) then
+    error("TypeError: map callback is not a function")
+  end
+  local len = _ljs_this.length or 0
+  local result = _ljs_new(Array)
+  for i = 1, len do
+    local v = rawget(_ljs_this, i)
+    if v ~= nil then
+      local mapped = _ljs_call_member(callbackFn, "call", thisArg, v, i - 1, _ljs_this)
+      rawset(result, i, mapped)
+    end
+  end
+  rawset(result, "length", len)
+  return result
+end)
+
+-- ---------------------------------------------------------------------------
 -- Array.prototype.join
 -- ---------------------------------------------------------------------------
 -- Converts each element to a string (using tostring; nil/undefined → ""),
