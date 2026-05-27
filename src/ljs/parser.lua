@@ -22,6 +22,25 @@ local M = {}
 
 local ast = require("ljs.ast")
 
+local function codepoint_to_utf8(n)
+  local f = math.floor
+  if n <= 0x7f then
+    return string.char(n)
+  elseif n <= 0x7ff then
+    return string.char(f(n / 64) + 192, n % 64 + 128)
+  elseif n <= 0xffff then
+    return string.char(f(n / 4096) + 224, f(n % 4096 / 64) + 128, n % 64 + 128)
+  elseif n <= 0x10ffff then
+    return string.char(
+      f(n / 262144) + 240,
+      f(n % 262144 / 4096) + 128,
+      f(n % 4096 / 64) + 128,
+      n % 64 + 128
+    )
+  end
+  return nil
+end
+
 -- ============================================================================
 -- TOKEN TYPES
 -- ============================================================================
@@ -484,6 +503,37 @@ local function tokenize(source)
               return nil, make_parse_error("Invalid hex escape sequence", line, col)
             end
             ch = string.char(tonumber(h1 .. h2, 16))
+          elseif ch == "u" then
+            advance()
+            local hex_str = ""
+            if current() == "{" then
+              advance()
+              while current() and current() ~= "}" do
+                local hc = current()
+                if not hc:match("%x") then
+                  return nil, make_parse_error("Invalid unicode escape sequence", line, col)
+                end
+                hex_str = hex_str .. hc
+                advance()
+              end
+              if not current() or #hex_str == 0 or #hex_str > 6 then
+                return nil, make_parse_error("Invalid unicode escape sequence", line, col)
+              end
+            else
+              for i = 1, 4 do
+                local hc = current()
+                if not hc or not hc:match("%x") then
+                  return nil, make_parse_error("Invalid unicode escape sequence", line, col)
+                end
+                hex_str = hex_str .. hc
+                if i < 4 then advance() end
+              end
+            end
+            local cp = tonumber(hex_str, 16)
+            if not cp or cp > 0x10FFFF then
+              return nil, make_parse_error("Invalid unicode codepoint", line, col)
+            end
+            ch = codepoint_to_utf8(cp)
           else
             return nil, make_parse_error("Invalid escape sequence", line, col)
           end

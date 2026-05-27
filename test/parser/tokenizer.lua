@@ -60,6 +60,14 @@ test("tokenize escape \\xFF", function()
   assert_tok('"\\xFF"', 1, "String", string.char(255))
 end)
 
+test("tokenize escape \\uXXXX", function()
+  assert_tok('"\\u0041"', 1, "String", "A")
+end)
+
+test("tokenize escape \\uXXXX multi-byte", function()
+  assert_tok('"\\u00E9"', 1, "String", "\xC3\xA9")
+end)
+
 test("tokenize true", function()
   assert_tok("true", 1, "Boolean", true)
 end)
