@@ -19,6 +19,22 @@ test("string bracket indexing last character", function()
   assert_js('"hello"[4]', "o")
 end)
 
+test("string bracket indexing with string numeric key", function()
+  assert_eq(exec_js('var s = "hello"; return s["0"];'), "h")
+end)
+
+test("string bracket indexing string numeric key mid-string", function()
+  assert_eq(exec_js('var s = "hello"; return s["2"];'), "l")
+end)
+
+test("string bracket indexing string numeric key OOB returns nil", function()
+  assert_eq(exec_js('var s = "hello"; return s["5"];'), nil)
+end)
+
+test("string bracket indexing string numeric key negative returns nil", function()
+  assert_eq(exec_js('var s = "hello"; return s["-1"];'), nil)
+end)
+
 test("string bracket indexing OOB returns nil", function()
   assert_eq(exec_js('return "hello"[5];'), nil)
 end)
