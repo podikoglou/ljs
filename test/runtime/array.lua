@@ -734,6 +734,13 @@ test("every short-circuits on first mismatch", function()
   assert_eq(count, 2)
 end)
 
+test("every with thisArg", function()
+  assert_eq(exec_js([[
+    var ctx = { max: 5 };
+    return [1, 2, 3].every(function(x) { return x < this.max; }, ctx);
+  ]]), true)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
