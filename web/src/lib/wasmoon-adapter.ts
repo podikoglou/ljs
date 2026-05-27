@@ -77,6 +77,28 @@ export class WasmoonAdapter implements LuaVM {
       });
     });
 
+    e.global.set("_ljs_capture_stdout", (data: string) => {
+      logs.push(data.replace(/\n$/, ""));
+    });
+
+    await e.doString(`
+      local capture = _ljs_capture_stdout
+      io.stdout = setmetatable({}, {
+        __index = {
+          write = function(self, ...)
+            local parts = {}
+            for i = 1, select('#', ...) do
+              parts[#parts + 1] = tostring((select(i, ...)))
+            end
+            capture(table.concat(parts))
+            return self
+          end,
+          close = function() end,
+          flush = function() end,
+        }
+      })
+    `);
+
     return logs;
   }
 }
