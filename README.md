@@ -100,11 +100,23 @@ end
 
 ## CLI tools
 
+After installing with `luarocks make` or `luarocks install ljs`, the CLI tools are available on your PATH:
+
 ```sh
 # dump AST as JSON
-lua src/ljs/parser_dump.lua file.js
+parser-dump file.js
+cat file.js | parser-dump
 
 # dump transpiled lua
+transpile-dump file.js
+cat file.js | transpile-dump
+```
+
+For development, you can also invoke them directly:
+
+```sh
+# without installation
+lua src/ljs/parser_dump.lua file.js
 lua src/ljs/transpile_dump.lua file.js
 ```
 
