@@ -77,6 +77,10 @@ Each subagent must receive these universal instructions:
   using them despite tests not passing. Create a GitHub issue if one doesn't
   already exist. Use git commit --no-verify to commit.
 - If you discover ANY issues or missing features in ljs, create a GitHub issue.
+- **If you identify ANY issues during your work** (bugs, missing features, design
+  problems, architectural concerns, or anything that needs attention), create a
+  GitHub issue immediately. This applies to all subagents — planning, implementation,
+  review, and fix subagents. Do not suppress issues; surface them all.
 ```
 
 ### Planning Subagent
