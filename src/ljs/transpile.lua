@@ -601,8 +601,188 @@ local function has_continue(node)
   return false
 end
 
--- ============================================================================
--- Section 4: Code generation (JS AST → Lua source via ljs_codegen)
+--- Check whether an AST subtree contains break, continue, or return
+-- that would cross a pcall function boundary.
+-- Stops at loop boundaries (for break/continue) and function boundaries.
+-- @param node (table|nil) AST node
+-- @param in_switch (boolean|nil) true when inside a SwitchStatement (break exits switch, not loop)
+-- @return (table|nil) { break, continue, return } flags, or nil if none
+local function detect_control_flow(node, in_switch)
+  if not node or type(node) ~= "table" then
+    return nil
+  end
+  local t = node.type
+  if t == ast.TYPE_BREAK_STATEMENT then
+    if in_switch then
+      return nil
+    end
+    return { break_ = true }
+  end
+  if t == ast.TYPE_CONTINUE_STATEMENT then
+    return { continue_ = true }
+  end
+  if t == ast.TYPE_RETURN_STATEMENT then
+    return { return_ = true }
+  end
+  if
+    t == ast.TYPE_WHILE_STATEMENT
+    or t == ast.TYPE_FOR_OF_STATEMENT
+    or t == ast.TYPE_FOR_IN_STATEMENT
+    or t == ast.TYPE_FOR_STATEMENT
+    or t == ast.TYPE_DO_WHILE_STATEMENT
+  then
+    return nil
+  end
+  if
+    t == ast.TYPE_FUNCTION_DECLARATION
+    or t == ast.TYPE_FUNCTION_EXPRESSION
+    or t == ast.TYPE_ARROW_FUNCTION_EXPRESSION
+  then
+    return nil
+  end
+  local child_in_switch = in_switch or t == ast.TYPE_SWITCH_STATEMENT
+  local result = nil
+  for _, v in pairs(node) do
+    if type(v) == "table" then
+      local inner = detect_control_flow(v, child_in_switch)
+      if inner then
+        if not result then
+          result = {}
+        end
+        if inner.break_ then result.break_ = true end
+        if inner.continue_ then result.continue_ = true end
+        if inner.return_ then result.return_ = true end
+      end
+    end
+  end
+  return result
+end
+
+local DUMMY_TOKEN = { line = 0, col = 0 }
+
+--- Deep-clone an AST subtree, replacing break/continue/return with throw-sentinel.
+-- Stops at loop boundaries (for break/continue) and function boundaries.
+-- @param node (table|nil) AST node
+-- @param in_switch (boolean|nil) true when inside a SwitchStatement (break exits switch, not loop)
+-- @return (table|nil) transformed node
+local function transform_control_flow(node, in_switch)
+  if not node or type(node) ~= "table" then
+    return node
+  end
+  local t = node.type
+  if t == ast.TYPE_BREAK_STATEMENT then
+    if in_switch then
+      return node
+    end
+    return ast.throw_statement(
+      ast.object_expression({
+        ast.property(
+          ast.identifier("_ljs_cf", DUMMY_TOKEN),
+          ast.string_literal("break", DUMMY_TOKEN),
+          false,
+          DUMMY_TOKEN
+        ),
+      }, DUMMY_TOKEN),
+      DUMMY_TOKEN
+    )
+  end
+  if t == ast.TYPE_CONTINUE_STATEMENT then
+    return ast.throw_statement(
+      ast.object_expression({
+        ast.property(
+          ast.identifier("_ljs_cf", DUMMY_TOKEN),
+          ast.string_literal("continue", DUMMY_TOKEN),
+          false,
+          DUMMY_TOKEN
+        ),
+      }, DUMMY_TOKEN),
+      DUMMY_TOKEN
+    )
+  end
+  if t == ast.TYPE_RETURN_STATEMENT then
+    local props = {
+      ast.property(
+        ast.identifier("_ljs_cf", DUMMY_TOKEN),
+        ast.string_literal("return", DUMMY_TOKEN),
+        false,
+        DUMMY_TOKEN
+      ),
+    }
+    if node.argument then
+      props[#props + 1] = ast.property(
+        ast.identifier("_ljs_v", DUMMY_TOKEN),
+        node.argument,
+        false,
+        DUMMY_TOKEN
+      )
+    end
+    return ast.throw_statement(ast.object_expression(props, DUMMY_TOKEN), DUMMY_TOKEN)
+  end
+  if
+    t == ast.TYPE_WHILE_STATEMENT
+    or t == ast.TYPE_FOR_OF_STATEMENT
+    or t == ast.TYPE_FOR_IN_STATEMENT
+    or t == ast.TYPE_FOR_STATEMENT
+    or t == ast.TYPE_DO_WHILE_STATEMENT
+  then
+    return node
+  end
+  if
+    t == ast.TYPE_FUNCTION_DECLARATION
+    or t == ast.TYPE_FUNCTION_EXPRESSION
+    or t == ast.TYPE_ARROW_FUNCTION_EXPRESSION
+  then
+    return node
+  end
+  if t == ast.TYPE_TRY_STATEMENT then
+    return node
+  end
+  local child_in_switch = in_switch or t == ast.TYPE_SWITCH_STATEMENT
+  local copy = {}
+  for k, v in pairs(node) do
+    if type(v) == "table" then
+      copy[k] = transform_control_flow(v, child_in_switch)
+    else
+      copy[k] = v
+    end
+  end
+  return copy
+end
+
+--- Generate post-pcall sentinel check code.
+-- Checks if pcall error is a control-flow sentinel and re-emits it.
+-- @param indent (number) indentation level
+-- @return (string) Lua code for sentinel handling
+local function sentinel_handler(indent, err_var, cf, rethrow)
+  err_var = err_var or "err"
+  local pad = cg.pad(indent)
+  local lines = {
+    pad .. 'if type(' .. err_var .. ') == "table" and ' .. err_var .. '._ljs_cf then',
+  }
+  if cf.break_ then
+    if rethrow then
+      lines[#lines + 1] = pad .. '  if ' .. err_var .. '._ljs_cf == "break" then error(' .. err_var .. ') end'
+    else
+      lines[#lines + 1] = pad .. '  if ' .. err_var .. '._ljs_cf == "break" then break end'
+    end
+  end
+  if cf.continue_ then
+    if rethrow then
+      lines[#lines + 1] = pad .. '  if ' .. err_var .. '._ljs_cf == "continue" then error(' .. err_var .. ') end'
+    else
+      lines[#lines + 1] = pad .. '  if ' .. err_var .. '._ljs_cf == "continue" then goto _continue end'
+    end
+  end
+  if cf.return_ then
+    if rethrow then
+      lines[#lines + 1] = pad .. '  if ' .. err_var .. '._ljs_cf == "return" then error(' .. err_var .. ') end'
+    else
+      lines[#lines + 1] = pad .. "  if " .. err_var .. '._ljs_cf == "return" then return ' .. err_var .. "._ljs_v end"
+    end
+  end
+  lines[#lines + 1] = pad .. "end\n"
+  return table.concat(lines, "\n") .. "\n"
+end
 -- ============================================================================
 
 -- ============================================================================
@@ -1399,13 +1579,22 @@ end
 --   3) try+catch (no finally): pcall into (ok, err) + catch if not ok
 -- The pcall wraps the try body in an anonymous function to delimit its scope.
 gen.TryStatement = function(node, indent, ctx)
-  local try_body = emit(node.block, indent + 1, ctx)
+  local rethrow = not not ctx._in_try_pcall
+  local cf = detect_control_flow(node.block)
+  local block = cf and transform_control_flow(node.block) or node.block
+
+  local prev = ctx._in_try_pcall
+  ctx._in_try_pcall = true
+  local try_body = emit(block, indent + 1, ctx)
+  ctx._in_try_pcall = prev
 
   local param = node.handler and node.handler.param.name or nil
   local catch_body = nil
-  if param then
+  if node.handler then
     scope_push(ctx)
-    scope_declare(ctx, param)
+    if param then
+      scope_declare(ctx, param)
+    end
     catch_body = emit(node.handler.body, indent + 1, ctx)
     scope_pop(ctx)
   end
@@ -1418,18 +1607,44 @@ gen.TryStatement = function(node, indent, ctx)
   local pcall_fn = cg.fn_expr("", try_body, indent + 1)
   local pcall_expr = cg.call("pcall", { pcall_fn })
 
+  if cf and not node.handler and not node.finalizer then
+    error("try with control flow requires surrounding loop or function")
+  end
+
   if node.finalizer and not node.handler then
     local names = "_ljs_ok, _ljs_err"
     local pcall_line = cg.local_decl(names, pcall_expr, indent)
     local finally_block = finalizer_body
-    local rethrow = cg.if_stmt(
+    local rethrow_inner = ""
+    if cf then
+      rethrow_inner = sentinel_handler(indent + 1, "_ljs_err", cf, rethrow)
+    end
+    local rethrow_block = cg.if_stmt(
       "not _ljs_ok",
-      cg.expr_stmt(cg.call("error", { "_ljs_err" }), indent + 2),
+      rethrow_inner ~= "" and rethrow_inner or cg.expr_stmt(cg.call("error", { "_ljs_err", "0" }), indent + 2),
       nil,
       nil,
       indent
     )
-    return pcall_line .. finally_block .. rethrow
+    return pcall_line .. finally_block .. rethrow_block
+  end
+
+  if cf then
+    local err_var = "_ljs_err"
+    local pcall_line = cg.local_decl(cg.join({ "ok", err_var }), pcall_expr, indent)
+    local cf_check = sentinel_handler(indent + 1, err_var, cf, rethrow)
+    local catch_inner = ""
+    if node.handler then
+      if param then
+        catch_inner = cg.local_decl(param, err_var, indent + 2)
+      end
+      catch_inner = catch_inner .. catch_body
+    end
+    local catch_block = cg.if_stmt("not ok", cf_check .. catch_inner, nil, nil, indent)
+    if node.finalizer then
+      return pcall_line .. catch_block .. finalizer_body
+    end
+    return pcall_line .. catch_block
   end
 
   if node.finalizer and node.handler then
