@@ -70,7 +70,7 @@ Array.prototype.slice = _ljs_fn(function(_ljs_this, start_val, end_val)
     if v == nil then return 0 end
     local n = tonumber(v)
     if n == nil or n ~= n then return 0 end
-    return math.floor(n)
+    return n >= 0 and math.floor(n) or math.ceil(n)
   end
 
   local relative_start = to_int(start_val)
