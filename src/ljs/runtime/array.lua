@@ -108,6 +108,40 @@ Array.prototype.slice = _ljs_fn(function(_ljs_this, start_val, end_val)
 end)
 
 -- ---------------------------------------------------------------------------
+-- Array.prototype.concat
+-- ---------------------------------------------------------------------------
+Array.prototype.concat = _ljs_fn(function(_ljs_this, ...)
+  local result = _ljs_new(Array)
+  local next_idx = 1
+
+  local function append_item(item)
+    if _ljs_instanceof(item, Array) then
+      local item_len = item.length or 0
+      for i = 1, item_len do
+        local v = rawget(item, i)
+        if v ~= nil then
+          rawset(result, next_idx, v)
+        end
+        next_idx = next_idx + 1
+      end
+    else
+      rawset(result, next_idx, item)
+      next_idx = next_idx + 1
+    end
+  end
+
+  append_item(_ljs_this)
+
+  local n = select("#", ...)
+  for i = 1, n do
+    append_item(select(i, ...))
+  end
+
+  rawset(result, "length", next_idx - 1)
+  return result
+end)
+
+-- ---------------------------------------------------------------------------
 -- Array.prototype.join
 -- ---------------------------------------------------------------------------
 -- Converts each element to a string (using tostring; nil/undefined → ""),
