@@ -472,6 +472,18 @@ local function tokenize(source)
             ch = "'"
           elseif ch == "0" then
             ch = string.char(0)
+          elseif ch == "x" then
+            advance()
+            local h1 = current()
+            if not h1 or not h1:match("%x") then
+              return nil, make_parse_error("Invalid hex escape sequence", line, col)
+            end
+            advance()
+            local h2 = current()
+            if not h2 or not h2:match("%x") then
+              return nil, make_parse_error("Invalid hex escape sequence", line, col)
+            end
+            ch = string.char(tonumber(h1 .. h2, 16))
           else
             return nil, make_parse_error("Invalid escape sequence", line, col)
           end

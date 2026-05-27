@@ -52,6 +52,14 @@ test("tokenize escape \\0", function()
   assert_tok('"a\\0b"', 1, "String", "a" .. string.char(0) .. "b")
 end)
 
+test("tokenize escape \\xHH", function()
+  assert_tok('"\\x41"', 1, "String", "A")
+end)
+
+test("tokenize escape \\xFF", function()
+  assert_tok('"\\xFF"', 1, "String", string.char(255))
+end)
+
 test("tokenize true", function()
   assert_tok("true", 1, "Boolean", true)
 end)
