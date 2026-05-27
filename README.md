@@ -89,7 +89,7 @@ All functions return `result, err`. Check `err ~= nil` for failures.
 ```lua
 local ast, err = ljs.parse("let = bad;")
 if err then
-  print(ljs.format_error(err, source))
+  print(ljs.format_error(err, "let = bad;"))
 end
 -- Expected Identifier, got =
 --     |
@@ -99,7 +99,7 @@ end
 
 ## CLI tools
 
-After installing with `luarocks make` or `luarocks install ljs`, the CLI tools are available on your PATH:
+After installing with `make install`, the CLI tools are available on your PATH:
 
 ```sh
 # dump AST as JSON
