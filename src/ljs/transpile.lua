@@ -256,8 +256,56 @@ HELPERS._ljs_typeof = [[local function _ljs_typeof(x)
   else return type(x) end
 end]]
 
+-- Check if a value can be called as a function (has [[Call]] internal method).
+-- Returns true if value is a function or table with _ljs_raw.
+HELPERS._ljs_is_function = [[local function _ljs_is_function(x)
+  if type(x) == "function" then return true end
+  if type(x) == "table" then
+    local raw = rawget(x, "_ljs_raw")
+    if raw then return true end
+  end
+  return false
+end]]
+
+-- Check if a value can be used as a constructor (has [[Construct]] internal method).
+-- In our implementation, constructors are wrapped by _ljs_ctor and have .prototype.
+HELPERS._ljs_is_constructor = [[local function _ljs_is_constructor(x)
+  if type(x) == "table" then
+    local raw = rawget(x, "_ljs_raw")
+    if raw and x.prototype then return true end
+  end
+  return false
+end]]
+
+-- Get a string representation of a value for error messages (similar to Node.js).
+-- Returns a representation suitable for use in "X is not a function" style errors.
+HELPERS._ljs_value_repr = [[local function _ljs_value_repr(x)
+  if x == nil then return "undefined"
+  elseif x == _ljs_null then return "null"
+  elseif type(x) == "number" then
+    if x ~= x then return "NaN" end
+    if x == math.huge then return "Infinity" end
+    if x == -math.huge then return "-Infinity" end
+    return tostring(x)
+  elseif type(x) == "string" then
+    return string.format("%q", x)
+  elseif type(x) == "boolean" then
+    return tostring(x)
+  elseif type(x) == "table" then
+    local raw = rawget(x, "_ljs_raw")
+    if raw then return "[Function]" end
+    return "{(intermediate value)}"
+  else
+    return tostring(x)
+  end
+end]]
+
 -- Direct call: f(a,b) → _ljs_call(f,a,b). Passes nil as _ljs_this (no receiver).
+-- Throws TypeError if fn is not callable.
 HELPERS._ljs_call = [[local function _ljs_call(fn, ...)
+  if not _ljs_is_function(fn) then
+    error("TypeError: " .. _ljs_value_repr(fn) .. " is not a function")
+  end
   if type(fn) == "table" then
     local raw = rawget(fn, "_ljs_raw")
     if raw then return raw(nil, ...) end
@@ -283,6 +331,7 @@ end]]
 -- Method call: obj.m(a,b) → _ljs_call_member(obj,"m",a,b). Passes obj as _ljs_this.
 -- Throws TypeError on null/undefined per RequireObjectCoercible (§7.2.1).
 -- Boxes primitives via _ljs_to_object before property lookup.
+-- Throws TypeError if method is not callable.
 HELPERS._ljs_call_member = [[local function _ljs_call_member(obj, key, ...)
   if obj == nil or obj == _ljs_null then
     local desc = obj == nil and "undefined" or "null"
@@ -290,6 +339,9 @@ HELPERS._ljs_call_member = [[local function _ljs_call_member(obj, key, ...)
   end
   local boxed = _ljs_to_object(obj)
   local method = boxed[key]
+  if not _ljs_is_function(method) then
+    error("TypeError: " .. _ljs_value_repr(method) .. " is not a function")
+  end
   if type(method) == "table" then
     local raw = rawget(method, "_ljs_raw")
     if raw then return raw(boxed, ...) end
@@ -331,7 +383,11 @@ end]]
 -- new Foo(args) → creates instance with Foo.prototype chain, calls ctor.
 -- If ctor returns a table, that table is returned instead of the instance
 -- (matching JS constructor return semantics).
+-- Throws TypeError if ctor is not a constructor.
 HELPERS._ljs_new = [[local function _ljs_new(ctor, ...)
+  if not _ljs_is_constructor(ctor) then
+    error("TypeError: " .. _ljs_value_repr(ctor) .. " is not a constructor")
+  end
   local proto = ctor.prototype
   local instance = setmetatable({}, {__index = proto})
   local raw = rawget(ctor, "_ljs_raw")
@@ -348,6 +404,9 @@ HELPERS._ljs_new = [[local function _ljs_new(ctor, ...)
 end]]
 
 HELPERS._ljs_call_this = [[local function _ljs_call_this(fn, this_val, ...)
+  if not _ljs_is_function(fn) then
+    error("TypeError: " .. _ljs_value_repr(fn) .. " is not a function")
+  end
   if type(fn) == "table" then
     local raw = rawget(fn, "_ljs_raw")
     if raw then return raw(this_val, ...) end
@@ -2169,6 +2228,9 @@ local HELPER_ORDER = {
   "_ljs_usr",
   "_ljs_mod",
   "_ljs_typeof",
+  "_ljs_is_function",
+  "_ljs_is_constructor",
+  "_ljs_value_repr",
   "_ljs_call",
   "_ljs_call_member",
   "_ljs_object",
