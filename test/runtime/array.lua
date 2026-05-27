@@ -839,6 +839,46 @@ test("lastIndexOf finds element", function()
   assert_eq(exec_js("return [1, 2, 3].lastIndexOf(2);"), 1)
 end)
 
+test("lastIndexOf returns -1 when not found", function()
+  assert_eq(exec_js("return [1, 2, 3].lastIndexOf(99);"), -1)
+end)
+
+test("lastIndexOf finds last occurrence", function()
+  assert_eq(exec_js("return [1, 2, 2, 3].lastIndexOf(2);"), 2)
+end)
+
+test("lastIndexOf with fromIndex", function()
+  assert_eq(exec_js("return [1, 2, 3, 2].lastIndexOf(2, 2);"), 1)
+end)
+
+test("lastIndexOf negative fromIndex", function()
+  assert_eq(exec_js("return [1, 2, 3, 4].lastIndexOf(4, -1);"), 3)
+end)
+
+test("lastIndexOf NaN not found", function()
+  assert_eq(exec_js("return [1, NaN, 3].lastIndexOf(NaN);"), -1)
+end)
+
+test("lastIndexOf skips holes", function()
+  assert_eq(exec_js("return [1,,3].lastIndexOf(3);"), 2)
+end)
+
+test("lastIndexOf empty array returns -1", function()
+  assert_eq(exec_js("return [].lastIndexOf(1);"), -1)
+end)
+
+test("lastIndexOf -Infinity fromIndex returns -1", function()
+  assert_eq(exec_js("return [1, 2, 3].lastIndexOf(1, -Infinity);"), -1)
+end)
+
+test("lastIndexOf Infinity fromIndex searches from end", function()
+  assert_eq(exec_js("return [1, 2, 3].lastIndexOf(3, Infinity);"), 2)
+end)
+
+test("lastIndexOf NaN fromIndex searches from end", function()
+  assert_eq(exec_js("return [1, 2, 3].lastIndexOf(1, NaN);"), 0)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
