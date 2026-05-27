@@ -131,3 +131,27 @@ test("break inside try with catch", function()
   ]])
   assert(output:find("012"), "expected 012")
 end)
+
+test("continue inside try body", function()
+  local output = run_js([[
+    let result = "";
+    for (let i = 0; i < 5; i++) {
+      try { if (i === 3) continue; } catch(e) {}
+      result = result + i;
+    }
+    console.log(result);
+  ]])
+  assert(output:find("0124"), "expected 0124")
+end)
+
+test("continue inside try with catch", function()
+  local output = run_js([[
+    let result = "";
+    for (let i = 0; i < 5; i++) {
+      try { if (i === 3) continue; } catch(e) { result = result + "C"; }
+      result = result + i;
+    }
+    console.log(result);
+  ]])
+  assert(output:find("0124"), "expected 0124")
+end)
