@@ -1700,6 +1700,29 @@ test("unshift on sparse array", function()
 end)
 
 -- ============================================================================
+-- Array.prototype.splice
+-- ============================================================================
+
+test("splice delete only", function()
+  local arr = exec_js([=[
+    var a = [1, 2, 3, 4, 5];
+    a.splice(1, 2);
+    return a;
+  ]=])
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 4)
+  assert_eq(arr[3], 5)
+end)
+
+test("splice returns deleted elements", function()
+  local arr = exec_js("return [1, 2, 3, 4, 5].splice(1, 2);")
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 2)
+  assert_eq(arr[2], 3)
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 

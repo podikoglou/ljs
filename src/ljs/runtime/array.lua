@@ -627,6 +627,71 @@ Array.prototype.unshift = _ljs_fn(function(_ljs_this, ...)
 end)
 
 -- ---------------------------------------------------------------------------
+-- Array.prototype.splice
+-- ---------------------------------------------------------------------------
+Array.prototype.splice = _ljs_fn(function(_ljs_this, start, deleteCount, ...)
+  local len = _ljs_this.length or 0
+  local relative_start = _to_integer_or_inf(start)
+  local actual_start
+  if relative_start == -math.huge then
+    actual_start = 0
+  elseif relative_start < 0 then
+    actual_start = math.max(len + relative_start, 0)
+  else
+    actual_start = math.min(relative_start, len)
+  end
+  local item_count = select("#", ...)
+  local actual_delete_count
+  if start == nil then
+    actual_delete_count = 0
+  elseif deleteCount == nil then
+    actual_delete_count = len - actual_start
+  else
+    local dc = _to_integer_or_inf(deleteCount)
+    actual_delete_count = math.max(0, math.min(dc, len - actual_start))
+  end
+  local deleted = _ljs_new(Array)
+  for k = 0, actual_delete_count - 1 do
+    local v = rawget(_ljs_this, actual_start + k + 1)
+    if v ~= nil then
+      rawset(deleted, k + 1, v)
+    end
+  end
+  rawset(deleted, "length", actual_delete_count)
+  if item_count < actual_delete_count then
+    local k = actual_start
+    while k < (len - actual_delete_count) do
+      local from_val = rawget(_ljs_this, k + actual_delete_count + 1)
+      if from_val ~= nil then
+        rawset(_ljs_this, k + item_count + 1, from_val)
+      else
+        rawset(_ljs_this, k + item_count + 1, nil)
+      end
+      k = k + 1
+    end
+    for k2 = len, len - actual_delete_count + item_count + 1, -1 do
+      rawset(_ljs_this, k2, nil)
+    end
+  elseif item_count > actual_delete_count then
+    local k = len - actual_delete_count
+    while k > actual_start do
+      local from_val = rawget(_ljs_this, k + actual_delete_count - 1 + 1)
+      if from_val ~= nil then
+        rawset(_ljs_this, k + item_count - 1 + 1, from_val)
+      else
+        rawset(_ljs_this, k + item_count - 1 + 1, nil)
+      end
+      k = k - 1
+    end
+  end
+  for j = 1, item_count do
+    rawset(_ljs_this, actual_start + j, select(j, ...))
+  end
+  rawset(_ljs_this, "length", len - actual_delete_count + item_count)
+  return deleted
+end)
+
+-- ---------------------------------------------------------------------------
 -- Array.prototype.join
 -- ---------------------------------------------------------------------------
 -- Converts each element to a string (using tostring; nil/undefined → ""),
