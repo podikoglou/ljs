@@ -939,6 +939,53 @@ test("find returns first matching element", function()
   assert_eq(exec_js("return [1, 2, 3].find(function(x) { return x > 1; });"), 2)
 end)
 
+test("find returns nil when nothing matches", function()
+  assert_eq(exec_js("return [1, 2, 3].find(function(x) { return x > 10; });"), nil)
+end)
+
+test("find with index argument", function()
+  assert_eq(exec_js("return [10, 20, 30].find(function(x, i) { return i === 1; });"), 20)
+end)
+
+test("find with array argument", function()
+  assert_eq(exec_js("return [1, 2, 3].find(function(x, i, a) { return x === a[2]; });"), 3)
+end)
+
+test("find with thisArg", function()
+  assert_eq(exec_js([[
+    var ctx = { threshold: 2 };
+    return [1, 2, 3].find(function(x) { return x > this.threshold; }, ctx);
+  ]]), 3)
+end)
+
+test("find throws TypeError on non-function", function()
+  local ok, err = pcall(exec_js, "return [].find(42);")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("find throws TypeError on missing callback", function()
+  local ok, err = pcall(exec_js, "return [].find();")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("find with arrow function callback", function()
+  assert_eq(exec_js("return [1, 2, 3].find(x => x > 1);"), 2)
+end)
+
+test("find does not skip holes", function()
+  assert_eq(exec_js([=[
+    var found = false;
+    [1,,3].find(function(x) { if (x === undefined) found = true; return false; });
+    return found;
+  ]=]), true)
+end)
+
+test("find on empty array returns nil", function()
+  assert_eq(exec_js("return [].find(function() { return true; });"), nil)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
