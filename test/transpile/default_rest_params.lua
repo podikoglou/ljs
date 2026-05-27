@@ -43,7 +43,7 @@ end)
 
 test("function with rest parameter transpiles to array pack", function()
   local code = transpile_ok("function f(...args) { return args; }")
-  assert(code:find("_ljs_new(Array, ...)", 1, true), "expected _ljs_new(Array, ...)")
+  assert(code:find("local args = _ljs_new(Array, ...)", 1, true), "expected local args = _ljs_new(Array, ...)")
 end)
 
 test("function with rest parameter collects arguments", function()

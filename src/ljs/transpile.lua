@@ -709,7 +709,7 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
   local preamble = ""
   for _, p in ipairs(fn_node.params) do
     if p.type == ast.TYPE_REST_ELEMENT then
-      preamble = preamble .. cg.local_decl(p.argument.name, cg.array({ "..." }), indent + 1)
+      preamble = preamble .. cg.local_decl(p.argument.name, cg.call("_ljs_new", { "Array", "..." }), indent + 1)
     elseif p.type == ast.TYPE_ASSIGNMENT_PATTERN then
       local pname = p.left.name
       local default_code = emit(p.right, indent + 1, ctx)
