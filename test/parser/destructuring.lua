@@ -141,3 +141,10 @@ test("bare array destructuring assignment: [a, b] = [1, 2] (#181)", function()
     A.expr_stmt(A.bin("=", arr_pattern({ A.id("a"), A.id("b") }), A.arr({ A.num(1), A.num(2) }))),
   })
 end)
+
+test("bare array destructuring with holes: [a, , b] = [1, 2, 3] (#181)", function()
+  assert_parse_ok("let a, b; [a, , b] = [1, 2, 3];", {
+    A.var_decl("let", { A.declarator(A.id("a")), A.declarator(A.id("b")) }),
+    A.expr_stmt(A.bin("=", arr_pattern({ A.id("a"), nil, A.id("b") }), A.arr({ A.num(1), A.num(2), A.num(3) }))),
+  })
+end)

@@ -1428,7 +1428,9 @@ local convert_expression_to_pattern
 convert_expression_to_pattern = function(node)
   if node.type == ast.TYPE_ARRAY_EXPRESSION then
     local elements = {}
-    for i, elem in ipairs(node.elements) do
+    local count = node.count or #node.elements
+    for i = 1, count do
+      local elem = node.elements[i]
       if elem == nil then
         elements[i] = nil
       elseif elem.type == ast.TYPE_SPREAD_ELEMENT then
@@ -2416,9 +2418,32 @@ end
 -- Empty arrays [] are valid.
 function parse_array_literal(stream)
   local lbracket = stream.consume(TOKEN.LBRACKET)
-  local elements = parse_comma_list(stream, TOKEN.RBRACKET, parse_maybe_spread, true)
+  local elements = {}
+  local idx = 1
+
+  while not stream.is(TOKEN.RBRACKET) and not stream.eof() do
+    if stream.is(TOKEN.COMMA) then
+      elements[idx] = nil
+      idx = idx + 1
+      stream.advance()
+    elseif stream.is(TOKEN.ELLIPSIS) then
+      local ellipsis = stream.advance()
+      local expr = parse_expression(stream)
+      elements[idx] = ast.spread_element(expr, ellipsis)
+      idx = idx + 1
+      if stream.is(TOKEN.COMMA) then stream.advance() end
+    else
+      local expr = parse_expression(stream)
+      elements[idx] = expr
+      idx = idx + 1
+      if stream.is(TOKEN.COMMA) then stream.advance() end
+    end
+  end
+
   stream.consume(TOKEN.RBRACKET)
-  return ast.array_expression(elements, lbracket)
+  local node = ast.array_expression(elements, lbracket)
+  node.count = idx - 1
+  return node
 end
 
 --- Parse object literal: { key: value, key: value, ... }
