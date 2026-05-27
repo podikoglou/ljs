@@ -100,3 +100,35 @@ end)
 test("String.fromCharCode negative fraction truncates toward zero", function()
   assert_js('String.fromCharCode(-0.5)', "\0")
 end)
+
+test("String.fromCharCode(128) produces UTF-8 two-byte encoding", function()
+  assert_js('String.fromCharCode(128)', "\xc2\x80")
+end)
+
+test("String.fromCharCode(256) produces correct UTF-8", function()
+  assert_js('String.fromCharCode(256)', "\xc4\x80")
+end)
+
+test("String.fromCharCode(0x4E16) produces three-byte UTF-8", function()
+  assert_js('String.fromCharCode(0x4E16)', "\xe4\xb8\x96")
+end)
+
+test("String.fromCharCode(65535) produces correct UTF-8", function()
+  assert_js('String.fromCharCode(65535)', "\xef\xbf\xbf")
+end)
+
+test("String.fromCharCode(-1) wraps via modulo 65536", function()
+  assert_js('String.fromCharCode(-1)', "\xef\xbf\xbf")
+end)
+
+test("String.fromCharCode(65536) wraps to 0", function()
+  assert_js('String.fromCharCode(65536)', "\0")
+end)
+
+test("String.fromCharCode(Infinity) returns null char", function()
+  assert_js('String.fromCharCode(Infinity)', "\0")
+end)
+
+test("String.fromCharCode(-Infinity) returns null char", function()
+  assert_js('String.fromCharCode(-Infinity)', "\0")
+end)
