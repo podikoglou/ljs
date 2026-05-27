@@ -640,6 +640,14 @@ test("at on sparse array hole returns undefined", function()
 end)
 
 -- ============================================================================
+-- Array.prototype.some
+-- ============================================================================
+
+test("some returns true when any element matches", function()
+  assert_eq(exec_js("return [1, 2, 3].some(function(x) { return x > 2; });"), true)
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 
