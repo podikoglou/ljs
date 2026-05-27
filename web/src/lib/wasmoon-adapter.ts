@@ -5,6 +5,7 @@ import ljsAstSource from "@ljs/src/ljs/ast.lua?raw";
 import ljsParserSource from "@ljs/src/ljs/parser.lua?raw";
 import ljsTranspileSource from "@ljs/src/ljs/transpile.lua?raw";
 import ljsCodegenSource from "@ljs/src/ljs/codegen.lua?raw";
+import ljsUtf8Source from "@ljs/src/ljs/utf8.lua?raw";
 import runtimeArraySource from "@ljs/src/ljs/runtime/array.lua?raw";
 import runtimeBooleanSource from "@ljs/src/ljs/runtime/boolean.lua?raw";
 import runtimeConsoleSource from "@ljs/src/ljs/runtime/console.lua?raw";
@@ -36,6 +37,7 @@ export class WasmoonAdapter implements LuaVM {
     await this.factory.mountFile("ljs/parser.lua", ljsParserSource);
     await this.factory.mountFile("ljs/transpile.lua", ljsTranspileSource);
     await this.factory.mountFile("ljs/codegen.lua", ljsCodegenSource);
+    await this.factory.mountFile("ljs/utf8.lua", ljsUtf8Source);
     await this.factory.mountFile("ljs/runtime/array.lua", runtimeArraySource);
     await this.factory.mountFile("ljs/runtime/boolean.lua", runtimeBooleanSource);
     await this.factory.mountFile("ljs/runtime/console.lua", runtimeConsoleSource);
