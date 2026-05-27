@@ -92,6 +92,14 @@ test("tokenizer: invalid unicode escape \\u{} empty braces", function()
   check_tokenize_err('"\\u{}"', "Invalid unicode escape", 1, 5, "unicode empty braces")
 end)
 
+test("tokenizer: invalid hex escape in template literal", function()
+  check_tokenize_err("`\\x`", "Invalid hex escape", 1, 4, "template hex escape no digits")
+end)
+
+test("tokenizer: invalid unicode escape in template literal", function()
+  check_tokenize_err("`\\u`", "Invalid unicode escape", 1, 4, "template unicode escape no digits")
+end)
+
 test("tokenizer: unexpected char on third line has correct position", function()
   check_tokenize_err(
     "let a = 1;\nlet b = 2;\nlet c = @;",
