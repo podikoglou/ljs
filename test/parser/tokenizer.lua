@@ -48,6 +48,126 @@ test("tokenize escape \\'", function()
   assert_tok("'a\\'b'", 1, "String", "a'b")
 end)
 
+test("tokenize escape \\0", function()
+  assert_tok('"a\\0b"', 1, "String", "a" .. string.char(0) .. "b")
+end)
+
+test("tokenize legacy octal escape \\1", function()
+  assert_tok('"\\1"', 1, "String", string.char(1))
+end)
+
+test("tokenize legacy octal escape \\7", function()
+  assert_tok('"\\7"', 1, "String", string.char(7))
+end)
+
+test("tokenize legacy octal escape \\5 in context", function()
+  assert_tok('"a\\5b"', 1, "String", "a" .. string.char(5) .. "b")
+end)
+
+test("tokenize legacy octal escape in single quotes", function()
+  assert_tok("'\\1\\7'", 1, "String", string.char(1) .. string.char(7))
+end)
+
+test("tokenize legacy octal escape \\12 (two-digit)", function()
+  assert_tok('"\\12"', 1, "String", string.char(10))
+end)
+
+test("tokenize legacy octal escape \\77 (two-digit max for 4-7)", function()
+  assert_tok('"\\77"', 1, "String", string.char(63))
+end)
+
+test("tokenize legacy octal escape \\01 (two-digit starting 0)", function()
+  assert_tok('"\\01"', 1, "String", string.char(1))
+end)
+
+test("tokenize legacy octal escape \\07 (two-digit starting 0)", function()
+  assert_tok('"\\07"', 1, "String", string.char(7))
+end)
+
+test("tokenize legacy octal escape \\123 (three-digit)", function()
+  assert_tok('"\\123"', 1, "String", string.char(83))
+end)
+
+test("tokenize legacy octal escape \\377 (max octal value 255)", function()
+  assert_tok('"\\377"', 1, "String", string.char(255))
+end)
+
+test("tokenize legacy octal escape \\100 (three-digit starting 1)", function()
+  assert_tok('"\\100"', 1, "String", string.char(64))
+end)
+
+test("tokenize legacy octal escape \\200 (three-digit starting 2)", function()
+  assert_tok('"\\200"', 1, "String", string.char(128))
+end)
+
+test("tokenize legacy octal: \\0 alone is null", function()
+  assert_tok('"\\0"', 1, "String", string.char(0))
+end)
+
+test("tokenize legacy octal: \\0x is null + literal x", function()
+  assert_tok('"\\0x"', 1, "String", string.char(0) .. "x")
+end)
+
+test("tokenize legacy octal: \\08 is null + literal 8", function()
+  assert_tok('"\\08"', 1, "String", string.char(0) .. "8")
+end)
+
+test("tokenize legacy octal: \\09 is null + literal 9", function()
+  assert_tok('"\\09"', 1, "String", string.char(0) .. "9")
+end)
+
+test("tokenize NonOctalDecimalEscapeSequence \\8", function()
+  assert_tok('"\\8"', 1, "String", "8")
+end)
+
+test("tokenize NonOctalDecimalEscapeSequence \\9", function()
+  assert_tok('"\\9"', 1, "String", "9")
+end)
+
+test("tokenize legacy octal: \\078 is \\07 octal + literal 8", function()
+  assert_tok('"\\078"', 1, "String", string.char(7) .. "8")
+end)
+
+test("tokenize legacy octal: \\400 is \\40 octal + literal 0", function()
+  assert_tok('"\\400"', 1, "String", string.char(32) .. "0")
+end)
+
+test("tokenize legacy octal: \\077 is octal 63", function()
+  assert_tok('"\\077"', 1, "String", string.char(63))
+end)
+
+test("tokenize legacy octal: \\00 is octal 0", function()
+  assert_tok('"\\00"', 1, "String", string.char(0))
+end)
+
+test("tokenize legacy octal: \\000 is octal 0", function()
+  assert_tok('"\\000"', 1, "String", string.char(0))
+end)
+
+test("tokenize escape \\xHH", function()
+  assert_tok('"\\x41"', 1, "String", "A")
+end)
+
+test("tokenize escape \\xFF", function()
+  assert_tok('"\\xFF"', 1, "String", string.char(255))
+end)
+
+test("tokenize escape \\uXXXX", function()
+  assert_tok('"\\u0041"', 1, "String", "A")
+end)
+
+test("tokenize escape \\uXXXX multi-byte", function()
+  assert_tok('"\\u00E9"', 1, "String", "\xC3\xA9")
+end)
+
+test("tokenize escape \\u{X...}", function()
+  assert_tok('"\\u{41}"', 1, "String", "A")
+end)
+
+test("tokenize escape \\u{X...} emoji", function()
+  assert_tok('"\\u{1F600}"', 1, "String", "\xF0\x9F\x98\x80")
+end)
+
 test("tokenize true", function()
   assert_tok("true", 1, "Boolean", true)
 end)

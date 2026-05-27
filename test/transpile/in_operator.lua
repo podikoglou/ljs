@@ -8,23 +8,23 @@ local expr_code, run_js = H.expr_code, H.run_js
 -- ============================================================================
 
 test('"x" in obj transpiles to (obj["x"] ~= nil)', function()
-  assert_eq(expr_code('"x" in obj'), '(obj["x"] ~= nil)')
+  assert_eq(expr_code('"x" in obj'), 'local _ = (obj["x"] ~= nil)')
 end)
 
 test("0 in arr transpiles to (arr[(0) + 1] ~= nil)", function()
-  assert_eq(expr_code("0 in arr"), "(arr[(0) + 1] ~= nil)")
+  assert_eq(expr_code("0 in arr"), "local _ = (arr[(0) + 1] ~= nil)")
 end)
 
 test("n in arr transpiles to (arr[(n) + 1] ~= nil)", function()
-  assert_eq(expr_code("n in arr"), "(arr[(n) + 1] ~= nil)")
+  assert_eq(expr_code("n in arr"), "local _ = (arr[(n) + 1] ~= nil)")
 end)
 
 test('"x" in obj.prop transpiles to (_ljs_to_object(obj).prop["x"] ~= nil)', function()
-  assert_eq(expr_code('"x" in obj.prop'), '(_ljs_to_object(obj).prop["x"] ~= nil)')
+  assert_eq(expr_code('"x" in obj.prop'), 'local _ = (_ljs_to_object(obj).prop["x"] ~= nil)')
 end)
 
 test("key in obj transpiles to (obj[(key) + 1] ~= nil)", function()
-  assert_eq(expr_code("key in obj"), "(obj[(key) + 1] ~= nil)")
+  assert_eq(expr_code("key in obj"), "local _ = (obj[(key) + 1] ~= nil)")
 end)
 
 -- ============================================================================

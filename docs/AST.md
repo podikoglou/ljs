@@ -55,6 +55,40 @@ let x = 1; x;
 **Source:** `"hello"`, `'world'`  
 Escape sequences (`\n`, `\t`, `\\`, etc.) are resolved during tokenization.
 
+### TemplateLiteral
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"TemplateLiteral"` | |
+| `quasis` | `TemplateElement[]` | String segments (always one more than expressions) |
+| `expressions` | `node[]` | Interpolated expressions |
+
+**Source:** `` `hello` ``, `` `hello ${name}` ``, `` `${a} and ${b}` ``
+
+Multi-line content is supported. Escape sequences follow the same rules as `StringLiteral`, plus `` \` `` for literal backticks and `\$` for literal dollar signs.
+
+### TemplateElement
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"TemplateElement"` | |
+| `value` | `string` | Unescaped text of this segment |
+| `tail` | `boolean` | `true` if this is the final (closing) quasi |
+
+**Example:** `` `hello ${world}!` `` produces:
+```lua
+{
+  type = "TemplateLiteral",
+  quasis = {
+    { type = "TemplateElement", value = "hello ", tail = false },
+    { type = "TemplateElement", value = "!", tail = true },
+  },
+  expressions = {
+    { type = "Identifier", name = "world" }
+  }
+}
+```
+
 ### BooleanLiteral
 
 | Field | Type | Description |
@@ -124,10 +158,10 @@ Represents the `this` keyword. Binds to the calling context at runtime: the rece
 | Field | Type | Description |
 |-------|------|-------------|
 | `type` | `"VariableDeclarator"` | |
-| `name` | `Identifier` | The variable name |
+| `name` | `Identifier \| ObjectPattern \| ArrayPattern` | The variable name or destructuring pattern |
 | `init` | `node?` | Initializer expression, or `nil` |
 
-**Source:** `let x;` (init is nil), `let x = 42;`
+**Source:** `let x;` (init is nil), `let x = 42;`, `let [a, b] = arr;`, `let {x, y} = obj;`
 
 ---
 
@@ -139,7 +173,7 @@ Represents the `this` keyword. Binds to the calling context at runtime: the rece
 |-------|------|-------------|
 | `type` | `"FunctionDeclaration"` | |
 | `name` | `string` | Function name |
-| `params` | `Identifier[]` | Parameter list |
+| `params` | `(Identifier | AssignmentPattern | RestElement)[]` | Parameter list |
 | `body` | `BlockStatement` | Function body |
 
 **Source:** `function add(a, b) { return a + b; }`
@@ -150,7 +184,7 @@ Represents the `this` keyword. Binds to the calling context at runtime: the rece
 |-------|------|-------------|
 | `type` | `"FunctionExpression"` | |
 | `name` | `string?` | Name (present for named expressions like `function fact(n) {...}`), absent for anonymous |
-| `params` | `Identifier[]` | Parameter list |
+| `params` | `(Identifier | AssignmentPattern | RestElement)[]` | Parameter list |
 | `body` | `BlockStatement` | Function body |
 | `is_method` | `boolean?` | `true` when created by method shorthand `{ m() {} }` — skips `_ljs_ctor` wrapping |
 
@@ -161,12 +195,77 @@ Represents the `this` keyword. Binds to the calling context at runtime: the rece
 | Field | Type | Description |
 |-------|------|-------------|
 | `type` | `"ArrowFunctionExpression"` | |
-| `params` | `Identifier[]` | Parameter list |
+| `params` | `(Identifier | AssignmentPattern | RestElement)[]` | Parameter list |
 | `body` | `BlockStatement` | Always a BlockStatement |
 
 Expression bodies are desugared: `x => x + 1` becomes a `BlockStatement` containing a single `ReturnStatement`.
 
 **Source:** `x => x + 1`, `(a, b) => a + b`, `(x) => { return x; }`
+
+### AssignmentPattern
+
+Default parameter value.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"AssignmentPattern"` | |
+| `left` | `Identifier` | Parameter name |
+| `right` | `node` | Default value expression |
+
+**Source:** `function f(x = 10) {}`, `(s = "hi") => s`
+
+### RestElement
+
+Rest parameter (must be the last parameter).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"RestElement"` | |
+| `argument` | `Identifier` | Parameter name |
+
+**Source:** `function f(...args) {}`, `(...rest) => rest`
+
+### SpreadElement
+
+Spread element in array literals or function call arguments.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"SpreadElement"` | |
+| `argument` | `node` | Expression to spread |
+
+**Source:** `[...a]`, `fn(...args)`, `new F(...a)`
+
+### ObjectPattern
+
+Object destructuring pattern (used in variable declarations).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"ObjectPattern"` | |
+| `properties` | `(Property \| RestElement)[]` | Pattern properties |
+
+Properties use the existing `Property` node with an additional `shorthand` field.
+Shorthand `{x}` produces `Property(key=Identifier("x"), value=Identifier("x"), shorthand=true)`.
+Renamed `{x: y}` produces `Property(key=Identifier("x"), value=Identifier("y"), shorthand=false)`.
+Default `{x = 10}` produces `Property(key=Identifier("x"), value=AssignmentPattern(Identifier("x"), 10), shorthand=true)`.
+Rest `{...rest}` produces `RestElement(Identifier("rest"))`.
+
+**Source:** `let {x, y: z, a = 10, ...rest} = obj;`
+
+### ArrayPattern
+
+Array destructuring pattern (used in variable declarations).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"ArrayPattern"` | |
+| `elements` | `(Identifier \| AssignmentPattern \| ObjectPattern \| ArrayPattern \| RestElement \| nil)[]` | Pattern elements (nil = hole) |
+| `count` | `number` | Element count including holes |
+
+Holes are represented as `nil` (Lua sparse table). The `count` field tracks the total number of positional slots (including holes) so the transpiler can iterate correctly without `ipairs` stopping at the first nil.
+
+**Source:** `let [a, , b, ...rest] = arr;`
 
 ---
 
@@ -276,9 +375,9 @@ Both branches allow full expressions including assignment and nested ternaries. 
 |-------|------|-------------|
 | `type` | `"CallExpression"` | |
 | `callee` | `node` | Expression being called |
-| `arguments` | `node[]` | Argument list (can be empty) |
+| `arguments` | `(node | SpreadElement)[]` | Argument list (can be empty) |
 
-**Source:** `f()`, `f(a, b)`, `console.log("hello")`
+**Source:** `f()`, `f(a, b)`, `console.log("hello")`, `fn(...args)`
 
 `console.log` is not a special node — it parses as a `CallExpression` whose `callee` is a `MemberExpression`.
 
@@ -288,7 +387,7 @@ Both branches allow full expressions including assignment and nested ternaries. 
 |-------|------|-------------|
 | `type` | `"NewExpression"` | |
 | `callee` | `node` | Constructor expression (identifier or member expression) |
-| `arguments` | `node[]` | Argument list (can be empty) |
+| `arguments` | `(node | SpreadElement)[]` | Argument list (can be empty) |
 
 **Source:** `new Foo()`, `new Foo(a, b)`, `new Foo`, `new Foo.bar()`
 
@@ -326,6 +425,16 @@ Wraps any expression used as a statement. Semicolons are optional.
 
 **Source:** `42;`, `f();`, `obj.prop;`
 
+### EmptyStatement
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"EmptyStatement"` | |
+
+A bare semicolon. No-op at runtime — the transpiler emits nothing.
+
+**Source:** `;`
+
 ---
 
 ## Objects and Arrays
@@ -355,9 +464,9 @@ Wraps any expression used as a statement. Semicolons are optional.
 | Field | Type | Description |
 |-------|------|-------------|
 | `type` | `"ArrayExpression"` | |
-| `elements` | `node[]` | Element list (can be empty) |
+| `elements` | `(node | SpreadElement)[]` | Element list (can be empty) |
 
-**Source:** `[]`, `[1, 2, 3]`
+**Source:** `[]`, `[1, 2, 3]`, `[...a, 1]`
 
 ---
 

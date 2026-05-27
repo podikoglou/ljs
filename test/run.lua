@@ -28,6 +28,11 @@ describe("parser/integration", "test.parser.integration")
 describe("parser/this_expression", "test.parser.this_expression")
 describe("parser/error_handling", "test.parser.error_handling")
 describe("parser/member_literals", "test.parser.member_literals")
+describe("parser/default_rest_params", "test.parser.default_rest_params")
+describe("parser/template_literals", "test.parser.template_literals")
+describe("parser/spread", "test.parser.spread")
+describe("parser/destructuring", "test.parser.destructuring")
+describe("parser/empty_statement", "test.parser.empty_statement")
 
 describe("transpile/basics", "test.transpile.basics")
 describe("transpile/control_flow", "test.transpile.control_flow")
@@ -55,6 +60,11 @@ describe("transpile/continue", "test.transpile.continue")
 describe("transpile/member_literals", "test.transpile.member_literals")
 describe("transpile/toboolean", "test.transpile.toboolean")
 describe("transpile/modulo", "test.transpile.modulo")
+describe("transpile/default_rest_params", "test.transpile.default_rest_params")
+describe("transpile/template_literals", "test.transpile.template_literals")
+describe("transpile/spread", "test.transpile.spread")
+describe("transpile/destructuring", "test.transpile.destructuring")
+describe("transpile/semicolon", "test.transpile.semicolon")
 
 describe("codegen", "test.codegen")
 
@@ -143,6 +153,27 @@ T.describe("runtime/tostring", function()
   local ok, err = pcall(require, "test.runtime.tostring")
   if not ok then
     print(string.format("  \27[33m⚠\27[0m runtime/tostring: %s", tostring(err):match("^[^\n]*")))
+  end
+end)
+
+T.describe("runtime/object_tostring", function()
+  local ok, err = pcall(require, "test.runtime.object_tostring")
+  if not ok then
+    print(string.format("  \27[33m⚠\27[0m runtime/object_tostring: %s", tostring(err):match("^[^\n]*")))
+  end
+end)
+
+T.describe("runtime/string", function()
+  local ok, err = pcall(require, "test.runtime.string")
+  if not ok then
+    print(string.format("  \27[33m⚠\27[0m runtime/string: %s", tostring(err):match("^[^\n]*")))
+  end
+end)
+
+T.describe("runtime/function_errors", function()
+  local ok, err = pcall(require, "test.runtime.function_errors")
+  if not ok then
+    print(string.format("  \27[33m⚠\27[0m runtime/function_errors: %s", tostring(err):match("^[^\n]*")))
   end
 end)
 

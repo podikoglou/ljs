@@ -1,30 +1,64 @@
 -- Array constructor + prototype methods + static methods.
 -- Array constructor stores elements at 1-based indices and sets .length.
 -- All methods follow the JS-ABI convention: first param is _ljs_this.
+
+local function _ljs_arr_newindex(t, k, v)
+  rawset(t, k, v)
+  if type(k) == "number" and k == math.floor(k) and k > 0 then
+    local len = rawget(t, "length")
+    if len ~= nil and k > len then
+      rawset(t, "length", k)
+    end
+  end
+end
+
 local Array = _ljs_ctor(function(_ljs_this, ...)
+  local mt = getmetatable(_ljs_this)
+  mt.__newindex = _ljs_arr_newindex
   local n = select("#", ...)
   for i = 1, n do
-    _ljs_this[i] = select(i, ...)
+    rawset(_ljs_this, i, select(i, ...))
   end
-  _ljs_this.length = n
+  rawset(_ljs_this, "length", n)
 end)
 -- push supports multiple arguments (matching JS Array.prototype.push semantics).
 Array.prototype.push = _ljs_fn(function(_ljs_this, ...)
   local n = select("#", ...)
+  local len = _ljs_this.length
   for i = 1, n do
-    _ljs_this[_ljs_this.length + i] = select(i, ...)
+    rawset(_ljs_this, len + i, select(i, ...))
   end
-  _ljs_this.length = _ljs_this.length + n
-  return _ljs_this.length
+  rawset(_ljs_this, "length", len + n)
+  return len + n
 end)
 Array.prototype.pop = _ljs_fn(function(_ljs_this)
   if _ljs_this.length == 0 then
     return nil
   end
   local val = _ljs_this[_ljs_this.length]
-  _ljs_this[_ljs_this.length] = nil
-  _ljs_this.length = _ljs_this.length - 1
+  rawset(_ljs_this, _ljs_this.length, nil)
+  rawset(_ljs_this, "length", _ljs_this.length - 1)
   return val
+end)
+
+-- ---------------------------------------------------------------------------
+-- Array.prototype.map
+-- ---------------------------------------------------------------------------
+Array.prototype.map = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
+  if not _ljs_is_function(callbackFn) then
+    error("TypeError: " .. _ljs_value_repr(callbackFn) .. " is not a function")
+  end
+  local len = _ljs_this.length or 0
+  local result = _ljs_new(Array)
+  for i = 1, len do
+    local v = rawget(_ljs_this, i)
+    if v ~= nil then
+      local mapped = _ljs_call_member(callbackFn, "call", thisArg, v, i - 1, _ljs_this)
+      rawset(result, i, mapped)
+    end
+  end
+  rawset(result, "length", len)
+  return result
 end)
 
 -- ---------------------------------------------------------------------------
@@ -56,7 +90,15 @@ end)
 -- ---------------------------------------------------------------------------
 -- Per spec: calls .join(",") on this.
 Array.prototype.toString = _ljs_fn(function(_ljs_this)
-  return _ljs_call_member(_ljs_this, "join", ",")
+  local join = _ljs_to_object(_ljs_this).join
+  if _ljs_typeof(join) == "function" then
+    local raw = rawget(join, "_ljs_raw")
+    if raw then return raw(_ljs_this, ",") end
+    return join(_ljs_this, ",")
+  end
+  local ts_raw = rawget(_ljs_object_prototype.toString, "_ljs_raw")
+  if ts_raw then return ts_raw(_ljs_this) end
+  return _ljs_object_prototype.toString(_ljs_this)
 end)
 
 -- ---------------------------------------------------------------------------
@@ -82,9 +124,9 @@ Array.from = _ljs_fn(function(_ljs_this, source, mapFn, thisArg)
       if mapFn ~= nil then
         val = _ljs_call_member(mapFn, "call", thisArg, val, i - 1)
       end
-      arr[i] = val
+      rawset(arr, i, val)
     end
-    arr.length = #source
+    rawset(arr, "length", #source)
     return arr
   end
   if type(source) == "table" then
@@ -97,9 +139,9 @@ Array.from = _ljs_fn(function(_ljs_this, source, mapFn, thisArg)
       if mapFn ~= nil then
         val = _ljs_call_member(mapFn, "call", thisArg, val, i - 1)
       end
-      arr[i] = val
+      rawset(arr, i, val)
     end
-    arr.length = len
+    rawset(arr, "length", len)
     return arr
   end
   return arr

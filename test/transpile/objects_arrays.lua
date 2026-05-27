@@ -34,17 +34,17 @@ end)
 
 test("dot access", function()
   local code = expr_code("obj.prop")
-  assert_eq(code, "_ljs_to_object(obj).prop")
+  assert_eq(code, "local _ = _ljs_to_object(obj).prop")
 end)
 
 test("computed string key no offset", function()
   local code = expr_code('obj["key"]')
-  assert_eq(code, '_ljs_to_object(obj)["key"]')
+  assert_eq(code, 'local _ = _ljs_to_object(obj)["key"]')
 end)
 
 test("computed expression key adds offset", function()
   local code = expr_code("arr[i]")
-  assert_eq(code, "_ljs_to_object(arr)[(i) + 1]")
+  assert_eq(code, "local _ = _ljs_to_object(arr)[(i) + 1]")
 end)
 
 -- ============================================================================
@@ -123,6 +123,26 @@ end)
 test("shorthand property uses variable value", function()
   local output = run_js("let x = 99; let o = { x }; console.log(o.x);")
   assert_eq(output:gsub("%s+", ""), "99")
+end)
+
+test("sparse array with hole emits nil (#191)", function()
+  local code = expr_code("[1,,3]")
+  assert_eq(code, "_ljs_new(Array, 1, nil, 3)")
+end)
+
+test("leading hole in array (#191)", function()
+  local code = expr_code("[,1,2]")
+  assert_eq(code, "_ljs_new(Array, nil, 1, 2)")
+end)
+
+test("multiple consecutive holes in array (#191)", function()
+  local code = expr_code("[1,,,4]")
+  assert_eq(code, "_ljs_new(Array, 1, nil, nil, 4)")
+end)
+
+test("trailing comma does not add slot (#191)", function()
+  local code = expr_code("[1,2,]")
+  assert_eq(code, "_ljs_new(Array, 1, 2)")
 end)
 
 test("method shorthand mixed with shorthand property", function()

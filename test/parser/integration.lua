@@ -398,7 +398,6 @@ end)
 test("error return convention: nil + ParseError", function()
   local cases = {
     "==;",
-    "{;}",
     "let = 3;",
     "++;",
     "5++;",

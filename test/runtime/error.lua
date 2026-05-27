@@ -35,6 +35,22 @@ test("Error toString without message", function()
   assert_js("new Error().toString()", "Error")
 end)
 
+test("Error toString with empty message", function()
+  assert_js('new Error("").toString()', "Error")
+end)
+
+test("TypeError toString with empty message", function()
+  assert_js('new TypeError("").toString()', "TypeError")
+end)
+
+test("RangeError toString with empty message", function()
+  assert_js('new RangeError("").toString()', "RangeError")
+end)
+
+test("Error toString with number message", function()
+  assert_js("new Error(42).toString()", "Error: 42")
+end)
+
 -- ============================================================================
 -- TypeError
 -- ============================================================================

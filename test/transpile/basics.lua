@@ -8,23 +8,23 @@ local transpile_ok, expr_code, run_js, emit_ok = H.transpile_ok, H.expr_code, H.
 -- ============================================================================
 
 test("NumberLiteral", function()
-  assert_eq(expr_code("42;"), "42")
+  assert_eq(expr_code("42;"), "local _ = 42")
 end)
 
 test("NumberLiteral float", function()
-  assert_eq(expr_code("3.14;"), "3.14")
+  assert_eq(expr_code("3.14;"), "local _ = 3.14")
 end)
 
 test("NumberLiteral hex 0xFF", function()
-  assert_eq(expr_code("0xFF;"), "255")
+  assert_eq(expr_code("0xFF;"), "local _ = 255")
 end)
 
 test("NumberLiteral hex 0x1a", function()
-  assert_eq(expr_code("0x1a;"), "26")
+  assert_eq(expr_code("0x1a;"), "local _ = 26")
 end)
 
 test("NumberLiteral hex 0X0F", function()
-  assert_eq(expr_code("0X0F;"), "15")
+  assert_eq(expr_code("0X0F;"), "local _ = 15")
 end)
 
 test("NumberLiteral hex in variable", function()
@@ -32,19 +32,19 @@ test("NumberLiteral hex in variable", function()
 end)
 
 test("StringLiteral", function()
-  assert_eq(expr_code('"hello";'), '"hello"')
+  assert_eq(expr_code('"hello";'), 'local _ = "hello"')
 end)
 
 test("BooleanLiteral true", function()
-  assert_eq(expr_code("true;"), "true")
+  assert_eq(expr_code("true;"), "local _ = true")
 end)
 
 test("BooleanLiteral false", function()
-  assert_eq(expr_code("false;"), "false")
+  assert_eq(expr_code("false;"), "local _ = false")
 end)
 
 test("NullLiteral", function()
-  assert_eq(expr_code("null;"), "_ljs_null")
+  assert_eq(expr_code("null;"), "local _ = _ljs_null")
 end)
 
 -- ============================================================================
@@ -52,7 +52,7 @@ end)
 -- ============================================================================
 
 test("Identifier", function()
-  assert_eq(expr_code("x;"), "x")
+  assert_eq(expr_code("x;"), "local _ = x")
 end)
 
 test("let with init", function()
@@ -153,12 +153,12 @@ end)
 
 test("strict equality", function()
   local code = expr_code("x === 1")
-  assert_eq(code, "x == 1")
+  assert_eq(code, "local _ = x == 1")
 end)
 
 test("strict inequality", function()
   local code = expr_code("x !== 1")
-  assert_eq(code, "x ~= 1")
+  assert_eq(code, "local _ = x ~= 1")
 end)
 
 test("logical AND", function()
@@ -179,16 +179,16 @@ end)
 
 test("logical NOT", function()
   local code = expr_code("!x")
-  assert_eq(code, "not _ljs_to_boolean(x)")
+  assert_eq(code, "local _ = not _ljs_to_boolean(x)")
 end)
 
 test("unary minus", function()
   local code = expr_code("-x")
-  assert_eq(code, "-_ljs_to_number(x)")
+  assert_eq(code, "local _ = -_ljs_to_number(x)")
 end)
 
 test("unary minus -0 emits negative zero", function()
-  assert_eq(expr_code("-0;"), "(-1 / math.huge)")
+  assert_eq(expr_code("-0;"), "local _ = (-1 / math.huge)")
 end)
 
 test("unary plus uses _ljs_to_number", function()

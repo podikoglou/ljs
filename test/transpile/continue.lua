@@ -34,7 +34,7 @@ end)
 test("for loop with continue: label placed before update", function()
   local code = transpile_ok("for (let i = 0; i < 10; i++) { if (i === 2) { continue; } x; }")
   local label_pos = code:find("::_continue::")
-  local update_pos = code:find("i = _ljs_add") or code:find("i = i %- 1")
+  local update_pos = code:find("i = _ljs_to_number%(i%) %+ 1") or code:find("i = _ljs_sub") or code:find("i = i %- 1")
   assert(label_pos, "expected ::_continue:: label")
   assert(update_pos, "expected update expression")
   assert(label_pos < update_pos, "label should come before update")
@@ -110,6 +110,30 @@ end)
 test("for-in without continue has no label", function()
   local code = emit_ok("for (let k in obj) { k; }")
   assert(not code:find("::_continue::"), "unexpected ::_continue:: label")
+end)
+
+test("for loop with continue: body wrapped in do..end when local after goto", function()
+  local code = transpile_ok("for (var i = 0; i < 3; i++) { if (i === 1) continue; var y = i * 2; }")
+  assert(code:find("goto _continue"), "expected goto _continue")
+  assert(code:find("::_continue::"), "expected ::_continue:: label")
+  assert(code:match("do\n"), "expected do..end wrapping when continue is present")
+end)
+
+test("for loop with continue + local after: generated Lua loads without error", function()
+  local code = transpile_ok("for (var i = 0; i < 3; i++) { if (i === 1) continue; var y = i * 2; }")
+  local ok, err = load(code)
+  assert(ok, "generated Lua should load: " .. tostring(err))
+end)
+
+test("while loop with continue + local after: generated Lua loads", function()
+  local code = transpile_ok([[
+    while (x) {
+      if (a) continue;
+      var y = 1;
+    }
+  ]])
+  local ok, err = load(code)
+  assert(ok, "generated Lua should load: " .. tostring(err))
 end)
 
 -- ============================================================================
@@ -295,4 +319,35 @@ test("continue integration: for-of inside while with continue in both", function
   assert(not output:find("2:"), "i=2 should be skipped")
   assert(output:find("1:20"), "expected 1:20")
   assert(output:find("3:20"), "expected 3:20")
+end)
+
+test("continue integration: C-style for with local after continue runs correctly", function()
+  local output = run_js([[
+    let result = "";
+    for (let i = 0; i < 5; i++) {
+      if (i === 2) { continue; }
+      let y = i * 10;
+      result = result + y + " ";
+    }
+    console.log(result);
+  ]])
+  assert_eq(output:gsub("%s+", ""), "0103040")
+end)
+
+test("continue integration: nested for loops with locals after continue", function()
+  local output = run_js([[
+    let result = "";
+    for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 3; j++) {
+        if (j === 1) { continue; }
+        let v = i * 10 + j;
+        result = result + v + " ";
+      }
+    }
+    console.log(result);
+  ]])
+  assert(not output:find("1 "), "j=1 should be skipped")
+  assert(output:find("0 "), "expected i=0,j=0")
+  assert(output:find("2 "), "expected j=2")
+  assert(output:find("20 "), "expected i=2,j=0")
 end)

@@ -25,9 +25,11 @@ build = {
   type = "builtin",
   modules = {
     ["ljs"] = "src/ljs.lua",
-    ["ljs.parser"] = "src/ljs/parser.lua",
+    ["ljs.ast"] = "src/ljs/ast.lua",
     ["ljs.codegen"] = "src/ljs/codegen.lua",
+    ["ljs.parser"] = "src/ljs/parser.lua",
     ["ljs.transpile"] = "src/ljs/transpile.lua",
+    ["ljs.utf8"] = "src/ljs/utf8.lua",
     ["ljs.parser_dump"] = "src/ljs/parser_dump.lua",
     ["ljs.transpile_dump"] = "src/ljs/transpile_dump.lua",
     ["ljs.runtime.proto"] = "src/ljs/runtime/proto.lua",
@@ -44,4 +46,10 @@ build = {
     ["ljs.runtime.number"] = "src/ljs/runtime/number.lua",
     ["ljs.runtime.string"] = "src/ljs/runtime/string.lua",
   },
+  install = {
+    bin = {
+      ["parser-dump"] = "bin/parser-dump",
+      ["transpile-dump"] = "bin/transpile-dump",
+    }
+  }
 }

@@ -1,0 +1,30 @@
+#!/usr/bin/env lua
+--- CLI wrapper for ljs parser_dump
+--- Provides convenient access to parser_dump regardless of installation method
+--- Usage:
+---   parser-dump file.js
+---   cat file.js | parser-dump
+---   echo "let x = 42;" | parser-dump
+
+-- Try to find where ljs modules are installed
+-- This handles both development (luarocks make) and installed (luarocks install) scenarios
+local function setup_lua_path()
+  -- Get the directory of this script
+  local script_path = debug.getinfo(1, "S").source:match("@(.+)")
+  if not script_path then
+    return
+  end
+
+  local bin_dir = script_path:match("(.*/)")
+  local project_root = bin_dir:match("(.+)/bin/")
+
+  if project_root and bin_dir then
+    -- Development setup: add src/ to path so we can require ljs modules
+    package.path = project_root .. "/src/?.lua;" .. package.path
+  end
+end
+
+setup_lua_path()
+
+-- Load and execute parser_dump
+require("ljs.parser_dump")

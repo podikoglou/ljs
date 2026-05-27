@@ -32,7 +32,7 @@ test("try/finally (no catch)", function()
   assert(code:find("pcall"), "expected pcall in output")
   assert(code:find("local _ljs_ok, _ljs_err"), "expected local _ljs_ok, _ljs_err")
   assert(code:find("cleanup"), "expected finally body in output")
-  assert(code:find("error%(_ljs_err%)"), "expected error re-throw")
+  assert(code:find("error%(_ljs_err, 0%)"), "expected error re-throw with level 0")
 end)
 
 test("try/catch/finally integration: no error", function()
@@ -106,4 +106,140 @@ test("try/catch/finally integration: empty finally block", function()
     console.log(result);
   ]])
   assert(output:find("1"), "expected 1")
+end)
+
+test("break inside try body", function()
+  local output = run_js([[
+    let result = "";
+    for (let i = 0; i < 5; i++) {
+      try { if (i === 3) break; } catch(e) {}
+      result = result + i;
+    }
+    console.log(result);
+  ]])
+  assert(output:find("012"), "expected 012")
+end)
+
+test("break inside try with catch", function()
+  local output = run_js([[
+    let result = "";
+    for (let i = 0; i < 5; i++) {
+      try { if (i === 3) break; } catch(e) { result = result + "C"; }
+      result = result + i;
+    }
+    console.log(result);
+  ]])
+  assert(output:find("012"), "expected 012")
+end)
+
+test("continue inside try body", function()
+  local output = run_js([[
+    let result = "";
+    for (let i = 0; i < 5; i++) {
+      try { if (i === 3) continue; } catch(e) {}
+      result = result + i;
+    }
+    console.log(result);
+  ]])
+  assert(output:find("0124"), "expected 0124")
+end)
+
+test("continue inside try with catch", function()
+  local output = run_js([[
+    let result = "";
+    for (let i = 0; i < 5; i++) {
+      try { if (i === 3) continue; } catch(e) { result = result + "C"; }
+      result = result + i;
+    }
+    console.log(result);
+  ]])
+  assert(output:find("0124"), "expected 0124")
+end)
+
+test("return inside try body", function()
+  local output = run_js([[
+    function foo() {
+      try { return 42; } catch(e) {}
+    }
+    console.log(foo());
+  ]])
+  assert(output:find("42"), "expected 42")
+end)
+
+test("return inside try with catch", function()
+  local output = run_js([[
+    function foo() {
+      try { return 42; } catch(e) { return 0; }
+      return -1;
+    }
+    console.log(foo());
+  ]])
+  assert(output:find("42"), "expected 42")
+end)
+
+test("return inside try with finally", function()
+  local output = run_js([[
+    function foo() {
+      try { return 42; } finally {}
+    }
+    console.log(foo());
+  ]])
+  assert(output:find("42"), "expected 42")
+end)
+
+test("rethrow preserves string error message", function()
+  local output = run_js([[
+    try {
+      try { throw "hello"; } finally {}
+    } catch(e) {
+      console.log(e);
+    }
+  ]])
+  assert(output:find("hello"), "expected hello")
+  assert(not output:find("string"), "no file:line prefix in message")
+end)
+
+test("break and continue inside try body", function()
+  local output = run_js([[
+    let result = "";
+    for (let i = 0; i < 10; i++) {
+      try {
+        if (i === 3) continue;
+        if (i === 7) break;
+      } catch(e) {}
+      result = result + i;
+    }
+    console.log(result);
+  ]])
+  assert(output:find("012456"), "expected 012456")
+end)
+
+test("break inside switch inside try should NOT be sentinel", function()
+  local output = run_js([[
+    var result = 0;
+    for (var i = 0; i < 3; i++) {
+      try {
+        switch (i) {
+          case 0: break;
+          case 1: result += 10; break;
+          case 2: result += 20; break;
+        }
+      } catch(e) {}
+    }
+    console.log(result);
+  ]])
+  assert(output:find("30"), "expected 30 (10+20, break in switch exits switch not loop)")
+end)
+
+test("nested try with return in inner try", function()
+  local output = run_js([[
+    function foo() {
+      try {
+        try { return 10; } catch(e) {}
+      } catch(e) {}
+      return 20;
+    }
+    console.log(foo());
+  ]])
+  assert(output:find("10"), "expected 10")
 end)

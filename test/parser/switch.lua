@@ -274,10 +274,8 @@ end)
 
 -- BreakStatement
 
-test("parse bare break", function()
-  assert_parse_ok("break;", {
-    A.break_(),
-  })
+test("error: bare break at top level", function()
+  assert_parse_fail("break;", "break")
 end)
 
 test("parse break without semicolon before }", function()
@@ -313,10 +311,8 @@ end)
 
 -- ContinueStatement
 
-test("parse bare continue", function()
-  assert_parse_ok("continue;", {
-    A.continue_(),
-  })
+test("error: bare continue at top level", function()
+  assert_parse_fail("continue;", "continue")
 end)
 
 test("parse continue without semicolon before }", function()
@@ -492,6 +488,141 @@ test("integration: switch with complex case body", function()
   assert_eq(case.consequent[3].type, "BreakStatement")
 end)
 
+test("error: break inside if (not in loop or switch)", function()
+  assert_parse_fail("if (x) { break; }", "break")
+end)
+
+test("error: continue inside if (not in loop)", function()
+  assert_parse_fail("if (x) { continue; }", "continue")
+end)
+
+test("error: break inside function declaration", function()
+  assert_parse_fail("function f() { break; }", "break")
+end)
+
+test("error: continue inside function declaration", function()
+  assert_parse_fail("function f() { continue; }", "continue")
+end)
+
+test("error: continue inside bare switch (not in loop)", function()
+  assert_parse_fail("switch (x) { case 1: continue; }", "continue")
+end)
+
+test("error: break inside function expression", function()
+  assert_parse_fail("let f = function() { break; };", "break")
+end)
+
+test("error: continue inside function expression", function()
+  assert_parse_fail("let f = function() { continue; };", "continue")
+end)
+
+test("error: break inside arrow function", function()
+  assert_parse_fail("let f = () => { break; };", "break")
+end)
+
+test("error: continue inside arrow function", function()
+  assert_parse_fail("let f = () => { continue; };", "continue")
+end)
+
+test("ok: break in while loop", function()
+  assert_parse_ok("while (true) { break; }", {
+    A.while_(A.bool(true), A.block({ A.break_() })),
+  })
+end)
+
+test("ok: continue in while loop", function()
+  assert_parse_ok("while (true) { continue; }", {
+    A.while_(A.bool(true), A.block({ A.continue_() })),
+  })
+end)
+
+test("ok: break in for loop", function()
+  assert_parse_ok("for (;;) { break; }", {
+    A.for_(nil, nil, nil, A.block({ A.break_() })),
+  })
+end)
+
+test("ok: continue in for loop", function()
+  assert_parse_ok("for (;;) { continue; }", {
+    A.for_(nil, nil, nil, A.block({ A.continue_() })),
+  })
+end)
+
+test("ok: break in do-while", function()
+  assert_parse_ok("do { break; } while (true);", {
+    A.do_while(A.block({ A.break_() }), A.bool(true)),
+  })
+end)
+
+test("ok: continue in do-while", function()
+  assert_parse_ok("do { continue; } while (true);", {
+    A.do_while(A.block({ A.continue_() }), A.bool(true)),
+  })
+end)
+
+test("ok: break in switch (no loop)", function()
+  assert_parse_ok("switch (x) { case 1: break; }", {
+    A.switch(A.id("x"), {
+      A.case(A.num(1), { A.break_() }),
+    }),
+  })
+end)
+
+test("ok: continue in switch inside loop", function()
+  assert_parse_ok("while (x) { switch (a) { case 1: continue; } }", {
+    A.while_(A.id("x"), A.block({
+      A.switch(A.id("a"), {
+        A.case(A.num(1), { A.continue_() }),
+      }),
+    })),
+  })
+end)
+
+test("ok: break in nested loop", function()
+  assert_parse_ok("while (a) { for (;;) { break; } }", {
+    A.while_(A.id("a"), A.block({
+      A.for_(nil, nil, nil, A.block({ A.break_() })),
+    })),
+  })
+end)
+
+test("ok: break/continue inside if within loop", function()
+  assert_parse_ok("while (x) { if (a) { break; } if (b) { continue; } }", {
+    A.while_(A.id("x"), A.block({
+      A.if_(A.id("a"), A.block({ A.break_() })),
+      A.if_(A.id("b"), A.block({ A.continue_() })),
+    })),
+  })
+end)
+
+test("ok: break/continue reset across function boundary", function()
+  local ast = parser.parse("while (x) { function f() { } break; }")
+  assert(ast)
+  assert_eq(#ast.body, 1)
+  assert_eq(ast.body[1].type, "WhileStatement")
+  assert_eq(#ast.body[1].body.body, 2)
+  assert_eq(ast.body[1].body.body[1].type, "FunctionDeclaration")
+  assert_eq(ast.body[1].body.body[2].type, "BreakStatement")
+end)
+
+test("ok: break in switch inside loop (both valid)", function()
+  assert_parse_ok("while (x) { switch (a) { case 1: break; } }", {
+    A.while_(A.id("x"), A.block({
+      A.switch(A.id("a"), {
+        A.case(A.num(1), { A.break_() }),
+      }),
+    })),
+  })
+end)
+
+test("error: break in nested function inside loop", function()
+  assert_parse_fail("while (x) { function f() { break; } }", "break")
+end)
+
+test("error: continue in nested function inside loop", function()
+  assert_parse_fail("while (x) { function f() { continue; } }", "continue")
+end)
+
 -- parse_tokens isolation
 
 local function tok_constructor(type, value, line, col)
@@ -526,32 +657,24 @@ test("parse_tokens: minimal switch", function()
   )
 end)
 
-test("parse_tokens: break statement", function()
+test("parse_tokens: break statement at top level fails", function()
   local tokens = {
     tok_constructor(TK.BREAK, "break"),
     tok_constructor(TK.SEMICOLON),
     tok_constructor(TK.EOF),
   }
-  local ast = parser.parse_tokens(tokens)
-  assert_table_eq(
-    ast,
-    A.program({
-      A.break_(),
-    })
-  )
+  local ast, err = parser.parse_tokens(tokens)
+  assert(ast == nil, "expected parse failure for bare break")
+  assert(err ~= nil, "expected error for bare break")
 end)
 
-test("parse_tokens: continue statement", function()
+test("parse_tokens: continue statement at top level fails", function()
   local tokens = {
     tok_constructor(TK.CONTINUE, "continue"),
     tok_constructor(TK.SEMICOLON),
     tok_constructor(TK.EOF),
   }
-  local ast = parser.parse_tokens(tokens)
-  assert_table_eq(
-    ast,
-    A.program({
-      A.continue_(),
-    })
-  )
+  local ast, err = parser.parse_tokens(tokens)
+  assert(ast == nil, "expected parse failure for bare continue")
+  assert(err ~= nil, "expected error for bare continue")
 end)

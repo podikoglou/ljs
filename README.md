@@ -19,18 +19,10 @@ ljs.run("console.log('hello')")
 -- → prints "hello"
 
 ljs.run("[1,2,3].map(x => x * 2)")
--- → doesn't work, but:
-ljs.run("1 + 2")
--- → 3
+-- → { 2, 4, 6 }
 ```
 
 ## Install
-
-```sh
-luarocks install ljs
-```
-
-Or from source:
 
 ```sh
 git clone https://github.com/podikoglou/ljs.git
@@ -74,15 +66,21 @@ local transpile = require("ljs.transpile")
 
 **Types:** numbers, strings, booleans, `null`, `undefined`, objects, arrays
 
-**Operators:** arithmetic, comparison, logical, bitwise (`& | ^ << >> >>>`), ternary, `in`, `instanceof`, `typeof`, `delete`, `new`, compound assignment, update (`++`/`--`)
+**Literals:** template literals (`${}`), escape sequences (`\xHH`, `\uXXXX`, `\u{X...}`, `\0`), octal escapes (sloppy mode), scientific notation
 
-**Control flow:** `if`/`else`, `while`, `do...while`, `for`, `for...in`, `for...of`, `switch`/`case`, `break`, `continue`, `return`, `throw`, `try`/`catch`
+**Operators:** arithmetic, comparison, logical, loose equality (`==`/`!=`), strict equality, bitwise (`& | ^ << >> >>>`), ternary, `in`, `instanceof`, `typeof`, `delete`, `new`, compound assignment, update (`++`/`--`)
+
+**Control flow:** `if`/`else`, `while`, `do...while`, `for`, `for...in`, `for...of`, `switch`/`case`, `break`, `continue`, `return`, `throw`, `try`/`catch`/`finally`
 
 **Functions:** declarations, expressions, arrow functions, `this` with correct lexical binding, rest parameters, default parameters
 
-**OOP:** `class` with `extends`, `super()`, `super.method()`, `static` methods, constructors, prototype chain, `Object.create`, `Object.prototype.toString`/`hasOwnProperty`/`valueOf`, `Array.prototype.push`/`pop`, `Function.prototype.call`/`apply`
+**Syntax:** destructuring (arrays, objects, nesting, defaults, rest), spread in arrays and function calls, string spread
 
-**Built-ins:** `console.log`, `typeof`, `instanceof`, `delete`
+**OOP:** `class` with `extends`, `super()`, `super.method()`, `static` methods, constructors, prototype chain, `Object.create`, `Object.prototype.toString`/`hasOwnProperty`/`valueOf`
+
+**Built-ins:** `console.log`/`error`/`warn`/`info`, `typeof`, `instanceof`, `delete`, `parseInt`, `parseFloat`, `isNaN`, `isFinite`, `NaN`, `Infinity`
+
+**Runtime globals:** `Math` (constants + methods), `JSON.parse`/`stringify`, `Error`/`TypeError`/`RangeError`/`SyntaxError`/`ReferenceError`, `Array.isArray`/`from`/`of`, `Array.prototype.push`/`pop`/`map`/`join`/`toString`, `String.fromCharCode`, `String.prototype.charCodeAt`, `Function.prototype.call`/`apply`/`toString`
 
 ## Error handling
 
@@ -91,20 +89,33 @@ All functions return `result, err`. Check `err ~= nil` for failures.
 ```lua
 local ast, err = ljs.parse("let = bad;")
 if err then
-  print(ljs.format_error(err, source))
+  print(ljs.format_error(err, "let = bad;"))
 end
--- Expected identifier, got '=' at line 1, col 5
---   let = bad;
---        ^
+-- Expected Identifier, got =
+--     |
+-- 1 | let = bad;
+--     |     ^
 ```
 
 ## CLI tools
 
+After installing with `make install`, the CLI tools are available on your PATH:
+
 ```sh
 # dump AST as JSON
-lua src/ljs/parser_dump.lua file.js
+parser-dump file.js
+cat file.js | parser-dump
 
 # dump transpiled lua
+transpile-dump file.js
+cat file.js | transpile-dump
+```
+
+For development, you can also invoke them directly:
+
+```sh
+# without installation
+lua src/ljs/parser_dump.lua file.js
 lua src/ljs/transpile_dump.lua file.js
 ```
 

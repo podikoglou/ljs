@@ -7,10 +7,10 @@ lint:
 	@lua-language-server --check . 2>&1
 
 rock:
-	@luarocks make --local rockspec/ljs-0.1.0-1.rockspec
+	@luarocks make --local rockspec/ljs-0.2.0-1.rockspec
 
 pack:
-	@luarocks pack rockspec/ljs-0.1.0-1.rockspec
+	@luarocks pack rockspec/ljs-0.2.0-1.rockspec
 
 install: rock
 

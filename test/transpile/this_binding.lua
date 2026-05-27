@@ -9,7 +9,7 @@ local transpile_ok, expr_code, run_js = H.transpile_ok, H.expr_code, H.run_js
 
 test("this in method body emits _ljs_arrow_this", function()
   local code = expr_code("this")
-  assert_eq(code, "_ljs_arrow_this")
+  assert_eq(code, "local _ = _ljs_arrow_this")
 end)
 
 test("method call routes through _ljs_call_member", function()
