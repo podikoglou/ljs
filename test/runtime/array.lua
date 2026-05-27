@@ -1190,6 +1190,93 @@ test("forEach with arrow function callback", function()
 end)
 
 -- ============================================================================
+-- Array.prototype.filter
+-- ============================================================================
+
+test("filter basic filtering", function()
+  local arr = exec_js("return [1, 2, 3, 4].filter(function(x) { return x > 2; });")
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 3)
+  assert_eq(arr[2], 4)
+end)
+
+test("filter with index argument", function()
+  local arr = exec_js("return [10, 20, 30].filter(function(x, i) { return i > 0; });")
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 20)
+  assert_eq(arr[2], 30)
+end)
+
+test("filter with array argument", function()
+  local arr = exec_js("return [1, 2, 3].filter(function(x, i, a) { return x >= a.length; });")
+  assert_eq(arr.length, 1)
+  assert_eq(arr[1], 3)
+end)
+
+test("filter with thisArg", function()
+  local arr = exec_js([[
+    var ctx = { threshold: 2 };
+    return [1, 2, 3, 4].filter(function(x) { return x > this.threshold; }, ctx);
+  ]])
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 3)
+  assert_eq(arr[2], 4)
+end)
+
+test("filter returns new array", function()
+  local arr = exec_js([=[
+    var orig = [1, 2, 3];
+    var filtered = orig.filter(function(x) { return x > 1; });
+    return [orig.length, filtered.length];
+  ]=])
+  assert_eq(arr[1], 3)
+  assert_eq(arr[2], 2)
+end)
+
+test("filter on empty array", function()
+  local arr = exec_js("return [].filter(function(x) { return true; });")
+  assert_eq(arr.length, 0)
+end)
+
+test("filter skips holes in sparse array", function()
+  local result = exec_js([=[
+    var result = [];
+    [1,,3].filter(function(x) { result.push(x); return true; });
+    return result;
+  ]=])
+  assert_eq(result.length, 2)
+  assert_eq(result[1], 1)
+  assert_eq(result[2], 3)
+end)
+
+test("filter throws TypeError on non-function", function()
+  local ok, err = pcall(exec_js, "return [].filter(42);")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("filter throws TypeError on missing callback", function()
+  local ok, err = pcall(exec_js, "return [].filter();")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("filter with arrow function callback", function()
+  local arr = exec_js("return [1, 2, 3, 4].filter(x => x % 2 === 0);")
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 2)
+  assert_eq(arr[2], 4)
+end)
+
+test("filter uses _ljs_to_boolean for callback result (#243)", function()
+  local arr = exec_js("return [0, 1, '', 'a', null, 2].filter(x => x);")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], "a")
+  assert_eq(arr[3], 2)
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 
