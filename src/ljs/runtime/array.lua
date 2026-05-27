@@ -506,6 +506,268 @@ Array.prototype.findIndex = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
 end)
 
 -- ---------------------------------------------------------------------------
+-- Array.prototype.reverse
+-- ---------------------------------------------------------------------------
+Array.prototype.reverse = _ljs_fn(function(_ljs_this)
+  local len = _ljs_this.length or 0
+  local middle = math.floor(len / 2)
+  local lower = 0
+  while lower ~= middle do
+    local upper = len - lower - 1
+    local lower_lua = lower + 1
+    local upper_lua = upper + 1
+    local lower_exists = rawget(_ljs_this, lower_lua) ~= nil
+    local upper_exists = rawget(_ljs_this, upper_lua) ~= nil
+    if lower_exists and upper_exists then
+      local lv = rawget(_ljs_this, lower_lua)
+      local uv = rawget(_ljs_this, upper_lua)
+      rawset(_ljs_this, lower_lua, uv)
+      rawset(_ljs_this, upper_lua, lv)
+    elseif not lower_exists and upper_exists then
+      local uv = rawget(_ljs_this, upper_lua)
+      rawset(_ljs_this, lower_lua, uv)
+      rawset(_ljs_this, upper_lua, nil)
+    elseif lower_exists and not upper_exists then
+      local lv = rawget(_ljs_this, lower_lua)
+      rawset(_ljs_this, upper_lua, lv)
+      rawset(_ljs_this, lower_lua, nil)
+    end
+    lower = lower + 1
+  end
+  return _ljs_this
+end)
+
+-- ---------------------------------------------------------------------------
+-- Array.prototype.fill
+-- ---------------------------------------------------------------------------
+local function _to_integer_or_inf(v, default)
+  if v == nil then return default or 0 end
+  local n = tonumber(v)
+  if n == nil or n ~= n then return 0 end
+  if n == math.huge then return math.huge end
+  if n == -math.huge then return -math.huge end
+  return (n >= 0 and math.floor or math.ceil)(n)
+end
+
+Array.prototype.fill = _ljs_fn(function(_ljs_this, value, start_val, end_val)
+  local len = _ljs_this.length or 0
+  local relative_start = _to_integer_or_inf(start_val)
+  local k
+  if relative_start == -math.huge then
+    k = 0
+  elseif relative_start < 0 then
+    k = math.max(len + relative_start, 0)
+  else
+    k = math.min(relative_start, len)
+  end
+  local relative_end
+  if end_val == nil then
+    relative_end = len
+  else
+    relative_end = _to_integer_or_inf(end_val)
+  end
+  local final_
+  if relative_end == -math.huge then
+    final_ = 0
+  elseif relative_end < 0 then
+    final_ = math.max(len + relative_end, 0)
+  else
+    final_ = math.min(relative_end, len)
+  end
+  for i = k + 1, final_ do
+    rawset(_ljs_this, i, value)
+  end
+  return _ljs_this
+end)
+
+-- ---------------------------------------------------------------------------
+-- Array.prototype.shift
+-- ---------------------------------------------------------------------------
+Array.prototype.shift = _ljs_fn(function(_ljs_this)
+  local len = _ljs_this.length or 0
+  if len == 0 then
+    rawset(_ljs_this, "length", 0)
+    return nil
+  end
+  local first = rawget(_ljs_this, 1)
+  for k = 2, len do
+    local v = rawget(_ljs_this, k)
+    if v ~= nil then
+      rawset(_ljs_this, k - 1, v)
+    else
+      rawset(_ljs_this, k - 1, nil)
+    end
+  end
+  rawset(_ljs_this, len, nil)
+  rawset(_ljs_this, "length", len - 1)
+  return first
+end)
+
+-- ---------------------------------------------------------------------------
+-- Array.prototype.unshift
+-- ---------------------------------------------------------------------------
+Array.prototype.unshift = _ljs_fn(function(_ljs_this, ...)
+  local len = _ljs_this.length or 0
+  local arg_count = select("#", ...)
+  if arg_count > 0 then
+    for k = len, 1, -1 do
+      local v = rawget(_ljs_this, k)
+      if v ~= nil then
+        rawset(_ljs_this, k + arg_count, v)
+      else
+        rawset(_ljs_this, k + arg_count, nil)
+      end
+    end
+    for j = 1, arg_count do
+      rawset(_ljs_this, j, select(j, ...))
+    end
+  end
+  rawset(_ljs_this, "length", len + arg_count)
+  return len + arg_count
+end)
+
+-- ---------------------------------------------------------------------------
+-- Array.prototype.splice
+-- ---------------------------------------------------------------------------
+Array.prototype.splice = _ljs_fn(function(_ljs_this, start, deleteCount, ...)
+  local len = _ljs_this.length or 0
+  local relative_start = _to_integer_or_inf(start)
+  local actual_start
+  if relative_start == -math.huge then
+    actual_start = 0
+  elseif relative_start < 0 then
+    actual_start = math.max(len + relative_start, 0)
+  else
+    actual_start = math.min(relative_start, len)
+  end
+  local item_count = select("#", ...)
+  local actual_delete_count
+  if start == nil then
+    actual_delete_count = 0
+  elseif deleteCount == nil then
+    actual_delete_count = len - actual_start
+  else
+    local dc = _to_integer_or_inf(deleteCount)
+    actual_delete_count = math.max(0, math.min(dc, len - actual_start))
+  end
+  local deleted = _ljs_new(Array)
+  for k = 0, actual_delete_count - 1 do
+    local v = rawget(_ljs_this, actual_start + k + 1)
+    if v ~= nil then
+      rawset(deleted, k + 1, v)
+    end
+  end
+  rawset(deleted, "length", actual_delete_count)
+  if item_count < actual_delete_count then
+    local k = actual_start
+    while k < (len - actual_delete_count) do
+      local from_val = rawget(_ljs_this, k + actual_delete_count + 1)
+      if from_val ~= nil then
+        rawset(_ljs_this, k + item_count + 1, from_val)
+      else
+        rawset(_ljs_this, k + item_count + 1, nil)
+      end
+      k = k + 1
+    end
+    for k2 = len, len - actual_delete_count + item_count + 1, -1 do
+      rawset(_ljs_this, k2, nil)
+    end
+  elseif item_count > actual_delete_count then
+    local k = len - actual_delete_count
+    while k > actual_start do
+      local from_val = rawget(_ljs_this, k + actual_delete_count - 1 + 1)
+      if from_val ~= nil then
+        rawset(_ljs_this, k + item_count - 1 + 1, from_val)
+      else
+        rawset(_ljs_this, k + item_count - 1 + 1, nil)
+      end
+      k = k - 1
+    end
+  end
+  for j = 1, item_count do
+    rawset(_ljs_this, actual_start + j, select(j, ...))
+  end
+  rawset(_ljs_this, "length", len - actual_delete_count + item_count)
+  return deleted
+end)
+
+-- ---------------------------------------------------------------------------
+-- Array.prototype.sort
+-- ---------------------------------------------------------------------------
+local function _merge_sort(items, compare)
+  local n = #items
+  if n <= 1 then return items end
+  local mid = math.floor(n / 2)
+  local left, right = {}, {}
+  for i = 1, mid do left[i] = items[i] end
+  for i = mid + 1, n do right[i - mid] = items[i] end
+  left = _merge_sort(left, compare)
+  right = _merge_sort(right, compare)
+  local result = {}
+  local li, ri, ri2 = 1, 1, 1
+  while li <= #left and ri <= #right do
+    if compare(left[li], right[ri]) <= 0 then
+      result[ri2] = left[li]
+      li = li + 1
+    else
+      result[ri2] = right[ri]
+      ri = ri + 1
+    end
+    ri2 = ri2 + 1
+  end
+  while li <= #left do
+    result[ri2] = left[li]
+    li = li + 1
+    ri2 = ri2 + 1
+  end
+  while ri <= #right do
+    result[ri2] = right[ri]
+    ri = ri + 1
+    ri2 = ri2 + 1
+  end
+  return result
+end
+
+Array.prototype.sort = _ljs_fn(function(_ljs_this, comparator)
+  if comparator ~= nil and not _ljs_is_function(comparator) then
+    error("TypeError: " .. _ljs_value_repr(comparator) .. " is not a function")
+  end
+  local len = _ljs_this.length or 0
+  local items = {}
+  for k = 1, len do
+    local v = rawget(_ljs_this, k)
+    if v ~= nil then
+      items[#items + 1] = v
+    end
+  end
+  local compare
+  if comparator ~= nil then
+    compare = function(x, y)
+      local result = _ljs_call_member(comparator, "call", nil, x, y)
+      local n = tonumber(result)
+      if n == nil or n ~= n then return 0 end
+      return n
+    end
+  else
+    compare = function(x, y)
+      local xs = _ljs_tostring(x)
+      local ys = _ljs_tostring(y)
+      if xs < ys then return -1 end
+      if ys < xs then return 1 end
+      return 0
+    end
+  end
+  items = _merge_sort(items, compare)
+  for j = 1, #items do
+    rawset(_ljs_this, j, items[j])
+  end
+  for j = #items + 1, len do
+    rawset(_ljs_this, j, nil)
+  end
+  return _ljs_this
+end)
+
+-- ---------------------------------------------------------------------------
 -- Array.prototype.join
 -- ---------------------------------------------------------------------------
 -- Converts each element to a string (using tostring; nil/undefined → ""),

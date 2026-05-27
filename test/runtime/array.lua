@@ -1485,6 +1485,436 @@ test("flatMap with arrow function callback", function()
 end)
 
 -- ============================================================================
+-- Array.prototype.reverse
+-- ============================================================================
+
+test("reverse basic", function()
+  local arr = exec_js("return [1, 2, 3].reverse();")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 3)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 1)
+end)
+
+test("reverse returns same reference", function()
+  local arr = exec_js([=[
+    var a = [1, 2, 3];
+    var r = a.reverse();
+    return a === r;
+  ]=])
+  assert_eq(arr, true)
+end)
+
+test("reverse empty array", function()
+  local arr = exec_js("return [].reverse();")
+  assert_eq(arr.length, 0)
+end)
+
+test("reverse single element", function()
+  local arr = exec_js("return [42].reverse();")
+  assert_eq(arr.length, 1)
+  assert_eq(arr[1], 42)
+end)
+
+test("reverse even length", function()
+  local arr = exec_js("return [1, 2, 3, 4].reverse();")
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 4)
+  assert_eq(arr[2], 3)
+  assert_eq(arr[3], 2)
+  assert_eq(arr[4], 1)
+end)
+
+test("reverse sparse array", function()
+  local arr = exec_js("return [1,,3].reverse();")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 3)
+  assert_eq(arr[2], nil)
+  assert_eq(arr[3], 1)
+end)
+
+-- ============================================================================
+-- Array.prototype.fill
+-- ============================================================================
+
+test("fill basic", function()
+  local arr = exec_js("return [1, 2, 3].fill(0);")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 0)
+  assert_eq(arr[2], 0)
+  assert_eq(arr[3], 0)
+end)
+
+test("fill with start", function()
+  local arr = exec_js("return [1, 2, 3, 4].fill(0, 2);")
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 0)
+  assert_eq(arr[4], 0)
+end)
+
+test("fill with start and end", function()
+  local arr = exec_js("return [1, 2, 3, 4, 5].fill(0, 1, 3);")
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 0)
+  assert_eq(arr[3], 0)
+  assert_eq(arr[4], 4)
+  assert_eq(arr[5], 5)
+end)
+
+test("fill with negative start", function()
+  local arr = exec_js("return [1, 2, 3, 4, 5].fill(0, -3);")
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 0)
+  assert_eq(arr[4], 0)
+  assert_eq(arr[5], 0)
+end)
+
+test("fill with negative end", function()
+  local arr = exec_js("return [1, 2, 3, 4, 5].fill(0, 1, -1);")
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 0)
+  assert_eq(arr[3], 0)
+  assert_eq(arr[4], 0)
+  assert_eq(arr[5], 5)
+end)
+
+test("fill returns same reference", function()
+  local arr = exec_js([=[
+    var a = [1, 2, 3];
+    var r = a.fill(0);
+    return a === r;
+  ]=])
+  assert_eq(arr, true)
+end)
+
+test("fill on empty array", function()
+  local arr = exec_js("return [].fill(0);")
+  assert_eq(arr.length, 0)
+end)
+
+-- ============================================================================
+-- Array.prototype.shift
+-- ============================================================================
+
+test("shift removes and returns first element", function()
+  local val = exec_js("return [1, 2, 3].shift();")
+  assert_eq(val, 1)
+end)
+
+test("shift reduces length", function()
+  local arr = exec_js([=[
+    var a = [1, 2, 3];
+    a.shift();
+    return a;
+  ]=])
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 2)
+  assert_eq(arr[2], 3)
+end)
+
+test("shift on empty returns nil", function()
+  assert_eq(exec_js("return [].shift();"), nil)
+end)
+
+test("shift single element", function()
+  local arr = exec_js([=[
+    var a = [42];
+    a.shift();
+    return a;
+  ]=])
+  assert_eq(arr.length, 0)
+end)
+
+test("shift sparse array", function()
+  local arr = exec_js([=[
+    var a = [1,,3];
+    a.shift();
+    return a;
+  ]=])
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], nil)
+  assert_eq(arr[2], 3)
+end)
+
+-- ============================================================================
+-- Array.prototype.unshift
+-- ============================================================================
+
+test("unshift prepends element", function()
+  local arr = exec_js([=[
+    var a = [2, 3];
+    a.unshift(1);
+    return a;
+  ]=])
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+end)
+
+test("unshift returns new length", function()
+  assert_eq(exec_js("return [2, 3].unshift(1);"), 3)
+end)
+
+test("unshift with multiple args", function()
+  local arr = exec_js([=[
+    var a = [4, 5];
+    a.unshift(1, 2, 3);
+    return a;
+  ]=])
+  assert_eq(arr.length, 5)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+  assert_eq(arr[4], 4)
+  assert_eq(arr[5], 5)
+end)
+
+test("unshift with no args returns length", function()
+  assert_eq(exec_js("return [1, 2, 3].unshift();"), 3)
+end)
+
+test("unshift on empty array", function()
+  local arr = exec_js([=[
+    var a = [];
+    a.unshift(1);
+    return a;
+  ]=])
+  assert_eq(arr.length, 1)
+  assert_eq(arr[1], 1)
+end)
+
+test("unshift on sparse array", function()
+  local arr = exec_js([=[
+    var a = [,,3];
+    a.unshift(0);
+    return a;
+  ]=])
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 0)
+  assert_eq(arr[2], nil)
+  assert_eq(arr[3], nil)
+  assert_eq(arr[4], 3)
+end)
+
+-- ============================================================================
+-- Array.prototype.splice
+-- ============================================================================
+
+test("splice delete only", function()
+  local arr = exec_js([=[
+    var a = [1, 2, 3, 4, 5];
+    a.splice(1, 2);
+    return a;
+  ]=])
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 4)
+  assert_eq(arr[3], 5)
+end)
+
+test("splice returns deleted elements", function()
+  local arr = exec_js("return [1, 2, 3, 4, 5].splice(1, 2);")
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 2)
+  assert_eq(arr[2], 3)
+end)
+
+test("splice insert only", function()
+  local arr = exec_js([=[
+    var a = [1, 4];
+    a.splice(1, 0, 2, 3);
+    return a;
+  ]=])
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+  assert_eq(arr[4], 4)
+end)
+
+test("splice delete and insert", function()
+  local arr = exec_js([=[
+    var a = [1, 2, 5];
+    a.splice(1, 1, 3, 4);
+    return a;
+  ]=])
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 3)
+  assert_eq(arr[3], 4)
+  assert_eq(arr[4], 5)
+end)
+
+test("splice negative start", function()
+  local arr = exec_js([=[
+    var a = [1, 2, 3, 4, 5];
+    a.splice(-2, 1);
+    return a;
+  ]=])
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+  assert_eq(arr[4], 5)
+end)
+
+test("splice deleteCount exceeds remaining", function()
+  local arr = exec_js([=[
+    var a = [1, 2, 3];
+    a.splice(1, 100);
+    return a;
+  ]=])
+  assert_eq(arr.length, 1)
+  assert_eq(arr[1], 1)
+end)
+
+test("splice no args", function()
+  local arr = exec_js([=[
+    var a = [1, 2, 3];
+    a.splice();
+    return a;
+  ]=])
+  assert_eq(arr.length, 3)
+end)
+
+test("splice with no deleteCount", function()
+  local arr = exec_js([=[
+    var a = [1, 2, 3];
+    a.splice(1);
+    return a;
+  ]=])
+  assert_eq(arr.length, 1)
+  assert_eq(arr[1], 1)
+end)
+
+test("splice at end inserts", function()
+  local arr = exec_js([=[
+    var a = [1, 2];
+    a.splice(2, 0, 3);
+    return a;
+  ]=])
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+end)
+
+-- ============================================================================
+-- Array.prototype.sort
+-- ============================================================================
+
+test("sort with numeric comparator", function()
+  local arr = exec_js([=[
+    return [3, 1, 2].sort(function(a, b) { return a - b; });
+  ]=])
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+end)
+
+test("sort default string comparison", function()
+  local arr = exec_js("return [3, 1, 10, 2].sort();")
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 10)
+  assert_eq(arr[3], 2)
+  assert_eq(arr[4], 3)
+end)
+
+test("sort empty array", function()
+  local arr = exec_js("return [].sort();")
+  assert_eq(arr.length, 0)
+end)
+
+test("sort single element", function()
+  local arr = exec_js("return [42].sort();")
+  assert_eq(arr.length, 1)
+  assert_eq(arr[1], 42)
+end)
+
+test("sort returns same reference", function()
+  local arr = exec_js([=[
+    var a = [3, 1, 2];
+    var r = a.sort();
+    return a === r;
+  ]=])
+  assert_eq(arr, true)
+end)
+
+test("sort stability", function()
+  local arr = exec_js([=[
+    var items = [
+      { name: 'a', val: 1 },
+      { name: 'b', val: 1 },
+      { name: 'c', val: 2 },
+      { name: 'd', val: 2 }
+    ];
+    items.sort(function(a, b) { return a.val - b.val; });
+    return [items[0].name, items[1].name, items[2].name, items[3].name];
+  ]=])
+  assert_eq(arr[1], "a")
+  assert_eq(arr[2], "b")
+  assert_eq(arr[3], "c")
+  assert_eq(arr[4], "d")
+end)
+
+test("sort sparse array removes holes", function()
+  local arr = exec_js([=[
+    var a = [3,,1,,2];
+    a.sort();
+    return a;
+  ]=])
+  assert_eq(arr.length, 5)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+  assert_eq(arr[4], nil)
+  assert_eq(arr[5], nil)
+end)
+
+test("sort throws TypeError on non-callable comparator", function()
+  local ok, err = pcall(exec_js, "return [].sort(42);")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("sort comparator returning NaN treated as 0", function()
+  local arr = exec_js([=[
+    return [1, 2, 3].sort(function() { return NaN; });
+  ]=])
+  assert_eq(arr.length, 3)
+end)
+
+test("sort with arrow function comparator", function()
+  local arr = exec_js("return [3, 1, 2].sort((a, b) => a - b);")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+end)
+
+test("sort strings default", function()
+  local arr = exec_js("return ['banana', 'apple', 'cherry'].sort();")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], "apple")
+  assert_eq(arr[2], "banana")
+  assert_eq(arr[3], "cherry")
+end)
+
+test("sort with no comparator on mixed numbers", function()
+  local arr = exec_js("return [10, 2, 30, 1].sort();")
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 10)
+  assert_eq(arr[3], 2)
+  assert_eq(arr[4], 30)
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 
