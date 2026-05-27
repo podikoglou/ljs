@@ -1927,3 +1927,23 @@ test("new emits _ljs_new", function()
   local code = transpile_js("new Array(1, 2);")
   assert(code:find("_ljs_new"), "expected _ljs_new in output")
 end)
+
+-- ============================================================================
+-- Object.prototype.toLocaleString
+-- ============================================================================
+
+test("Object.prototype.toLocaleString delegates to toString", function()
+  assert_eq(exec_js("return ({}).toLocaleString();"), "[object Object]")
+end)
+
+test("Object.prototype.toLocaleString uses custom toString", function()
+  assert_eq(exec_js("return ({toString: function() { return 'custom'; }}).toLocaleString();"), "custom")
+end)
+
+-- ============================================================================
+-- Array.prototype.toLocaleString
+-- ============================================================================
+
+test("toLocaleString basic", function()
+  assert_eq(exec_js("return [1, 2, 3].toLocaleString();"), "1,2,3")
+end)
