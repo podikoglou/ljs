@@ -149,6 +149,42 @@ test("bare array destructuring with holes: [a, , b] = [1, 2, 3] (#181)", functio
   })
 end)
 
+test("function expression with array destructuring param (#182)", function()
+  assert_parse_ok("(function([a, b]) {})([1, 2]);", {
+    A.expr_stmt(A.call(
+      A.func_expr({ arr_pattern({ A.id("a"), A.id("b") }) }, A.block({})),
+      { A.arr({ A.num(1), A.num(2) }) }
+    )),
+  })
+end)
+
+test("function expression with array destructuring param and hole (#182)", function()
+  assert_parse_ok("(function([, b]) {})([10, 20]);", {
+    A.expr_stmt(A.call(
+      A.func_expr({ arr_pattern({ nil, A.id("b") }) }, A.block({})),
+      { A.arr({ A.num(10), A.num(20) }) }
+    )),
+  })
+end)
+
+test("arrow function with array destructuring param (#182)", function()
+  assert_parse_ok("(([a, b]) => a)([1, 2]);", {
+    A.expr_stmt(A.call(
+      A.arrow({ arr_pattern({ A.id("a"), A.id("b") }) }, A.block({ A.ret(A.id("a")) })),
+      { A.arr({ A.num(1), A.num(2) }) }
+    )),
+  })
+end)
+
+test("function expression with object destructuring param (#182)", function()
+  assert_parse_ok("(function({x, y}) {})({x: 1, y: 2});", {
+    A.expr_stmt(A.call(
+      A.func_expr({ obj_pattern({ prop(A.id("x"), A.id("x"), true), prop(A.id("y"), A.id("y"), true) }) }, A.block({})),
+      { A.obj({ A.prop(A.id("x"), A.num(1)), A.prop(A.id("y"), A.num(2)) }) }
+    )),
+  })
+end)
+
 test("bare object destructuring assignment: ({x, y} = obj) (#181)", function()
   assert_parse_ok("let x, y; ({x, y} = {x: 1, y: 2});", {
     A.var_decl("let", { A.declarator(A.id("x")), A.declarator(A.id("y")) }),

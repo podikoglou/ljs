@@ -187,7 +187,7 @@ test("parser: invalid method name in class body", function()
 end)
 
 test("parser: consume mismatch shows expected and actual", function()
-  check_parse_err("function f( { }", "Expected Identifier, got {", 1, 13, "missing param name")
+  check_parse_err("function f( { }", "Expected ), got EOF", 1, 16, "missing param name")
 end)
 
 test("parser: != accepted as loose inequality", function()
