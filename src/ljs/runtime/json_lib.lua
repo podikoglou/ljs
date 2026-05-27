@@ -185,24 +185,10 @@ local function decode_error(str, idx, msg)
   error(string.format("%s at line %d col %d", msg, line_count, col_count))
 end
 
+local utf8 = require("ljs.utf8")
+
 local function codepoint_to_utf8(n)
-  -- http://scripts.sil.org/cms/scripts/page.php?site_id=nrsi&id=iws-appendixa
-  local f = math.floor
-  if n <= 0x7f then
-    return string.char(n)
-  elseif n <= 0x7ff then
-    return string.char(f(n / 64) + 192, n % 64 + 128)
-  elseif n <= 0xffff then
-    return string.char(f(n / 4096) + 224, f(n % 4096 / 64) + 128, n % 64 + 128)
-  elseif n <= 0x10ffff then
-    return string.char(
-      f(n / 262144) + 240,
-      f(n % 262144 / 4096) + 128,
-      f(n % 4096 / 64) + 128,
-      n % 64 + 128
-    )
-  end
-  error(string.format("invalid unicode codepoint '%x'", n))
+  return utf8.codepoint_to_utf8(n) or error(string.format("invalid unicode codepoint '%x'", n))
 end
 
 local function parse_unicode_escape(s)
