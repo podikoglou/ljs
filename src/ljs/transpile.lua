@@ -838,7 +838,21 @@ end
 local function emit_body(stmts, indent, ctx)
   local parts = {}
   for _, s in ipairs(stmts) do
-    parts[#parts + 1] = emit(s, indent, ctx)
+    local code = emit(s, indent, ctx)
+    if #parts > 0 and #code > 0 then
+      local prev = parts[#parts]
+      if prev:sub(-1) == "\n" then
+        prev = prev:sub(1, -2)
+      end
+      local prev_last = prev:match("(%S)$")
+      if prev_last == ")" then
+        local first_sig = code:match("^%s*(%S)")
+        if first_sig == "(" then
+          code = cg.pad(indent) .. ";\n" .. code
+        end
+      end
+    end
+    parts[#parts + 1] = code
   end
   return table.concat(parts)
 end
@@ -962,10 +976,11 @@ gen.Program = function(node, indent, ctx)
 
   -- In eval mode the last expression is returned as the program's value.
   if ctx.eval_mode and #body > 0 and body[#body].type == ast.TYPE_EXPRESSION_STATEMENT then
-    local code = ""
+    local prefix = {}
     for i = 1, #body - 1 do
-      code = code .. emit(body[i], indent, ctx)
+      prefix[#prefix + 1] = body[i]
     end
+    local code = emit_body(prefix, indent, ctx)
     local last_expr = emit(body[#body].expression, indent, ctx)
     code = code .. cg.return_expr(last_expr, indent)
     scope_pop(ctx)
