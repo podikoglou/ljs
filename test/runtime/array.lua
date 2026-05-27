@@ -775,6 +775,10 @@ test("every throws TypeError on missing callback", function()
   assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
 end)
 
+test("every with arrow function callback", function()
+  assert_eq(exec_js("return [2, 4, 6].every(x => x % 2 === 0);"), true)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
