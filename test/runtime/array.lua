@@ -780,6 +780,268 @@ test("every with arrow function callback", function()
 end)
 
 -- ============================================================================
+-- Array.prototype.indexOf
+-- ============================================================================
+
+test("indexOf finds element", function()
+  assert_eq(exec_js("return [1, 2, 3].indexOf(2);"), 1)
+end)
+
+test("indexOf returns -1 when not found", function()
+  assert_eq(exec_js("return [1, 2, 3].indexOf(99);"), -1)
+end)
+
+test("indexOf finds first occurrence", function()
+  assert_eq(exec_js("return [1, 2, 2, 3].indexOf(2);"), 1)
+end)
+
+test("indexOf with fromIndex", function()
+  assert_eq(exec_js("return [1, 2, 3, 2].indexOf(2, 2);"), 3)
+end)
+
+test("indexOf negative fromIndex", function()
+  assert_eq(exec_js("return [1, 2, 3, 4].indexOf(3, -2);"), 2)
+end)
+
+test("indexOf NaN not found", function()
+  assert_eq(exec_js("return [1, NaN, 3].indexOf(NaN);"), -1)
+end)
+
+test("indexOf skips holes and finds later element", function()
+  assert_eq(exec_js("return [1,,3].indexOf(3);"), 2)
+end)
+
+test("indexOf empty array returns -1", function()
+  assert_eq(exec_js("return [].indexOf(1);"), -1)
+end)
+
+test("indexOf fromIndex beyond length returns -1", function()
+  assert_eq(exec_js("return [1, 2, 3].indexOf(1, 10);"), -1)
+end)
+
+test("indexOf NaN fromIndex treated as 0", function()
+  assert_eq(exec_js("return [1, 2, 3].indexOf(1, NaN);"), 0)
+end)
+
+test("indexOf Infinity fromIndex returns -1", function()
+  assert_eq(exec_js("return [1, 2, 3].indexOf(1, Infinity);"), -1)
+end)
+
+test("indexOf -Infinity fromIndex treated as 0", function()
+  assert_eq(exec_js("return [1, 2, 3].indexOf(1, -Infinity);"), 0)
+end)
+
+-- ============================================================================
+-- Array.prototype.lastIndexOf
+-- ============================================================================
+
+test("lastIndexOf finds element", function()
+  assert_eq(exec_js("return [1, 2, 3].lastIndexOf(2);"), 1)
+end)
+
+test("lastIndexOf returns -1 when not found", function()
+  assert_eq(exec_js("return [1, 2, 3].lastIndexOf(99);"), -1)
+end)
+
+test("lastIndexOf finds last occurrence", function()
+  assert_eq(exec_js("return [1, 2, 2, 3].lastIndexOf(2);"), 2)
+end)
+
+test("lastIndexOf with fromIndex", function()
+  assert_eq(exec_js("return [1, 2, 3, 2].lastIndexOf(2, 2);"), 1)
+end)
+
+test("lastIndexOf negative fromIndex", function()
+  assert_eq(exec_js("return [1, 2, 3, 4].lastIndexOf(4, -1);"), 3)
+end)
+
+test("lastIndexOf NaN not found", function()
+  assert_eq(exec_js("return [1, NaN, 3].lastIndexOf(NaN);"), -1)
+end)
+
+test("lastIndexOf skips holes", function()
+  assert_eq(exec_js("return [1,,3].lastIndexOf(3);"), 2)
+end)
+
+test("lastIndexOf empty array returns -1", function()
+  assert_eq(exec_js("return [].lastIndexOf(1);"), -1)
+end)
+
+test("lastIndexOf -Infinity fromIndex returns -1", function()
+  assert_eq(exec_js("return [1, 2, 3].lastIndexOf(1, -Infinity);"), -1)
+end)
+
+test("lastIndexOf Infinity fromIndex searches from end", function()
+  assert_eq(exec_js("return [1, 2, 3].lastIndexOf(3, Infinity);"), 2)
+end)
+
+test("lastIndexOf NaN fromIndex starts at 0", function()
+  assert_eq(exec_js("return [2, 1, 1].lastIndexOf(1, NaN);"), -1)
+end)
+
+-- ============================================================================
+-- Array.prototype.includes
+-- ============================================================================
+
+test("includes finds element", function()
+  assert_eq(exec_js("return [1, 2, 3].includes(2);"), true)
+end)
+
+test("includes returns false when not found", function()
+  assert_eq(exec_js("return [1, 2, 3].includes(99);"), false)
+end)
+
+test("includes finds NaN via SameValueZero", function()
+  assert_eq(exec_js("return [1, NaN, 3].includes(NaN);"), true)
+end)
+
+test("includes with fromIndex", function()
+  assert_eq(exec_js("return [1, 2, 3].includes(1, 1);"), false)
+end)
+
+test("includes negative fromIndex", function()
+  assert_eq(exec_js("return [1, 2, 3, 4].includes(3, -2);"), true)
+end)
+
+test("includes treats holes as undefined", function()
+  assert_eq(exec_js("return [1,,3].includes(undefined);"), true)
+end)
+
+test("includes empty array returns false", function()
+  assert_eq(exec_js("return [].includes(1);"), false)
+end)
+
+test("includes Infinity fromIndex returns false", function()
+  assert_eq(exec_js("return [1, 2, 3].includes(1, Infinity);"), false)
+end)
+
+test("includes -Infinity fromIndex treated as 0", function()
+  assert_eq(exec_js("return [1, 2, 3].includes(1, -Infinity);"), true)
+end)
+
+test("includes NaN fromIndex treated as 0", function()
+  assert_eq(exec_js("return [1, 2, 3].includes(1, NaN);"), true)
+end)
+
+test("includes with string element", function()
+  assert_eq(exec_js("return ['a', 'b', 'c'].includes('b');"), true)
+end)
+
+test("includes does not use strict equality for NaN", function()
+  assert_eq(exec_js("return [NaN].includes(NaN);"), true)
+end)
+
+-- ============================================================================
+-- Array.prototype.find
+-- ============================================================================
+
+test("find returns first matching element", function()
+  assert_eq(exec_js("return [1, 2, 3].find(function(x) { return x > 1; });"), 2)
+end)
+
+test("find returns nil when nothing matches", function()
+  assert_eq(exec_js("return [1, 2, 3].find(function(x) { return x > 10; });"), nil)
+end)
+
+test("find with index argument", function()
+  assert_eq(exec_js("return [10, 20, 30].find(function(x, i) { return i === 1; });"), 20)
+end)
+
+test("find with array argument", function()
+  assert_eq(exec_js("return [1, 2, 3].find(function(x, i, a) { return x === a[2]; });"), 3)
+end)
+
+test("find with thisArg", function()
+  assert_eq(exec_js([[
+    var ctx = { threshold: 2 };
+    return [1, 2, 3].find(function(x) { return x > this.threshold; }, ctx);
+  ]]), 3)
+end)
+
+test("find throws TypeError on non-function", function()
+  local ok, err = pcall(exec_js, "return [].find(42);")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("find throws TypeError on missing callback", function()
+  local ok, err = pcall(exec_js, "return [].find();")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("find with arrow function callback", function()
+  assert_eq(exec_js("return [1, 2, 3].find(x => x > 1);"), 2)
+end)
+
+test("find does not skip holes", function()
+  assert_eq(exec_js([=[
+    var found = false;
+    [1,,3].find(function(x) { if (x === undefined) found = true; return false; });
+    return found;
+  ]=]), true)
+end)
+
+test("find on empty array returns nil", function()
+  assert_eq(exec_js("return [].find(function() { return true; });"), nil)
+end)
+
+-- ============================================================================
+-- Array.prototype.findIndex
+-- ============================================================================
+
+test("findIndex returns index of first match", function()
+  assert_eq(exec_js("return [1, 2, 3].findIndex(function(x) { return x > 1; });"), 1)
+end)
+
+test("findIndex returns -1 when nothing matches", function()
+  assert_eq(exec_js("return [1, 2, 3].findIndex(function(x) { return x > 10; });"), -1)
+end)
+
+test("findIndex with index argument", function()
+  assert_eq(exec_js("return [10, 20, 30].findIndex(function(x, i) { return i === 1; });"), 1)
+end)
+
+test("findIndex with array argument", function()
+  assert_eq(exec_js("return [1, 2, 3].findIndex(function(x, i, a) { return x === a[2]; });"), 2)
+end)
+
+test("findIndex with thisArg", function()
+  assert_eq(exec_js([[
+    var ctx = { threshold: 2 };
+    return [1, 2, 3].findIndex(function(x) { return x > this.threshold; }, ctx);
+  ]]), 2)
+end)
+
+test("findIndex throws TypeError on non-function", function()
+  local ok, err = pcall(exec_js, "return [].findIndex(42);")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("findIndex throws TypeError on missing callback", function()
+  local ok, err = pcall(exec_js, "return [].findIndex();")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("findIndex with arrow function callback", function()
+  assert_eq(exec_js("return [1, 2, 3].findIndex(x => x > 1);"), 1)
+end)
+
+test("findIndex does not skip holes", function()
+  assert_eq(exec_js([=[
+    var found = false;
+    [1,,3].findIndex(function(x) { if (x === undefined) found = true; return false; });
+    return found;
+  ]=]), true)
+end)
+
+test("findIndex on empty array returns -1", function()
+  assert_eq(exec_js("return [].findIndex(function() { return true; });"), -1)
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 
