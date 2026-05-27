@@ -1443,7 +1443,9 @@ convert_expression_to_pattern = function(node)
         elements[i] = convert_expression_to_pattern(elem)
       end
     end
-    return ast.array_pattern(elements, node)
+    local result = ast.array_pattern(elements, node)
+    result.count = count
+    return result
   elseif node.type == ast.TYPE_OBJECT_EXPRESSION then
     local properties = {}
     for _, prop_node in ipairs(node.properties) do
