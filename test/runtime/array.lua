@@ -655,6 +655,15 @@ test("some returns false for empty array", function()
   assert_eq(exec_js("return [].some(function(x) { return true; });"), false)
 end)
 
+test("some short-circuits on first match", function()
+  local count = exec_js([[
+    var count = 0;
+    [1, 2, 3].some(function(x) { count++; return x === 2; });
+    return count;
+  ]])
+  assert_eq(count, 2)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
