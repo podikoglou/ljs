@@ -1,29 +1,43 @@
 -- Array constructor + prototype methods + static methods.
 -- Array constructor stores elements at 1-based indices and sets .length.
 -- All methods follow the JS-ABI convention: first param is _ljs_this.
+
+local function _ljs_arr_newindex(t, k, v)
+  rawset(t, k, v)
+  if type(k) == "number" and k == math.floor(k) and k > 0 then
+    local len = rawget(t, "length")
+    if len ~= nil and k > len then
+      rawset(t, "length", k)
+    end
+  end
+end
+
 local Array = _ljs_ctor(function(_ljs_this, ...)
+  local mt = getmetatable(_ljs_this)
+  mt.__newindex = _ljs_arr_newindex
   local n = select("#", ...)
   for i = 1, n do
-    _ljs_this[i] = select(i, ...)
+    rawset(_ljs_this, i, select(i, ...))
   end
-  _ljs_this.length = n
+  rawset(_ljs_this, "length", n)
 end)
 -- push supports multiple arguments (matching JS Array.prototype.push semantics).
 Array.prototype.push = _ljs_fn(function(_ljs_this, ...)
   local n = select("#", ...)
+  local len = _ljs_this.length
   for i = 1, n do
-    _ljs_this[_ljs_this.length + i] = select(i, ...)
+    rawset(_ljs_this, len + i, select(i, ...))
   end
-  _ljs_this.length = _ljs_this.length + n
-  return _ljs_this.length
+  rawset(_ljs_this, "length", len + n)
+  return len + n
 end)
 Array.prototype.pop = _ljs_fn(function(_ljs_this)
   if _ljs_this.length == 0 then
     return nil
   end
   local val = _ljs_this[_ljs_this.length]
-  _ljs_this[_ljs_this.length] = nil
-  _ljs_this.length = _ljs_this.length - 1
+  rawset(_ljs_this, _ljs_this.length, nil)
+  rawset(_ljs_this, "length", _ljs_this.length - 1)
   return val
 end)
 
@@ -90,9 +104,9 @@ Array.from = _ljs_fn(function(_ljs_this, source, mapFn, thisArg)
       if mapFn ~= nil then
         val = _ljs_call_member(mapFn, "call", thisArg, val, i - 1)
       end
-      arr[i] = val
+      rawset(arr, i, val)
     end
-    arr.length = #source
+    rawset(arr, "length", #source)
     return arr
   end
   if type(source) == "table" then
@@ -105,9 +119,9 @@ Array.from = _ljs_fn(function(_ljs_this, source, mapFn, thisArg)
       if mapFn ~= nil then
         val = _ljs_call_member(mapFn, "call", thisArg, val, i - 1)
       end
-      arr[i] = val
+      rawset(arr, i, val)
     end
-    arr.length = len
+    rawset(arr, "length", len)
     return arr
   end
   return arr

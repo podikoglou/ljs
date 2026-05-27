@@ -283,6 +283,30 @@ test("toString uses custom join when join is callable", function()
 end)
 
 -- ============================================================================
+-- Array .length update on index assignment (#160)
+-- ============================================================================
+
+test("index assignment beyond bounds updates length", function()
+  assert_eq(exec_js("var a = []; a[5] = 1; return a.length;"), 6)
+end)
+
+test("index 0 assignment updates length", function()
+  assert_eq(exec_js("var a = []; a[0] = 'x'; return a.length;"), 1)
+end)
+
+test("within-bounds assignment preserves length", function()
+  assert_eq(exec_js("var a = [1, 2, 3]; a[1] = 99; return a.length;"), 3)
+end)
+
+test("multiple gap assignments", function()
+  assert_eq(exec_js("var a = []; a[2] = 'a'; a[5] = 'b'; return a.length;"), 6)
+end)
+
+test("index assignment on new Array", function()
+  assert_eq(exec_js("var a = new Array(); a[3] = 1; return a.length;"), 4)
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 
