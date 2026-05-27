@@ -99,6 +99,36 @@ test("tokenize template with escaped dollar sign", function()
   assert_eq(tokens[1].value.quasis[1], "$not_expr")
 end)
 
+test("tokenize template with escape \\0", function()
+  local tokens, err = parser.tokenize("`a\\0b`")
+  if not tokens then error("tokenize failed: " .. tostring(err)) end
+  assert_eq(tokens[1].value.quasis[1], "a" .. string.char(0) .. "b")
+end)
+
+test("tokenize template with escape \\xHH", function()
+  local tokens, err = parser.tokenize("`\\x41`")
+  if not tokens then error("tokenize failed: " .. tostring(err)) end
+  assert_eq(tokens[1].value.quasis[1], "A")
+end)
+
+test("tokenize template with escape \\uXXXX", function()
+  local tokens, err = parser.tokenize("`\\u0041`")
+  if not tokens then error("tokenize failed: " .. tostring(err)) end
+  assert_eq(tokens[1].value.quasis[1], "A")
+end)
+
+test("tokenize template with escape \\uXXXX multi-byte", function()
+  local tokens, err = parser.tokenize("`\\u00E9`")
+  if not tokens then error("tokenize failed: " .. tostring(err)) end
+  assert_eq(tokens[1].value.quasis[1], "\xC3\xA9")
+end)
+
+test("tokenize template with escape \\u{X...}", function()
+  local tokens, err = parser.tokenize("`\\u{41}`")
+  if not tokens then error("tokenize failed: " .. tostring(err)) end
+  assert_eq(tokens[1].value.quasis[1], "A")
+end)
+
 test("parse template with escape", function()
   assert_parse_ok("`a\\nb`", {
     {

@@ -72,6 +72,34 @@ test("tokenizer: invalid escape in single-quoted string", function()
   check_tokenize_err("'a\\qb'", "Invalid escape", 1, 4, "bad escape single-quoted")
 end)
 
+test("tokenizer: invalid hex escape \\x with no digits", function()
+  check_tokenize_err('"\\x"', "Invalid hex escape", 1, 4, "hex escape no digits")
+end)
+
+test("tokenizer: invalid hex escape \\x with one digit", function()
+  check_tokenize_err('"\\xA"', "Invalid hex escape", 1, 5, "hex escape one digit")
+end)
+
+test("tokenizer: invalid unicode escape \\u with no digits", function()
+  check_tokenize_err('"\\u"', "Invalid unicode escape", 1, 4, "unicode escape no digits")
+end)
+
+test("tokenizer: invalid unicode escape \\u with short digits", function()
+  check_tokenize_err('"\\u004"', "Invalid unicode escape", 1, 7, "unicode escape short")
+end)
+
+test("tokenizer: invalid unicode escape \\u{} empty braces", function()
+  check_tokenize_err('"\\u{}"', "Invalid unicode escape", 1, 5, "unicode empty braces")
+end)
+
+test("tokenizer: invalid hex escape in template literal", function()
+  check_tokenize_err("`\\x`", "Invalid hex escape", 1, 4, "template hex escape no digits")
+end)
+
+test("tokenizer: invalid unicode escape in template literal", function()
+  check_tokenize_err("`\\u`", "Invalid unicode escape", 1, 4, "template unicode escape no digits")
+end)
+
 test("tokenizer: unexpected char on third line has correct position", function()
   check_tokenize_err(
     "let a = 1;\nlet b = 2;\nlet c = @;",
