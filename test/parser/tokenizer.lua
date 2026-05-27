@@ -96,6 +96,50 @@ test("tokenize legacy octal escape \\200 (three-digit starting 2)", function()
   assert_tok('"\\200"', 1, "String", string.char(128))
 end)
 
+test("tokenize legacy octal: \\0 alone is null", function()
+  assert_tok('"\\0"', 1, "String", string.char(0))
+end)
+
+test("tokenize legacy octal: \\0x is null + literal x", function()
+  assert_tok('"\\0x"', 1, "String", string.char(0) .. "x")
+end)
+
+test("tokenize legacy octal: \\08 is null + literal 8", function()
+  assert_tok('"\\08"', 1, "String", string.char(0) .. "8")
+end)
+
+test("tokenize legacy octal: \\09 is null + literal 9", function()
+  assert_tok('"\\09"', 1, "String", string.char(0) .. "9")
+end)
+
+test("tokenize NonOctalDecimalEscapeSequence \\8", function()
+  assert_tok('"\\8"', 1, "String", "8")
+end)
+
+test("tokenize NonOctalDecimalEscapeSequence \\9", function()
+  assert_tok('"\\9"', 1, "String", "9")
+end)
+
+test("tokenize legacy octal: \\078 is \\07 octal + literal 8", function()
+  assert_tok('"\\078"', 1, "String", string.char(7) .. "8")
+end)
+
+test("tokenize legacy octal: \\400 is \\40 octal + literal 0", function()
+  assert_tok('"\\400"', 1, "String", string.char(32) .. "0")
+end)
+
+test("tokenize legacy octal: \\077 is octal 63", function()
+  assert_tok('"\\077"', 1, "String", string.char(63))
+end)
+
+test("tokenize legacy octal: \\00 is octal 0", function()
+  assert_tok('"\\00"', 1, "String", string.char(0))
+end)
+
+test("tokenize legacy octal: \\000 is octal 0", function()
+  assert_tok('"\\000"', 1, "String", string.char(0))
+end)
+
 test("tokenize escape \\xHH", function()
   assert_tok('"\\x41"', 1, "String", "A")
 end)
