@@ -1277,6 +1277,64 @@ test("filter uses _ljs_to_boolean for callback result (#243)", function()
 end)
 
 -- ============================================================================
+-- Array.prototype.reduce
+-- ============================================================================
+
+test("reduce basic sum", function()
+  assert_eq(exec_js("return [1, 2, 3].reduce(function(acc, x) { return acc + x; });"), 6)
+end)
+
+test("reduce with initialValue", function()
+  assert_eq(exec_js("return [1, 2, 3].reduce(function(acc, x) { return acc + x; }, 10);"), 16)
+end)
+
+test("reduce with index argument", function()
+  assert_eq(exec_js("return [10, 20, 30].reduce(function(acc, x, i) { return acc + i; }, 0);"), 3)
+end)
+
+test("reduce with array argument", function()
+  assert_eq(exec_js("return [1, 2, 3].reduce(function(acc, x, i, a) { return a.length; }, 0);"), 3)
+end)
+
+test("reduce on empty array with initialValue returns initialValue", function()
+  assert_eq(exec_js("return [].reduce(function() {}, 42);"), 42)
+end)
+
+test("reduce on single element without initialValue returns element", function()
+  assert_eq(exec_js("return [7].reduce(function() {});"), 7)
+end)
+
+test("reduce throws TypeError on empty array without initialValue", function()
+  local ok, err = pcall(exec_js, "return [].reduce(function() {});")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("reduce skips holes in sparse array", function()
+  assert_eq(exec_js("return [1,,3].reduce(function(acc, x) { return acc + x; });"), 4)
+end)
+
+test("reduce throws TypeError on non-function", function()
+  local ok, err = pcall(exec_js, "return [].reduce(42);")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("reduce throws TypeError on missing callback", function()
+  local ok, err = pcall(exec_js, "return [].reduce();")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("reduce with arrow function callback", function()
+  assert_eq(exec_js("return [1, 2, 3].reduce((acc, x) => acc + x);"), 6)
+end)
+
+test("reduce sparse array finds first present element as initial accumulator", function()
+  assert_eq(exec_js("return [,2,3].reduce(function(acc, x) { return acc + x; });"), 5)
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 

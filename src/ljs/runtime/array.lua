@@ -103,6 +103,47 @@ Array.prototype.filter = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
 end)
 
 -- ---------------------------------------------------------------------------
+-- Array.prototype.reduce
+-- ---------------------------------------------------------------------------
+Array.prototype.reduce = _ljs_fn(function(_ljs_this, callbackFn, initialValue)
+  if not _ljs_is_function(callbackFn) then
+    error("TypeError: " .. _ljs_value_repr(callbackFn) .. " is not a function")
+  end
+  local len = _ljs_this.length or 0
+  local accumulator
+  local k = 1
+  if initialValue ~= nil then
+    accumulator = initialValue
+  else
+    if len == 0 then
+      error("TypeError: Reduce of empty array with no initial value")
+    end
+    local found = false
+    while k <= len do
+      local v = rawget(_ljs_this, k)
+      if v ~= nil then
+        accumulator = v
+        found = true
+        k = k + 1
+        break
+      end
+      k = k + 1
+    end
+    if not found then
+      error("TypeError: Reduce of empty array with no initial value")
+    end
+  end
+  while k <= len do
+    local v = rawget(_ljs_this, k)
+    if v ~= nil then
+      accumulator = _ljs_call_member(callbackFn, "call", nil, accumulator, v, k - 1, _ljs_this)
+    end
+    k = k + 1
+  end
+  return accumulator
+end)
+
+-- ---------------------------------------------------------------------------
 -- Array.prototype.some
 -- ---------------------------------------------------------------------------
 Array.prototype.some = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
