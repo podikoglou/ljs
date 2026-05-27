@@ -499,6 +499,54 @@ test("slice result is independent of original", function()
   assert_eq(arr[2], 99)
 end)
 
+test("slice with negative fractional start truncates toward zero", function()
+  local arr = exec_js("return [1, 2, 3].slice(-1.5);")
+  assert_eq(arr.length, 1)
+  assert_eq(arr[1], 3)
+end)
+
+test("slice with negative fractional end truncates toward zero", function()
+  local arr = exec_js("return [1, 2, 3, 4, 5].slice(0, -1.5);")
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[4], 4)
+end)
+
+test("slice with positive fractional start truncates toward zero", function()
+  local arr = exec_js("return [1, 2, 3, 4].slice(1.9);")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 2)
+  assert_eq(arr[3], 4)
+end)
+
+test("slice with NaN start returns full copy", function()
+  local arr = exec_js("return [1, 2, 3].slice(NaN);")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[3], 3)
+end)
+
+test("slice with NaN end returns full copy", function()
+  local arr = exec_js("return [1, 2, 3].slice(0, NaN);")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[3], 3)
+end)
+
+test("slice with true as start (ToNumber(true)=1)", function()
+  local arr = exec_js("return [1, 2, 3].slice(true);")
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 2)
+  assert_eq(arr[2], 3)
+end)
+
+test("slice with false as start (ToNumber(false)=0)", function()
+  local arr = exec_js("return [1, 2, 3].slice(false, 2);")
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+end)
+
 -- ============================================================================
 -- Array.prototype.concat
 -- ============================================================================
