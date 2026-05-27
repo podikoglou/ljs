@@ -506,6 +506,38 @@ Array.prototype.findIndex = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
 end)
 
 -- ---------------------------------------------------------------------------
+-- Array.prototype.reverse
+-- ---------------------------------------------------------------------------
+Array.prototype.reverse = _ljs_fn(function(_ljs_this)
+  local len = _ljs_this.length or 0
+  local middle = math.floor(len / 2)
+  local lower = 0
+  while lower ~= middle do
+    local upper = len - lower - 1
+    local lower_lua = lower + 1
+    local upper_lua = upper + 1
+    local lower_exists = rawget(_ljs_this, lower_lua) ~= nil
+    local upper_exists = rawget(_ljs_this, upper_lua) ~= nil
+    if lower_exists and upper_exists then
+      local lv = rawget(_ljs_this, lower_lua)
+      local uv = rawget(_ljs_this, upper_lua)
+      rawset(_ljs_this, lower_lua, uv)
+      rawset(_ljs_this, upper_lua, lv)
+    elseif not lower_exists and upper_exists then
+      local uv = rawget(_ljs_this, upper_lua)
+      rawset(_ljs_this, lower_lua, uv)
+      rawset(_ljs_this, upper_lua, nil)
+    elseif lower_exists and not upper_exists then
+      local lv = rawget(_ljs_this, lower_lua)
+      rawset(_ljs_this, upper_lua, lv)
+      rawset(_ljs_this, lower_lua, nil)
+    end
+    lower = lower + 1
+  end
+  return _ljs_this
+end)
+
+-- ---------------------------------------------------------------------------
 -- Array.prototype.join
 -- ---------------------------------------------------------------------------
 -- Converts each element to a string (using tostring; nil/undefined → ""),

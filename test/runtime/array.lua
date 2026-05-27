@@ -1485,6 +1485,18 @@ test("flatMap with arrow function callback", function()
 end)
 
 -- ============================================================================
+-- Array.prototype.reverse
+-- ============================================================================
+
+test("reverse basic", function()
+  local arr = exec_js("return [1, 2, 3].reverse();")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 3)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 1)
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 
