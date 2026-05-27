@@ -52,6 +52,18 @@ test("tokenize escape \\0", function()
   assert_tok('"a\\0b"', 1, "String", "a" .. string.char(0) .. "b")
 end)
 
+test("tokenize legacy octal escape \\1", function()
+  assert_tok('"\\1"', 1, "String", string.char(1))
+end)
+
+test("tokenize legacy octal escape \\7", function()
+  assert_tok('"\\7"', 1, "String", string.char(7))
+end)
+
+test("tokenize legacy octal escape \\5 in context", function()
+  assert_tok('"a\\5b"', 1, "String", "a" .. string.char(5) .. "b")
+end)
+
 test("tokenize escape \\xHH", function()
   assert_tok('"\\x41"', 1, "String", "A")
 end)
