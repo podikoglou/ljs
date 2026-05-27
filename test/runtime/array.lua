@@ -725,6 +725,15 @@ test("every returns true for empty array", function()
   assert_eq(exec_js("return [].every(function(x) { return false; });"), true)
 end)
 
+test("every short-circuits on first mismatch", function()
+  local count = exec_js([[
+    var count = 0;
+    [1, 2, 3].every(function(x) { count++; return x !== 2; });
+    return count;
+  ]])
+  assert_eq(count, 2)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
