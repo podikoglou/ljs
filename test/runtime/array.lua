@@ -302,6 +302,19 @@ test("multiple gap assignments", function()
   assert_eq(exec_js("var a = []; a[2] = 'a'; a[5] = 'b'; return a.length;"), 6)
 end)
 
+test("sparse array length (#191)", function()
+  local arr = eval_js("[1,,3]")
+  assert_eq(arr.length, 3)
+end)
+
+test("sparse array element after hole (#191)", function()
+  assert_eq(exec_js("return [1,,3][2];"), 3)
+end)
+
+test("sparse array hole is undefined (#191)", function()
+  assert_eq(exec_js("return [1,,3][1];"), nil)
+end)
+
 test("index assignment on new Array", function()
   assert_eq(exec_js("var a = new Array(); a[3] = 1; return a.length;"), 4)
 end)

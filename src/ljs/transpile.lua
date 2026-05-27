@@ -1997,23 +1997,34 @@ gen.ObjectExpression = function(node, indent, ctx)
 end
 
 gen.ArrayExpression = function(node, indent, ctx)
+  local count = node.count or #node.elements
   local has_spread = false
-  for _, e in ipairs(node.elements) do
-    if e.type == ast.TYPE_SPREAD_ELEMENT then
+  for i = 1, count do
+    local e = node.elements[i]
+    if e ~= nil and e.type == ast.TYPE_SPREAD_ELEMENT then
       has_spread = true
       break
     end
   end
   if not has_spread then
     local args = { "Array" }
-    for _, e in ipairs(node.elements) do
-      args[#args + 1] = emit(e, indent, ctx)
+    for i = 1, count do
+      local e = node.elements[i]
+      if e ~= nil then
+        args[#args + 1] = emit(e, indent, ctx)
+      else
+        args[#args + 1] = "nil"
+      end
     end
     return cg.call("_ljs_new", args)
   end
   local spread_args = {}
-  for _, e in ipairs(node.elements) do
-    if e.type == ast.TYPE_SPREAD_ELEMENT then
+  for i = 1, count do
+    local e = node.elements[i]
+    if e == nil then
+      spread_args[#spread_args + 1] = "nil"
+      spread_args[#spread_args + 1] = "false"
+    elseif e.type == ast.TYPE_SPREAD_ELEMENT then
       spread_args[#spread_args + 1] = emit(e.argument, indent, ctx)
       spread_args[#spread_args + 1] = "true"
     else
