@@ -32,7 +32,7 @@ test("try/finally (no catch)", function()
   assert(code:find("pcall"), "expected pcall in output")
   assert(code:find("local _ljs_ok, _ljs_err"), "expected local _ljs_ok, _ljs_err")
   assert(code:find("cleanup"), "expected finally body in output")
-  assert(code:find("error%(_ljs_err%)"), "expected error re-throw")
+  assert(code:find("error%(_ljs_err, 0%)"), "expected error re-throw with level 0")
 end)
 
 test("try/catch/finally integration: no error", function()

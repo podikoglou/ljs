@@ -1424,7 +1424,7 @@ gen.TryStatement = function(node, indent, ctx)
     local finally_block = finalizer_body
     local rethrow = cg.if_stmt(
       "not _ljs_ok",
-      cg.expr_stmt(cg.call("error", { "_ljs_err" }), indent + 2),
+      cg.expr_stmt(cg.call("error", { "_ljs_err", "0" }), indent + 2),
       nil,
       nil,
       indent
