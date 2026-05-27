@@ -4,6 +4,7 @@ local A = require("test.helpers.ast")
 local ast = require("ljs.ast")
 local test = T.test
 local assert_parse_ok = P.assert_parse_ok
+local assert_parse_fail = P.assert_parse_fail
 
 local function obj_pattern(props)
   return { type = ast.TYPE_OBJECT_PATTERN, properties = props }
@@ -124,4 +125,12 @@ test("parse rest in object pattern: let {x, ...rest} = obj", function()
       }), A.id("obj")),
     }),
   })
+end)
+
+test("object destructuring without initializer is a parse error (#175)", function()
+  assert_parse_fail("let {x, y};", "Missing initializer")
+end)
+
+test("array destructuring without initializer is a parse error (#175)", function()
+  assert_parse_fail("var [a, b];", "Missing initializer")
 end)

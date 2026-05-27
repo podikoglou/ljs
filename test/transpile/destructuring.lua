@@ -96,3 +96,12 @@ test("rest in object destructuring", function()
   local out = run_js('let {x, ...rest} = {x: 1, y: 2, z: 3};\nconsole.log(x, rest.y, rest.z);')
   assert_eq(out, "1\t2\t3\n")
 end)
+
+test("destructure_counter resets between transpiles (#174)", function()
+  local src = "let {x} = obj;"
+  local code1 = transpile_ok(src)
+  local code2 = transpile_ok(src)
+  assert(code1:find("_ljs_d1", 1, true), "first transpile should use _ljs_d1")
+  assert(code2:find("_ljs_d1", 1, true), "second transpile should also use _ljs_d1")
+  assert(not code2:find("_ljs_d2", 1, true), "second transpile should not leak _ljs_d2")
+end)
