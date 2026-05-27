@@ -580,6 +580,66 @@ test("concat result is independent of originals", function()
 end)
 
 -- ============================================================================
+-- Array.prototype.at
+-- ============================================================================
+
+test("at positive index", function()
+  assert_eq(exec_js("return [1, 2, 3].at(0);"), 1)
+end)
+
+test("at positive index middle", function()
+  assert_eq(exec_js("return [1, 2, 3].at(1);"), 2)
+end)
+
+test("at negative index returns last element", function()
+  assert_eq(exec_js("return [1, 2, 3].at(-1);"), 3)
+end)
+
+test("at negative index second to last", function()
+  assert_eq(exec_js("return [1, 2, 3].at(-2);"), 2)
+end)
+
+test("at out of bounds positive returns undefined", function()
+  assert_eq(exec_js("return [1, 2, 3].at(3);"), nil)
+end)
+
+test("at out of bounds negative returns undefined", function()
+  assert_eq(exec_js("return [1, 2, 3].at(-4);"), nil)
+end)
+
+test("at with no args returns first element", function()
+  assert_eq(exec_js("return [1, 2, 3].at();"), 1)
+end)
+
+test("at truncates fractional index", function()
+  assert_eq(exec_js("return [1, 2, 3].at(1.5);"), 2)
+end)
+
+test("at truncates negative fractional index", function()
+  assert_eq(exec_js("return [1, 2, 3].at(-1.5);"), 3)
+end)
+
+test("at on empty array returns undefined", function()
+  assert_eq(exec_js("return [].at(0);"), nil)
+end)
+
+test("at with NaN returns first element", function()
+  assert_eq(exec_js("return [1, 2, 3].at(NaN);"), 1)
+end)
+
+test("at with Infinity returns undefined", function()
+  assert_eq(exec_js("return [1, 2, 3].at(Infinity);"), nil)
+end)
+
+test("at with -Infinity returns undefined", function()
+  assert_eq(exec_js("return [1, 2, 3].at(-Infinity);"), nil)
+end)
+
+test("at on sparse array hole returns undefined", function()
+  assert_eq(exec_js("return [1,,3].at(1);"), nil)
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 

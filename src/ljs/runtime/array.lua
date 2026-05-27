@@ -142,6 +142,36 @@ Array.prototype.concat = _ljs_fn(function(_ljs_this, ...)
 end)
 
 -- ---------------------------------------------------------------------------
+-- Array.prototype.at
+-- ---------------------------------------------------------------------------
+Array.prototype.at = _ljs_fn(function(_ljs_this, index_val)
+  local len = _ljs_this.length or 0
+  local relative_index
+  if index_val == nil then
+    relative_index = 0
+  else
+    local n = tonumber(index_val)
+    if n == nil or n ~= n then
+      relative_index = 0
+    elseif n == math.huge or n == -math.huge then
+      relative_index = n
+    else
+      relative_index = n >= 0 and math.floor(n) or math.ceil(n)
+    end
+  end
+  local k
+  if relative_index >= 0 then
+    k = relative_index
+  else
+    k = len + relative_index
+  end
+  if k < 0 or k >= len then
+    return nil
+  end
+  return rawget(_ljs_this, k + 1)
+end)
+
+-- ---------------------------------------------------------------------------
 -- Array.prototype.join
 -- ---------------------------------------------------------------------------
 -- Converts each element to a string (using tostring; nil/undefined → ""),
