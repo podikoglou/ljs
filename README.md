@@ -19,9 +19,7 @@ ljs.run("console.log('hello')")
 -- → prints "hello"
 
 ljs.run("[1,2,3].map(x => x * 2)")
--- → doesn't work, but:
-ljs.run("1 + 2")
--- → 3
+-- → { 2, 4, 6 }
 ```
 
 ## Install
