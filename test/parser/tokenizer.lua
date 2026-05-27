@@ -80,6 +80,22 @@ test("tokenize legacy octal escape \\07 (two-digit starting 0)", function()
   assert_tok('"\\07"', 1, "String", string.char(7))
 end)
 
+test("tokenize legacy octal escape \\123 (three-digit)", function()
+  assert_tok('"\\123"', 1, "String", string.char(83))
+end)
+
+test("tokenize legacy octal escape \\377 (max octal value 255)", function()
+  assert_tok('"\\377"', 1, "String", string.char(255))
+end)
+
+test("tokenize legacy octal escape \\100 (three-digit starting 1)", function()
+  assert_tok('"\\100"', 1, "String", string.char(64))
+end)
+
+test("tokenize legacy octal escape \\200 (three-digit starting 2)", function()
+  assert_tok('"\\200"', 1, "String", string.char(128))
+end)
+
 test("tokenize escape \\xHH", function()
   assert_tok('"\\x41"', 1, "String", "A")
 end)
