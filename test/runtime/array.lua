@@ -787,6 +787,50 @@ test("indexOf finds element", function()
   assert_eq(exec_js("return [1, 2, 3].indexOf(2);"), 1)
 end)
 
+test("indexOf returns -1 when not found", function()
+  assert_eq(exec_js("return [1, 2, 3].indexOf(99);"), -1)
+end)
+
+test("indexOf finds first occurrence", function()
+  assert_eq(exec_js("return [1, 2, 2, 3].indexOf(2);"), 1)
+end)
+
+test("indexOf with fromIndex", function()
+  assert_eq(exec_js("return [1, 2, 3, 2].indexOf(2, 2);"), 3)
+end)
+
+test("indexOf negative fromIndex", function()
+  assert_eq(exec_js("return [1, 2, 3, 4].indexOf(3, -2);"), 2)
+end)
+
+test("indexOf NaN not found", function()
+  assert_eq(exec_js("return [1, NaN, 3].indexOf(NaN);"), -1)
+end)
+
+test("indexOf skips holes and finds later element", function()
+  assert_eq(exec_js("return [1,,3].indexOf(3);"), 2)
+end)
+
+test("indexOf empty array returns -1", function()
+  assert_eq(exec_js("return [].indexOf(1);"), -1)
+end)
+
+test("indexOf fromIndex beyond length returns -1", function()
+  assert_eq(exec_js("return [1, 2, 3].indexOf(1, 10);"), -1)
+end)
+
+test("indexOf NaN fromIndex treated as 0", function()
+  assert_eq(exec_js("return [1, 2, 3].indexOf(1, NaN);"), 0)
+end)
+
+test("indexOf Infinity fromIndex returns -1", function()
+  assert_eq(exec_js("return [1, 2, 3].indexOf(1, Infinity);"), -1)
+end)
+
+test("indexOf -Infinity fromIndex treated as 0", function()
+  assert_eq(exec_js("return [1, 2, 3].indexOf(1, -Infinity);"), 0)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
