@@ -1090,6 +1090,106 @@ test("findIndex on empty array returns -1", function()
 end)
 
 -- ============================================================================
+-- Array.prototype.forEach
+-- ============================================================================
+
+test("forEach basic iteration", function()
+  local result = exec_js([=[
+    var result = [];
+    [1, 2, 3].forEach(function(x) { result.push(x * 2); });
+    return result;
+  ]=])
+  assert_eq(result.length, 3)
+  assert_eq(result[1], 2)
+  assert_eq(result[2], 4)
+  assert_eq(result[3], 6)
+end)
+
+test("forEach with index argument", function()
+  local result = exec_js([=[
+    var result = [];
+    [10, 20, 30].forEach(function(x, i) { result.push(i); });
+    return result;
+  ]=])
+  assert_eq(result.length, 3)
+  assert_eq(result[1], 0)
+  assert_eq(result[2], 1)
+  assert_eq(result[3], 2)
+end)
+
+test("forEach with array argument", function()
+  local result = exec_js([=[
+    var result = [];
+    [1, 2].forEach(function(x, i, a) { result.push(a.length); });
+    return result;
+  ]=])
+  assert_eq(result.length, 2)
+  assert_eq(result[1], 2)
+  assert_eq(result[2], 2)
+end)
+
+test("forEach with thisArg", function()
+  local result = exec_js([[
+    var ctx = { mult: 10 };
+    var result = [];
+    [1, 2, 3].forEach(function(x) { result.push(x * this.mult); }, ctx);
+    return result;
+  ]])
+  assert_eq(result.length, 3)
+  assert_eq(result[1], 10)
+  assert_eq(result[2], 20)
+  assert_eq(result[3], 30)
+end)
+
+test("forEach returns undefined", function()
+  assert_eq(exec_js("return [1, 2, 3].forEach(function() {});"), nil)
+end)
+
+test("forEach on empty array does nothing", function()
+  local result = exec_js([=[
+    var count = 0;
+    [].forEach(function() { count++; });
+    return count;
+  ]=])
+  assert_eq(result, 0)
+end)
+
+test("forEach skips holes in sparse array", function()
+  local result = exec_js([=[
+    var result = [];
+    [1,,3].forEach(function(x) { result.push(x); });
+    return result;
+  ]=])
+  assert_eq(result.length, 2)
+  assert_eq(result[1], 1)
+  assert_eq(result[2], 3)
+end)
+
+test("forEach throws TypeError on non-function", function()
+  local ok, err = pcall(exec_js, "return [].forEach(42);")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("forEach throws TypeError on missing callback", function()
+  local ok, err = pcall(exec_js, "return [].forEach();")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("forEach with arrow function callback", function()
+  local result = exec_js([=[
+    var result = [];
+    [1, 2, 3].forEach(x => result.push(x * 2));
+    return result;
+  ]=])
+  assert_eq(result.length, 3)
+  assert_eq(result[1], 2)
+  assert_eq(result[2], 4)
+  assert_eq(result[3], 6)
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 
