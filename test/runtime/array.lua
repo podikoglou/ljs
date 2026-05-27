@@ -664,6 +664,13 @@ test("some short-circuits on first match", function()
   assert_eq(count, 2)
 end)
 
+test("some with thisArg", function()
+  assert_eq(exec_js([[
+    var ctx = { threshold: 3 };
+    return [1, 2, 4].some(function(x) { return x > this.threshold; }, ctx);
+  ]]), true)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
