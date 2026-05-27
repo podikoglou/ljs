@@ -260,7 +260,7 @@ Array.prototype.lastIndexOf = _ljs_fn(function(_ljs_this, searchElement, fromInd
   else
     local num = tonumber(fromIndex)
     if num == nil or num ~= num then
-      n = len - 1
+      n = 0
     elseif num == -math.huge then
       return -1
     elseif num == math.huge then

@@ -875,8 +875,8 @@ test("lastIndexOf Infinity fromIndex searches from end", function()
   assert_eq(exec_js("return [1, 2, 3].lastIndexOf(3, Infinity);"), 2)
 end)
 
-test("lastIndexOf NaN fromIndex searches from end", function()
-  assert_eq(exec_js("return [1, 2, 3].lastIndexOf(1, NaN);"), 0)
+test("lastIndexOf NaN fromIndex starts at 0", function()
+  assert_eq(exec_js("return [2, 1, 1].lastIndexOf(1, NaN);"), -1)
 end)
 
 -- ============================================================================
