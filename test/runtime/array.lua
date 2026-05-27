@@ -1335,6 +1335,79 @@ test("reduce sparse array finds first present element as initial accumulator", f
 end)
 
 -- ============================================================================
+-- Array.prototype.flat
+-- ============================================================================
+
+test("flat basic flatten one level", function()
+  local arr = exec_js("return [1, [2, 3], 4].flat();")
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+  assert_eq(arr[4], 4)
+end)
+
+test("flat with depth 2", function()
+  local arr = exec_js("return [1, [2, [3]]].flat(2);")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+end)
+
+test("flat default depth is 1", function()
+  local arr = exec_js("return [1, [2, [3]]].flat();")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(type(arr[3]), "table")
+end)
+
+test("flat with depth 0 returns shallow copy", function()
+  local arr = exec_js("return [1, [2, 3]].flat(0);")
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 1)
+  assert_eq(type(arr[2]), "table")
+end)
+
+test("flat deeply nested with Infinity", function()
+  local arr = exec_js("return [1, [2, [3, [4]]]].flat(Infinity);")
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+  assert_eq(arr[4], 4)
+end)
+
+test("flat on empty array", function()
+  local arr = exec_js("return [].flat();")
+  assert_eq(arr.length, 0)
+end)
+
+test("flat skips holes in sparse array", function()
+  local arr = exec_js("return [1,,3].flat();")
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 3)
+end)
+
+test("flat negative depth treated as 0", function()
+  local arr = exec_js("return [1, [2, 3]].flat(-1);")
+  assert_eq(arr.length, 2)
+  assert_eq(type(arr[2]), "table")
+end)
+
+test("flat returns new array", function()
+  local arr = exec_js([=[
+    var orig = [1, [2, 3]];
+    var flat = orig.flat();
+    return [orig.length, flat.length];
+  ]=])
+  assert_eq(arr[1], 2)
+  assert_eq(arr[2], 3)
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 

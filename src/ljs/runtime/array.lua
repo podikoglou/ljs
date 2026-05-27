@@ -144,6 +144,56 @@ Array.prototype.reduce = _ljs_fn(function(_ljs_this, callbackFn, initialValue)
 end)
 
 -- ---------------------------------------------------------------------------
+-- FlattenIntoArray (shared by flat and flatMap)
+-- ---------------------------------------------------------------------------
+local function flatten_into_array(target, source, source_len, start, depth, mapper, thisArg)
+  local target_idx = start
+  for i = 1, source_len do
+    local v = rawget(source, i)
+    if v ~= nil then
+      if mapper ~= nil then
+        v = _ljs_call_member(mapper, "call", thisArg, v, i - 1, source)
+      end
+      if depth > 0 and _ljs_instanceof(v, Array) then
+        local sub_len = v.length or 0
+        target_idx = flatten_into_array(target, v, sub_len, target_idx, depth - 1, nil, nil)
+      else
+        rawset(target, target_idx, v)
+        target_idx = target_idx + 1
+      end
+    end
+  end
+  return target_idx
+end
+
+-- ---------------------------------------------------------------------------
+-- Array.prototype.flat
+-- ---------------------------------------------------------------------------
+Array.prototype.flat = _ljs_fn(function(_ljs_this, depth_val)
+  local len = _ljs_this.length or 0
+  local depth
+  if depth_val == nil then
+    depth = 1
+  else
+    local n = tonumber(depth_val)
+    if n == nil or n ~= n then
+      depth = 0
+    elseif n == math.huge then
+      depth = math.huge
+    elseif n == -math.huge then
+      depth = 0
+    else
+      depth = math.floor(n)
+      if depth < 0 then depth = 0 end
+    end
+  end
+  local result = _ljs_new(Array)
+  local final_idx = flatten_into_array(result, _ljs_this, len, 1, depth, nil, nil)
+  rawset(result, "length", final_idx - 1)
+  return result
+end)
+
+-- ---------------------------------------------------------------------------
 -- Array.prototype.some
 -- ---------------------------------------------------------------------------
 Array.prototype.some = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
