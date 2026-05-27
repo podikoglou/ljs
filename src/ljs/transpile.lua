@@ -725,6 +725,9 @@ local function transform_control_flow(node)
   then
     return node
   end
+  if t == ast.TYPE_TRY_STATEMENT then
+    return node
+  end
   local copy = {}
   for k, v in pairs(node) do
     if type(v) == "table" then
@@ -740,20 +743,32 @@ end
 -- Checks if pcall error is a control-flow sentinel and re-emits it.
 -- @param indent (number) indentation level
 -- @return (string) Lua code for sentinel handling
-local function sentinel_handler(indent, err_var, cf)
+local function sentinel_handler(indent, err_var, cf, rethrow)
   err_var = err_var or "err"
   local pad = cg.pad(indent)
   local lines = {
     pad .. 'if type(' .. err_var .. ') == "table" and ' .. err_var .. '._ljs_cf then',
   }
   if cf.break_ then
-    lines[#lines + 1] = pad .. '  if ' .. err_var .. '._ljs_cf == "break" then break end'
+    if rethrow then
+      lines[#lines + 1] = pad .. '  if ' .. err_var .. '._ljs_cf == "break" then error(' .. err_var .. ') end'
+    else
+      lines[#lines + 1] = pad .. '  if ' .. err_var .. '._ljs_cf == "break" then break end'
+    end
   end
   if cf.continue_ then
-    lines[#lines + 1] = pad .. '  if ' .. err_var .. '._ljs_cf == "continue" then goto _continue end'
+    if rethrow then
+      lines[#lines + 1] = pad .. '  if ' .. err_var .. '._ljs_cf == "continue" then error(' .. err_var .. ') end'
+    else
+      lines[#lines + 1] = pad .. '  if ' .. err_var .. '._ljs_cf == "continue" then goto _continue end'
+    end
   end
   if cf.return_ then
-    lines[#lines + 1] = pad .. "  if " .. err_var .. '._ljs_cf == "return" then return ' .. err_var .. "._ljs_v end"
+    if rethrow then
+      lines[#lines + 1] = pad .. '  if ' .. err_var .. '._ljs_cf == "return" then error(' .. err_var .. ') end'
+    else
+      lines[#lines + 1] = pad .. "  if " .. err_var .. '._ljs_cf == "return" then return ' .. err_var .. "._ljs_v end"
+    end
   end
   lines[#lines + 1] = pad .. "end\n"
   return table.concat(lines, "\n") .. "\n"
@@ -1554,9 +1569,14 @@ end
 --   3) try+catch (no finally): pcall into (ok, err) + catch if not ok
 -- The pcall wraps the try body in an anonymous function to delimit its scope.
 gen.TryStatement = function(node, indent, ctx)
+  local rethrow = not not ctx._in_try_pcall
   local cf = detect_control_flow(node.block)
   local block = cf and transform_control_flow(node.block) or node.block
+
+  local prev = ctx._in_try_pcall
+  ctx._in_try_pcall = true
   local try_body = emit(block, indent + 1, ctx)
+  ctx._in_try_pcall = prev
 
   local param = node.handler and node.handler.param.name or nil
   local catch_body = nil
@@ -1589,26 +1609,26 @@ gen.TryStatement = function(node, indent, ctx)
     if cf then
       rethrow_inner = cg.if_stmt(
         'type(_ljs_err) == "table" and _ljs_err._ljs_cf',
-        sentinel_handler(indent + 2, "_ljs_err", cf),
+        sentinel_handler(indent + 2, "_ljs_err", cf, rethrow),
         nil,
         cg.expr_stmt(cg.call("error", { "_ljs_err", "0" }), indent + 2),
         indent + 1
       )
     end
-    local rethrow = cg.if_stmt(
+    local rethrow_block = cg.if_stmt(
       "not _ljs_ok",
       rethrow_inner ~= "" and rethrow_inner or cg.expr_stmt(cg.call("error", { "_ljs_err", "0" }), indent + 2),
       nil,
       nil,
       indent
     )
-    return pcall_line .. finally_block .. rethrow
+    return pcall_line .. finally_block .. rethrow_block
   end
 
   if cf then
     local err_var = "_ljs_err"
     local pcall_line = cg.local_decl(cg.join({ "ok", err_var }), pcall_expr, indent)
-    local cf_check = sentinel_handler(indent + 1, err_var, cf)
+    local cf_check = sentinel_handler(indent + 1, err_var, cf, rethrow)
     local catch_inner = ""
     if node.handler then
       if param then

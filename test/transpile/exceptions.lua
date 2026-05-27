@@ -186,3 +186,43 @@ test("return inside try with finally", function()
   ]])
   assert(output:find("42"), "expected 42")
 end)
+
+test("rethrow preserves string error message", function()
+  local output = run_js([[
+    try {
+      try { throw "hello"; } finally {}
+    } catch(e) {
+      console.log(e);
+    }
+  ]])
+  assert(output:find("hello"), "expected hello")
+  assert(not output:find("string"), "no file:line prefix in message")
+end)
+
+test("break and continue inside try body", function()
+  local output = run_js([[
+    let result = "";
+    for (let i = 0; i < 10; i++) {
+      try {
+        if (i === 3) continue;
+        if (i === 7) break;
+      } catch(e) {}
+      result = result + i;
+    }
+    console.log(result);
+  ]])
+  assert(output:find("012456"), "expected 012456")
+end)
+
+test("nested try with return in inner try", function()
+  local output = run_js([[
+    function foo() {
+      try {
+        try { return 10; } catch(e) {}
+      } catch(e) {}
+      return 20;
+    }
+    console.log(foo());
+  ]])
+  assert(output:find("10"), "expected 10")
+end)
