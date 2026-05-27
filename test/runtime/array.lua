@@ -1658,6 +1658,47 @@ test("unshift returns new length", function()
   assert_eq(exec_js("return [2, 3].unshift(1);"), 3)
 end)
 
+test("unshift with multiple args", function()
+  local arr = exec_js([=[
+    var a = [4, 5];
+    a.unshift(1, 2, 3);
+    return a;
+  ]=])
+  assert_eq(arr.length, 5)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+  assert_eq(arr[4], 4)
+  assert_eq(arr[5], 5)
+end)
+
+test("unshift with no args returns length", function()
+  assert_eq(exec_js("return [1, 2, 3].unshift();"), 3)
+end)
+
+test("unshift on empty array", function()
+  local arr = exec_js([=[
+    var a = [];
+    a.unshift(1);
+    return a;
+  ]=])
+  assert_eq(arr.length, 1)
+  assert_eq(arr[1], 1)
+end)
+
+test("unshift on sparse array", function()
+  local arr = exec_js([=[
+    var a = [,,3];
+    a.unshift(0);
+    return a;
+  ]=])
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 0)
+  assert_eq(arr[2], nil)
+  assert_eq(arr[3], nil)
+  assert_eq(arr[4], 3)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
