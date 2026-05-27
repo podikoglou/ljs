@@ -1238,6 +1238,9 @@ function parse_statement(stream)
     return parse_continue_statement(stream)
   elseif stream.is(TOKEN.LBRACE) then
     return parse_block_statement(stream)
+  elseif stream.is(TOKEN.SEMICOLON) then
+    local tok = stream.advance()
+    return ast.empty_statement(tok)
   else
     local banned_err = check_banned(stream)
     if banned_err then

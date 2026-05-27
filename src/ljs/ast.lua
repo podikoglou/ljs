@@ -57,6 +57,7 @@ M.TYPE_OBJECT_PATTERN = "ObjectPattern"
 M.TYPE_ARRAY_PATTERN = "ArrayPattern"
 M.TYPE_TEMPLATE_LITERAL = "TemplateLiteral"
 M.TYPE_TEMPLATE_ELEMENT = "TemplateElement"
+M.TYPE_EMPTY_STATEMENT = "EmptyStatement"
 
 --- @param name (string) Variable/parameter name
 --- @return table {type=M.TYPE_IDENTIFIER, name=name}
@@ -498,6 +499,13 @@ function M.expression_statement(expression, token)
     line = token.line,
     col = token.col,
   }
+end
+
+--- Empty statement (bare semicolon). No-op at runtime.
+--- @param token (table) The semicolon token
+--- @return table {type=M.TYPE_EMPTY_STATEMENT}
+function M.empty_statement(token)
+  return { type = M.TYPE_EMPTY_STATEMENT, line = token.line, col = token.col }
 end
 
 --- @param argument (table) The value to throw
