@@ -693,6 +693,18 @@ test("some with index and array arguments", function()
   assert_eq(result[4], 2)
 end)
 
+test("some throws TypeError on non-function", function()
+  local ok, err = pcall(exec_js, "return [].some(42);")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("some throws TypeError on missing callback", function()
+  local ok, err = pcall(exec_js, "return [].some();")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
