@@ -107,3 +107,27 @@ test("try/catch/finally integration: empty finally block", function()
   ]])
   assert(output:find("1"), "expected 1")
 end)
+
+test("break inside try body", function()
+  local output = run_js([[
+    let result = "";
+    for (let i = 0; i < 5; i++) {
+      try { if (i === 3) break; } catch(e) {}
+      result = result + i;
+    }
+    console.log(result);
+  ]])
+  assert(output:find("012"), "expected 012")
+end)
+
+test("break inside try with catch", function()
+  local output = run_js([[
+    let result = "";
+    for (let i = 0; i < 5; i++) {
+      try { if (i === 3) break; } catch(e) { result = result + "C"; }
+      result = result + i;
+    }
+    console.log(result);
+  ]])
+  assert(output:find("012"), "expected 012")
+end)
