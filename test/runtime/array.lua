@@ -1825,6 +1825,95 @@ test("sort default string comparison", function()
   assert_eq(arr[4], 3)
 end)
 
+test("sort empty array", function()
+  local arr = exec_js("return [].sort();")
+  assert_eq(arr.length, 0)
+end)
+
+test("sort single element", function()
+  local arr = exec_js("return [42].sort();")
+  assert_eq(arr.length, 1)
+  assert_eq(arr[1], 42)
+end)
+
+test("sort returns same reference", function()
+  local arr = exec_js([=[
+    var a = [3, 1, 2];
+    var r = a.sort();
+    return a === r;
+  ]=])
+  assert_eq(arr, true)
+end)
+
+test("sort stability", function()
+  local arr = exec_js([=[
+    var items = [
+      { name: 'a', val: 1 },
+      { name: 'b', val: 1 },
+      { name: 'c', val: 2 },
+      { name: 'd', val: 2 }
+    ];
+    items.sort(function(a, b) { return a.val - b.val; });
+    return [items[0].name, items[1].name, items[2].name, items[3].name];
+  ]=])
+  assert_eq(arr[1], "a")
+  assert_eq(arr[2], "b")
+  assert_eq(arr[3], "c")
+  assert_eq(arr[4], "d")
+end)
+
+test("sort sparse array removes holes", function()
+  local arr = exec_js([=[
+    var a = [3,,1,,2];
+    a.sort();
+    return a;
+  ]=])
+  assert_eq(arr.length, 5)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+  assert_eq(arr[4], nil)
+  assert_eq(arr[5], nil)
+end)
+
+test("sort throws TypeError on non-callable comparator", function()
+  local ok, err = pcall(exec_js, "return [].sort(42);")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("sort comparator returning NaN treated as 0", function()
+  local arr = exec_js([=[
+    return [1, 2, 3].sort(function() { return NaN; });
+  ]=])
+  assert_eq(arr.length, 3)
+end)
+
+test("sort with arrow function comparator", function()
+  local arr = exec_js("return [3, 1, 2].sort((a, b) => a - b);")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+end)
+
+test("sort strings default", function()
+  local arr = exec_js("return ['banana', 'apple', 'cherry'].sort();")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], "apple")
+  assert_eq(arr[2], "banana")
+  assert_eq(arr[3], "cherry")
+end)
+
+test("sort with no comparator on mixed numbers", function()
+  local arr = exec_js("return [10, 2, 30, 1].sort();")
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 10)
+  assert_eq(arr[3], 2)
+  assert_eq(arr[4], 30)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
