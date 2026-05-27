@@ -46,7 +46,7 @@ end)
 -- ---------------------------------------------------------------------------
 Array.prototype.map = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
   if not _ljs_is_function(callbackFn) then
-    error("TypeError: map callback is not a function")
+    error("TypeError: " .. _ljs_value_repr(callbackFn) .. " is not a function")
   end
   local len = _ljs_this.length or 0
   local result = _ljs_new(Array)
