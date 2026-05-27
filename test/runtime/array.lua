@@ -763,6 +763,18 @@ test("every with index and array arguments", function()
   assert_eq(result[4], 2)
 end)
 
+test("every throws TypeError on non-function", function()
+  local ok, err = pcall(exec_js, "return [].every(42);")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("every throws TypeError on missing callback", function()
+  local ok, err = pcall(exec_js, "return [].every();")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
