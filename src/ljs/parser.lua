@@ -1215,6 +1215,10 @@ function parse_variable_declarator(stream, no_in)
     init = parse_expression(stream, no_in)
   end
 
+  if not init and (name.type == ast.TYPE_OBJECT_PATTERN or name.type == ast.TYPE_ARRAY_PATTERN) then
+    parse_error("Missing initializer in destructuring declaration", token.line, token.col)
+  end
+
   return ast.variable_declarator(name, init, token)
 end
 
