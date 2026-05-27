@@ -155,3 +155,33 @@ test("object destructuring assignment with rename (#181)", function()
   local out = run_js('let y; ({x: y} = {x: 42});\nconsole.log(y);')
   assert_eq(out, "42\n")
 end)
+
+test("function expression with array destructuring param (#182)", function()
+  local out = run_js("(function([a, b]) { console.log(a, b); })([10, 20]);")
+  assert_eq(out, "10\t20\n")
+end)
+
+test("function expression with array destructuring param and hole (#182)", function()
+  local out = run_js("(function([, b]) { console.log(b); })([10, 20]);")
+  assert_eq(out, "20\n")
+end)
+
+test("arrow function with array destructuring param (#182)", function()
+  local out = run_js("(([a, b]) => { console.log(a, b); })([10, 20]);")
+  assert_eq(out, "10\t20\n")
+end)
+
+test("arrow function with array destructuring param and hole (#182)", function()
+  local out = run_js("(([, b]) => { console.log(b); })([10, 20]);")
+  assert_eq(out, "20\n")
+end)
+
+test("function expression with object destructuring param (#182)", function()
+  local out = run_js("(function({x, y}) { console.log(x, y); })({x: 1, y: 2});")
+  assert_eq(out, "1\t2\n")
+end)
+
+test("arrow function with object destructuring param (#182)", function()
+  local out = run_js("(({x, y}) => { console.log(x, y); })({x: 1, y: 2});")
+  assert_eq(out, "1\t2\n")
+end)

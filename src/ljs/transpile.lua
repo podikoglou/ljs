@@ -871,6 +871,9 @@ end
 -- @param extra_scope_names (table|nil) Additional names to declare in scope
 --   (used for class expression self-references like the class name inside its body)
 -- @return (string) Lua function expression string
+local fresh_tmp
+local emit_destructure
+
 local function param_name(p)
   if p.type == ast.TYPE_IDENTIFIER then
     return p.name
@@ -882,12 +885,25 @@ local function param_name(p)
   return nil
 end
 
+local function is_pattern(p)
+  return p.type == ast.TYPE_ARRAY_PATTERN or p.type == ast.TYPE_OBJECT_PATTERN
+end
+
 local function emit_fn(fn_node, indent, ctx, extra_scope_names)
   local params = { "_ljs_this" }
   local has_rest = false
-  for _, p in ipairs(fn_node.params) do
+  local destructuring_params = {}
+  for i, p in ipairs(fn_node.params) do
     if p.type == ast.TYPE_REST_ELEMENT then
       has_rest = true
+    elseif is_pattern(p) then
+      local tmp = fresh_tmp()
+      params[#params + 1] = tmp
+      destructuring_params[i] = { pattern = p, tmp = tmp }
+    elseif p.type == ast.TYPE_ASSIGNMENT_PATTERN and is_pattern(p.left) then
+      local tmp = fresh_tmp()
+      params[#params + 1] = tmp
+      destructuring_params[i] = { pattern = p.left, tmp = tmp, default = p.right }
     else
       params[#params + 1] = param_name(p)
     end
@@ -905,14 +921,17 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
     scope_declare(ctx, fn_node.name)
   end
   for _, p in ipairs(fn_node.params) do
-    scope_declare(ctx, param_name(p))
+    local name = param_name(p)
+    if name then
+      scope_declare(ctx, name)
+    end
   end
   local body = emit(fn_node.body, indent, ctx)
   local preamble = ""
   for _, p in ipairs(fn_node.params) do
     if p.type == ast.TYPE_REST_ELEMENT then
       preamble = preamble .. cg.local_decl(p.argument.name, cg.call("_ljs_new", { "Array", "..." }), indent + 1)
-    elseif p.type == ast.TYPE_ASSIGNMENT_PATTERN then
+    elseif p.type == ast.TYPE_ASSIGNMENT_PATTERN and not is_pattern(p.left) then
       local pname = p.left.name
       local default_code = emit(p.right, indent + 1, ctx)
       preamble = preamble
@@ -921,6 +940,22 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
           cg.expr_stmt(cg.binop("=", pname, default_code), indent + 2),
           nil, nil, indent + 1
         )
+    end
+  end
+  for _, entry in pairs(destructuring_params) do
+    if entry.default then
+      local default_code = emit(entry.default, indent + 1, ctx)
+      preamble = preamble
+        .. cg.if_stmt(
+          entry.tmp .. " == nil",
+          cg.expr_stmt(cg.binop("=", entry.tmp, default_code), indent + 2),
+          nil, nil, indent + 1
+        )
+    end
+    local out = {}
+    emit_destructure(entry.pattern, entry.tmp, indent + 1, ctx, out)
+    for _, line in ipairs(out) do
+      preamble = preamble .. line
     end
   end
   local save_src = fn_node.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION and "_ljs_arrow_this" or "_ljs_this"
@@ -1076,12 +1111,11 @@ end
 
 local destructure_counter = 0
 
-local function fresh_tmp()
+fresh_tmp = function()
   destructure_counter = destructure_counter + 1
   return "_ljs_d" .. destructure_counter
 end
 
-local emit_destructure
 
 local function emit_binding(target, access, indent, ctx, out)
   if target.type == ast.TYPE_IDENTIFIER then
