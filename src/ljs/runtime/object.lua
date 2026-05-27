@@ -9,6 +9,9 @@ end)
 _ljs_object_prototype.valueOf = _ljs_fn(function(_ljs_this)
   return _ljs_this
 end)
+_ljs_object_prototype.toLocaleString = _ljs_fn(function(_ljs_this)
+  return _ljs_call_member(_ljs_this, "toString")
+end)
 
 local Object = _ljs_ctor(function(_ljs_this)
   return _ljs_this

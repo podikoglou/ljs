@@ -807,6 +807,24 @@ Array.prototype.toString = _ljs_fn(function(_ljs_this)
   return _ljs_object_prototype.toString(_ljs_this)
 end)
 
+Array.prototype.toLocaleString = _ljs_fn(function(_ljs_this)
+  local array = _ljs_to_object(_ljs_this)
+  local len = array.length or 0
+  local separator = ","
+  local result = ""
+  for i = 1, len do
+    if i > 1 then
+      result = result .. separator
+    end
+    local element = array[i]
+    if element ~= nil and element ~= _ljs_null then
+      local element_str = _ljs_call_member(element, "toLocaleString")
+      result = result .. _ljs_tostring(element_str)
+    end
+  end
+  return result
+end)
+
 -- ---------------------------------------------------------------------------
 -- Array.isArray
 -- ---------------------------------------------------------------------------

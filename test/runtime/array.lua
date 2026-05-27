@@ -1927,3 +1927,61 @@ test("new emits _ljs_new", function()
   local code = transpile_js("new Array(1, 2);")
   assert(code:find("_ljs_new"), "expected _ljs_new in output")
 end)
+
+-- ============================================================================
+-- Object.prototype.toLocaleString
+-- ============================================================================
+
+test("Object.prototype.toLocaleString delegates to toString", function()
+  assert_eq(exec_js("return ({}).toLocaleString();"), "[object Object]")
+end)
+
+test("Object.prototype.toLocaleString uses custom toString", function()
+  assert_eq(exec_js("return ({toString: function() { return 'custom'; }}).toLocaleString();"), "custom")
+end)
+
+-- ============================================================================
+-- Array.prototype.toLocaleString
+-- ============================================================================
+
+test("toLocaleString basic", function()
+  assert_eq(exec_js("return [1, 2, 3].toLocaleString();"), "1,2,3")
+end)
+
+test("toLocaleString empty array", function()
+  assert_eq(exec_js("return [].toLocaleString();"), "")
+end)
+
+test("toLocaleString single element", function()
+  assert_eq(exec_js("return [42].toLocaleString();"), "42")
+end)
+
+test("toLocaleString mixed types", function()
+  assert_eq(exec_js("return [1, 'two', true].toLocaleString();"), "1,two,true")
+end)
+
+test("toLocaleString with null and undefined", function()
+  assert_eq(exec_js("return [1, null, undefined, 3].toLocaleString();"), "1,,,3")
+end)
+
+test("toLocaleString sparse array", function()
+  assert_eq(exec_js("var a = [1, , 3]; return a.toLocaleString();"), "1,,3")
+end)
+
+test("toLocaleString nested arrays", function()
+  assert_eq(exec_js("return [[1,2],[3,4]].toLocaleString();"), "1,2,3,4")
+end)
+
+test("toLocaleString with object having toString", function()
+  assert_eq(exec_js("return [{toString: function() { return 'a'; }}].toLocaleString();"), "a")
+end)
+
+test("toLocaleString generic call", function()
+  local out = exec_js([[
+    var obj = {};
+    obj[0] = 'a'; obj[1] = 'b'; obj[2] = 'c';
+    obj.length = 3;
+    return Array.prototype.toLocaleString.call(obj);
+  ]])
+  assert_eq(out, "a,b,c")
+end)
