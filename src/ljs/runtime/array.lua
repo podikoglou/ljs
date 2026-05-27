@@ -285,6 +285,49 @@ Array.prototype.lastIndexOf = _ljs_fn(function(_ljs_this, searchElement, fromInd
 end)
 
 -- ---------------------------------------------------------------------------
+-- Array.prototype.includes
+-- ---------------------------------------------------------------------------
+local function _ljs_same_value_zero(x, y)
+  if type(x) == "number" and type(y) == "number" then
+    if x ~= x and y ~= y then return true end
+    return x == y
+  end
+  return x == y
+end
+
+Array.prototype.includes = _ljs_fn(function(_ljs_this, searchElement, fromIndex)
+  local len = _ljs_this.length or 0
+  if len == 0 then return false end
+  local n
+  if fromIndex == nil then
+    n = 0
+  else
+    local num = tonumber(fromIndex)
+    if num == nil or num ~= num then
+      n = 0
+    elseif num == math.huge then
+      return false
+    elseif num == -math.huge then
+      n = 0
+    else
+      n = num >= 0 and math.floor(num) or math.ceil(num)
+    end
+  end
+  local k
+  if n >= 0 then
+    k = n
+  else
+    k = len + n
+  end
+  if k < 0 then k = 0 end
+  for i = k + 1, len do
+    local v = rawget(_ljs_this, i)
+    if _ljs_same_value_zero(searchElement, v) then return true end
+  end
+  return false
+end)
+
+-- ---------------------------------------------------------------------------
 -- Array.prototype.join
 -- ---------------------------------------------------------------------------
 -- Converts each element to a string (using tostring; nil/undefined → ""),
