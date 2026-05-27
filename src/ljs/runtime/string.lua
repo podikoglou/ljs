@@ -32,11 +32,10 @@ _ljs_string_box_index = function(t, k)
     return nil
   end
   if type(k) == "string" then
-    local n = tonumber(k)
-    if n then
+    if k == "0" or k:match("^[1-9]%d*$") then
       local s = rawget(t, "_ljs_data") or ""
-      n = n + 1
-      if n >= 1 and n <= #s and math.floor(n) == n then
+      local n = tonumber(k) + 1
+      if n <= #s then
         return s:sub(n, n)
       end
       return nil
