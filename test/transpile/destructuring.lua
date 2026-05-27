@@ -105,3 +105,8 @@ test("destructure_counter resets between transpiles (#174)", function()
   assert(code2:find("_ljs_d1", 1, true), "second transpile should also use _ljs_d1")
   assert(not code2:find("_ljs_d2", 1, true), "second transpile should not leak _ljs_d2")
 end)
+
+test("bare array destructuring assignment — runtime values (#181)", function()
+  local out = run_js("let a, b; [a, b] = [1, 2];\nconsole.log(a, b);")
+  assert_eq(out, "1\t2\n")
+end)
