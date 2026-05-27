@@ -680,6 +680,19 @@ test("some skips holes in sparse array", function()
   assert_eq(count, 2)
 end)
 
+test("some with index and array arguments", function()
+  local result = exec_js([[
+    var indices = [];
+    var lens = [];
+    [10, 20].some(function(v, i, a) { indices.push(i); lens.push(a.length); return false; });
+    return [indices[0], indices[1], lens[0], lens[1]];
+  ]])
+  assert_eq(result[1], 0)
+  assert_eq(result[2], 1)
+  assert_eq(result[3], 2)
+  assert_eq(result[4], 2)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
