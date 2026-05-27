@@ -887,14 +887,21 @@ local function emit_binding(target, access, indent, ctx, out)
   elseif target.type == ast.TYPE_ASSIGNMENT_PATTERN then
     local inner = target.left
     local default_expr = emit(target.right, indent, ctx)
-    local checked = cg.binop("and", cg.binop("~=", access, "nil"), access)
+    local var_name
     if inner.type == ast.TYPE_IDENTIFIER then
-      scope_declare(ctx, inner.name)
-      out[#out + 1] = cg.local_decl(inner.name, cg.binop("or", checked, default_expr), indent)
+      var_name = inner.name
+      scope_declare(ctx, var_name)
     else
-      local tmp = fresh_tmp()
-      out[#out + 1] = cg.local_decl(tmp, cg.binop("or", checked, default_expr), indent)
-      emit_destructure(inner, tmp, indent, ctx, out)
+      var_name = fresh_tmp()
+    end
+    out[#out + 1] = cg.local_decl(var_name, access, indent)
+    out[#out + 1] = cg.if_stmt(
+      var_name .. " == nil",
+      cg.expr_stmt(cg.binop("=", var_name, default_expr), indent + 1),
+      nil, nil, indent
+    )
+    if inner.type ~= ast.TYPE_IDENTIFIER then
+      emit_destructure(inner, var_name, indent, ctx, out)
     end
   elseif target.type == ast.TYPE_OBJECT_PATTERN or target.type == ast.TYPE_ARRAY_PATTERN then
     local tmp = fresh_tmp()

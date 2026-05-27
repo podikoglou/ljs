@@ -72,6 +72,26 @@ test("nested array in object destructuring", function()
   assert_eq(out, "99\n")
 end)
 
+test("default value not triggered by false (#173)", function()
+  local out = run_js('let {x = 10} = {x: false};\nconsole.log(x);')
+  assert_eq(out, "false\n")
+end)
+
+test("default value not triggered by 0 (#173)", function()
+  local out = run_js('let {x = 10} = {x: 0};\nconsole.log(x);')
+  assert_eq(out, "0\n")
+end)
+
+test("default value not triggered by empty string (#173)", function()
+  local out = run_js('let {x = 10} = {x: ""};\nconsole.log(x);')
+  assert_eq(out, "\n")
+end)
+
+test("default value not triggered by null (#173)", function()
+  local out = run_js('let {x = 10} = {x: null};\nconsole.log(x);')
+  assert_eq(out, "null\n")
+end)
+
 test("rest in object destructuring", function()
   local out = run_js('let {x, ...rest} = {x: 1, y: 2, z: 3};\nconsole.log(x, rest.y, rest.z);')
   assert_eq(out, "1\t2\t3\n")
