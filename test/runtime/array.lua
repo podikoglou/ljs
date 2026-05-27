@@ -1947,3 +1947,31 @@ end)
 test("toLocaleString basic", function()
   assert_eq(exec_js("return [1, 2, 3].toLocaleString();"), "1,2,3")
 end)
+
+test("toLocaleString empty array", function()
+  assert_eq(exec_js("return [].toLocaleString();"), "")
+end)
+
+test("toLocaleString single element", function()
+  assert_eq(exec_js("return [42].toLocaleString();"), "42")
+end)
+
+test("toLocaleString mixed types", function()
+  assert_eq(exec_js("return [1, 'two', true].toLocaleString();"), "1,two,true")
+end)
+
+test("toLocaleString with null and undefined", function()
+  assert_eq(exec_js("return [1, null, undefined, 3].toLocaleString();"), "1,,,3")
+end)
+
+test("toLocaleString sparse array", function()
+  assert_eq(exec_js("var a = [1, , 3]; return a.toLocaleString();"), "1,,3")
+end)
+
+test("toLocaleString nested arrays", function()
+  assert_eq(exec_js("return [[1,2],[3,4]].toLocaleString();"), "1,2,3,4")
+end)
+
+test("toLocaleString with object having toString", function()
+  assert_eq(exec_js("return [{toString: function() { return 'a'; }}].toLocaleString();"), "a")
+end)
