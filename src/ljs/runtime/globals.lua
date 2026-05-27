@@ -36,12 +36,10 @@ local parseInt = _ljs_fn(function(_ljs_this, string, radix)
   end
   if s == "" then return 0 / 0 end
 
-  local r
-  if radix == nil then
-    r = 0
-  else
-    r = math.floor(radix)
-    if r ~= radix then r = 0 end
+  local r = 0
+  if radix ~= nil then
+    r = _ljs_to_int32(radix)
+    if r ~= r then r = 0 end
   end
 
   local strip_prefix = true

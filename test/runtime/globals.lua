@@ -420,6 +420,18 @@ test("parseInt('0', 0) is 0", function()
   assert_eq(eval_js("parseInt('0', 0)"), 0)
 end)
 
+test("parseInt('10', 16.5) is 16 (non-integer radix uses ToInt32)", function()
+  assert_eq(eval_js("parseInt('10', 16.5)"), 16)
+end)
+
+test("parseInt('10', Infinity) is 10 (Infinity radix treated as no radix)", function()
+  assert_eq(eval_js("parseInt('10', Infinity)"), 10)
+end)
+
+test("parseInt('10', NaN) is 10 (NaN radix treated as no radix)", function()
+  assert_eq(eval_js("parseInt('10', NaN)"), 10)
+end)
+
 -- ============================================================================
 -- parseFloat global function
 -- ============================================================================
