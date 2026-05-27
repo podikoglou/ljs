@@ -512,6 +512,73 @@ test("concat two arrays", function()
   assert_eq(arr[4], 4)
 end)
 
+test("concat array with non-array args", function()
+  local arr = exec_js("return [1, 2].concat(3, 4);")
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+  assert_eq(arr[4], 4)
+end)
+
+test("concat multiple arrays", function()
+  local arr = exec_js("return [].concat([1], [2], [3]);")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+end)
+
+test("concat no args returns copy", function()
+  local arr = exec_js("return [1, 2].concat();")
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+end)
+
+test("concat nested arrays not deeply flattened", function()
+  local arr = exec_js("return [1, [2, [3]]].concat([4, [5]]);")
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 1)
+  assert_eq(type(arr[2]), "table")
+  assert_eq(arr[3], 4)
+  assert_eq(type(arr[4]), "table")
+end)
+
+test("concat with primitives", function()
+  local arr = exec_js("return [].concat(1, 'hello', true);")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], "hello")
+  assert_eq(arr[3], true)
+end)
+
+test("concat sparse arrays preserves holes", function()
+  local arr = exec_js("return [1,,3].concat([4,,6]);")
+  assert_eq(arr.length, 6)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], nil)
+  assert_eq(arr[3], 3)
+  assert_eq(arr[4], 4)
+  assert_eq(arr[5], nil)
+  assert_eq(arr[6], 6)
+end)
+
+test("concat result is independent of originals", function()
+  local arr = exec_js([=[
+    var a = [1, 2];
+    var b = [3, 4];
+    var c = a.concat(b);
+    a[0] = 99;
+    b[0] = 88;
+    return [c[0], c[1], c[2], c[3]];
+  ]=])
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+  assert_eq(arr[4], 4)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
