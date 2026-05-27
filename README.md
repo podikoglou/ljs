@@ -3,23 +3,20 @@
 ![CI](https://github.com/podikoglou/ljs/actions/workflows/ci.yml/badge.svg?branch=develop)
 ![tests](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/podikoglou/b09d93dbfcbd7570565f5702d4f57412/raw/tests.json)
 
-Parse and transpile a well-defined subset of JavaScript into Lua. No external dependencies, Lua 5.2+.
+Run JavaScript in Lua. Parses JS, transpiles to Lua source, and executes it — no external dependencies, Lua 5.2+.
 
 ```lua
 local ljs = require("ljs")
 
--- parse
-local ast = ljs.parse("let x = 1 + 2;")
+-- compile JS to a callable Lua function
+local fn = ljs.load("[1,2,3].map(x => x * 2)")
+local doubled = fn()             -- → { 2, 4, 6 }
 
--- transpile to lua
-local code = ljs.transpile("let x = 1 + 2;")
-
--- run directly
-ljs.run("console.log('hello')")
--- → prints "hello"
-
-ljs.run("[1,2,3].map(x => x * 2)")
--- → { 2, 4, 6 }
+-- under the hood, that JS becomes:
+-- _ljs_call_member(_ljs_new(Array, 1, 2, 3), "map", _ljs_fn(function(_ljs_this, x)
+--   return _ljs_mul(x, 2)
+-- end))
+-- (preceded by a ~1.5k-line preamble that provides JS runtime semantics)
 ```
 
 ## Install
