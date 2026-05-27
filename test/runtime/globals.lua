@@ -350,3 +350,72 @@ end)
 test("typeof parseInt is 'function'", function()
   assert_eq(eval_js("typeof parseInt"), "function")
 end)
+
+test("parseInt('42') is 42", function()
+  assert_eq(eval_js("parseInt('42')"), 42)
+end)
+
+test("parseInt('-7') is -7", function()
+  assert_eq(eval_js("parseInt('-7')"), -7)
+end)
+
+test("parseInt('  42') is 42 (leading whitespace)", function()
+  assert_eq(eval_js("parseInt('  42')"), 42)
+end)
+
+test("parseInt('FF', 16) is 255", function()
+  assert_eq(eval_js("parseInt('FF', 16)"), 255)
+end)
+
+test("parseInt('10', 2) is 2", function()
+  assert_eq(eval_js("parseInt('10', 2)"), 2)
+end)
+
+test("parseInt('10', 8) is 8", function()
+  assert_eq(eval_js("parseInt('10', 8)"), 8)
+end)
+
+test("parseInt('0xFF') is 255 (auto-hex)", function()
+  assert_eq(eval_js("parseInt('0xFF')"), 255)
+end)
+
+test("parseInt('0X1a') is 26 (case-insensitive hex)", function()
+  assert_eq(eval_js("parseInt('0X1a')"), 26)
+end)
+
+test("parseInt('0x10', 10) is 0 (prefix not stripped for radix 10)", function()
+  assert_eq(eval_js("parseInt('0x10', 10)"), 0)
+end)
+
+test("parseInt('123abc') is 123 (trailing junk)", function()
+  assert_eq(eval_js("parseInt('123abc')"), 123)
+end)
+
+test("parseInt('') is NaN", function()
+  local r = eval_js("parseInt('')")
+  assert(r ~= r, "parseInt('') should be NaN")
+end)
+
+test("parseInt('abc') is NaN", function()
+  local r = eval_js("parseInt('abc')")
+  assert(r ~= r, "parseInt('abc') should be NaN")
+end)
+
+test("parseInt('2', 1) is NaN (radix too low)", function()
+  local r = eval_js("parseInt('2', 1)")
+  assert(r ~= r, "parseInt('2', 1) should be NaN")
+end)
+
+test("parseInt('2', 37) is NaN (radix too high)", function()
+  local r = eval_js("parseInt('2', 37)")
+  assert(r ~= r, "parseInt('2', 37) should be NaN")
+end)
+
+test("parseInt('0x') is NaN (prefix with no digits)", function()
+  local r = eval_js("parseInt('0x')")
+  assert(r ~= r, "parseInt('0x') should be NaN")
+end)
+
+test("parseInt('0', 0) is 0", function()
+  assert_eq(eval_js("parseInt('0', 0)"), 0)
+end)
