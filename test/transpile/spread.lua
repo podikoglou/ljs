@@ -52,3 +52,8 @@ test("method call with spread obj.fn(...a)", function()
   local out = run_js("let obj = { add: function(a, b) { return a + b; } };\nlet args = [5, 3]; console.log(obj.add(...args));")
   assert_eq(out, "8\n")
 end)
+
+test("spread string in array [...\"abc\"] produces chars", function()
+  local out = run_js([[let r = [..."abc"]; console.log(r.length, r[0], r[1], r[2]);]])
+  assert_eq(out, "3\ta\tb\tc\n")
+end)
