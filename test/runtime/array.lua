@@ -1595,6 +1595,26 @@ test("fill on empty array", function()
 end)
 
 -- ============================================================================
+-- Array.prototype.shift
+-- ============================================================================
+
+test("shift removes and returns first element", function()
+  local val = exec_js("return [1, 2, 3].shift();")
+  assert_eq(val, 1)
+end)
+
+test("shift reduces length", function()
+  local arr = exec_js([=[
+    var a = [1, 2, 3];
+    a.shift();
+    return a;
+  ]=])
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 2)
+  assert_eq(arr[2], 3)
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 

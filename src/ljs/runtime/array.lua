@@ -581,6 +581,29 @@ Array.prototype.fill = _ljs_fn(function(_ljs_this, value, start_val, end_val)
 end)
 
 -- ---------------------------------------------------------------------------
+-- Array.prototype.shift
+-- ---------------------------------------------------------------------------
+Array.prototype.shift = _ljs_fn(function(_ljs_this)
+  local len = _ljs_this.length or 0
+  if len == 0 then
+    rawset(_ljs_this, "length", 0)
+    return nil
+  end
+  local first = rawget(_ljs_this, 1)
+  for k = 2, len do
+    local v = rawget(_ljs_this, k)
+    if v ~= nil then
+      rawset(_ljs_this, k - 1, v)
+    else
+      rawset(_ljs_this, k - 1, nil)
+    end
+  end
+  rawset(_ljs_this, len, nil)
+  rawset(_ljs_this, "length", len - 1)
+  return first
+end)
+
+-- ---------------------------------------------------------------------------
 -- Array.prototype.join
 -- ---------------------------------------------------------------------------
 -- Converts each element to a string (using tostring; nil/undefined → ""),
