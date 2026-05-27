@@ -214,6 +214,23 @@ test("break and continue inside try body", function()
   assert(output:find("012456"), "expected 012456")
 end)
 
+test("break inside switch inside try should NOT be sentinel", function()
+  local output = run_js([[
+    var result = 0;
+    for (var i = 0; i < 3; i++) {
+      try {
+        switch (i) {
+          case 0: break;
+          case 1: result += 10; break;
+          case 2: result += 20; break;
+        }
+      } catch(e) {}
+    }
+    console.log(result);
+  ]])
+  assert(output:find("30"), "expected 30 (10+20, break in switch exits switch not loop)")
+end)
+
 test("nested try with return in inner try", function()
   local output = run_js([[
     function foo() {

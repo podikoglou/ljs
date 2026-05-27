@@ -605,13 +605,17 @@ end
 -- that would cross a pcall function boundary.
 -- Stops at loop boundaries (for break/continue) and function boundaries.
 -- @param node (table|nil) AST node
+-- @param in_switch (boolean|nil) true when inside a SwitchStatement (break exits switch, not loop)
 -- @return (table|nil) { break, continue, return } flags, or nil if none
-local function detect_control_flow(node)
+local function detect_control_flow(node, in_switch)
   if not node or type(node) ~= "table" then
     return nil
   end
   local t = node.type
   if t == ast.TYPE_BREAK_STATEMENT then
+    if in_switch then
+      return nil
+    end
     return { break_ = true }
   end
   if t == ast.TYPE_CONTINUE_STATEMENT then
@@ -636,10 +640,11 @@ local function detect_control_flow(node)
   then
     return nil
   end
+  local child_in_switch = in_switch or t == ast.TYPE_SWITCH_STATEMENT
   local result = nil
   for _, v in pairs(node) do
     if type(v) == "table" then
-      local inner = detect_control_flow(v)
+      local inner = detect_control_flow(v, child_in_switch)
       if inner then
         if not result then
           result = {}
@@ -658,13 +663,17 @@ local DUMMY_TOKEN = { line = 0, col = 0 }
 --- Deep-clone an AST subtree, replacing break/continue/return with throw-sentinel.
 -- Stops at loop boundaries (for break/continue) and function boundaries.
 -- @param node (table|nil) AST node
+-- @param in_switch (boolean|nil) true when inside a SwitchStatement (break exits switch, not loop)
 -- @return (table|nil) transformed node
-local function transform_control_flow(node)
+local function transform_control_flow(node, in_switch)
   if not node or type(node) ~= "table" then
     return node
   end
   local t = node.type
   if t == ast.TYPE_BREAK_STATEMENT then
+    if in_switch then
+      return node
+    end
     return ast.throw_statement(
       ast.object_expression({
         ast.property(
@@ -728,10 +737,11 @@ local function transform_control_flow(node)
   if t == ast.TYPE_TRY_STATEMENT then
     return node
   end
+  local child_in_switch = in_switch or t == ast.TYPE_SWITCH_STATEMENT
   local copy = {}
   for k, v in pairs(node) do
     if type(v) == "table" then
-      copy[k] = transform_control_flow(v)
+      copy[k] = transform_control_flow(v, child_in_switch)
     else
       copy[k] = v
     end
@@ -1607,13 +1617,7 @@ gen.TryStatement = function(node, indent, ctx)
     local finally_block = finalizer_body
     local rethrow_inner = ""
     if cf then
-      rethrow_inner = cg.if_stmt(
-        'type(_ljs_err) == "table" and _ljs_err._ljs_cf',
-        sentinel_handler(indent + 2, "_ljs_err", cf, rethrow),
-        nil,
-        cg.expr_stmt(cg.call("error", { "_ljs_err", "0" }), indent + 2),
-        indent + 1
-      )
+      rethrow_inner = sentinel_handler(indent + 1, "_ljs_err", cf, rethrow)
     end
     local rethrow_block = cg.if_stmt(
       "not _ljs_ok",
