@@ -78,3 +78,34 @@ local parseInt = _ljs_fn(function(_ljs_this, string, radix)
   if not found then return 0 / 0 end
   return sign * result
 end)
+
+-- parseFloat(string): ECMA-262 §19.2.4.
+local parseFloat = _ljs_fn(function(_ljs_this, string)
+  local s = _ljs_tostring(string)
+  s = s:match("^%s*(.-)$")
+  if s == "" then return 0 / 0 end
+
+  local sign = ""
+  if s:sub(1, 1) == "+" or s:sub(1, 1) == "-" then
+    sign = s:sub(1, 1)
+    s = s:sub(2)
+  end
+
+  if s:sub(1, 1) == "I" and s:sub(1, #"Infinity") == "Infinity" then
+    if sign == "-" then return -math.huge end
+    return math.huge
+  end
+
+  local matched = s:match("^%d+%.%d*[eE][+-]?%d+")
+      or s:match("^%d+%.%d*")
+      or s:match("^%d+[eE][+-]?%d+")
+      or s:match("^%d+")
+      or s:match("^%.%d+[eE][+-]?%d+")
+      or s:match("^%.%d+")
+      or s:match("^[eE][+-]?%d+")
+
+  if not matched then return 0 / 0 end
+  local n = tonumber(sign .. matched)
+  if n == nil then return 0 / 0 end
+  return n
+end)

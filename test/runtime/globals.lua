@@ -419,3 +419,69 @@ end)
 test("parseInt('0', 0) is 0", function()
   assert_eq(eval_js("parseInt('0', 0)"), 0)
 end)
+
+-- ============================================================================
+-- parseFloat global function
+-- ============================================================================
+
+test("typeof parseFloat is 'function'", function()
+  assert_eq(eval_js("typeof parseFloat"), "function")
+end)
+
+test("parseFloat('3.14') is 3.14", function()
+  assert_eq(eval_js("parseFloat('3.14')"), 3.14)
+end)
+
+test("parseFloat('-7.5') is -7.5", function()
+  assert_eq(eval_js("parseFloat('-7.5')"), -7.5)
+end)
+
+test("parseFloat('.5') is 0.5", function()
+  assert_eq(eval_js("parseFloat('.5')"), 0.5)
+end)
+
+test("parseFloat('3.') is 3", function()
+  assert_eq(eval_js("parseFloat('3.')"), 3)
+end)
+
+test("parseFloat('3e2') is 300", function()
+  assert_eq(eval_js("parseFloat('3e2')"), 300)
+end)
+
+test("parseFloat('3.14e-1') is 0.314", function()
+  assert_eq(eval_js("parseFloat('3.14e-1')"), 0.314)
+end)
+
+test("parseFloat('  3.14abc') is 3.14 (whitespace + junk)", function()
+  assert_eq(eval_js("parseFloat('  3.14abc')"), 3.14)
+end)
+
+test("parseFloat('3.14abc') is 3.14 (trailing junk)", function()
+  assert_eq(eval_js("parseFloat('3.14abc')"), 3.14)
+end)
+
+test("parseFloat('0xFF') is 0 (stops at x)", function()
+  assert_eq(eval_js("parseFloat('0xFF')"), 0)
+end)
+
+test("parseFloat('Infinity') is Infinity", function()
+  assert_eq(eval_js("parseFloat('Infinity')"), math.huge)
+end)
+
+test("parseFloat('-Infinity') is -Infinity", function()
+  assert_eq(eval_js("parseFloat('-Infinity')"), -math.huge)
+end)
+
+test("parseFloat('+Infinity') is Infinity", function()
+  assert_eq(eval_js("parseFloat('+Infinity')"), math.huge)
+end)
+
+test("parseFloat('') is NaN", function()
+  local r = eval_js("parseFloat('')")
+  assert(r ~= r, "parseFloat('') should be NaN")
+end)
+
+test("parseFloat('abc') is NaN", function()
+  local r = eval_js("parseFloat('abc')")
+  assert(r ~= r, "parseFloat('abc') should be NaN")
+end)
