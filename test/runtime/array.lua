@@ -651,6 +651,10 @@ test("some returns false when no element matches", function()
   assert_eq(exec_js("return [1, 2, 3].some(function(x) { return x > 10; });"), false)
 end)
 
+test("some returns false for empty array", function()
+  assert_eq(exec_js("return [].some(function(x) { return true; });"), false)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
