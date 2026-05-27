@@ -29,6 +29,7 @@ build = {
     ["ljs.codegen"] = "src/ljs/codegen.lua",
     ["ljs.parser"] = "src/ljs/parser.lua",
     ["ljs.transpile"] = "src/ljs/transpile.lua",
+    ["ljs.utf8"] = "src/ljs/utf8.lua",
     ["ljs.parser_dump"] = "src/ljs/parser_dump.lua",
     ["ljs.transpile_dump"] = "src/ljs/transpile_dump.lua",
     ["ljs.runtime.proto"] = "src/ljs/runtime/proto.lua",

@@ -59,24 +59,8 @@ local String = _ljs_fn(function(_ljs_this, ...)
 end)
 String.prototype = _ljs_string_prototype
 _ljs_string_prototype.constructor = String
-local function _ljs_codepoint_to_utf8(n)
-  local f = math.floor
-  if n <= 0x7f then
-    return string.char(n)
-  elseif n <= 0x7ff then
-    return string.char(f(n / 64) + 192, n % 64 + 128)
-  elseif n <= 0xffff then
-    return string.char(f(n / 4096) + 224, f(n % 4096 / 64) + 128, n % 64 + 128)
-  elseif n <= 0x10ffff then
-    return string.char(
-      f(n / 262144) + 240,
-      f(n % 262144 / 4096) + 128,
-      f(n % 4096 / 64) + 128,
-      n % 64 + 128
-    )
-  end
-  return nil
-end
+local utf8 = require("ljs.utf8")
+local _ljs_codepoint_to_utf8 = utf8.codepoint_to_utf8
 
 String.fromCharCode = _ljs_fn(function(_ljs_this, ...)
   local chars = {}
