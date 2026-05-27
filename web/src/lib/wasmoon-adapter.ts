@@ -18,6 +18,7 @@ import runtimeNumberSource from "@ljs/src/ljs/runtime/number.lua?raw";
 import runtimeObjectSource from "@ljs/src/ljs/runtime/object.lua?raw";
 import runtimeProtoSource from "@ljs/src/ljs/runtime/proto.lua?raw";
 import runtimeStringSource from "@ljs/src/ljs/runtime/string.lua?raw";
+import runtimeObjectTostringSource from "@ljs/src/ljs/runtime/object_tostring.lua?raw";
 
 import type { LuaVM } from "./ljs-core";
 
@@ -48,6 +49,7 @@ export class WasmoonAdapter implements LuaVM {
     await this.factory.mountFile("ljs/runtime/object.lua", runtimeObjectSource);
     await this.factory.mountFile("ljs/runtime/proto.lua", runtimeProtoSource);
     await this.factory.mountFile("ljs/runtime/string.lua", runtimeStringSource);
+    await this.factory.mountFile("ljs/runtime/object_tostring.lua", runtimeObjectTostringSource);
 
     await e.doString('require("ljs")');
 
