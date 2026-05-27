@@ -604,6 +604,29 @@ Array.prototype.shift = _ljs_fn(function(_ljs_this)
 end)
 
 -- ---------------------------------------------------------------------------
+-- Array.prototype.unshift
+-- ---------------------------------------------------------------------------
+Array.prototype.unshift = _ljs_fn(function(_ljs_this, ...)
+  local len = _ljs_this.length or 0
+  local arg_count = select("#", ...)
+  if arg_count > 0 then
+    for k = len, 1, -1 do
+      local v = rawget(_ljs_this, k)
+      if v ~= nil then
+        rawset(_ljs_this, k + arg_count, v)
+      else
+        rawset(_ljs_this, k + arg_count, nil)
+      end
+    end
+    for j = 1, arg_count do
+      rawset(_ljs_this, j, select(j, ...))
+    end
+  end
+  rawset(_ljs_this, "length", len + arg_count)
+  return len + arg_count
+end)
+
+-- ---------------------------------------------------------------------------
 -- Array.prototype.join
 -- ---------------------------------------------------------------------------
 -- Converts each element to a string (using tostring; nil/undefined → ""),

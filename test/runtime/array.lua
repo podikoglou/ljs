@@ -1639,6 +1639,26 @@ test("shift sparse array", function()
 end)
 
 -- ============================================================================
+-- Array.prototype.unshift
+-- ============================================================================
+
+test("unshift prepends element", function()
+  local arr = exec_js([=[
+    var a = [2, 3];
+    a.unshift(1);
+    return a;
+  ]=])
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+end)
+
+test("unshift returns new length", function()
+  assert_eq(exec_js("return [2, 3].unshift(1);"), 3)
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 
