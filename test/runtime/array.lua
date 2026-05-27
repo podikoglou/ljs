@@ -994,6 +994,53 @@ test("findIndex returns index of first match", function()
   assert_eq(exec_js("return [1, 2, 3].findIndex(function(x) { return x > 1; });"), 1)
 end)
 
+test("findIndex returns -1 when nothing matches", function()
+  assert_eq(exec_js("return [1, 2, 3].findIndex(function(x) { return x > 10; });"), -1)
+end)
+
+test("findIndex with index argument", function()
+  assert_eq(exec_js("return [10, 20, 30].findIndex(function(x, i) { return i === 1; });"), 1)
+end)
+
+test("findIndex with array argument", function()
+  assert_eq(exec_js("return [1, 2, 3].findIndex(function(x, i, a) { return x === a[2]; });"), 2)
+end)
+
+test("findIndex with thisArg", function()
+  assert_eq(exec_js([[
+    var ctx = { threshold: 2 };
+    return [1, 2, 3].findIndex(function(x) { return x > this.threshold; }, ctx);
+  ]]), 2)
+end)
+
+test("findIndex throws TypeError on non-function", function()
+  local ok, err = pcall(exec_js, "return [].findIndex(42);")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("findIndex throws TypeError on missing callback", function()
+  local ok, err = pcall(exec_js, "return [].findIndex();")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("findIndex with arrow function callback", function()
+  assert_eq(exec_js("return [1, 2, 3].findIndex(x => x > 1);"), 1)
+end)
+
+test("findIndex does not skip holes", function()
+  assert_eq(exec_js([=[
+    var found = false;
+    [1,,3].findIndex(function(x) { if (x === undefined) found = true; return false; });
+    return found;
+  ]=]), true)
+end)
+
+test("findIndex on empty array returns -1", function()
+  assert_eq(exec_js("return [].findIndex(function() { return true; });"), -1)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
