@@ -932,6 +932,14 @@ test("includes does not use strict equality for NaN", function()
 end)
 
 -- ============================================================================
+-- Array.prototype.find
+-- ============================================================================
+
+test("find returns first matching element", function()
+  assert_eq(exec_js("return [1, 2, 3].find(function(x) { return x > 1; });"), 2)
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 
