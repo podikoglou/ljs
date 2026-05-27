@@ -1496,6 +1496,43 @@ test("reverse basic", function()
   assert_eq(arr[3], 1)
 end)
 
+test("reverse returns same reference", function()
+  local arr = exec_js([=[
+    var a = [1, 2, 3];
+    var r = a.reverse();
+    return a === r;
+  ]=])
+  assert_eq(arr, true)
+end)
+
+test("reverse empty array", function()
+  local arr = exec_js("return [].reverse();")
+  assert_eq(arr.length, 0)
+end)
+
+test("reverse single element", function()
+  local arr = exec_js("return [42].reverse();")
+  assert_eq(arr.length, 1)
+  assert_eq(arr[1], 42)
+end)
+
+test("reverse even length", function()
+  local arr = exec_js("return [1, 2, 3, 4].reverse();")
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 4)
+  assert_eq(arr[2], 3)
+  assert_eq(arr[3], 2)
+  assert_eq(arr[4], 1)
+end)
+
+test("reverse sparse array", function()
+  local arr = exec_js("return [1,,3].reverse();")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 3)
+  assert_eq(arr[2], nil)
+  assert_eq(arr[3], 1)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
