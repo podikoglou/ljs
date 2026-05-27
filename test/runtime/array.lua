@@ -887,6 +887,50 @@ test("includes finds element", function()
   assert_eq(exec_js("return [1, 2, 3].includes(2);"), true)
 end)
 
+test("includes returns false when not found", function()
+  assert_eq(exec_js("return [1, 2, 3].includes(99);"), false)
+end)
+
+test("includes finds NaN via SameValueZero", function()
+  assert_eq(exec_js("return [1, NaN, 3].includes(NaN);"), true)
+end)
+
+test("includes with fromIndex", function()
+  assert_eq(exec_js("return [1, 2, 3].includes(1, 1);"), false)
+end)
+
+test("includes negative fromIndex", function()
+  assert_eq(exec_js("return [1, 2, 3, 4].includes(3, -2);"), true)
+end)
+
+test("includes treats holes as undefined", function()
+  assert_eq(exec_js("return [1,,3].includes(undefined);"), true)
+end)
+
+test("includes empty array returns false", function()
+  assert_eq(exec_js("return [].includes(1);"), false)
+end)
+
+test("includes Infinity fromIndex returns false", function()
+  assert_eq(exec_js("return [1, 2, 3].includes(1, Infinity);"), false)
+end)
+
+test("includes -Infinity fromIndex treated as 0", function()
+  assert_eq(exec_js("return [1, 2, 3].includes(1, -Infinity);"), true)
+end)
+
+test("includes NaN fromIndex treated as 0", function()
+  assert_eq(exec_js("return [1, 2, 3].includes(1, NaN);"), true)
+end)
+
+test("includes with string element", function()
+  assert_eq(exec_js("return ['a', 'b', 'c'].includes('b');"), true)
+end)
+
+test("includes does not use strict equality for NaN", function()
+  assert_eq(exec_js("return [NaN].includes(NaN);"), true)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
