@@ -331,6 +331,77 @@ test("map basic doubling", function()
   assert_eq(arr[3], 6)
 end)
 
+test("map with index argument", function()
+  local arr = exec_js("return [10, 20, 30].map(function(x, i) { return x + i; });")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 10)
+  assert_eq(arr[2], 21)
+  assert_eq(arr[3], 32)
+end)
+
+test("map with array argument", function()
+  local arr = exec_js("return [1, 2].map(function(x, i, a) { return x + a.length; });")
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 3)
+  assert_eq(arr[2], 4)
+end)
+
+test("map with thisArg", function()
+  local arr = exec_js([[
+    var ctx = { m: 10 };
+    return [1, 2, 3].map(function(x) { return x * this.m; }, ctx);
+  ]])
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 10)
+  assert_eq(arr[2], 20)
+  assert_eq(arr[3], 30)
+end)
+
+test("map returns new array", function()
+  local arr = exec_js([=[
+    var orig = [1, 2, 3];
+    orig.map(function(x) { return x * 2; });
+    return [orig[0], orig[1], orig[2]];
+  ]=])
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+end)
+
+test("map on empty array", function()
+  local arr = exec_js("return [].map(function(x) { return x; });")
+  assert_eq(arr.length, 0)
+end)
+
+test("map sparse array preserves length", function()
+  local arr = exec_js("return [1,,3].map(function(x) { return x * 2; });")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 2)
+  assert_eq(arr[2], nil)
+  assert_eq(arr[3], 6)
+end)
+
+test("map sparse array skips holes in callback", function()
+  local arr = exec_js([[
+    var count = 0;
+    [1,,3].map(function(x) { count++; return x; });
+    return count;
+  ]])
+  assert_eq(arr, 2)
+end)
+
+test("map throws TypeError on non-function", function()
+  local ok, err = pcall(exec_js, "return [].map(42);")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("map throws TypeError on missing callback", function()
+  local ok, err = pcall(exec_js, "return [].map();")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
