@@ -140,3 +140,13 @@ test("rest in bare array destructuring assignment (#181)", function()
   local out = run_js("let a, b; [a, ...b] = [1, 2, 3];\nconsole.log(a, b[0], b[1]);")
   assert_eq(out, "1\t2\t3\n")
 end)
+
+test("destructuring assignment expression context — IIFE (#181)", function()
+  local code = transpile_ok("let a, b; while ([a, b] = [1, 2]) { break; }")
+  assert(code:find("function()", 1, true), "expected IIFE for expression context")
+end)
+
+test("destructuring assignment returns RHS value (#181)", function()
+  local out = run_js("let a, b; let c = [a, b] = [42, 99];\nconsole.log(c[0], c[1]);")
+  assert_eq(out, "42\t99\n")
+end)
