@@ -1097,6 +1097,10 @@ local function expr_produces_valid_stmt(node)
   return false
 end
 
+gen.EmptyStatement = function()
+  return ""
+end
+
 gen.ExpressionStatement = function(node, indent, ctx)
   local stmt_fn = gen_stmt[node.expression.type]
   if stmt_fn then

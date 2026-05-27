@@ -207,7 +207,6 @@ end)
 test("all parse errors have line >= 1, col >= 1, non-empty message", function()
   local sources = {
     "==;",
-    "{;}",
     "let = 3;",
     "++;",
     "5++;",
