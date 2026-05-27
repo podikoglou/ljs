@@ -473,8 +473,23 @@ local function tokenize(source)
             ch = '"'
           elseif ch == "'" then
             ch = "'"
-          elseif ch == "0" then
-            ch = string.char(0)
+          elseif ch:match("[0-7]") then
+            local max_digits = (tonumber(ch) <= 3) and 3 or 2
+            local octal = ch
+            local extra_to_consume = 0
+            for i = 1, max_digits - 1 do
+              local peek_pos = pos + i
+              if peek_pos > len then break end
+              local next_ch = source:sub(peek_pos, peek_pos)
+              if not next_ch:match("[0-7]") then break end
+              octal = octal .. next_ch
+              extra_to_consume = extra_to_consume + 1
+            end
+            if extra_to_consume > 0 then
+              advance(extra_to_consume)
+            end
+            ch = string.char(tonumber(octal, 8))
+          elseif ch == "8" or ch == "9" then
           elseif ch == "x" then
             advance()
             local h1 = current()
@@ -650,8 +665,24 @@ local function tokenize(source)
             chars[#chars + 1] = '"'
           elseif esc == "'" then
             chars[#chars + 1] = "'"
-          elseif esc == "0" then
-            chars[#chars + 1] = string.char(0)
+          elseif esc:match("[0-7]") then
+            local max_digits = (tonumber(esc) <= 3) and 3 or 2
+            local octal = esc
+            local extra_to_consume = 0
+            for i = 1, max_digits - 1 do
+              local peek_pos = pos + i
+              if peek_pos > len then break end
+              local next_ch = source:sub(peek_pos, peek_pos)
+              if not next_ch:match("[0-7]") then break end
+              octal = octal .. next_ch
+              extra_to_consume = extra_to_consume + 1
+            end
+            if extra_to_consume > 0 then
+              advance(extra_to_consume)
+            end
+            chars[#chars + 1] = string.char(tonumber(octal, 8))
+          elseif esc == "8" or esc == "9" then
+            chars[#chars + 1] = esc
           elseif esc == "x" then
             advance()
             local h1 = current()
