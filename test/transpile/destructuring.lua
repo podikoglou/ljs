@@ -135,3 +135,8 @@ test("default value in bare array destructuring — value present (#181)", funct
   local out = run_js("let a; [a = 10] = [5];\nconsole.log(a);")
   assert_eq(out, "5\n")
 end)
+
+test("rest in bare array destructuring assignment (#181)", function()
+  local out = run_js("let a, b; [a, ...b] = [1, 2, 3];\nconsole.log(a, b[0], b[1]);")
+  assert_eq(out, "1\t2\t3\n")
+end)
