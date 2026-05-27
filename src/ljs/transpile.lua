@@ -1818,6 +1818,7 @@ end
 -- @param opts (table|nil) Options table; opts.mode = "script" (default) or "eval"
 -- @return (string) Lua source code (user code only)
 function M.emit(ast, opts)
+  destructure_counter = 0
   opts = opts or {}
   local ctx = {
     eval_mode = (opts.mode == "eval"),
