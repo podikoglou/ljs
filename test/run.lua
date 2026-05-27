@@ -32,6 +32,7 @@ describe("parser/default_rest_params", "test.parser.default_rest_params")
 describe("parser/template_literals", "test.parser.template_literals")
 describe("parser/spread", "test.parser.spread")
 describe("parser/destructuring", "test.parser.destructuring")
+describe("parser/empty_statement", "test.parser.empty_statement")
 
 describe("transpile/basics", "test.transpile.basics")
 describe("transpile/control_flow", "test.transpile.control_flow")
