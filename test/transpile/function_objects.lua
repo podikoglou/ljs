@@ -84,6 +84,14 @@ test("Array.prototype.toString is wrapped in _ljs_fn", function()
   )
 end)
 
+test("Array.prototype.map is wrapped in _ljs_fn", function()
+  local code = H.transpile_ok("let x = 1;")
+  assert(
+    code:find("Array.prototype.map = _ljs_fn(function", 1, true),
+    "expected _ljs_fn-wrapped map"
+  )
+end)
+
 test("Error.prototype.toString is wrapped in _ljs_fn", function()
   local code = H.transpile_ok("let x = 1;")
   assert(
@@ -197,6 +205,18 @@ test("extracted Array.prototype.toString.call works", function()
     console.log(toString.call(arr));
   ]])
   assert_eq(out, "1,2,3\n")
+end)
+
+test("extracted Array.prototype.map.call works", function()
+  local out = run_js([[
+    let arr = [1, 2, 3];
+    let map = arr.map;
+    let result = map.call(arr, function(x) { return x * 2; });
+    console.log(result[0]);
+    console.log(result[1]);
+    console.log(result[2]);
+  ]])
+  assert_eq(out, "2\n4\n6\n")
 end)
 
 -- Error.prototype methods extracted and called
