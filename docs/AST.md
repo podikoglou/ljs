@@ -425,6 +425,16 @@ Wraps any expression used as a statement. Semicolons are optional.
 
 **Source:** `42;`, `f();`, `obj.prop;`
 
+### EmptyStatement
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"EmptyStatement"` | |
+
+A bare semicolon. No-op at runtime — the transpiler emits nothing.
+
+**Source:** `;`
+
 ---
 
 ## Objects and Arrays
