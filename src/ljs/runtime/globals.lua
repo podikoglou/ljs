@@ -1,5 +1,5 @@
 -- Global value properties (ECMA-262 §19.1): NaN, Infinity.
--- Global function properties (ECMA-262 §19.2): isNaN, isFinite.
+-- Global function properties (ECMA-262 §19.2): isNaN, isFinite, parseInt, parseFloat.
 -- isNaN/isFinite coerce via _ljs_to_number (preamble helper, ECMA-262 §7.1.4).
 
 local NaN = (0 / 0)
