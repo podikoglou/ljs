@@ -105,6 +105,36 @@ test("tokenize template with escape \\0", function()
   assert_eq(tokens[1].value.quasis[1], "a" .. string.char(0) .. "b")
 end)
 
+test("tokenize template with legacy octal escape \\1", function()
+  local tokens, err = parser.tokenize("`\\1`")
+  if not tokens then error("tokenize failed: " .. tostring(err)) end
+  assert_eq(tokens[1].value.quasis[1], string.char(1))
+end)
+
+test("tokenize template with legacy octal escape \\12", function()
+  local tokens, err = parser.tokenize("`\\12`")
+  if not tokens then error("tokenize failed: " .. tostring(err)) end
+  assert_eq(tokens[1].value.quasis[1], string.char(10))
+end)
+
+test("tokenize template with legacy octal escape \\377", function()
+  local tokens, err = parser.tokenize("`\\377`")
+  if not tokens then error("tokenize failed: " .. tostring(err)) end
+  assert_eq(tokens[1].value.quasis[1], string.char(255))
+end)
+
+test("tokenize template with NonOctalDecimalEscapeSequence \\8", function()
+  local tokens, err = parser.tokenize("`\\8`")
+  if not tokens then error("tokenize failed: " .. tostring(err)) end
+  assert_eq(tokens[1].value.quasis[1], "8")
+end)
+
+test("tokenize template with \\08 is null + literal 8", function()
+  local tokens, err = parser.tokenize("`\\08`")
+  if not tokens then error("tokenize failed: " .. tostring(err)) end
+  assert_eq(tokens[1].value.quasis[1], string.char(0) .. "8")
+end)
+
 test("tokenize template with escape \\xHH", function()
   local tokens, err = parser.tokenize("`\\x41`")
   if not tokens then error("tokenize failed: " .. tostring(err)) end
