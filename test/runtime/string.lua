@@ -148,3 +148,31 @@ end)
 test("String.fromCharCode(-Infinity) returns null char", function()
   assert_js('String.fromCharCode(-Infinity)', "\0")
 end)
+
+test("string bracket rejects whitespace-padded index", function()
+  assert_js('"hello"[" 1"]', nil)
+end)
+
+test("string bracket rejects hex index", function()
+  assert_js('"hello"["0x0"]', nil)
+end)
+
+test("string bracket rejects exponential index", function()
+  assert_js('"hello"["1e0"]', nil)
+end)
+
+test("string bracket rejects leading plus index", function()
+  assert_js('"hello"["+1"]', nil)
+end)
+
+test("string bracket rejects leading zero index", function()
+  assert_js('"hello"["01"]', nil)
+end)
+
+test("string bracket rejects negative zero index", function()
+  assert_js('"hello"["-0"]', nil)
+end)
+
+test("string bracket rejects decimal integer index", function()
+  assert_js('"hello"["1.0"]', nil)
+end)
