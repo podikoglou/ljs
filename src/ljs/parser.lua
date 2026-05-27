@@ -470,6 +470,8 @@ local function tokenize(source)
             ch = '"'
           elseif ch == "'" then
             ch = "'"
+          elseif ch == "0" then
+            ch = string.char(0)
           else
             return nil, make_parse_error("Invalid escape sequence", line, col)
           end

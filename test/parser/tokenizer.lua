@@ -48,6 +48,10 @@ test("tokenize escape \\'", function()
   assert_tok("'a\\'b'", 1, "String", "a'b")
 end)
 
+test("tokenize escape \\0", function()
+  assert_tok('"a\\0b"', 1, "String", "a" .. string.char(0) .. "b")
+end)
+
 test("tokenize true", function()
   assert_tok("true", 1, "Boolean", true)
 end)
