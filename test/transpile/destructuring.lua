@@ -125,3 +125,13 @@ test("nested array destructuring assignment — runtime values (#181)", function
   local out = run_js("let a, b; [a, [b]] = [1, [2]];\nconsole.log(a, b);")
   assert_eq(out, "1\t2\n")
 end)
+
+test("default value in bare array destructuring — default used (#181)", function()
+  local out = run_js("let a; [a = 10] = [undefined];\nconsole.log(a);")
+  assert_eq(out, "10\n")
+end)
+
+test("default value in bare array destructuring — value present (#181)", function()
+  local out = run_js("let a; [a = 10] = [5];\nconsole.log(a);")
+  assert_eq(out, "5\n")
+end)

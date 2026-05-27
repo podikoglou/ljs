@@ -1439,6 +1439,9 @@ convert_expression_to_pattern = function(node)
         elements[i] = elem
       elseif elem.type == ast.TYPE_ASSIGNMENT_PATTERN then
         elements[i] = elem
+      elseif elem.type == ast.TYPE_BINARY_EXPRESSION and elem.operator == "=" then
+        local left = convert_expression_to_pattern(elem.left)
+        elements[i] = ast.assignment_pattern(left, elem.right, elem)
       else
         elements[i] = convert_expression_to_pattern(elem)
       end
@@ -1457,6 +1460,9 @@ convert_expression_to_pattern = function(node)
           -- keep as-is
         elseif new_value.type == ast.TYPE_ASSIGNMENT_PATTERN then
           -- keep as-is
+        elseif new_value.type == ast.TYPE_BINARY_EXPRESSION and new_value.operator == "=" then
+          local left = convert_expression_to_pattern(new_value.left)
+          new_value = ast.assignment_pattern(left, new_value.right, new_value)
         else
           new_value = convert_expression_to_pattern(new_value)
         end
