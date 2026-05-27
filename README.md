@@ -25,12 +25,6 @@ ljs.run("[1,2,3].map(x => x * 2)")
 ## Install
 
 ```sh
-luarocks install ljs
-```
-
-Or from source:
-
-```sh
 git clone https://github.com/podikoglou/ljs.git
 cd ljs && make install
 ```
