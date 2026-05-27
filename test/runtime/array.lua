@@ -1614,6 +1614,30 @@ test("shift reduces length", function()
   assert_eq(arr[2], 3)
 end)
 
+test("shift on empty returns nil", function()
+  assert_eq(exec_js("return [].shift();"), nil)
+end)
+
+test("shift single element", function()
+  local arr = exec_js([=[
+    var a = [42];
+    a.shift();
+    return a;
+  ]=])
+  assert_eq(arr.length, 0)
+end)
+
+test("shift sparse array", function()
+  local arr = exec_js([=[
+    var a = [1,,3];
+    a.shift();
+    return a;
+  ]=])
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], nil)
+  assert_eq(arr[2], 3)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
