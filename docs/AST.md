@@ -158,10 +158,10 @@ Represents the `this` keyword. Binds to the calling context at runtime: the rece
 | Field | Type | Description |
 |-------|------|-------------|
 | `type` | `"VariableDeclarator"` | |
-| `name` | `Identifier` | The variable name |
+| `name` | `Identifier \| ObjectPattern \| ArrayPattern` | The variable name or destructuring pattern |
 | `init` | `node?` | Initializer expression, or `nil` |
 
-**Source:** `let x;` (init is nil), `let x = 42;`
+**Source:** `let x;` (init is nil), `let x = 42;`, `let [a, b] = arr;`, `let {x, y} = obj;`
 
 ---
 
@@ -235,6 +235,37 @@ Spread element in array literals or function call arguments.
 | `argument` | `node` | Expression to spread |
 
 **Source:** `[...a]`, `fn(...args)`, `new F(...a)`
+
+### ObjectPattern
+
+Object destructuring pattern (used in variable declarations).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"ObjectPattern"` | |
+| `properties` | `(Property \| RestElement)[]` | Pattern properties |
+
+Properties use the existing `Property` node with an additional `shorthand` field.
+Shorthand `{x}` produces `Property(key=Identifier("x"), value=Identifier("x"), shorthand=true)`.
+Renamed `{x: y}` produces `Property(key=Identifier("x"), value=Identifier("y"), shorthand=false)`.
+Default `{x = 10}` produces `Property(key=Identifier("x"), value=AssignmentPattern(Identifier("x"), 10), shorthand=true)`.
+Rest `{...rest}` produces `RestElement(Identifier("rest"))`.
+
+**Source:** `let {x, y: z, a = 10, ...rest} = obj;`
+
+### ArrayPattern
+
+Array destructuring pattern (used in variable declarations).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"ArrayPattern"` | |
+| `elements` | `(Identifier \| AssignmentPattern \| ObjectPattern \| ArrayPattern \| RestElement \| nil)[]` | Pattern elements (nil = hole) |
+| `count` | `number` | Element count including holes |
+
+Holes are represented as `nil` (Lua sparse table). The `count` field tracks the total number of positional slots (including holes) so the transpiler can iterate correctly without `ipairs` stopping at the first nil.
+
+**Source:** `let [a, , b, ...rest] = arr;`
 
 ---
 
