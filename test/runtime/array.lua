@@ -1545,6 +1545,55 @@ test("fill basic", function()
   assert_eq(arr[3], 0)
 end)
 
+test("fill with start", function()
+  local arr = exec_js("return [1, 2, 3, 4].fill(0, 2);")
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 0)
+  assert_eq(arr[4], 0)
+end)
+
+test("fill with start and end", function()
+  local arr = exec_js("return [1, 2, 3, 4, 5].fill(0, 1, 3);")
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 0)
+  assert_eq(arr[3], 0)
+  assert_eq(arr[4], 4)
+  assert_eq(arr[5], 5)
+end)
+
+test("fill with negative start", function()
+  local arr = exec_js("return [1, 2, 3, 4, 5].fill(0, -3);")
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 0)
+  assert_eq(arr[4], 0)
+  assert_eq(arr[5], 0)
+end)
+
+test("fill with negative end", function()
+  local arr = exec_js("return [1, 2, 3, 4, 5].fill(0, 1, -1);")
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 0)
+  assert_eq(arr[3], 0)
+  assert_eq(arr[4], 0)
+  assert_eq(arr[5], 5)
+end)
+
+test("fill returns same reference", function()
+  local arr = exec_js([=[
+    var a = [1, 2, 3];
+    var r = a.fill(0);
+    return a === r;
+  ]=])
+  assert_eq(arr, true)
+end)
+
+test("fill on empty array", function()
+  local arr = exec_js("return [].fill(0);")
+  assert_eq(arr.length, 0)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
