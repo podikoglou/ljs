@@ -741,6 +741,15 @@ test("every with thisArg", function()
   ]]), true)
 end)
 
+test("every skips holes in sparse array", function()
+  local count = exec_js([[
+    var count = 0;
+    [1,,3].every(function(x) { count++; return true; });
+    return count;
+  ]])
+  assert_eq(count, 2)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
