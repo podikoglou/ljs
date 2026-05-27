@@ -72,15 +72,21 @@ local transpile = require("ljs.transpile")
 
 **Types:** numbers, strings, booleans, `null`, `undefined`, objects, arrays
 
-**Operators:** arithmetic, comparison, logical, bitwise (`& | ^ << >> >>>`), ternary, `in`, `instanceof`, `typeof`, `delete`, `new`, compound assignment, update (`++`/`--`)
+**Literals:** template literals (`${}`), escape sequences (`\xHH`, `\uXXXX`, `\u{X...}`, `\0`), octal escapes (sloppy mode), scientific notation
 
-**Control flow:** `if`/`else`, `while`, `do...while`, `for`, `for...in`, `for...of`, `switch`/`case`, `break`, `continue`, `return`, `throw`, `try`/`catch`
+**Operators:** arithmetic, comparison, logical, loose equality (`==`/`!=`), strict equality, bitwise (`& | ^ << >> >>>`), ternary, `in`, `instanceof`, `typeof`, `delete`, `new`, compound assignment, update (`++`/`--`)
+
+**Control flow:** `if`/`else`, `while`, `do...while`, `for`, `for...in`, `for...of`, `switch`/`case`, `break`, `continue`, `return`, `throw`, `try`/`catch`/`finally`
 
 **Functions:** declarations, expressions, arrow functions, `this` with correct lexical binding, rest parameters, default parameters
 
-**OOP:** `class` with `extends`, `super()`, `super.method()`, `static` methods, constructors, prototype chain, `Object.create`, `Object.prototype.toString`/`hasOwnProperty`/`valueOf`, `Array.prototype.push`/`pop`, `Function.prototype.call`/`apply`
+**Syntax:** destructuring (arrays, objects, nesting, defaults, rest), spread in arrays and function calls, string spread
 
-**Built-ins:** `console.log`, `typeof`, `instanceof`, `delete`
+**OOP:** `class` with `extends`, `super()`, `super.method()`, `static` methods, constructors, prototype chain, `Object.create`, `Object.prototype.toString`/`hasOwnProperty`/`valueOf`
+
+**Built-ins:** `console.log`/`error`/`warn`/`info`, `typeof`, `instanceof`, `delete`, `parseInt`, `parseFloat`, `isNaN`, `isFinite`, `NaN`, `Infinity`
+
+**Runtime globals:** `Math` (constants + methods), `JSON.parse`/`stringify`, `Error`/`TypeError`/`RangeError`/`SyntaxError`/`ReferenceError`, `Array.isArray`/`from`/`of`, `Array.prototype.push`/`pop`/`map`/`join`/`toString`, `String.fromCharCode`, `String.prototype.charCodeAt`, `Function.prototype.call`/`apply`/`toString`
 
 ## Error handling
 
@@ -91,9 +97,10 @@ local ast, err = ljs.parse("let = bad;")
 if err then
   print(ljs.format_error(err, source))
 end
--- Expected identifier, got '=' at line 1, col 5
---   let = bad;
---        ^
+-- Expected Identifier, got =
+--     |
+-- 1 | let = bad;
+--     |     ^
 ```
 
 ## CLI tools
