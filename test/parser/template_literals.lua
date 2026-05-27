@@ -99,6 +99,12 @@ test("tokenize template with escaped dollar sign", function()
   assert_eq(tokens[1].value.quasis[1], "$not_expr")
 end)
 
+test("tokenize template with escape \\0", function()
+  local tokens, err = parser.tokenize("`a\\0b`")
+  if not tokens then error("tokenize failed: " .. tostring(err)) end
+  assert_eq(tokens[1].value.quasis[1], "a" .. string.char(0) .. "b")
+end)
+
 test("parse template with escape", function()
   assert_parse_ok("`a\\nb`", {
     {

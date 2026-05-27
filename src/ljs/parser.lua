@@ -604,6 +604,8 @@ local function tokenize(source)
             chars[#chars + 1] = '"'
           elseif esc == "'" then
             chars[#chars + 1] = "'"
+          elseif esc == "0" then
+            chars[#chars + 1] = string.char(0)
           else
             return nil, make_parse_error("Invalid escape sequence in template literal", line, col)
           end
