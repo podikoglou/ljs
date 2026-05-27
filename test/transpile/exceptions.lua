@@ -155,3 +155,34 @@ test("continue inside try with catch", function()
   ]])
   assert(output:find("0124"), "expected 0124")
 end)
+
+test("return inside try body", function()
+  local output = run_js([[
+    function foo() {
+      try { return 42; } catch(e) {}
+    }
+    console.log(foo());
+  ]])
+  assert(output:find("42"), "expected 42")
+end)
+
+test("return inside try with catch", function()
+  local output = run_js([[
+    function foo() {
+      try { return 42; } catch(e) { return 0; }
+      return -1;
+    }
+    console.log(foo());
+  ]])
+  assert(output:find("42"), "expected 42")
+end)
+
+test("return inside try with finally", function()
+  local output = run_js([[
+    function foo() {
+      try { return 42; } finally {}
+    }
+    console.log(foo());
+  ]])
+  assert(output:find("42"), "expected 42")
+end)
