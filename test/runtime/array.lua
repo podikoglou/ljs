@@ -1090,6 +1090,401 @@ test("findIndex on empty array returns -1", function()
 end)
 
 -- ============================================================================
+-- Array.prototype.forEach
+-- ============================================================================
+
+test("forEach basic iteration", function()
+  local result = exec_js([=[
+    var result = [];
+    [1, 2, 3].forEach(function(x) { result.push(x * 2); });
+    return result;
+  ]=])
+  assert_eq(result.length, 3)
+  assert_eq(result[1], 2)
+  assert_eq(result[2], 4)
+  assert_eq(result[3], 6)
+end)
+
+test("forEach with index argument", function()
+  local result = exec_js([=[
+    var result = [];
+    [10, 20, 30].forEach(function(x, i) { result.push(i); });
+    return result;
+  ]=])
+  assert_eq(result.length, 3)
+  assert_eq(result[1], 0)
+  assert_eq(result[2], 1)
+  assert_eq(result[3], 2)
+end)
+
+test("forEach with array argument", function()
+  local result = exec_js([=[
+    var result = [];
+    [1, 2].forEach(function(x, i, a) { result.push(a.length); });
+    return result;
+  ]=])
+  assert_eq(result.length, 2)
+  assert_eq(result[1], 2)
+  assert_eq(result[2], 2)
+end)
+
+test("forEach with thisArg", function()
+  local result = exec_js([[
+    var ctx = { mult: 10 };
+    var result = [];
+    [1, 2, 3].forEach(function(x) { result.push(x * this.mult); }, ctx);
+    return result;
+  ]])
+  assert_eq(result.length, 3)
+  assert_eq(result[1], 10)
+  assert_eq(result[2], 20)
+  assert_eq(result[3], 30)
+end)
+
+test("forEach returns undefined", function()
+  assert_eq(exec_js("return [1, 2, 3].forEach(function() {});"), nil)
+end)
+
+test("forEach on empty array does nothing", function()
+  local result = exec_js([=[
+    var count = 0;
+    [].forEach(function() { count++; });
+    return count;
+  ]=])
+  assert_eq(result, 0)
+end)
+
+test("forEach skips holes in sparse array", function()
+  local result = exec_js([=[
+    var result = [];
+    [1,,3].forEach(function(x) { result.push(x); });
+    return result;
+  ]=])
+  assert_eq(result.length, 2)
+  assert_eq(result[1], 1)
+  assert_eq(result[2], 3)
+end)
+
+test("forEach throws TypeError on non-function", function()
+  local ok, err = pcall(exec_js, "return [].forEach(42);")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("forEach throws TypeError on missing callback", function()
+  local ok, err = pcall(exec_js, "return [].forEach();")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("forEach with arrow function callback", function()
+  local result = exec_js([=[
+    var result = [];
+    [1, 2, 3].forEach(x => result.push(x * 2));
+    return result;
+  ]=])
+  assert_eq(result.length, 3)
+  assert_eq(result[1], 2)
+  assert_eq(result[2], 4)
+  assert_eq(result[3], 6)
+end)
+
+-- ============================================================================
+-- Array.prototype.filter
+-- ============================================================================
+
+test("filter basic filtering", function()
+  local arr = exec_js("return [1, 2, 3, 4].filter(function(x) { return x > 2; });")
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 3)
+  assert_eq(arr[2], 4)
+end)
+
+test("filter with index argument", function()
+  local arr = exec_js("return [10, 20, 30].filter(function(x, i) { return i > 0; });")
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 20)
+  assert_eq(arr[2], 30)
+end)
+
+test("filter with array argument", function()
+  local arr = exec_js("return [1, 2, 3].filter(function(x, i, a) { return x >= a.length; });")
+  assert_eq(arr.length, 1)
+  assert_eq(arr[1], 3)
+end)
+
+test("filter with thisArg", function()
+  local arr = exec_js([[
+    var ctx = { threshold: 2 };
+    return [1, 2, 3, 4].filter(function(x) { return x > this.threshold; }, ctx);
+  ]])
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 3)
+  assert_eq(arr[2], 4)
+end)
+
+test("filter returns new array", function()
+  local arr = exec_js([=[
+    var orig = [1, 2, 3];
+    var filtered = orig.filter(function(x) { return x > 1; });
+    return [orig.length, filtered.length];
+  ]=])
+  assert_eq(arr[1], 3)
+  assert_eq(arr[2], 2)
+end)
+
+test("filter on empty array", function()
+  local arr = exec_js("return [].filter(function(x) { return true; });")
+  assert_eq(arr.length, 0)
+end)
+
+test("filter skips holes in sparse array", function()
+  local result = exec_js([=[
+    var result = [];
+    [1,,3].filter(function(x) { result.push(x); return true; });
+    return result;
+  ]=])
+  assert_eq(result.length, 2)
+  assert_eq(result[1], 1)
+  assert_eq(result[2], 3)
+end)
+
+test("filter throws TypeError on non-function", function()
+  local ok, err = pcall(exec_js, "return [].filter(42);")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("filter throws TypeError on missing callback", function()
+  local ok, err = pcall(exec_js, "return [].filter();")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("filter with arrow function callback", function()
+  local arr = exec_js("return [1, 2, 3, 4].filter(x => x % 2 === 0);")
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 2)
+  assert_eq(arr[2], 4)
+end)
+
+test("filter uses _ljs_to_boolean for callback result (#243)", function()
+  local arr = exec_js("return [0, 1, '', 'a', null, 2].filter(x => x);")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], "a")
+  assert_eq(arr[3], 2)
+end)
+
+-- ============================================================================
+-- Array.prototype.reduce
+-- ============================================================================
+
+test("reduce basic sum", function()
+  assert_eq(exec_js("return [1, 2, 3].reduce(function(acc, x) { return acc + x; });"), 6)
+end)
+
+test("reduce with initialValue", function()
+  assert_eq(exec_js("return [1, 2, 3].reduce(function(acc, x) { return acc + x; }, 10);"), 16)
+end)
+
+test("reduce with index argument", function()
+  assert_eq(exec_js("return [10, 20, 30].reduce(function(acc, x, i) { return acc + i; }, 0);"), 3)
+end)
+
+test("reduce with array argument", function()
+  assert_eq(exec_js("return [1, 2, 3].reduce(function(acc, x, i, a) { return a.length; }, 0);"), 3)
+end)
+
+test("reduce on empty array with initialValue returns initialValue", function()
+  assert_eq(exec_js("return [].reduce(function() {}, 42);"), 42)
+end)
+
+test("reduce on single element without initialValue returns element", function()
+  assert_eq(exec_js("return [7].reduce(function() {});"), 7)
+end)
+
+test("reduce throws TypeError on empty array without initialValue", function()
+  local ok, err = pcall(exec_js, "return [].reduce(function() {});")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("reduce skips holes in sparse array", function()
+  assert_eq(exec_js("return [1,,3].reduce(function(acc, x) { return acc + x; });"), 4)
+end)
+
+test("reduce throws TypeError on non-function", function()
+  local ok, err = pcall(exec_js, "return [].reduce(42);")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("reduce throws TypeError on missing callback", function()
+  local ok, err = pcall(exec_js, "return [].reduce();")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("reduce with arrow function callback", function()
+  assert_eq(exec_js("return [1, 2, 3].reduce((acc, x) => acc + x);"), 6)
+end)
+
+test("reduce sparse array finds first present element as initial accumulator", function()
+  assert_eq(exec_js("return [,2,3].reduce(function(acc, x) { return acc + x; });"), 5)
+end)
+
+-- ============================================================================
+-- Array.prototype.flat
+-- ============================================================================
+
+test("flat basic flatten one level", function()
+  local arr = exec_js("return [1, [2, 3], 4].flat();")
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+  assert_eq(arr[4], 4)
+end)
+
+test("flat with depth 2", function()
+  local arr = exec_js("return [1, [2, [3]]].flat(2);")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+end)
+
+test("flat default depth is 1", function()
+  local arr = exec_js("return [1, [2, [3]]].flat();")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(type(arr[3]), "table")
+end)
+
+test("flat with depth 0 returns shallow copy", function()
+  local arr = exec_js("return [1, [2, 3]].flat(0);")
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 1)
+  assert_eq(type(arr[2]), "table")
+end)
+
+test("flat deeply nested with Infinity", function()
+  local arr = exec_js("return [1, [2, [3, [4]]]].flat(Infinity);")
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+  assert_eq(arr[4], 4)
+end)
+
+test("flat on empty array", function()
+  local arr = exec_js("return [].flat();")
+  assert_eq(arr.length, 0)
+end)
+
+test("flat skips holes in sparse array", function()
+  local arr = exec_js("return [1,,3].flat();")
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 3)
+end)
+
+test("flat negative depth treated as 0", function()
+  local arr = exec_js("return [1, [2, 3]].flat(-1);")
+  assert_eq(arr.length, 2)
+  assert_eq(type(arr[2]), "table")
+end)
+
+test("flat returns new array", function()
+  local arr = exec_js([=[
+    var orig = [1, [2, 3]];
+    var flat = orig.flat();
+    return [orig.length, flat.length];
+  ]=])
+  assert_eq(arr[1], 2)
+  assert_eq(arr[2], 3)
+end)
+
+-- ============================================================================
+-- Array.prototype.flatMap
+-- ============================================================================
+
+test("flatMap basic map and flatten", function()
+  local arr = exec_js("return [1, 2, 3].flatMap(function(x) { return [x, x * 2]; });")
+  assert_eq(arr.length, 6)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 2)
+  assert_eq(arr[4], 4)
+  assert_eq(arr[5], 3)
+  assert_eq(arr[6], 6)
+end)
+
+test("flatMap with non-array return values", function()
+  local arr = exec_js("return [1, 2, 3].flatMap(function(x) { return x; });")
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+end)
+
+test("flatMap with thisArg", function()
+  local arr = exec_js([[
+    var ctx = { mult: 10 };
+    return [1, 2].flatMap(function(x) { return [x * this.mult]; }, ctx);
+  ]])
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 10)
+  assert_eq(arr[2], 20)
+end)
+
+test("flatMap with index argument", function()
+  local arr = exec_js("return [10, 20].flatMap(function(x, i) { return [x, i]; });")
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 10)
+  assert_eq(arr[2], 0)
+  assert_eq(arr[3], 20)
+  assert_eq(arr[4], 1)
+end)
+
+test("flatMap on empty array", function()
+  local arr = exec_js("return [].flatMap(function(x) { return [x]; });")
+  assert_eq(arr.length, 0)
+end)
+
+test("flatMap skips holes in sparse array", function()
+  local arr = exec_js("return [1,,3].flatMap(function(x) { return [x]; });")
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 3)
+end)
+
+test("flatMap throws TypeError on non-function", function()
+  local ok, err = pcall(exec_js, "return [].flatMap(42);")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("flatMap throws TypeError on missing callback", function()
+  local ok, err = pcall(exec_js, "return [].flatMap();")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("flatMap with arrow function callback", function()
+  local arr = exec_js("return [1, 2, 3].flatMap(x => [x, x * 2]);")
+  assert_eq(arr.length, 6)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 2)
+  assert_eq(arr[4], 4)
+  assert_eq(arr[5], 3)
+  assert_eq(arr[6], 6)
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 

@@ -62,6 +62,152 @@ Array.prototype.map = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
 end)
 
 -- ---------------------------------------------------------------------------
+-- Array.prototype.forEach
+-- ---------------------------------------------------------------------------
+Array.prototype.forEach = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
+  if not _ljs_is_function(callbackFn) then
+    error("TypeError: " .. _ljs_value_repr(callbackFn) .. " is not a function")
+  end
+  local len = _ljs_this.length or 0
+  for i = 1, len do
+    local v = rawget(_ljs_this, i)
+    if v ~= nil then
+      _ljs_call_member(callbackFn, "call", thisArg, v, i - 1, _ljs_this)
+    end
+  end
+  return nil
+end)
+
+-- ---------------------------------------------------------------------------
+-- Array.prototype.filter
+-- ---------------------------------------------------------------------------
+Array.prototype.filter = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
+  if not _ljs_is_function(callbackFn) then
+    error("TypeError: " .. _ljs_value_repr(callbackFn) .. " is not a function")
+  end
+  local len = _ljs_this.length or 0
+  local result = _ljs_new(Array)
+  local to = 1
+  for i = 1, len do
+    local v = rawget(_ljs_this, i)
+    if v ~= nil then
+      local selected = _ljs_call_member(callbackFn, "call", thisArg, v, i - 1, _ljs_this)
+      if _ljs_to_boolean(selected) then
+        rawset(result, to, v)
+        to = to + 1
+      end
+    end
+  end
+  rawset(result, "length", to - 1)
+  return result
+end)
+
+-- ---------------------------------------------------------------------------
+-- Array.prototype.reduce
+-- ---------------------------------------------------------------------------
+Array.prototype.reduce = _ljs_fn(function(_ljs_this, callbackFn, initialValue)
+  if not _ljs_is_function(callbackFn) then
+    error("TypeError: " .. _ljs_value_repr(callbackFn) .. " is not a function")
+  end
+  local len = _ljs_this.length or 0
+  local accumulator
+  local k = 1
+  if initialValue ~= nil then
+    accumulator = initialValue
+  else
+    if len == 0 then
+      error("TypeError: Reduce of empty array with no initial value")
+    end
+    local found = false
+    while k <= len do
+      local v = rawget(_ljs_this, k)
+      if v ~= nil then
+        accumulator = v
+        found = true
+        k = k + 1
+        break
+      end
+      k = k + 1
+    end
+    if not found then
+      error("TypeError: Reduce of empty array with no initial value")
+    end
+  end
+  while k <= len do
+    local v = rawget(_ljs_this, k)
+    if v ~= nil then
+      accumulator = _ljs_call_member(callbackFn, "call", nil, accumulator, v, k - 1, _ljs_this)
+    end
+    k = k + 1
+  end
+  return accumulator
+end)
+
+-- ---------------------------------------------------------------------------
+-- FlattenIntoArray (shared by flat and flatMap)
+-- ---------------------------------------------------------------------------
+local function flatten_into_array(target, source, source_len, start, depth, mapper, thisArg)
+  local target_idx = start
+  for i = 1, source_len do
+    local v = rawget(source, i)
+    if v ~= nil then
+      if mapper ~= nil then
+        v = _ljs_call_member(mapper, "call", thisArg, v, i - 1, source)
+      end
+      if depth > 0 and _ljs_instanceof(v, Array) then
+        local sub_len = v.length or 0
+        target_idx = flatten_into_array(target, v, sub_len, target_idx, depth - 1, nil, nil)
+      else
+        rawset(target, target_idx, v)
+        target_idx = target_idx + 1
+      end
+    end
+  end
+  return target_idx
+end
+
+-- ---------------------------------------------------------------------------
+-- Array.prototype.flat
+-- ---------------------------------------------------------------------------
+Array.prototype.flat = _ljs_fn(function(_ljs_this, depth_val)
+  local len = _ljs_this.length or 0
+  local depth
+  if depth_val == nil then
+    depth = 1
+  else
+    local n = tonumber(depth_val)
+    if n == nil or n ~= n then
+      depth = 0
+    elseif n == math.huge then
+      depth = math.huge
+    elseif n == -math.huge then
+      depth = 0
+    else
+      depth = math.floor(n)
+      if depth < 0 then depth = 0 end
+    end
+  end
+  local result = _ljs_new(Array)
+  local final_idx = flatten_into_array(result, _ljs_this, len, 1, depth, nil, nil)
+  rawset(result, "length", final_idx - 1)
+  return result
+end)
+
+-- ---------------------------------------------------------------------------
+-- Array.prototype.flatMap
+-- ---------------------------------------------------------------------------
+Array.prototype.flatMap = _ljs_fn(function(_ljs_this, mapperFunction, thisArg)
+  if not _ljs_is_function(mapperFunction) then
+    error("TypeError: " .. _ljs_value_repr(mapperFunction) .. " is not a function")
+  end
+  local len = _ljs_this.length or 0
+  local result = _ljs_new(Array)
+  local final_idx = flatten_into_array(result, _ljs_this, len, 1, 1, mapperFunction, thisArg)
+  rawset(result, "length", final_idx - 1)
+  return result
+end)
+
+-- ---------------------------------------------------------------------------
 -- Array.prototype.some
 -- ---------------------------------------------------------------------------
 Array.prototype.some = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
