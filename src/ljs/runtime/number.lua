@@ -4,6 +4,9 @@ end)
 _ljs_number_prototype.valueOf = _ljs_fn(function(_ljs_this)
   return _ljs_this._ljs_data
 end)
+_ljs_number_prototype.toLocaleString = _ljs_fn(function(_ljs_this)
+  return _ljs_tostring(_ljs_this._ljs_data)
+end)
 
 setmetatable(_ljs_number_prototype, { __index = _ljs_object_prototype })
 
