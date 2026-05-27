@@ -1803,6 +1803,29 @@ test("splice at end inserts", function()
 end)
 
 -- ============================================================================
+-- Array.prototype.sort
+-- ============================================================================
+
+test("sort with numeric comparator", function()
+  local arr = exec_js([=[
+    return [3, 1, 2].sort(function(a, b) { return a - b; });
+  ]=])
+  assert_eq(arr.length, 3)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 2)
+  assert_eq(arr[3], 3)
+end)
+
+test("sort default string comparison", function()
+  local arr = exec_js("return [3, 1, 10, 2].sort();")
+  assert_eq(arr.length, 4)
+  assert_eq(arr[1], 1)
+  assert_eq(arr[2], 10)
+  assert_eq(arr[3], 2)
+  assert_eq(arr[4], 3)
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 

@@ -692,6 +692,82 @@ Array.prototype.splice = _ljs_fn(function(_ljs_this, start, deleteCount, ...)
 end)
 
 -- ---------------------------------------------------------------------------
+-- Array.prototype.sort
+-- ---------------------------------------------------------------------------
+local function _merge_sort(items, compare)
+  local n = #items
+  if n <= 1 then return items end
+  local mid = math.floor(n / 2)
+  local left, right = {}, {}
+  for i = 1, mid do left[i] = items[i] end
+  for i = mid + 1, n do right[i - mid] = items[i] end
+  left = _merge_sort(left, compare)
+  right = _merge_sort(right, compare)
+  local result = {}
+  local li, ri, ri2 = 1, 1, 1
+  while li <= #left and ri <= #right do
+    if compare(left[li], right[ri]) <= 0 then
+      result[ri2] = left[li]
+      li = li + 1
+    else
+      result[ri2] = right[ri]
+      ri = ri + 1
+    end
+    ri2 = ri2 + 1
+  end
+  while li <= #left do
+    result[ri2] = left[li]
+    li = li + 1
+    ri2 = ri2 + 1
+  end
+  while ri <= #right do
+    result[ri2] = right[ri]
+    ri = ri + 1
+    ri2 = ri2 + 1
+  end
+  return result
+end
+
+Array.prototype.sort = _ljs_fn(function(_ljs_this, comparator)
+  if comparator ~= nil and not _ljs_is_function(comparator) then
+    error("TypeError: " .. _ljs_value_repr(comparator) .. " is not a function")
+  end
+  local len = _ljs_this.length or 0
+  local items = {}
+  for k = 1, len do
+    local v = rawget(_ljs_this, k)
+    if v ~= nil then
+      items[#items + 1] = v
+    end
+  end
+  local compare
+  if comparator ~= nil then
+    compare = function(x, y)
+      local result = _ljs_call_member(comparator, "call", nil, x, y)
+      local n = tonumber(result)
+      if n == nil or n ~= n then return 0 end
+      return n
+    end
+  else
+    compare = function(x, y)
+      local xs = _ljs_tostring(x)
+      local ys = _ljs_tostring(y)
+      if xs < ys then return -1 end
+      if ys < xs then return 1 end
+      return 0
+    end
+  end
+  items = _merge_sort(items, compare)
+  for j = 1, #items do
+    rawset(_ljs_this, j, items[j])
+  end
+  for j = #items + 1, len do
+    rawset(_ljs_this, j, nil)
+  end
+  return _ljs_this
+end)
+
+-- ---------------------------------------------------------------------------
 -- Array.prototype.join
 -- ---------------------------------------------------------------------------
 -- Converts each element to a string (using tostring; nil/undefined → ""),
