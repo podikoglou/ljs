@@ -342,3 +342,158 @@ end)
 test("isFinite() with no args is false (undefined → NaN)", function()
   assert_eq(eval_js("isFinite()"), false)
 end)
+
+-- ============================================================================
+-- parseInt global function
+-- ============================================================================
+
+test("typeof parseInt is 'function'", function()
+  assert_eq(eval_js("typeof parseInt"), "function")
+end)
+
+test("parseInt('42') is 42", function()
+  assert_eq(eval_js("parseInt('42')"), 42)
+end)
+
+test("parseInt('-7') is -7", function()
+  assert_eq(eval_js("parseInt('-7')"), -7)
+end)
+
+test("parseInt('  42') is 42 (leading whitespace)", function()
+  assert_eq(eval_js("parseInt('  42')"), 42)
+end)
+
+test("parseInt('FF', 16) is 255", function()
+  assert_eq(eval_js("parseInt('FF', 16)"), 255)
+end)
+
+test("parseInt('10', 2) is 2", function()
+  assert_eq(eval_js("parseInt('10', 2)"), 2)
+end)
+
+test("parseInt('10', 8) is 8", function()
+  assert_eq(eval_js("parseInt('10', 8)"), 8)
+end)
+
+test("parseInt('0xFF') is 255 (auto-hex)", function()
+  assert_eq(eval_js("parseInt('0xFF')"), 255)
+end)
+
+test("parseInt('0X1a') is 26 (case-insensitive hex)", function()
+  assert_eq(eval_js("parseInt('0X1a')"), 26)
+end)
+
+test("parseInt('0x10', 10) is 0 (prefix not stripped for radix 10)", function()
+  assert_eq(eval_js("parseInt('0x10', 10)"), 0)
+end)
+
+test("parseInt('123abc') is 123 (trailing junk)", function()
+  assert_eq(eval_js("parseInt('123abc')"), 123)
+end)
+
+test("parseInt('') is NaN", function()
+  local r = eval_js("parseInt('')")
+  assert(r ~= r, "parseInt('') should be NaN")
+end)
+
+test("parseInt('abc') is NaN", function()
+  local r = eval_js("parseInt('abc')")
+  assert(r ~= r, "parseInt('abc') should be NaN")
+end)
+
+test("parseInt('2', 1) is NaN (radix too low)", function()
+  local r = eval_js("parseInt('2', 1)")
+  assert(r ~= r, "parseInt('2', 1) should be NaN")
+end)
+
+test("parseInt('2', 37) is NaN (radix too high)", function()
+  local r = eval_js("parseInt('2', 37)")
+  assert(r ~= r, "parseInt('2', 37) should be NaN")
+end)
+
+test("parseInt('0x') is NaN (prefix with no digits)", function()
+  local r = eval_js("parseInt('0x')")
+  assert(r ~= r, "parseInt('0x') should be NaN")
+end)
+
+test("parseInt('0', 0) is 0", function()
+  assert_eq(eval_js("parseInt('0', 0)"), 0)
+end)
+
+test("parseInt('10', 16.5) is 16 (non-integer radix uses ToInt32)", function()
+  assert_eq(eval_js("parseInt('10', 16.5)"), 16)
+end)
+
+test("parseInt('10', Infinity) is 10 (Infinity radix treated as no radix)", function()
+  assert_eq(eval_js("parseInt('10', Infinity)"), 10)
+end)
+
+test("parseInt('10', NaN) is 10 (NaN radix treated as no radix)", function()
+  assert_eq(eval_js("parseInt('10', NaN)"), 10)
+end)
+
+-- ============================================================================
+-- parseFloat global function
+-- ============================================================================
+
+test("typeof parseFloat is 'function'", function()
+  assert_eq(eval_js("typeof parseFloat"), "function")
+end)
+
+test("parseFloat('3.14') is 3.14", function()
+  assert_eq(eval_js("parseFloat('3.14')"), 3.14)
+end)
+
+test("parseFloat('-7.5') is -7.5", function()
+  assert_eq(eval_js("parseFloat('-7.5')"), -7.5)
+end)
+
+test("parseFloat('.5') is 0.5", function()
+  assert_eq(eval_js("parseFloat('.5')"), 0.5)
+end)
+
+test("parseFloat('3.') is 3", function()
+  assert_eq(eval_js("parseFloat('3.')"), 3)
+end)
+
+test("parseFloat('3e2') is 300", function()
+  assert_eq(eval_js("parseFloat('3e2')"), 300)
+end)
+
+test("parseFloat('3.14e-1') is 0.314", function()
+  assert_eq(eval_js("parseFloat('3.14e-1')"), 0.314)
+end)
+
+test("parseFloat('  3.14abc') is 3.14 (whitespace + junk)", function()
+  assert_eq(eval_js("parseFloat('  3.14abc')"), 3.14)
+end)
+
+test("parseFloat('3.14abc') is 3.14 (trailing junk)", function()
+  assert_eq(eval_js("parseFloat('3.14abc')"), 3.14)
+end)
+
+test("parseFloat('0xFF') is 0 (stops at x)", function()
+  assert_eq(eval_js("parseFloat('0xFF')"), 0)
+end)
+
+test("parseFloat('Infinity') is Infinity", function()
+  assert_eq(eval_js("parseFloat('Infinity')"), math.huge)
+end)
+
+test("parseFloat('-Infinity') is -Infinity", function()
+  assert_eq(eval_js("parseFloat('-Infinity')"), -math.huge)
+end)
+
+test("parseFloat('+Infinity') is Infinity", function()
+  assert_eq(eval_js("parseFloat('+Infinity')"), math.huge)
+end)
+
+test("parseFloat('') is NaN", function()
+  local r = eval_js("parseFloat('')")
+  assert(r ~= r, "parseFloat('') should be NaN")
+end)
+
+test("parseFloat('abc') is NaN", function()
+  local r = eval_js("parseFloat('abc')")
+  assert(r ~= r, "parseFloat('abc') should be NaN")
+end)
