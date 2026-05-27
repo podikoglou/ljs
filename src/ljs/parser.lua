@@ -1402,7 +1402,9 @@ function parse_array_pattern(stream)
   end
 
   stream.consume(TOKEN.RBRACKET)
-  return ast.array_pattern(elements, lbracket)
+  local result = ast.array_pattern(elements, lbracket)
+  result.count = idx - 1
+  return result
 end
 
 function parse_binding_element(stream)
@@ -1421,6 +1423,63 @@ function parse_binding_element(stream)
     end
     return name
   end
+end
+
+local convert_expression_to_pattern
+
+convert_expression_to_pattern = function(node)
+  if node.type == ast.TYPE_ARRAY_EXPRESSION then
+    local elements = {}
+    local count = node.count or #node.elements
+    for i = 1, count do
+      local elem = node.elements[i]
+      if elem == nil then
+        elements[i] = nil
+      elseif elem.type == ast.TYPE_SPREAD_ELEMENT then
+        elements[i] = ast.rest_element(elem.argument, elem)
+      elseif elem.type == ast.TYPE_IDENTIFIER then
+        elements[i] = elem
+      elseif elem.type == ast.TYPE_ASSIGNMENT_PATTERN then
+        elements[i] = elem
+      elseif elem.type == ast.TYPE_BINARY_EXPRESSION and elem.operator == "=" then
+        local left = convert_expression_to_pattern(elem.left)
+        elements[i] = ast.assignment_pattern(left, elem.right, elem)
+      else
+        elements[i] = convert_expression_to_pattern(elem)
+      end
+    end
+    local result = ast.array_pattern(elements, node)
+    result.count = count
+    return result
+  elseif node.type == ast.TYPE_OBJECT_EXPRESSION then
+    local properties = {}
+    for _, prop_node in ipairs(node.properties) do
+      if prop_node.type == ast.TYPE_SPREAD_ELEMENT then
+        properties[#properties + 1] = ast.rest_element(prop_node.argument, prop_node)
+      else
+        local new_value = prop_node.value
+        if new_value.type == ast.TYPE_IDENTIFIER then
+          -- keep as-is
+        elseif new_value.type == ast.TYPE_ASSIGNMENT_PATTERN then
+          -- keep as-is
+        elseif new_value.type == ast.TYPE_BINARY_EXPRESSION and new_value.operator == "=" then
+          local left = convert_expression_to_pattern(new_value.left)
+          new_value = ast.assignment_pattern(left, new_value.right, new_value)
+        else
+          new_value = convert_expression_to_pattern(new_value)
+        end
+        properties[#properties + 1] = ast.property(
+          prop_node.key,
+          new_value,
+          prop_node.computed,
+          prop_node,
+          prop_node.shorthand
+        )
+      end
+    end
+    return ast.object_pattern(properties, node)
+  end
+  return node
 end
 
 --- Parse if/else: if (test) consequent [else alternate]
@@ -2018,6 +2077,11 @@ function parse_binary_expression(stream, min_precedence, no_in)
       or op == TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN
     then
       stream.advance()
+      if op == TOKEN.ASSIGN then
+        if left.type == ast.TYPE_ARRAY_EXPRESSION or left.type == ast.TYPE_OBJECT_EXPRESSION then
+          left = convert_expression_to_pattern(left)
+        end
+      end
       local right = parse_expression(stream, no_in)
       left = ast.binary_expression(op, left, right, op_token)
     elseif op == TOKEN.STARSTAR then
@@ -2364,9 +2428,32 @@ end
 -- Empty arrays [] are valid.
 function parse_array_literal(stream)
   local lbracket = stream.consume(TOKEN.LBRACKET)
-  local elements = parse_comma_list(stream, TOKEN.RBRACKET, parse_maybe_spread, true)
+  local elements = {}
+  local idx = 1
+
+  while not stream.is(TOKEN.RBRACKET) and not stream.eof() do
+    if stream.is(TOKEN.COMMA) then
+      elements[idx] = nil
+      idx = idx + 1
+      stream.advance()
+    elseif stream.is(TOKEN.ELLIPSIS) then
+      local ellipsis = stream.advance()
+      local expr = parse_expression(stream)
+      elements[idx] = ast.spread_element(expr, ellipsis)
+      idx = idx + 1
+      if stream.is(TOKEN.COMMA) then stream.advance() end
+    else
+      local expr = parse_expression(stream)
+      elements[idx] = expr
+      idx = idx + 1
+      if stream.is(TOKEN.COMMA) then stream.advance() end
+    end
+  end
+
   stream.consume(TOKEN.RBRACKET)
-  return ast.array_expression(elements, lbracket)
+  local node = ast.array_expression(elements, lbracket)
+  node.count = idx - 1
+  return node
 end
 
 --- Parse object literal: { key: value, key: value, ... }
@@ -2408,7 +2495,7 @@ function parse_object_literal(stream)
       fn.is_method = true
       return ast.property(key, fn, false, key)
     elseif key_is_identifier and (s.is(TOKEN.COMMA) or s.is(TOKEN.RBRACE)) then
-      return ast.property(key, ast.identifier(key.name, key), false, key)
+      return ast.property(key, ast.identifier(key.name, key), false, key, true)
     else
       parse_error(
         "Expected ':', '(', ',', or '}' after property key",

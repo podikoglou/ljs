@@ -975,6 +975,105 @@ emit_destructure = function(pattern, rhs, indent, ctx, out)
   end
 end
 
+local emit_assign_binding
+
+local function emit_assign_target(target, access, indent, ctx, out)
+  if target.type == ast.TYPE_IDENTIFIER then
+    out[#out + 1] = cg.expr_stmt(cg.binop("=", target.name, access), indent)
+  elseif target.type == ast.TYPE_MEMBER_EXPRESSION then
+    local obj = emit(target.object, indent, ctx)
+    local prop
+    if target.computed then
+      prop = emit(target.property, indent, ctx)
+    else
+      prop = cg.string(target.property.name)
+    end
+    out[#out + 1] = cg.expr_stmt(
+      cg.binop("=", cg.member_index(obj, prop), access), indent
+    )
+  elseif target.type == ast.TYPE_ASSIGNMENT_PATTERN then
+    local inner = target.left
+    local default_expr = emit(target.right, indent, ctx)
+    local var_name
+    if inner.type == ast.TYPE_IDENTIFIER then
+      var_name = inner.name
+      out[#out + 1] = cg.expr_stmt(cg.binop("=", var_name, access), indent)
+    elseif inner.type == ast.TYPE_MEMBER_EXPRESSION then
+      var_name = fresh_tmp()
+      out[#out + 1] = cg.local_decl(var_name, access, indent)
+      emit_assign_target(inner, var_name, indent, ctx, out)
+    else
+      var_name = fresh_tmp()
+      out[#out + 1] = cg.local_decl(var_name, access, indent)
+      emit_assign_binding(inner, var_name, indent, ctx, out)
+    end
+    out[#out + 1] = cg.if_stmt(
+      var_name .. " == nil",
+      cg.expr_stmt(cg.binop("=", var_name, default_expr), indent + 1),
+      nil, nil, indent
+    )
+  elseif target.type == ast.TYPE_OBJECT_PATTERN or target.type == ast.TYPE_ARRAY_PATTERN then
+    local tmp = fresh_tmp()
+    out[#out + 1] = cg.local_decl(tmp, access, indent)
+    emit_assign_binding(target, tmp, indent, ctx, out)
+  end
+end
+
+emit_assign_binding = function(pattern, rhs, indent, ctx, out)
+  if pattern.type == ast.TYPE_OBJECT_PATTERN then
+    for _, prop_node in ipairs(pattern.properties) do
+      if prop_node.type == ast.TYPE_REST_ELEMENT then
+        local rest_name = prop_node.argument.name
+        local collected = {}
+        for _, p in ipairs(pattern.properties) do
+          if p.type == ast.TYPE_PROPERTY then
+            if p.key.type == ast.TYPE_IDENTIFIER then
+              collected[#collected + 1] = cg.string(p.key.name)
+            end
+          end
+        end
+        local keys_expr = cg.array(collected)
+        out[#out + 1] = cg.expr_stmt(
+          cg.binop("=", rest_name, cg.call("_ljs_rest", { rhs, keys_expr })),
+          indent
+        )
+      else
+        local key_str
+        if prop_node.key.type == ast.TYPE_IDENTIFIER then
+          key_str = cg.string(prop_node.key.name)
+        else
+          key_str = emit(prop_node.key, indent, ctx)
+        end
+        local access = cg.member_index(rhs, key_str)
+        emit_assign_target(prop_node.value, access, indent, ctx, out)
+      end
+    end
+  elseif pattern.type == ast.TYPE_ARRAY_PATTERN then
+    local count = pattern.count or #pattern.elements
+    for i = 1, count do
+      local elem = pattern.elements[i]
+      if elem == nil then
+        -- hole: skip
+      elseif elem.type == ast.TYPE_REST_ELEMENT then
+        local rest_name = elem.argument.name
+        out[#out + 1] = cg.expr_stmt(
+          cg.binop("=", rest_name,
+            cg.iife({
+              cg.local_inline("_r", cg.array({ cg.call("table.unpack", { rhs, tostring(i) }) })),
+              "_r.n = #" .. rhs .. " - " .. tostring(i - 1),
+              cg.return_inline(cg.call("_ljs_new", { "Array", cg.call("_ljs_unpack", { "_r" }) })),
+            })
+          ),
+          indent
+        )
+      else
+        local access = cg.member_index(rhs, tostring(i))
+        emit_assign_target(elem, access, indent, ctx, out)
+      end
+    end
+  end
+end
+
 gen.VariableDeclaration = function(node, indent, ctx)
   local out = {}
   for _, decl in ipairs(node.declarations) do
@@ -1380,6 +1479,15 @@ local COMPOUND_OPS = {
 
 gen.BinaryExpression = function(node, indent, ctx)
   local op = node.operator
+  if op == "=" and (node.left.type == ast.TYPE_ARRAY_PATTERN or node.left.type == ast.TYPE_OBJECT_PATTERN) then
+    local right = emit(node.right, indent, ctx)
+    local tmp = fresh_tmp()
+    local out = {}
+    out[#out + 1] = cg.local_inline(tmp, right)
+    emit_assign_binding(node.left, tmp, indent, ctx, out)
+    out[#out + 1] = cg.return_inline(tmp)
+    return cg.iife(out)
+  end
   local left = emit(node.left, indent, ctx)
   local right = emit(node.right, indent, ctx)
   local helper = SIMPLE_OPS[op]
@@ -1734,6 +1842,23 @@ end
 -- typeof as a statement has no side effects; emit nothing.
 gen_stmt.TypeofExpression = function(node, indent, ctx)
   return ""
+end
+
+gen_stmt.BinaryExpression = function(node, indent, ctx)
+  local op = node.operator
+  if op == "=" and (node.left.type == ast.TYPE_ARRAY_PATTERN or node.left.type == ast.TYPE_OBJECT_PATTERN) then
+    local right = emit(node.right, indent, ctx)
+    local tmp = fresh_tmp()
+    local out = {}
+    out[#out + 1] = cg.local_decl(tmp, right, indent)
+    emit_assign_binding(node.left, tmp, indent, ctx, out)
+    return table.concat(out)
+  end
+  local expr = emit(node, indent, ctx)
+  if expr_produces_valid_stmt(node) then
+    return cg.expr_stmt(expr, indent)
+  end
+  return cg.discard_stmt(expr, indent)
 end
 
 -- === Top-level preamble and emit ===

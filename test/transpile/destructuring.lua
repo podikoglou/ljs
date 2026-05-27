@@ -105,3 +105,53 @@ test("destructure_counter resets between transpiles (#174)", function()
   assert(code2:find("_ljs_d1", 1, true), "second transpile should also use _ljs_d1")
   assert(not code2:find("_ljs_d2", 1, true), "second transpile should not leak _ljs_d2")
 end)
+
+test("bare array destructuring assignment — runtime values (#181)", function()
+  local out = run_js("let a, b; [a, b] = [1, 2];\nconsole.log(a, b);")
+  assert_eq(out, "1\t2\n")
+end)
+
+test("bare array destructuring with holes — runtime values (#181)", function()
+  local out = run_js("let a, b; [a, , b] = [1, 2, 3];\nconsole.log(a, b);")
+  assert_eq(out, "1\t3\n")
+end)
+
+test("bare object destructuring assignment — runtime values (#181)", function()
+  local out = run_js('let x, y; ({x, y} = {x: 1, y: 2});\nconsole.log(x, y);')
+  assert_eq(out, "1\t2\n")
+end)
+
+test("nested array destructuring assignment — runtime values (#181)", function()
+  local out = run_js("let a, b; [a, [b]] = [1, [2]];\nconsole.log(a, b);")
+  assert_eq(out, "1\t2\n")
+end)
+
+test("default value in bare array destructuring — default used (#181)", function()
+  local out = run_js("let a; [a = 10] = [undefined];\nconsole.log(a);")
+  assert_eq(out, "10\n")
+end)
+
+test("default value in bare array destructuring — value present (#181)", function()
+  local out = run_js("let a; [a = 10] = [5];\nconsole.log(a);")
+  assert_eq(out, "5\n")
+end)
+
+test("rest in bare array destructuring assignment (#181)", function()
+  local out = run_js("let a, b; [a, ...b] = [1, 2, 3];\nconsole.log(a, b[0], b[1]);")
+  assert_eq(out, "1\t2\t3\n")
+end)
+
+test("destructuring assignment expression context — IIFE (#181)", function()
+  local code = transpile_ok("let a, b; while ([a, b] = [1, 2]) { break; }")
+  assert(code:find("function()", 1, true), "expected IIFE for expression context")
+end)
+
+test("destructuring assignment returns RHS value (#181)", function()
+  local out = run_js("let a, b; let c = [a, b] = [42, 99];\nconsole.log(c[0], c[1]);")
+  assert_eq(out, "42\t99\n")
+end)
+
+test("object destructuring assignment with rename (#181)", function()
+  local out = run_js('let y; ({x: y} = {x: 42});\nconsole.log(y);')
+  assert_eq(out, "42\n")
+end)

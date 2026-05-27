@@ -134,3 +134,27 @@ end)
 test("array destructuring without initializer is a parse error (#175)", function()
   assert_parse_fail("var [a, b];", "Missing initializer")
 end)
+
+test("bare array destructuring assignment: [a, b] = [1, 2] (#181)", function()
+  assert_parse_ok("let a, b; [a, b] = [1, 2];", {
+    A.var_decl("let", { A.declarator(A.id("a")), A.declarator(A.id("b")) }),
+    A.expr_stmt(A.bin("=", arr_pattern({ A.id("a"), A.id("b") }), A.arr({ A.num(1), A.num(2) }))),
+  })
+end)
+
+test("bare array destructuring with holes: [a, , b] = [1, 2, 3] (#181)", function()
+  assert_parse_ok("let a, b; [a, , b] = [1, 2, 3];", {
+    A.var_decl("let", { A.declarator(A.id("a")), A.declarator(A.id("b")) }),
+    A.expr_stmt(A.bin("=", arr_pattern({ A.id("a"), nil, A.id("b") }), A.arr({ A.num(1), A.num(2), A.num(3) }))),
+  })
+end)
+
+test("bare object destructuring assignment: ({x, y} = obj) (#181)", function()
+  assert_parse_ok("let x, y; ({x, y} = {x: 1, y: 2});", {
+    A.var_decl("let", { A.declarator(A.id("x")), A.declarator(A.id("y")) }),
+    A.expr_stmt(A.bin("=", obj_pattern({
+      prop(A.id("x"), A.id("x"), true),
+      prop(A.id("y"), A.id("y"), true),
+    }), A.obj({ A.prop(A.id("x"), A.num(1)), A.prop(A.id("y"), A.num(2)) }))),
+  })
+end)
