@@ -2485,7 +2485,7 @@ function parse_object_literal(stream)
       fn.is_method = true
       return ast.property(key, fn, false, key)
     elseif key_is_identifier and (s.is(TOKEN.COMMA) or s.is(TOKEN.RBRACE)) then
-      return ast.property(key, ast.identifier(key.name, key), false, key)
+      return ast.property(key, ast.identifier(key.name, key), false, key, true)
     else
       parse_error(
         "Expected ':', '(', ',', or '}' after property key",
