@@ -342,3 +342,11 @@ end)
 test("isFinite() with no args is false (undefined → NaN)", function()
   assert_eq(eval_js("isFinite()"), false)
 end)
+
+-- ============================================================================
+-- parseInt global function
+-- ============================================================================
+
+test("typeof parseInt is 'function'", function()
+  assert_eq(eval_js("typeof parseInt"), "function")
+end)
