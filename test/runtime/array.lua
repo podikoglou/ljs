@@ -671,6 +671,15 @@ test("some with thisArg", function()
   ]]), true)
 end)
 
+test("some skips holes in sparse array", function()
+  local count = exec_js([[
+    var count = 0;
+    [1,,3].some(function(x) { count++; return false; });
+    return count;
+  ]])
+  assert_eq(count, 2)
+end)
+
 -- ============================================================================
 -- Code generation checks
 -- ============================================================================
