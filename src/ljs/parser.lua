@@ -2016,6 +2016,9 @@ function parse_primary_expression(stream)
       stream.advance()
       return parse_postfix(stream, ast.number_literal(token.value, token), true)
     end
+    if token.value % 1 ~= 0 and stream.is(TOKEN.DOT) then
+      return parse_postfix(stream, ast.number_literal(token.value, token), true)
+    end
     return ast.number_literal(token.value, token)
   elseif stream.is(TOKEN.STRING) then
     stream.advance()
