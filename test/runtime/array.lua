@@ -681,12 +681,12 @@ test("some skips holes in sparse array", function()
 end)
 
 test("some with index and array arguments", function()
-  local result = exec_js([[
+  local result = exec_js([=[
     var indices = [];
     var lens = [];
     [10, 20].some(function(v, i, a) { indices.push(i); lens.push(a.length); return false; });
     return [indices[0], indices[1], lens[0], lens[1]];
-  ]])
+  ]=])
   assert_eq(result[1], 0)
   assert_eq(result[2], 1)
   assert_eq(result[3], 2)
@@ -707,6 +707,14 @@ end)
 
 test("some with arrow function callback", function()
   assert_eq(exec_js("return [1, 2, 3].some(x => x > 2);"), true)
+end)
+
+-- ============================================================================
+-- Array.prototype.every
+-- ============================================================================
+
+test("every returns true when all elements match", function()
+  assert_eq(exec_js("return [2, 4, 6].every(function(x) { return x % 2 === 0; });"), true)
 end)
 
 -- ============================================================================
