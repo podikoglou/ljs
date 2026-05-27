@@ -1,6 +1,7 @@
 import { LuaFactory, type LuaEngine } from "wasmoon";
 
 import ljsSource from "@ljs/src/ljs.lua?raw";
+import ljsAstSource from "@ljs/src/ljs/ast.lua?raw";
 import ljsParserSource from "@ljs/src/ljs/parser.lua?raw";
 import ljsTranspileSource from "@ljs/src/ljs/transpile.lua?raw";
 import ljsCodegenSource from "@ljs/src/ljs/codegen.lua?raw";
@@ -30,6 +31,7 @@ export class WasmoonAdapter implements LuaVM {
     const e = await this.factory.createEngine();
 
     await this.factory.mountFile("ljs.lua", ljsSource);
+    await this.factory.mountFile("ljs/ast.lua", ljsAstSource);
     await this.factory.mountFile("ljs/parser.lua", ljsParserSource);
     await this.factory.mountFile("ljs/transpile.lua", ljsTranspileSource);
     await this.factory.mountFile("ljs/codegen.lua", ljsCodegenSource);
