@@ -526,11 +526,9 @@ test("slice with NaN start returns full copy", function()
   assert_eq(arr[3], 3)
 end)
 
-test("slice with NaN end returns full copy", function()
+test("slice with NaN end returns empty (ToIntegerOrInfinity(NaN)=0)", function()
   local arr = exec_js("return [1, 2, 3].slice(0, NaN);")
-  assert_eq(arr.length, 3)
-  assert_eq(arr[1], 1)
-  assert_eq(arr[3], 3)
+  assert_eq(arr.length, 0)
 end)
 
 test("slice with true as start (ToNumber(true)=1)", function()

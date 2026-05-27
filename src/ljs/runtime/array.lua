@@ -68,6 +68,8 @@ Array.prototype.slice = _ljs_fn(function(_ljs_this, start_val, end_val)
   local len = _ljs_this.length or 0
   local function to_int(v)
     if v == nil then return 0 end
+    if v == true then return 1 end
+    if v == false then return 0 end
     local n = tonumber(v)
     if n == nil or n ~= n then return 0 end
     return n >= 0 and math.floor(n) or math.ceil(n)
