@@ -62,6 +62,52 @@ Array.prototype.map = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
 end)
 
 -- ---------------------------------------------------------------------------
+-- Array.prototype.slice
+-- ---------------------------------------------------------------------------
+Array.prototype.slice = _ljs_fn(function(_ljs_this, start_val, end_val)
+  local len = _ljs_this.length or 0
+  local function to_int(v)
+    if v == nil then return 0 end
+    local n = tonumber(v)
+    if n == nil or n ~= n then return 0 end
+    return math.floor(n)
+  end
+
+  local relative_start = to_int(start_val)
+  local k
+  if relative_start < 0 then
+    k = math.max(len + relative_start, 0)
+  else
+    k = math.min(relative_start, len)
+  end
+
+  local relative_end
+  if end_val == nil then
+    relative_end = len
+  else
+    relative_end = to_int(end_val)
+  end
+  local final_
+  if relative_end < 0 then
+    final_ = math.max(len + relative_end, 0)
+  else
+    final_ = math.min(relative_end, len)
+  end
+
+  local result = _ljs_new(Array)
+  local ri = 1
+  for i = k + 1, final_ do
+    local v = rawget(_ljs_this, i)
+    if v ~= nil then
+      rawset(result, ri, v)
+    end
+    ri = ri + 1
+  end
+  rawset(result, "length", math.max(final_ - k, 0))
+  return result
+end)
+
+-- ---------------------------------------------------------------------------
 -- Array.prototype.join
 -- ---------------------------------------------------------------------------
 -- Converts each element to a string (using tostring; nil/undefined → ""),

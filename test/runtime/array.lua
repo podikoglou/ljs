@@ -411,6 +411,17 @@ test("map with arrow function callback", function()
 end)
 
 -- ============================================================================
+-- Array.prototype.slice
+-- ============================================================================
+
+test("slice with start and end", function()
+  local arr = exec_js("return [1, 2, 3, 4, 5].slice(1, 3);")
+  assert_eq(arr.length, 2)
+  assert_eq(arr[1], 2)
+  assert_eq(arr[2], 3)
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 
