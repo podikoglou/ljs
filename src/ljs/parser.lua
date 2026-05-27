@@ -1931,8 +1931,15 @@ function parse_parameters(stream)
       local id_token = s.consume(TOKEN.IDENTIFIER)
       return ast.rest_element(ast.identifier(id_token.value, id_token), ellipsis)
     end
-    local id_token = s.consume(TOKEN.IDENTIFIER)
-    local param = ast.identifier(id_token.value, id_token)
+    local param
+    if s.is(TOKEN.LBRACKET) then
+      param = parse_array_pattern(s)
+    elseif s.is(TOKEN.LBRACE) then
+      param = parse_object_pattern(s)
+    else
+      local id_token = s.consume(TOKEN.IDENTIFIER)
+      param = ast.identifier(id_token.value, id_token)
+    end
     if s.is(TOKEN.ASSIGN) then
       local assign_tok = s.advance()
       local default_expr = parse_expression(s)
@@ -2255,6 +2262,24 @@ function parse_primary_expression(stream)
             local id_token = stream.consume(TOKEN.IDENTIFIER)
             table.insert(params, ast.rest_element(ast.identifier(id_token.value, id_token), ellipsis))
             found_rest = true
+          elseif stream.is(TOKEN.LBRACKET) then
+            local param = parse_array_pattern(stream)
+            if stream.is(TOKEN.ASSIGN) then
+              local assign_tok = stream.advance()
+              local default_expr = parse_expression(stream)
+              table.insert(params, ast.assignment_pattern(param, default_expr, assign_tok))
+            else
+              table.insert(params, param)
+            end
+          elseif stream.is(TOKEN.LBRACE) then
+            local param = parse_object_pattern(stream)
+            if stream.is(TOKEN.ASSIGN) then
+              local assign_tok = stream.advance()
+              local default_expr = parse_expression(stream)
+              table.insert(params, ast.assignment_pattern(param, default_expr, assign_tok))
+            else
+              table.insert(params, param)
+            end
           elseif stream.is(TOKEN.IDENTIFIER) then
             local id_token = stream.advance()
             local param = ast.identifier(id_token.value, id_token)
