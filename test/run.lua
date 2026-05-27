@@ -63,6 +63,7 @@ describe("transpile/default_rest_params", "test.transpile.default_rest_params")
 describe("transpile/template_literals", "test.transpile.template_literals")
 describe("transpile/spread", "test.transpile.spread")
 describe("transpile/destructuring", "test.transpile.destructuring")
+describe("transpile/semicolon", "test.transpile.semicolon")
 
 describe("codegen", "test.codegen")
 
