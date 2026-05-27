@@ -640,6 +640,146 @@ test("at on sparse array hole returns undefined", function()
 end)
 
 -- ============================================================================
+-- Array.prototype.some
+-- ============================================================================
+
+test("some returns true when any element matches", function()
+  assert_eq(exec_js("return [1, 2, 3].some(function(x) { return x > 2; });"), true)
+end)
+
+test("some returns false when no element matches", function()
+  assert_eq(exec_js("return [1, 2, 3].some(function(x) { return x > 10; });"), false)
+end)
+
+test("some returns false for empty array", function()
+  assert_eq(exec_js("return [].some(function(x) { return true; });"), false)
+end)
+
+test("some short-circuits on first match", function()
+  local count = exec_js([[
+    var count = 0;
+    [1, 2, 3].some(function(x) { count++; return x === 2; });
+    return count;
+  ]])
+  assert_eq(count, 2)
+end)
+
+test("some with thisArg", function()
+  assert_eq(exec_js([[
+    var ctx = { threshold: 3 };
+    return [1, 2, 4].some(function(x) { return x > this.threshold; }, ctx);
+  ]]), true)
+end)
+
+test("some skips holes in sparse array", function()
+  local count = exec_js([[
+    var count = 0;
+    [1,,3].some(function(x) { count++; return false; });
+    return count;
+  ]])
+  assert_eq(count, 2)
+end)
+
+test("some with index and array arguments", function()
+  local result = exec_js([=[
+    var indices = [];
+    var lens = [];
+    [10, 20].some(function(v, i, a) { indices.push(i); lens.push(a.length); return false; });
+    return [indices[0], indices[1], lens[0], lens[1]];
+  ]=])
+  assert_eq(result[1], 0)
+  assert_eq(result[2], 1)
+  assert_eq(result[3], 2)
+  assert_eq(result[4], 2)
+end)
+
+test("some throws TypeError on non-function", function()
+  local ok, err = pcall(exec_js, "return [].some(42);")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("some throws TypeError on missing callback", function()
+  local ok, err = pcall(exec_js, "return [].some();")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("some with arrow function callback", function()
+  assert_eq(exec_js("return [1, 2, 3].some(x => x > 2);"), true)
+end)
+
+-- ============================================================================
+-- Array.prototype.every
+-- ============================================================================
+
+test("every returns true when all elements match", function()
+  assert_eq(exec_js("return [2, 4, 6].every(function(x) { return x % 2 === 0; });"), true)
+end)
+
+test("every returns false when any element fails", function()
+  assert_eq(exec_js("return [2, 3, 6].every(function(x) { return x % 2 === 0; });"), false)
+end)
+
+test("every returns true for empty array", function()
+  assert_eq(exec_js("return [].every(function(x) { return false; });"), true)
+end)
+
+test("every short-circuits on first mismatch", function()
+  local count = exec_js([[
+    var count = 0;
+    [1, 2, 3].every(function(x) { count++; return x !== 2; });
+    return count;
+  ]])
+  assert_eq(count, 2)
+end)
+
+test("every with thisArg", function()
+  assert_eq(exec_js([[
+    var ctx = { max: 5 };
+    return [1, 2, 3].every(function(x) { return x < this.max; }, ctx);
+  ]]), true)
+end)
+
+test("every skips holes in sparse array", function()
+  local count = exec_js([[
+    var count = 0;
+    [1,,3].every(function(x) { count++; return true; });
+    return count;
+  ]])
+  assert_eq(count, 2)
+end)
+
+test("every with index and array arguments", function()
+  local result = exec_js([=[
+    var indices = [];
+    var lens = [];
+    [10, 20].every(function(v, i, a) { indices.push(i); lens.push(a.length); return true; });
+    return [indices[0], indices[1], lens[0], lens[1]];
+  ]=])
+  assert_eq(result[1], 0)
+  assert_eq(result[2], 1)
+  assert_eq(result[3], 2)
+  assert_eq(result[4], 2)
+end)
+
+test("every throws TypeError on non-function", function()
+  local ok, err = pcall(exec_js, "return [].every(42);")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("every throws TypeError on missing callback", function()
+  local ok, err = pcall(exec_js, "return [].every();")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("every with arrow function callback", function()
+  assert_eq(exec_js("return [2, 4, 6].every(x => x % 2 === 0);"), true)
+end)
+
+-- ============================================================================
 -- Code generation checks
 -- ============================================================================
 
