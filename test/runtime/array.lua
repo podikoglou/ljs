@@ -1335,6 +1335,151 @@ test("reduce sparse array finds first present element as initial accumulator", f
 end)
 
 -- ============================================================================
+-- Array.prototype.reduceRight
+-- ============================================================================
+
+test("reduceRight basic sum right-to-left", function()
+  assert_eq(exec_js("return [1, 2, 3].reduceRight(function(acc, x) { return acc + x; });"), 6)
+end)
+
+test("reduceRight with initialValue", function()
+  assert_eq(exec_js("return [1, 2, 3].reduceRight(function(acc, x) { return acc + x; }, 10);"), 16)
+end)
+
+test("reduceRight iterates indices in descending order", function()
+  assert_eq(exec_js("return [10, 20, 30].reduceRight(function(acc, x, i) { return acc + i; }, 0);"), 3)
+end)
+
+test("reduceRight passes array as fourth argument", function()
+  assert_eq(exec_js("return [1, 2, 3].reduceRight(function(acc, x, i, a) { return a.length; }, 0);"), 3)
+end)
+
+test("reduceRight empty array with initialValue returns initialValue", function()
+  assert_eq(exec_js("return [].reduceRight(function() {}, 42);"), 42)
+end)
+
+test("reduceRight single element without initialValue returns element", function()
+  assert_eq(exec_js("return [7].reduceRight(function() {});"), 7)
+end)
+
+test("reduceRight throws TypeError on empty array without initialValue", function()
+  local ok, err = pcall(exec_js, "return [].reduceRight(function() {});")
+  assert_eq(ok, false)
+end)
+
+test("reduceRight skips holes in sparse array", function()
+  assert_eq(exec_js("return [1,,3].reduceRight(function(acc, x) { return acc + x; });"), 4)
+end)
+
+test("reduceRight throws TypeError on non-function", function()
+  local ok, err = pcall(exec_js, "return [].reduceRight(42);")
+  assert_eq(ok, false)
+end)
+
+test("reduceRight throws TypeError on missing callback", function()
+  local ok, err = pcall(exec_js, "return [].reduceRight();")
+  assert_eq(ok, false)
+end)
+
+test("reduceRight sparse array finds last present element as initial accumulator", function()
+  assert_eq(exec_js("return [1,2,].reduceRight(function(acc, x) { return acc + x; });"), 3)
+end)
+
+-- ============================================================================
+-- Array.prototype.keys
+-- ============================================================================
+
+test("keys returns iterator with next method", function()
+  local it = exec_js("return [10, 20, 30].keys();")
+  assert_eq(type(it.next) == "table" or type(it.next) == "function", true)
+end)
+
+test("keys iterator yields indices", function()
+  local it = exec_js("return [10, 20, 30].keys();")
+  local r1 = it.next()
+  assert_eq(r1.value, 0)
+  assert_eq(r1.done, false)
+  local r2 = it.next()
+  assert_eq(r2.value, 1)
+  assert_eq(r2.done, false)
+  local r3 = it.next()
+  assert_eq(r3.value, 2)
+  assert_eq(r3.done, false)
+  local r4 = it.next()
+  assert_eq(r4.done, true)
+end)
+
+test("keys on empty array returns immediately done iterator", function()
+  local it = exec_js("return [].keys();")
+  local r = it.next()
+  assert_eq(r.done, true)
+end)
+
+-- ============================================================================
+-- Array.prototype.values
+-- ============================================================================
+
+test("values returns iterator with next method", function()
+  local it = exec_js("return [10, 20, 30].values();")
+  assert_eq(type(it.next) == "table" or type(it.next) == "function", true)
+end)
+
+test("values iterator yields element values", function()
+  local it = exec_js("return [10, 20, 30].values();")
+  local r1 = it.next()
+  assert_eq(r1.value, 10)
+  assert_eq(r1.done, false)
+  local r2 = it.next()
+  assert_eq(r2.value, 20)
+  assert_eq(r2.done, false)
+  local r3 = it.next()
+  assert_eq(r3.value, 30)
+  assert_eq(r3.done, false)
+  local r4 = it.next()
+  assert_eq(r4.done, true)
+end)
+
+test("values on empty array returns immediately done iterator", function()
+  local it = exec_js("return [].values();")
+  local r = it.next()
+  assert_eq(r.done, true)
+end)
+
+-- ============================================================================
+-- Array.prototype.entries
+-- ============================================================================
+
+test("entries returns iterator with next method", function()
+  local it = exec_js("return [10, 20, 30].entries();")
+  assert_eq(type(it.next) == "table" or type(it.next) == "function", true)
+end)
+
+test("entries iterator yields [index, value] pairs", function()
+  local it = exec_js("return [10, 20, 30].entries();")
+  local r1 = it.next()
+  assert_eq(r1.done, false)
+  assert_eq(r1.value[1], 0)
+  assert_eq(r1.value[2], 10)
+  assert_eq(r1.value.length, 2)
+  local r2 = it.next()
+  assert_eq(r2.done, false)
+  assert_eq(r2.value[1], 1)
+  assert_eq(r2.value[2], 20)
+  local r3 = it.next()
+  assert_eq(r3.done, false)
+  assert_eq(r3.value[1], 2)
+  assert_eq(r3.value[2], 30)
+  local r4 = it.next()
+  assert_eq(r4.done, true)
+end)
+
+test("entries on empty array returns immediately done iterator", function()
+  local it = exec_js("return [].entries();")
+  local r = it.next()
+  assert_eq(r.done, true)
+end)
+
+-- ============================================================================
 -- Array.prototype.flat
 -- ============================================================================
 

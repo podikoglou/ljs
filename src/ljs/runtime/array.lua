@@ -144,6 +144,108 @@ Array.prototype.reduce = _ljs_fn(function(_ljs_this, callbackFn, initialValue)
 end)
 
 -- ---------------------------------------------------------------------------
+-- Array.prototype.reduceRight
+-- ---------------------------------------------------------------------------
+Array.prototype.reduceRight = _ljs_fn(function(_ljs_this, callbackFn, initialValue)
+  if not _ljs_is_function(callbackFn) then
+    error("TypeError: " .. _ljs_value_repr(callbackFn) .. " is not a function")
+  end
+  local len = _ljs_this.length or 0
+  local accumulator
+  local k = len
+  if initialValue ~= nil then
+    accumulator = initialValue
+  else
+    if len == 0 then
+      error("TypeError: Reduce of empty array with no initial value")
+    end
+    local found = false
+    while k >= 1 do
+      local v = rawget(_ljs_this, k)
+      if v ~= nil then
+        accumulator = v
+        found = true
+        k = k - 1
+        break
+      end
+      k = k - 1
+    end
+    if not found then
+      error("TypeError: Reduce of empty array with no initial value")
+    end
+  end
+  while k >= 1 do
+    local v = rawget(_ljs_this, k)
+    if v ~= nil then
+      accumulator = _ljs_call_member(callbackFn, "call", nil, accumulator, v, k - 1, _ljs_this)
+    end
+    k = k - 1
+  end
+  return accumulator
+end)
+
+-- ---------------------------------------------------------------------------
+-- Array Iterator Helper
+-- ---------------------------------------------------------------------------
+local function _ljs_array_iterator_next(_ljs_this)
+  local arr = rawget(_ljs_this, "_iter_array")
+  if arr == nil then
+    return { value = nil, done = true }
+  end
+  local idx = rawget(_ljs_this, "_iter_index")
+  local len = arr.length or 0
+  if idx >= len then
+    rawset(_ljs_this, "_iter_array", nil)
+    return { value = nil, done = true }
+  end
+  rawset(_ljs_this, "_iter_index", idx + 1)
+  local kind = rawget(_ljs_this, "_iter_kind")
+  if kind == "key" then
+    return { value = idx, done = false }
+  elseif kind == "value" then
+    return { value = rawget(arr, idx + 1), done = false }
+  else
+    local pair = _ljs_new(Array)
+    rawset(pair, 1, idx)
+    rawset(pair, 2, rawget(arr, idx + 1))
+    rawset(pair, "length", 2)
+    return { value = pair, done = false }
+  end
+end
+
+local function _ljs_create_array_iterator(arr, kind)
+  local it = {}
+  rawset(it, "_iter_array", arr)
+  rawset(it, "_iter_index", 0)
+  rawset(it, "_iter_kind", kind)
+  rawset(it, "next", _ljs_fn(function()
+    return _ljs_array_iterator_next(it)
+  end))
+  return it
+end
+
+-- ---------------------------------------------------------------------------
+-- Array.prototype.keys
+-- ---------------------------------------------------------------------------
+Array.prototype.keys = _ljs_fn(function(_ljs_this)
+  return _ljs_create_array_iterator(_ljs_this, "key")
+end)
+
+-- ---------------------------------------------------------------------------
+-- Array.prototype.values
+-- ---------------------------------------------------------------------------
+Array.prototype.values = _ljs_fn(function(_ljs_this)
+  return _ljs_create_array_iterator(_ljs_this, "value")
+end)
+
+-- ---------------------------------------------------------------------------
+-- Array.prototype.entries
+-- ---------------------------------------------------------------------------
+Array.prototype.entries = _ljs_fn(function(_ljs_this)
+  return _ljs_create_array_iterator(_ljs_this, "key+value")
+end)
+
+-- ---------------------------------------------------------------------------
 -- FlattenIntoArray (shared by flat and flatMap)
 -- ---------------------------------------------------------------------------
 local function flatten_into_array(target, source, source_len, start, depth, mapper, thisArg)
