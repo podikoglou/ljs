@@ -65,7 +65,7 @@ HELPERS._ljs_to_number = [[local function _ljs_to_number(x)
   if x == _ljs_null then
     return 0
   end
-  if x == nil then
+  if x == nil or x == _ljs_undefined then
     return 0 / 0
   end
   local tx = type(x)
@@ -119,7 +119,7 @@ HELPERS._ljs_to_number = [[local function _ljs_to_number(x)
 end]]
 
 HELPERS._ljs_to_boolean = [[local function _ljs_to_boolean(x)
-  if x == nil or x == _ljs_null then
+  if x == nil or x == _ljs_null or x == _ljs_undefined then
     return false
   end
   if type(x) == "boolean" then
@@ -136,7 +136,7 @@ end]]
 
 HELPERS._ljs_tostring = [[local function _ljs_tostring(x)
   if x == _ljs_null then return "null"
-  elseif x == nil then return "undefined"
+  elseif x == nil or x == _ljs_undefined then return "undefined"
   elseif type(x) == "number" then
     if x ~= x then return "NaN" end
     if x == math.huge then return "Infinity" end
@@ -247,7 +247,7 @@ end]]
 
 -- typeof per §13.5.3: nil (undefined) → "undefined", _ljs_null → "object".
 HELPERS._ljs_typeof = [[local function _ljs_typeof(x)
-  if x == nil then return "undefined"
+  if x == nil or x == _ljs_undefined then return "undefined"
   elseif x == _ljs_null then return "object"
   elseif type(x) == "table" then
     local mt = getmetatable(x)
@@ -280,7 +280,7 @@ end]]
 -- Get a string representation of a value for error messages (similar to Node.js).
 -- Returns a representation suitable for use in "X is not a function" style errors.
 HELPERS._ljs_value_repr = [[local function _ljs_value_repr(x)
-  if x == nil then return "undefined"
+  if x == nil or x == _ljs_undefined then return "undefined"
   elseif x == _ljs_null then return "null"
   elseif type(x) == "number" then
     if x ~= x then return "NaN" end
@@ -333,8 +333,8 @@ end]]
 -- Boxes primitives via _ljs_to_object before property lookup.
 -- Throws TypeError if method is not callable.
 HELPERS._ljs_call_member = [[local function _ljs_call_member(obj, key, ...)
-  if obj == nil or obj == _ljs_null then
-    local desc = obj == nil and "undefined" or "null"
+  if obj == nil or obj == _ljs_null or obj == _ljs_undefined then
+    local desc = (obj == nil or obj == _ljs_undefined) and "undefined" or "null"
     error("TypeError: Cannot read properties of " .. desc .. " (reading '" .. tostring(key) .. "')")
   end
   local boxed = _ljs_to_object(obj)
@@ -558,8 +558,10 @@ end]]
 HELPERS._ljs_eq = [[local function _ljs_eq(a, b)
   local a_is_null = (a == _ljs_null)
   local b_is_null = (b == _ljs_null)
-  local ta = a_is_null and "null" or (a == nil) and "undefined" or type(a)
-  local tb = b_is_null and "null" or (b == nil) and "undefined" or type(b)
+  local a_is_undef = (a == nil or a == _ljs_undefined)
+  local b_is_undef = (b == nil or b == _ljs_undefined)
+  local ta = a_is_null and "null" or a_is_undef and "undefined" or type(a)
+  local tb = b_is_null and "null" or b_is_undef and "undefined" or type(b)
   if ta == tb then
     if ta == "number" then
       if a ~= a or b ~= b then return false end
