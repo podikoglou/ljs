@@ -335,3 +335,165 @@ test("bare return stored in array creates present element", function()
     return 0 in arr;
   ]]), true)
 end)
+
+-- ============================================================================
+-- Phase 4: Runtime Returns — undefined instead of nil
+-- ============================================================================
+
+test("[].pop() === undefined", function()
+  assert_eq(exec_js("return [].pop() === undefined;"), true)
+end)
+
+test("[].pop() stored in array creates present element", function()
+  assert_eq(exec_js([[
+    var arr = [];
+    arr.push([].pop());
+    return 0 in arr;
+  ]]), true)
+end)
+
+test("[].shift() === undefined", function()
+  assert_eq(exec_js("return [].shift() === undefined;"), true)
+end)
+
+test("[].shift() stored in array creates present element", function()
+  assert_eq(exec_js([[
+    var arr = [];
+    arr.push([].shift());
+    return 0 in arr;
+  ]]), true)
+end)
+
+test("forEach returns undefined (storable)", function()
+  assert_eq(exec_js([[
+    var arr = [];
+    arr.push([1].forEach(x => x));
+    return 0 in arr;
+  ]]), true)
+end)
+
+test("[1,2].at(5) === undefined (out of bounds)", function()
+  assert_eq(exec_js("return [1,2].at(5) === undefined;"), true)
+end)
+
+test("[1,2,3].find(x => x > 10) === undefined (not found)", function()
+  assert_eq(exec_js("return [1,2,3].find(x => x > 10) === undefined;"), true)
+end)
+
+test("find not found stored in array creates present element", function()
+  assert_eq(exec_js([[
+    var arr = [];
+    arr.push([1].find(x => x > 10));
+    return 0 in arr;
+  ]]), true)
+end)
+
+test('"hello"[10] === undefined (string index OOB)', function()
+  assert_eq(exec_js('return "hello"[10] === undefined;'), true)
+end)
+
+test('"hello"["10"] === undefined (string string-key OOB)', function()
+  assert_eq(exec_js('return "hello"["10"] === undefined;'), true)
+end)
+
+-- ============================================================================
+-- Phase 4: Rawget normalization — holes → _ljs_undefined
+-- ============================================================================
+
+test("[1,,3].find(x => x === undefined) returns undefined (hole as undefined)", function()
+  assert_eq(exec_js([[
+    var arr = [1, , 3];
+    return arr.find(x => x === undefined) === undefined;
+  ]]), true)
+end)
+
+test("[1,,3].findIndex(x => x === undefined) returns 1 (hole as undefined)", function()
+  assert_eq(exec_js("return [1, , 3].findIndex(x => x === undefined);"), 1)
+end)
+
+test("[1,,3].at(1) === undefined (hole at index)", function()
+  assert_eq(exec_js("return [1, , 3].at(1) === undefined;"), true)
+end)
+
+test("[,2,3].shift() === undefined (hole at first position)", function()
+  assert_eq(exec_js([[
+    var arr = [, 2, 3];
+    var result = arr.shift();
+    return result === undefined;
+  ]]), true)
+end)
+
+-- ============================================================================
+-- Phase 4: Iterator normalization
+-- ============================================================================
+
+test("iterator done value is undefined", function()
+  assert_eq(exec_js([[
+    var it = [1].values();
+    it.next();
+    var result = it.next();
+    return result.value === undefined && result.done === true;
+  ]]), true)
+end)
+
+test("iterator visits holes as undefined (values)", function()
+  assert_eq(exec_js([[
+    var it = [1, , 3].values();
+    it.next();
+    var result = it.next();
+    return result.value === undefined && result.done === false;
+  ]]), true)
+end)
+
+test("iterator visits holes as undefined (entries)", function()
+  assert_eq(exec_js([[
+    var it = [1, , 3].entries();
+    it.next();
+    var result = it.next();
+    return result.value[1] === undefined && result.done === false;
+  ]]), true)
+end)
+
+test("iterator done on exhausted array", function()
+  assert_eq(exec_js([[
+    var it = [].values();
+    var result = it.next();
+    return result.value === undefined && result.done === true;
+  ]]), true)
+end)
+
+-- ============================================================================
+-- Phase 4: Param normalization for runtime functions
+-- ============================================================================
+
+test("[undefined].indexOf() === 0 (missing searchElement = undefined)", function()
+  assert_eq(exec_js("return [undefined].indexOf();"), 0)
+end)
+
+test("[].indexOf() === -1 (missing searchElement, not in array)", function()
+  assert_eq(exec_js("return [].indexOf();"), -1)
+end)
+
+test("[1, undefined].lastIndexOf() === 1 (missing searchElement = undefined)", function()
+  assert_eq(exec_js("return [1, undefined].lastIndexOf();"), 1)
+end)
+
+test("[].lastIndexOf() === -1 (missing searchElement, not in array)", function()
+  assert_eq(exec_js("return [].lastIndexOf();"), -1)
+end)
+
+test("arr.fill() fills with undefined (present elements)", function()
+  assert_eq(exec_js([[
+    var arr = [1, 2, 3];
+    arr.fill();
+    return arr[0] === undefined && 0 in arr;
+  ]]), true)
+end)
+
+test("arr.fill() creates present elements (not holes)", function()
+  assert_eq(exec_js([[
+    var arr = [1, 2, 3];
+    arr.fill();
+    return 0 in arr && 1 in arr && 2 in arr;
+  ]]), true)
+end)
