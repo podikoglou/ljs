@@ -1335,6 +1335,57 @@ test("reduce sparse array finds first present element as initial accumulator", f
 end)
 
 -- ============================================================================
+-- Array.prototype.reduceRight
+-- ============================================================================
+
+test("reduceRight basic sum right-to-left", function()
+  assert_eq(exec_js("return [1, 2, 3].reduceRight(function(acc, x) { return acc + x; });"), 6)
+end)
+
+test("reduceRight with initialValue", function()
+  assert_eq(exec_js("return [1, 2, 3].reduceRight(function(acc, x) { return acc + x; }, 10);"), 16)
+end)
+
+test("reduceRight iterates indices in descending order", function()
+  assert_eq(exec_js("return [10, 20, 30].reduceRight(function(acc, x, i) { return acc + i; }, 0);"), 3)
+end)
+
+test("reduceRight passes array as fourth argument", function()
+  assert_eq(exec_js("return [1, 2, 3].reduceRight(function(acc, x, i, a) { return a.length; }, 0);"), 3)
+end)
+
+test("reduceRight empty array with initialValue returns initialValue", function()
+  assert_eq(exec_js("return [].reduceRight(function() {}, 42);"), 42)
+end)
+
+test("reduceRight single element without initialValue returns element", function()
+  assert_eq(exec_js("return [7].reduceRight(function() {});"), 7)
+end)
+
+test("reduceRight throws TypeError on empty array without initialValue", function()
+  local ok, err = pcall(exec_js, "return [].reduceRight(function() {});")
+  assert_eq(ok, false)
+end)
+
+test("reduceRight skips holes in sparse array", function()
+  assert_eq(exec_js("return [1,,3].reduceRight(function(acc, x) { return acc + x; });"), 4)
+end)
+
+test("reduceRight throws TypeError on non-function", function()
+  local ok, err = pcall(exec_js, "return [].reduceRight(42);")
+  assert_eq(ok, false)
+end)
+
+test("reduceRight throws TypeError on missing callback", function()
+  local ok, err = pcall(exec_js, "return [].reduceRight();")
+  assert_eq(ok, false)
+end)
+
+test("reduceRight sparse array finds last present element as initial accumulator", function()
+  assert_eq(exec_js("return [1,2,].reduceRight(function(acc, x) { return acc + x; });"), 3)
+end)
+
+-- ============================================================================
 -- Array.prototype.flat
 -- ============================================================================
 
