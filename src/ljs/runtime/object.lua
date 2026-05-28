@@ -49,7 +49,7 @@ Object.prototype.constructor = Object
 Object.create = _ljs_fn(_ljs_object_create)
 
 Object.keys = _ljs_fn(function(_ljs_this, obj)
-  if obj == nil or obj == _ljs_null then
+  if obj == nil or obj == _ljs_null or obj == _ljs_undefined then
     error("TypeError: Cannot convert " .. _ljs_value_repr(obj) .. " to object")
   end
   local o = _ljs_to_object(obj)
@@ -62,7 +62,7 @@ Object.keys = _ljs_fn(function(_ljs_this, obj)
 end)
 
 Object.values = _ljs_fn(function(_ljs_this, obj)
-  if obj == nil or obj == _ljs_null then
+  if obj == nil or obj == _ljs_null or obj == _ljs_undefined then
     error("TypeError: Cannot convert " .. _ljs_value_repr(obj) .. " to object")
   end
   local o = _ljs_to_object(obj)
@@ -75,7 +75,7 @@ Object.values = _ljs_fn(function(_ljs_this, obj)
 end)
 
 Object.entries = _ljs_fn(function(_ljs_this, obj)
-  if obj == nil or obj == _ljs_null then
+  if obj == nil or obj == _ljs_null or obj == _ljs_undefined then
     error("TypeError: Cannot convert " .. _ljs_value_repr(obj) .. " to object")
   end
   local o = _ljs_to_object(obj)
@@ -88,7 +88,7 @@ Object.entries = _ljs_fn(function(_ljs_this, obj)
 end)
 
 Object.assign = _ljs_fn(function(_ljs_this, target, ...)
-  if target == nil or target == _ljs_null then
+  if target == nil or target == _ljs_null or target == _ljs_undefined then
     error("TypeError: Cannot convert " .. _ljs_value_repr(target) .. " to object")
   end
   local to = _ljs_to_object(target)
@@ -98,7 +98,7 @@ Object.assign = _ljs_fn(function(_ljs_this, target, ...)
   end
   for i = 1, n do
     local source = select(i, ...)
-    if source ~= nil and source ~= _ljs_null then
+    if source ~= nil and source ~= _ljs_null and source ~= _ljs_undefined then
       local from = _ljs_to_object(source)
       local keys = _ljs_own_keys(from)
       for _, k in ipairs(keys) do
@@ -120,7 +120,7 @@ Object.is = _ljs_fn(function(_ljs_this, x, y)
 end)
 
 Object.getOwnPropertyNames = _ljs_fn(function(_ljs_this, obj)
-  if obj == nil or obj == _ljs_null then
+  if obj == nil or obj == _ljs_null or obj == _ljs_undefined then
     error("TypeError: Cannot convert " .. _ljs_value_repr(obj) .. " to object")
   end
   local o = _ljs_to_object(obj)
