@@ -5,6 +5,7 @@ local groups = {}
 ---@type { name: string, tests: { name: string, status: string, err: string?, time: number }[] }?
 local current_group = nil
 local verbose = false
+local suite_start = os.clock()
 
 function ljs_test.set_verbose(v)
   verbose = v
@@ -63,7 +64,7 @@ end
 function ljs_test.summary()
   local total_pass = 0
   local total_fail = 0
-  local start = os.clock()
+  local start = suite_start
 
   print("ljs test suite\n")
 
