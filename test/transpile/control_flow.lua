@@ -68,7 +68,8 @@ end)
 
 test("for...of", function()
   local code = transpile_ok("for (const x of arr) { console.log(x); }")
-  assert(code:find("for _, x in ipairs"), "expected for _, x in ipairs")
+  assert(code:find("for _ljs_d"), "expected numeric for loop")
+  assert(code:find("%.length"), "expected .length bound")
 end)
 
 -- ============================================================================
@@ -99,7 +100,7 @@ end)
 test("for...in nested with for...of transpiles correctly", function()
   local code = transpile_ok("for (let k in obj) { for (const x of arr) { k; } }")
   assert(code:find("for k, _ in pairs"), "expected for k, _ in pairs")
-  assert(code:find("for _, x in ipairs"), "expected for _, x in ipairs")
+  assert(code:find("%.length"), "expected numeric for loop for for..of")
 end)
 
 test("for...in with console.log uses _ljs_call_member", function()
@@ -110,7 +111,7 @@ end)
 
 test("for-of still transpiles correctly after for-in (regression)", function()
   local code = transpile_ok("for (const x of arr) { console.log(x); }")
-  assert(code:find("for _, x in ipairs"), "expected for _, x in ipairs")
+  assert(code:find("%.length"), "expected numeric for loop for for..of")
 end)
 
 -- ============================================================================
@@ -174,7 +175,7 @@ end)
 
 test("for-of still transpiles correctly (regression)", function()
   local code = transpile_ok("for (const x of arr) { console.log(x); }")
-  assert(code:find("for _, x in ipairs"), "expected for _, x in ipairs")
+  assert(code:find("%.length"), "expected numeric for loop for for..of")
 end)
 
 test("for update placed at end of body", function()
@@ -242,7 +243,7 @@ end)
 
 test("strict equality in body is wrapped", function()
   local code = transpile_ok("if (true) { x === 1; }")
-  assert(code:find("local _ = x == 1", 1, true), "expected local _ = x == 1")
+  assert(code:find("local _ = _ljs_strict_eq(x, 1)", 1, true), "expected local _ = _ljs_strict_eq(x, 1)")
 end)
 
 test("logical NOT in body is wrapped", function()

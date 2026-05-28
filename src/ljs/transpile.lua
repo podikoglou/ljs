@@ -65,7 +65,7 @@ HELPERS._ljs_to_number = [[local function _ljs_to_number(x)
   if x == _ljs_null then
     return 0
   end
-  if x == nil then
+  if x == nil or x == _ljs_undefined then
     return 0 / 0
   end
   local tx = type(x)
@@ -119,7 +119,7 @@ HELPERS._ljs_to_number = [[local function _ljs_to_number(x)
 end]]
 
 HELPERS._ljs_to_boolean = [[local function _ljs_to_boolean(x)
-  if x == nil or x == _ljs_null then
+  if x == nil or x == _ljs_null or x == _ljs_undefined then
     return false
   end
   if type(x) == "boolean" then
@@ -136,7 +136,7 @@ end]]
 
 HELPERS._ljs_tostring = [[local function _ljs_tostring(x)
   if x == _ljs_null then return "null"
-  elseif x == nil then return "undefined"
+  elseif x == nil or x == _ljs_undefined then return "undefined"
   elseif type(x) == "number" then
     if x ~= x then return "NaN" end
     if x == math.huge then return "Infinity" end
@@ -247,7 +247,7 @@ end]]
 
 -- typeof per §13.5.3: nil (undefined) → "undefined", _ljs_null → "object".
 HELPERS._ljs_typeof = [[local function _ljs_typeof(x)
-  if x == nil then return "undefined"
+  if x == nil or x == _ljs_undefined then return "undefined"
   elseif x == _ljs_null then return "object"
   elseif type(x) == "table" then
     local mt = getmetatable(x)
@@ -280,7 +280,7 @@ end]]
 -- Get a string representation of a value for error messages (similar to Node.js).
 -- Returns a representation suitable for use in "X is not a function" style errors.
 HELPERS._ljs_value_repr = [[local function _ljs_value_repr(x)
-  if x == nil then return "undefined"
+  if x == nil or x == _ljs_undefined then return "undefined"
   elseif x == _ljs_null then return "null"
   elseif type(x) == "number" then
     if x ~= x then return "NaN" end
@@ -333,8 +333,8 @@ end]]
 -- Boxes primitives via _ljs_to_object before property lookup.
 -- Throws TypeError if method is not callable.
 HELPERS._ljs_call_member = [[local function _ljs_call_member(obj, key, ...)
-  if obj == nil or obj == _ljs_null then
-    local desc = obj == nil and "undefined" or "null"
+  if obj == nil or obj == _ljs_null or obj == _ljs_undefined then
+    local desc = (obj == nil or obj == _ljs_undefined) and "undefined" or "null"
     error("TypeError: Cannot read properties of " .. desc .. " (reading '" .. tostring(key) .. "')")
   end
   local boxed = _ljs_to_object(obj)
@@ -355,6 +355,9 @@ HELPERS._ljs_object = [[local function _ljs_object(t)
 end]]
 
 HELPERS._ljs_object_create = [[local function _ljs_object_create(_ljs_this, proto)
+  if proto == nil or proto == _ljs_null then
+    return setmetatable({}, { __index = function(t, k) return _ljs_undefined end })
+  end
   return setmetatable({}, {__index = proto})
 end]]
 
@@ -558,13 +561,16 @@ end]]
 HELPERS._ljs_eq = [[local function _ljs_eq(a, b)
   local a_is_null = (a == _ljs_null)
   local b_is_null = (b == _ljs_null)
-  local ta = a_is_null and "null" or (a == nil) and "undefined" or type(a)
-  local tb = b_is_null and "null" or (b == nil) and "undefined" or type(b)
+  local a_is_undef = (a == nil or a == _ljs_undefined)
+  local b_is_undef = (b == nil or b == _ljs_undefined)
+  local ta = a_is_null and "null" or a_is_undef and "undefined" or type(a)
+  local tb = b_is_null and "null" or b_is_undef and "undefined" or type(b)
   if ta == tb then
     if ta == "number" then
       if a ~= a or b ~= b then return false end
       return a == b
     end
+    if ta == "undefined" then return true end
     return a == b
   end
   if (ta == "null" and tb == "undefined") or (ta == "undefined" and tb == "null") then
@@ -589,6 +595,11 @@ HELPERS._ljs_eq = [[local function _ljs_eq(a, b)
     return _ljs_eq(_ljs_to_primitive(a), b)
   end
   return false
+end]]
+
+HELPERS._ljs_strict_eq = [[local function _ljs_strict_eq(a, b)
+  if a == b then return true end
+  return (a == nil and b == _ljs_undefined) or (a == _ljs_undefined and b == nil)
 end]]
 
 HELPERS._ljs_lt = [[local function _ljs_lt(a, b)
@@ -617,6 +628,21 @@ HELPERS._ljs_ge = [[local function _ljs_ge(a, b)
     return a >= b
   end
   return _ljs_to_number(a) >= _ljs_to_number(b)
+end]]
+
+HELPERS._ljs_has_property = [[local function _ljs_has_property(obj, key)
+  local current = obj
+  while current ~= nil do
+    if rawget(current, key) ~= nil then
+      return true
+    end
+    local mt = getmetatable(current)
+    if mt == nil then break end
+    local idx = mt.__index
+    if type(idx) ~= "table" then break end
+    current = idx
+  end
+  return false
 end]]
 
 -- ============================================================================
@@ -1034,6 +1060,25 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
   local body = emit(fn_node.body, indent, ctx)
   local preamble = ""
   for _, p in ipairs(fn_node.params) do
+    if
+      p.type ~= ast.TYPE_REST_ELEMENT
+      and not is_pattern(p)
+      and p.type ~= ast.TYPE_ASSIGNMENT_PATTERN
+    then
+      local pname = param_name(p)
+      if pname then
+        preamble = preamble
+          .. cg.if_stmt(
+            pname .. " == nil",
+            cg.expr_stmt(cg.binop("=", pname, "_ljs_undefined"), indent + 2),
+            nil,
+            nil,
+            indent + 1
+          )
+      end
+    end
+  end
+  for _, p in ipairs(fn_node.params) do
     if p.type == ast.TYPE_REST_ELEMENT then
       preamble = preamble
         .. cg.local_decl(p.argument.name, cg.call("_ljs_new", { "Array", "..." }), indent + 1)
@@ -1042,7 +1087,7 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
       local default_code = emit(p.right, indent + 1, ctx)
       preamble = preamble
         .. cg.if_stmt(
-          pname .. " == nil",
+          pname .. " == nil or " .. pname .. " == _ljs_undefined",
           cg.expr_stmt(cg.binop("=", pname, default_code), indent + 2),
           nil,
           nil,
@@ -1055,7 +1100,7 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
       local default_code = emit(entry.default, indent + 1, ctx)
       preamble = preamble
         .. cg.if_stmt(
-          entry.tmp .. " == nil",
+          entry.tmp .. " == nil or " .. entry.tmp .. " == _ljs_undefined",
           cg.expr_stmt(cg.binop("=", entry.tmp, default_code), indent + 2),
           nil,
           nil,
@@ -1161,7 +1206,7 @@ gen.NullLiteral = function()
 end
 
 gen.UndefinedLiteral = function()
-  return cg.nil_val()
+  return "_ljs_undefined"
 end
 
 gen.Identifier = function(node)
@@ -1269,7 +1314,7 @@ local function emit_binding(target, access, indent, ctx, out, kind)
     end
     out[#out + 1] = cg.local_decl(var_name, access, indent)
     out[#out + 1] = cg.if_stmt(
-      var_name .. " == nil",
+      var_name .. " == nil or " .. var_name .. " == _ljs_undefined",
       cg.expr_stmt(cg.binop("=", var_name, default_expr), indent + 1),
       nil,
       nil,
@@ -1370,7 +1415,7 @@ local function emit_assign_target(target, access, indent, ctx, out)
       emit_assign_binding(inner, var_name, indent, ctx, out)
     end
     out[#out + 1] = cg.if_stmt(
-      var_name .. " == nil",
+      var_name .. " == nil or " .. var_name .. " == _ljs_undefined",
       cg.expr_stmt(cg.binop("=", var_name, default_expr), indent + 1),
       nil,
       nil,
@@ -1456,7 +1501,7 @@ gen.VariableDeclaration = function(node, indent, ctx)
       scope_declare(ctx, decl.name.name, node.kind)
       local init = decl.init
       if not init then
-        out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
+        out[#out + 1] = cg.local_decl(decl.name.name, "_ljs_undefined", indent)
       elseif
         init.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION
         or init.type == ast.TYPE_FUNCTION_EXPRESSION
@@ -1477,7 +1522,7 @@ gen.VariableDeclaration = function(node, indent, ctx)
 end
 
 gen.ReturnStatement = function(node, indent, ctx)
-  local expr = node.argument and emit(node.argument, indent, ctx) or nil
+  local expr = node.argument and emit(node.argument, indent, ctx) or "_ljs_undefined"
   return cg.return_stmt(expr, indent)
 end
 
@@ -1665,6 +1710,9 @@ gen.ForOfStatement = function(node, indent, ctx)
   else
     var_name = node.left.name
   end
+  local iterable = emit(node.right, indent, ctx)
+  local iter_tmp = fresh_tmp()
+  local idx_tmp = fresh_tmp()
   scope_push(ctx)
   scope_declare(
     ctx,
@@ -1672,12 +1720,14 @@ gen.ForOfStatement = function(node, indent, ctx)
     node.left.type == ast.TYPE_VARIABLE_DECLARATION and node.left.kind or "let"
   )
   local body = emit(node.body, indent, ctx)
+  local var_init = cg.local_decl(var_name, cg.member_index(iter_tmp, idx_tmp), indent + 1)
+  body = var_init .. body
   if has_continue(node.body) then
     body = cg.do_block(body, indent + 1) .. cg.label("_continue", indent + 1)
   end
   scope_pop(ctx)
-  local iter = cg.call("ipairs", { emit(node.right, indent, ctx) })
-  return cg.for_in_stmt(cg.join({ "_", var_name }), iter, body, indent)
+  return cg.local_decl(iter_tmp, iterable, indent)
+    .. cg.numeric_for(idx_tmp, "1", cg.member_dot(iter_tmp, "length"), body, indent)
 end
 
 -- JS for..in → Lua pairs(). The dummy `_` catches the value since JS for..in
@@ -1933,9 +1983,9 @@ gen.BinaryExpression = function(node, indent, ctx)
   if op == "=" then
     return cg.binop("=", left, right)
   elseif op == "===" then
-    return cg.binop("==", left, right)
+    return cg.call("_ljs_strict_eq", { left, right })
   elseif op == "!==" then
-    return cg.binop("~=", left, right)
+    return cg.unop("not", cg.call("_ljs_strict_eq", { left, right }))
   -- Equality with helper
   elseif op == "==" then
     return cg.call("_ljs_eq", { left, right })
@@ -1961,7 +2011,7 @@ gen.BinaryExpression = function(node, indent, ctx)
       key_code = cg.binop("+", cg.paren(left), "1")
     end
     local right_expr = right:sub(1, 1) == "{" and cg.paren(right) or right
-    return cg.paren(cg.binop("~=", cg.member_index(right_expr, key_code), cg.nil_val()))
+    return cg.call("_ljs_has_property", { right_expr, key_code })
   -- Arithmetic special: modulo
   elseif op == "%" then
     return cg.call(
@@ -2374,10 +2424,12 @@ local HELPER_ORDER = {
   "_ljs_unpack",
   "_ljs_rest",
   "_ljs_eq",
+  "_ljs_strict_eq",
   "_ljs_lt",
   "_ljs_gt",
   "_ljs_le",
   "_ljs_ge",
+  "_ljs_has_property",
 }
 
 local _preamble_cache = nil
@@ -2397,7 +2449,9 @@ function M.preamble()
   local helpers_str = table.concat(helper_parts, "\n\n")
   _preamble_cache = read_runtime("proto")
     .. "local _ljs_arrow_this = nil\n"
-    .. "local _ljs_null = {}\n\n"
+    .. "local _ljs_undefined = {}\n"
+    .. "local _ljs_null = {}\n"
+    .. "setmetatable(_ljs_object_prototype, { __index = function(t, k) return _ljs_undefined end })\n\n"
     .. helpers_str
     .. "\n\n"
     .. read_runtime("object")

@@ -18,9 +18,8 @@ test("new Error sets name", function()
 end)
 
 test("new Error without message", function()
-  local err = eval_js("new Error()")
-  assert_eq(err.message, nil)
-  assert_eq(err.name, "Error")
+  assert_eq(exec_js("return new Error().message === undefined;"), true)
+  assert_eq(exec_js("return new Error().name;"), "Error")
 end)
 
 -- ============================================================================

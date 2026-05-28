@@ -33,7 +33,7 @@ Array.prototype.push = _ljs_fn(function(_ljs_this, ...)
 end)
 Array.prototype.pop = _ljs_fn(function(_ljs_this)
   if _ljs_this.length == 0 then
-    return nil
+    return _ljs_undefined
   end
   local val = _ljs_this[_ljs_this.length]
   rawset(_ljs_this, _ljs_this.length, nil)
@@ -75,7 +75,7 @@ Array.prototype.forEach = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
       _ljs_call_member(callbackFn, "call", thisArg, v, i - 1, _ljs_this)
     end
   end
-  return nil
+  return _ljs_undefined
 end)
 
 -- ---------------------------------------------------------------------------
@@ -190,24 +190,26 @@ end)
 local function _ljs_array_iterator_next(_ljs_this)
   local arr = rawget(_ljs_this, "_iter_array")
   if arr == nil then
-    return { value = nil, done = true }
+    return { value = _ljs_undefined, done = true }
   end
   local idx = rawget(_ljs_this, "_iter_index")
   local len = arr.length or 0
   if idx >= len then
     rawset(_ljs_this, "_iter_array", nil)
-    return { value = nil, done = true }
+    return { value = _ljs_undefined, done = true }
   end
   rawset(_ljs_this, "_iter_index", idx + 1)
   local kind = rawget(_ljs_this, "_iter_kind")
   if kind == "key" then
     return { value = idx, done = false }
   elseif kind == "value" then
-    return { value = rawget(arr, idx + 1), done = false }
+    local v = rawget(arr, idx + 1)
+    return { value = v == nil and _ljs_undefined or v, done = false }
   else
     local pair = _ljs_new(Array)
     rawset(pair, 1, idx)
-    rawset(pair, 2, rawget(arr, idx + 1))
+    local ev = rawget(arr, idx + 1)
+    rawset(pair, 2, ev == nil and _ljs_undefined or ev)
     rawset(pair, "length", 2)
     return { value = pair, done = false }
   end
@@ -218,9 +220,13 @@ local function _ljs_create_array_iterator(arr, kind)
   rawset(it, "_iter_array", arr)
   rawset(it, "_iter_index", 0)
   rawset(it, "_iter_kind", kind)
-  rawset(it, "next", _ljs_fn(function()
-    return _ljs_array_iterator_next(it)
-  end))
+  rawset(
+    it,
+    "next",
+    _ljs_fn(function()
+      return _ljs_array_iterator_next(it)
+    end)
+  )
   return it
 end
 
@@ -286,7 +292,9 @@ Array.prototype.flat = _ljs_fn(function(_ljs_this, depth_val)
       depth = 0
     else
       depth = math.floor(n)
-      if depth < 0 then depth = 0 end
+      if depth < 0 then
+        depth = 0
+      end
     end
   end
   local result = _ljs_new(Array)
@@ -355,9 +363,13 @@ end)
 Array.prototype.slice = _ljs_fn(function(_ljs_this, start_val, end_val)
   local len = _ljs_this.length or 0
   local function to_int(v)
-    if v == nil then return 0 end
+    if v == nil then
+      return 0
+    end
     local n = tonumber(v)
-    if n == nil or n ~= n then return 0 end
+    if n == nil or n ~= n then
+      return 0
+    end
     return math.floor(n)
   end
 
@@ -454,17 +466,26 @@ Array.prototype.at = _ljs_fn(function(_ljs_this, index_val)
     k = len + relative_index
   end
   if k < 0 or k >= len then
-    return nil
+    return _ljs_undefined
   end
-  return rawget(_ljs_this, k + 1)
+  local v = rawget(_ljs_this, k + 1)
+  if v == nil then
+    v = _ljs_undefined
+  end
+  return v
 end)
 
 -- ---------------------------------------------------------------------------
 -- Array.prototype.indexOf
 -- ---------------------------------------------------------------------------
 Array.prototype.indexOf = _ljs_fn(function(_ljs_this, searchElement, fromIndex)
+  if searchElement == nil then
+    searchElement = _ljs_undefined
+  end
   local len = _ljs_this.length or 0
-  if len == 0 then return -1 end
+  if len == 0 then
+    return -1
+  end
   local n
   if fromIndex == nil then
     n = 0
@@ -486,11 +507,15 @@ Array.prototype.indexOf = _ljs_fn(function(_ljs_this, searchElement, fromIndex)
   else
     k = len + n
   end
-  if k < 0 then k = 0 end
+  if k < 0 then
+    k = 0
+  end
   for i = k + 1, len do
     local v = rawget(_ljs_this, i)
     if v ~= nil then
-      if v == searchElement then return i - 1 end
+      if v == searchElement then
+        return i - 1
+      end
     end
   end
   return -1
@@ -500,8 +525,13 @@ end)
 -- Array.prototype.lastIndexOf
 -- ---------------------------------------------------------------------------
 Array.prototype.lastIndexOf = _ljs_fn(function(_ljs_this, searchElement, fromIndex)
+  if searchElement == nil then
+    searchElement = _ljs_undefined
+  end
   local len = _ljs_this.length or 0
-  if len == 0 then return -1 end
+  if len == 0 then
+    return -1
+  end
   local n
   if fromIndex == nil then
     n = len - 1
@@ -526,7 +556,9 @@ Array.prototype.lastIndexOf = _ljs_fn(function(_ljs_this, searchElement, fromInd
   for i = k + 1, 1, -1 do
     local v = rawget(_ljs_this, i)
     if v ~= nil then
-      if v == searchElement then return i - 1 end
+      if v == searchElement then
+        return i - 1
+      end
     end
   end
   return -1
@@ -536,16 +568,23 @@ end)
 -- Array.prototype.includes
 -- ---------------------------------------------------------------------------
 local function _ljs_same_value_zero(x, y)
-  if type(x) == "number" and type(y) == "number" then
-    if x ~= x and y ~= y then return true end
-    return x == y
+  if x == y then
+    return true
   end
-  return x == y
+  if type(x) == "number" and type(y) == "number" then
+    if x ~= x and y ~= y then
+      return true
+    end
+    return false
+  end
+  return (x == nil and y == _ljs_undefined) or (x == _ljs_undefined and y == nil)
 end
 
 Array.prototype.includes = _ljs_fn(function(_ljs_this, searchElement, fromIndex)
   local len = _ljs_this.length or 0
-  if len == 0 then return false end
+  if len == 0 then
+    return false
+  end
   local n
   if fromIndex == nil then
     n = 0
@@ -567,10 +606,14 @@ Array.prototype.includes = _ljs_fn(function(_ljs_this, searchElement, fromIndex)
   else
     k = len + n
   end
-  if k < 0 then k = 0 end
+  if k < 0 then
+    k = 0
+  end
   for i = k + 1, len do
     local v = rawget(_ljs_this, i)
-    if _ljs_same_value_zero(searchElement, v) then return true end
+    if _ljs_same_value_zero(searchElement, v) then
+      return true
+    end
   end
   return false
 end)
@@ -585,10 +628,15 @@ Array.prototype.find = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
   local len = _ljs_this.length or 0
   for i = 1, len do
     local v = rawget(_ljs_this, i)
+    if v == nil then
+      v = _ljs_undefined
+    end
     local testResult = _ljs_call_member(callbackFn, "call", thisArg, v, i - 1, _ljs_this)
-    if _ljs_to_boolean(testResult) then return v end
+    if _ljs_to_boolean(testResult) then
+      return v
+    end
   end
-  return nil
+  return _ljs_undefined
 end)
 
 -- ---------------------------------------------------------------------------
@@ -601,8 +649,13 @@ Array.prototype.findIndex = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
   local len = _ljs_this.length or 0
   for i = 1, len do
     local v = rawget(_ljs_this, i)
+    if v == nil then
+      v = _ljs_undefined
+    end
     local testResult = _ljs_call_member(callbackFn, "call", thisArg, v, i - 1, _ljs_this)
-    if _ljs_to_boolean(testResult) then return i - 1 end
+    if _ljs_to_boolean(testResult) then
+      return i - 1
+    end
   end
   return -1
 end)
@@ -643,15 +696,26 @@ end)
 -- Array.prototype.fill
 -- ---------------------------------------------------------------------------
 local function _to_integer_or_inf(v, default)
-  if v == nil then return default or 0 end
+  if v == nil then
+    return default or 0
+  end
   local n = tonumber(v)
-  if n == nil or n ~= n then return 0 end
-  if n == math.huge then return math.huge end
-  if n == -math.huge then return -math.huge end
+  if n == nil or n ~= n then
+    return 0
+  end
+  if n == math.huge then
+    return math.huge
+  end
+  if n == -math.huge then
+    return -math.huge
+  end
   return (n >= 0 and math.floor or math.ceil)(n)
 end
 
 Array.prototype.fill = _ljs_fn(function(_ljs_this, value, start_val, end_val)
+  if value == nil then
+    value = _ljs_undefined
+  end
   local len = _ljs_this.length or 0
   local relative_start = _to_integer_or_inf(start_val)
   local k
@@ -689,9 +753,12 @@ Array.prototype.shift = _ljs_fn(function(_ljs_this)
   local len = _ljs_this.length or 0
   if len == 0 then
     rawset(_ljs_this, "length", 0)
-    return nil
+    return _ljs_undefined
   end
   local first = rawget(_ljs_this, 1)
+  if first == nil then
+    first = _ljs_undefined
+  end
   for k = 2, len do
     local v = rawget(_ljs_this, k)
     if v ~= nil then
@@ -798,11 +865,17 @@ end)
 -- ---------------------------------------------------------------------------
 local function _merge_sort(items, compare)
   local n = #items
-  if n <= 1 then return items end
+  if n <= 1 then
+    return items
+  end
   local mid = math.floor(n / 2)
   local left, right = {}, {}
-  for i = 1, mid do left[i] = items[i] end
-  for i = mid + 1, n do right[i - mid] = items[i] end
+  for i = 1, mid do
+    left[i] = items[i]
+  end
+  for i = mid + 1, n do
+    right[i - mid] = items[i]
+  end
   left = _merge_sort(left, compare)
   right = _merge_sort(right, compare)
   local result = {}
@@ -847,15 +920,21 @@ Array.prototype.sort = _ljs_fn(function(_ljs_this, comparator)
     compare = function(x, y)
       local result = _ljs_call_member(comparator, "call", nil, x, y)
       local n = tonumber(result)
-      if n == nil or n ~= n then return 0 end
+      if n == nil or n ~= n then
+        return 0
+      end
       return n
     end
   else
     compare = function(x, y)
       local xs = _ljs_tostring(x)
       local ys = _ljs_tostring(y)
-      if xs < ys then return -1 end
-      if ys < xs then return 1 end
+      if xs < ys then
+        return -1
+      end
+      if ys < xs then
+        return 1
+      end
       return 0
     end
   end
@@ -875,7 +954,7 @@ end)
 -- Converts each element to a string (using tostring; nil/undefined → ""),
 -- then concatenates with the given separator (default ",").
 Array.prototype.join = _ljs_fn(function(_ljs_this, sep)
-  if sep == nil then
+  if sep == nil or sep == _ljs_undefined then
     sep = ","
   end
   if _ljs_this.length == 0 then
@@ -884,7 +963,7 @@ Array.prototype.join = _ljs_fn(function(_ljs_this, sep)
   local parts = {}
   for i = 1, _ljs_this.length do
     local v = _ljs_this[i]
-    if v == nil then
+    if v == nil or v == _ljs_undefined then
       parts[i] = ""
     else
       parts[i] = tostring(v)
@@ -901,11 +980,15 @@ Array.prototype.toString = _ljs_fn(function(_ljs_this)
   local join = _ljs_to_object(_ljs_this).join
   if _ljs_typeof(join) == "function" then
     local raw = rawget(join, "_ljs_raw")
-    if raw then return raw(_ljs_this, ",") end
+    if raw then
+      return raw(_ljs_this, ",")
+    end
     return join(_ljs_this, ",")
   end
   local ts_raw = rawget(_ljs_object_prototype.toString, "_ljs_raw")
-  if ts_raw then return ts_raw(_ljs_this) end
+  if ts_raw then
+    return ts_raw(_ljs_this)
+  end
   return _ljs_object_prototype.toString(_ljs_this)
 end)
 
@@ -919,7 +1002,7 @@ Array.prototype.toLocaleString = _ljs_fn(function(_ljs_this)
       result = result .. separator
     end
     local element = array[i]
-    if element ~= nil and element ~= _ljs_null then
+    if element ~= nil and element ~= _ljs_null and element ~= _ljs_undefined then
       local element_str = _ljs_call_member(element, "toLocaleString")
       result = result .. _ljs_tostring(element_str)
     end

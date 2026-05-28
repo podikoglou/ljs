@@ -47,6 +47,10 @@ test("NullLiteral", function()
   assert_eq(expr_code("null;"), "local _ = _ljs_null")
 end)
 
+test("UndefinedLiteral", function()
+  assert_eq(expr_code("undefined;"), "local _ = _ljs_undefined")
+end)
+
 -- ============================================================================
 -- Unit tests — identifiers and declarations
 -- ============================================================================
@@ -60,7 +64,7 @@ test("let with init", function()
 end)
 
 test("let without init", function()
-  assert_eq(expr_code("let x;"), "local x")
+  assert_eq(expr_code("let x;"), "local x = _ljs_undefined")
 end)
 
 test("const maps to local", function()
@@ -153,12 +157,12 @@ end)
 
 test("strict equality", function()
   local code = expr_code("x === 1")
-  assert_eq(code, "local _ = x == 1")
+  assert_eq(code, "local _ = _ljs_strict_eq(x, 1)")
 end)
 
 test("strict inequality", function()
   local code = expr_code("x !== 1")
-  assert_eq(code, "local _ = x ~= 1")
+  assert_eq(code, "local _ = not _ljs_strict_eq(x, 1)")
 end)
 
 test("logical AND", function()

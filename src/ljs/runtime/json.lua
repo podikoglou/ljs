@@ -17,12 +17,11 @@ local function _ljs_json_wrap(val)
   end
   if rawget(val, "_ljs_arr") then
     rawset(val, "_ljs_arr", nil)
-    setmetatable(val, { __index = Array.prototype })
-    local n = 0
-    for i, v in ipairs(val) do
-      val[i] = _ljs_json_wrap(v)
-      n = n + 1
+    local n = #val
+    for i = 1, n do
+      val[i] = _ljs_json_wrap(val[i])
     end
+    setmetatable(val, { __index = Array.prototype })
     val.length = n
     return val
   end
@@ -79,7 +78,7 @@ local function _ljs_json_stringify(val, stack)
   if val == json.null then
     return "null"
   end
-  if val == nil then
+  if val == nil or val == _ljs_undefined then
     return nil
   end
   if val == _ljs_null then

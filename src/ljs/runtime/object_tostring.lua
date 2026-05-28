@@ -1,5 +1,5 @@
 _ljs_object_prototype.toString = _ljs_fn(function(_ljs_this)
-  if _ljs_this == nil then return "[object Undefined]" end
+  if _ljs_this == nil or _ljs_this == _ljs_undefined then return "[object Undefined]" end
   if _ljs_this == _ljs_null then return "[object Null]" end
   local t = type(_ljs_this)
   if t == "number" then return "[object Number]" end
