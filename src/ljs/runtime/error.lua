@@ -29,11 +29,11 @@ end)
 local function _ljs_error_subclass(name)
   local prototype = setmetatable({}, { __index = Error.prototype })
   prototype.name = name
-  prototype.constructor = nil
   local Ctor = _ljs_ctor(function(_ljs_this, message)
     _ljs_this.message = message
   end)
   Ctor.prototype = prototype
+  prototype.constructor = Ctor
   return Ctor
 end
 
