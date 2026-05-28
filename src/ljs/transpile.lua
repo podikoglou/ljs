@@ -708,9 +708,15 @@ local function detect_control_flow(node, in_switch)
         if not result then
           result = {}
         end
-        if inner.break_ then result.break_ = true end
-        if inner.continue_ then result.continue_ = true end
-        if inner.return_ then result.return_ = true end
+        if inner.break_ then
+          result.break_ = true
+        end
+        if inner.continue_ then
+          result.continue_ = true
+        end
+        if inner.return_ then
+          result.return_ = true
+        end
       end
     end
   end
@@ -768,12 +774,8 @@ local function transform_control_flow(node, in_switch)
       ),
     }
     if node.argument then
-      props[#props + 1] = ast.property(
-        ast.identifier("_ljs_v", DUMMY_TOKEN),
-        node.argument,
-        false,
-        DUMMY_TOKEN
-      )
+      props[#props + 1] =
+        ast.property(ast.identifier("_ljs_v", DUMMY_TOKEN), node.argument, false, DUMMY_TOKEN)
     end
     return ast.throw_statement(ast.object_expression(props, DUMMY_TOKEN), DUMMY_TOKEN)
   end
@@ -816,27 +818,50 @@ local function sentinel_handler(indent, err_var, cf, rethrow)
   err_var = err_var or "err"
   local pad = cg.pad(indent)
   local lines = {
-    pad .. 'if type(' .. err_var .. ') == "table" and ' .. err_var .. '._ljs_cf then',
+    pad .. "if type(" .. err_var .. ') == "table" and ' .. err_var .. "._ljs_cf then",
   }
   if cf.break_ then
     if rethrow then
-      lines[#lines + 1] = pad .. '  if ' .. err_var .. '._ljs_cf == "break" then error(' .. err_var .. ') end'
+      lines[#lines + 1] = pad
+        .. "  if "
+        .. err_var
+        .. '._ljs_cf == "break" then error('
+        .. err_var
+        .. ") end"
     else
-      lines[#lines + 1] = pad .. '  if ' .. err_var .. '._ljs_cf == "break" then break end'
+      lines[#lines + 1] = pad .. "  if " .. err_var .. '._ljs_cf == "break" then break end'
     end
   end
   if cf.continue_ then
     if rethrow then
-      lines[#lines + 1] = pad .. '  if ' .. err_var .. '._ljs_cf == "continue" then error(' .. err_var .. ') end'
+      lines[#lines + 1] = pad
+        .. "  if "
+        .. err_var
+        .. '._ljs_cf == "continue" then error('
+        .. err_var
+        .. ") end"
     else
-      lines[#lines + 1] = pad .. '  if ' .. err_var .. '._ljs_cf == "continue" then goto _continue end'
+      lines[#lines + 1] = pad
+        .. "  if "
+        .. err_var
+        .. '._ljs_cf == "continue" then goto _continue end'
     end
   end
   if cf.return_ then
     if rethrow then
-      lines[#lines + 1] = pad .. '  if ' .. err_var .. '._ljs_cf == "return" then error(' .. err_var .. ') end'
+      lines[#lines + 1] = pad
+        .. "  if "
+        .. err_var
+        .. '._ljs_cf == "return" then error('
+        .. err_var
+        .. ") end"
     else
-      lines[#lines + 1] = pad .. "  if " .. err_var .. '._ljs_cf == "return" then return ' .. err_var .. "._ljs_v end"
+      lines[#lines + 1] = pad
+        .. "  if "
+        .. err_var
+        .. '._ljs_cf == "return" then return '
+        .. err_var
+        .. "._ljs_v end"
     end
   end
   lines[#lines + 1] = pad .. "end\n"
@@ -858,8 +883,29 @@ local function scope_pop(ctx)
   ctx.scopes[#ctx.scopes] = nil
 end
 
-local function scope_declare(ctx, name)
-  ctx.scopes[#ctx.scopes][name] = true
+local function scope_declare(ctx, name, kind)
+  local scope = ctx.scopes[#ctx.scopes]
+  local existing = scope[name]
+  if existing and (existing == "const" or kind == "const") then
+    error("SyntaxError: Identifier '" .. name .. "' has already been declared", 0)
+  end
+  scope[name] = kind or "let"
+end
+
+local function scope_lookup(ctx, name)
+  for i = #ctx.scopes, 1, -1 do
+    local k = ctx.scopes[i][name]
+    if k then
+      return k
+    end
+  end
+  return nil
+end
+
+local function check_assign(ctx, name)
+  if scope_lookup(ctx, name) == "const" then
+    error("TypeError: Assignment to constant variable '" .. name .. "'", 0)
+  end
 end
 
 -- gen[node_type] handles expression-context emission.
@@ -973,23 +1019,24 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
   scope_push(ctx)
   if extra_scope_names then
     for _, name in ipairs(extra_scope_names) do
-      scope_declare(ctx, name)
+      scope_declare(ctx, name, "let")
     end
   end
   if fn_node.name then
-    scope_declare(ctx, fn_node.name)
+    scope_declare(ctx, fn_node.name, "let")
   end
   for _, p in ipairs(fn_node.params) do
     local name = param_name(p)
     if name then
-      scope_declare(ctx, name)
+      scope_declare(ctx, name, "let")
     end
   end
   local body = emit(fn_node.body, indent, ctx)
   local preamble = ""
   for _, p in ipairs(fn_node.params) do
     if p.type == ast.TYPE_REST_ELEMENT then
-      preamble = preamble .. cg.local_decl(p.argument.name, cg.call("_ljs_new", { "Array", "..." }), indent + 1)
+      preamble = preamble
+        .. cg.local_decl(p.argument.name, cg.call("_ljs_new", { "Array", "..." }), indent + 1)
     elseif p.type == ast.TYPE_ASSIGNMENT_PATTERN and not is_pattern(p.left) then
       local pname = p.left.name
       local default_code = emit(p.right, indent + 1, ctx)
@@ -997,7 +1044,9 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
         .. cg.if_stmt(
           pname .. " == nil",
           cg.expr_stmt(cg.binop("=", pname, default_code), indent + 2),
-          nil, nil, indent + 1
+          nil,
+          nil,
+          indent + 1
         )
     end
   end
@@ -1008,7 +1057,9 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
         .. cg.if_stmt(
           entry.tmp .. " == nil",
           cg.expr_stmt(cg.binop("=", entry.tmp, default_code), indent + 2),
-          nil, nil, indent + 1
+          nil,
+          nil,
+          indent + 1
         )
     end
     local out = {}
@@ -1017,7 +1068,8 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
       preamble = preamble .. line
     end
   end
-  local save_src = fn_node.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION and "_ljs_arrow_this" or "_ljs_this"
+  local save_src = fn_node.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION and "_ljs_arrow_this"
+    or "_ljs_this"
   body = cg.local_decl("_ljs_arrow_this", save_src, indent + 1) .. preamble .. body
   scope_pop(ctx)
   return cg.fn_expr(cg.join(params), body, indent)
@@ -1027,7 +1079,11 @@ local function is_elseif_chain(node)
   if node.type == ast.TYPE_IF_STATEMENT then
     return true
   end
-  if node.type == ast.TYPE_BLOCK_STATEMENT and #node.body == 1 and node.body[1].type == ast.TYPE_IF_STATEMENT then
+  if
+    node.type == ast.TYPE_BLOCK_STATEMENT
+    and #node.body == 1
+    and node.body[1].type == ast.TYPE_IF_STATEMENT
+  then
     return true
   end
   return false
@@ -1136,21 +1192,39 @@ end
 
 local function expr_produces_valid_stmt(node)
   local t = node.type
-  if t == ast.TYPE_CALL_EXPRESSION then return true end
-  if t == ast.TYPE_NEW_EXPRESSION then return true end
-  if t == ast.TYPE_OBJECT_EXPRESSION then return true end
-  if t == ast.TYPE_ARRAY_EXPRESSION then return true end
-  if t == ast.TYPE_FUNCTION_EXPRESSION then return true end
-  if t == ast.TYPE_ARROW_FUNCTION_EXPRESSION then return true end
-  if t == ast.TYPE_CLASS_EXPRESSION then return true end
+  if t == ast.TYPE_CALL_EXPRESSION then
+    return true
+  end
+  if t == ast.TYPE_NEW_EXPRESSION then
+    return true
+  end
+  if t == ast.TYPE_OBJECT_EXPRESSION then
+    return true
+  end
+  if t == ast.TYPE_ARRAY_EXPRESSION then
+    return true
+  end
+  if t == ast.TYPE_FUNCTION_EXPRESSION then
+    return true
+  end
+  if t == ast.TYPE_ARROW_FUNCTION_EXPRESSION then
+    return true
+  end
+  if t == ast.TYPE_CLASS_EXPRESSION then
+    return true
+  end
   if t == ast.TYPE_BINARY_EXPRESSION then
     local op = node.operator
-    if op == "===" or op == "!==" or op == "!=" or op == "in" then return false end
+    if op == "===" or op == "!==" or op == "!=" or op == "in" then
+      return false
+    end
     return true
   end
   if t == ast.TYPE_UNARY_EXPRESSION then
     local op = node.operator
-    if op == "~" or op == "+" then return true end
+    if op == "~" or op == "+" then
+      return true
+    end
     return false
   end
   return false
@@ -1179,10 +1253,9 @@ fresh_tmp = function()
   return "_ljs_d" .. destructure_counter
 end
 
-
-local function emit_binding(target, access, indent, ctx, out)
+local function emit_binding(target, access, indent, ctx, out, kind)
   if target.type == ast.TYPE_IDENTIFIER then
-    scope_declare(ctx, target.name)
+    scope_declare(ctx, target.name, kind)
     out[#out + 1] = cg.local_decl(target.name, access, indent)
   elseif target.type == ast.TYPE_ASSIGNMENT_PATTERN then
     local inner = target.left
@@ -1190,7 +1263,7 @@ local function emit_binding(target, access, indent, ctx, out)
     local var_name
     if inner.type == ast.TYPE_IDENTIFIER then
       var_name = inner.name
-      scope_declare(ctx, var_name)
+      scope_declare(ctx, var_name, kind)
     else
       var_name = fresh_tmp()
     end
@@ -1198,24 +1271,26 @@ local function emit_binding(target, access, indent, ctx, out)
     out[#out + 1] = cg.if_stmt(
       var_name .. " == nil",
       cg.expr_stmt(cg.binop("=", var_name, default_expr), indent + 1),
-      nil, nil, indent
+      nil,
+      nil,
+      indent
     )
     if inner.type ~= ast.TYPE_IDENTIFIER then
-      emit_destructure(inner, var_name, indent, ctx, out)
+      emit_destructure(inner, var_name, indent, ctx, out, kind)
     end
   elseif target.type == ast.TYPE_OBJECT_PATTERN or target.type == ast.TYPE_ARRAY_PATTERN then
     local tmp = fresh_tmp()
     out[#out + 1] = cg.local_decl(tmp, access, indent)
-    emit_destructure(target, tmp, indent, ctx, out)
+    emit_destructure(target, tmp, indent, ctx, out, kind)
   end
 end
 
-emit_destructure = function(pattern, rhs, indent, ctx, out)
+emit_destructure = function(pattern, rhs, indent, ctx, out, kind)
   if pattern.type == ast.TYPE_OBJECT_PATTERN then
     for _, prop_node in ipairs(pattern.properties) do
       if prop_node.type == ast.TYPE_REST_ELEMENT then
         local rest_name = prop_node.argument.name
-        scope_declare(ctx, rest_name)
+        scope_declare(ctx, rest_name, kind)
         local collected = {}
         for _, p in ipairs(pattern.properties) do
           if p.type == ast.TYPE_PROPERTY then
@@ -1225,11 +1300,7 @@ emit_destructure = function(pattern, rhs, indent, ctx, out)
           end
         end
         local keys_expr = cg.array(collected)
-        out[#out + 1] = cg.local_decl(
-          rest_name,
-          cg.call("_ljs_rest", { rhs, keys_expr }),
-          indent
-        )
+        out[#out + 1] = cg.local_decl(rest_name, cg.call("_ljs_rest", { rhs, keys_expr }), indent)
       else
         local key_str
         if prop_node.key.type == ast.TYPE_IDENTIFIER then
@@ -1238,7 +1309,7 @@ emit_destructure = function(pattern, rhs, indent, ctx, out)
           key_str = emit(prop_node.key, indent, ctx)
         end
         local access = cg.member_index(rhs, key_str)
-        emit_binding(prop_node.value, access, indent, ctx, out)
+        emit_binding(prop_node.value, access, indent, ctx, out, kind)
       end
     end
   elseif pattern.type == ast.TYPE_ARRAY_PATTERN then
@@ -1249,7 +1320,7 @@ emit_destructure = function(pattern, rhs, indent, ctx, out)
         -- hole: skip
       elseif elem.type == ast.TYPE_REST_ELEMENT then
         local rest_name = elem.argument.name
-        scope_declare(ctx, rest_name)
+        scope_declare(ctx, rest_name, kind)
         out[#out + 1] = cg.local_decl(
           rest_name,
           cg.iife({
@@ -1261,7 +1332,7 @@ emit_destructure = function(pattern, rhs, indent, ctx, out)
         )
       else
         local access = cg.member_index(rhs, tostring(i))
-        emit_binding(elem, access, indent, ctx, out)
+        emit_binding(elem, access, indent, ctx, out, kind)
       end
     end
   end
@@ -1271,6 +1342,7 @@ local emit_assign_binding
 
 local function emit_assign_target(target, access, indent, ctx, out)
   if target.type == ast.TYPE_IDENTIFIER then
+    check_assign(ctx, target.name)
     out[#out + 1] = cg.expr_stmt(cg.binop("=", target.name, access), indent)
   elseif target.type == ast.TYPE_MEMBER_EXPRESSION then
     local obj = emit(target.object, indent, ctx)
@@ -1280,9 +1352,7 @@ local function emit_assign_target(target, access, indent, ctx, out)
     else
       prop = cg.string(target.property.name)
     end
-    out[#out + 1] = cg.expr_stmt(
-      cg.binop("=", cg.member_index(obj, prop), access), indent
-    )
+    out[#out + 1] = cg.expr_stmt(cg.binop("=", cg.member_index(obj, prop), access), indent)
   elseif target.type == ast.TYPE_ASSIGNMENT_PATTERN then
     local inner = target.left
     local default_expr = emit(target.right, indent, ctx)
@@ -1302,7 +1372,9 @@ local function emit_assign_target(target, access, indent, ctx, out)
     out[#out + 1] = cg.if_stmt(
       var_name .. " == nil",
       cg.expr_stmt(cg.binop("=", var_name, default_expr), indent + 1),
-      nil, nil, indent
+      nil,
+      nil,
+      indent
     )
   elseif target.type == ast.TYPE_OBJECT_PATTERN or target.type == ast.TYPE_ARRAY_PATTERN then
     local tmp = fresh_tmp()
@@ -1325,10 +1397,8 @@ emit_assign_binding = function(pattern, rhs, indent, ctx, out)
           end
         end
         local keys_expr = cg.array(collected)
-        out[#out + 1] = cg.expr_stmt(
-          cg.binop("=", rest_name, cg.call("_ljs_rest", { rhs, keys_expr })),
-          indent
-        )
+        out[#out + 1] =
+          cg.expr_stmt(cg.binop("=", rest_name, cg.call("_ljs_rest", { rhs, keys_expr })), indent)
       else
         local key_str
         if prop_node.key.type == ast.TYPE_IDENTIFIER then
@@ -1349,7 +1419,9 @@ emit_assign_binding = function(pattern, rhs, indent, ctx, out)
       elseif elem.type == ast.TYPE_REST_ELEMENT then
         local rest_name = elem.argument.name
         out[#out + 1] = cg.expr_stmt(
-          cg.binop("=", rest_name,
+          cg.binop(
+            "=",
+            rest_name,
             cg.iife({
               cg.local_inline("_r", cg.array({ cg.call("table.unpack", { rhs, tostring(i) }) })),
               "_r.n = #" .. rhs .. " - " .. tostring(i - 1),
@@ -1369,25 +1441,33 @@ end
 gen.VariableDeclaration = function(node, indent, ctx)
   local out = {}
   for _, decl in ipairs(node.declarations) do
+    if node.kind == "const" and not decl.init then
+      error("SyntaxError: Missing initializer in const declaration", 0)
+    end
     local name_type = decl.name.type
     if name_type == ast.TYPE_OBJECT_PATTERN or name_type == ast.TYPE_ARRAY_PATTERN then
       if decl.init then
         local init_expr = emit(decl.init, indent, ctx)
         local tmp = fresh_tmp()
         out[#out + 1] = cg.local_decl(tmp, init_expr, indent)
-        emit_destructure(decl.name, tmp, indent, ctx, out)
+        emit_destructure(decl.name, tmp, indent, ctx, out, node.kind)
       end
     else
-      scope_declare(ctx, decl.name.name)
+      scope_declare(ctx, decl.name.name, node.kind)
       local init = decl.init
       if not init then
         out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
-      elseif init.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION or init.type == ast.TYPE_FUNCTION_EXPRESSION then
+      elseif
+        init.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION
+        or init.type == ast.TYPE_FUNCTION_EXPRESSION
+      then
         local fn = emit_fn(init, indent, ctx)
-        local wrapper = (init.type == ast.TYPE_FUNCTION_EXPRESSION and not init.is_method) and "_ljs_ctor"
+        local wrapper = (init.type == ast.TYPE_FUNCTION_EXPRESSION and not init.is_method)
+            and "_ljs_ctor"
           or "_ljs_fn"
         out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
-        out[#out + 1] = cg.expr_stmt(cg.binop("=", decl.name.name, cg.call(wrapper, { fn })), indent)
+        out[#out + 1] =
+          cg.expr_stmt(cg.binop("=", decl.name.name, cg.call(wrapper, { fn })), indent)
       else
         out[#out + 1] = cg.local_decl(decl.name.name, emit(init, indent, ctx), indent)
       end
@@ -1410,7 +1490,7 @@ end
 -- Declarations use the same split pattern as VariableDeclaration for the
 -- Lua 5.5 closure upvalue workaround.
 gen.FunctionDeclaration = function(node, indent, ctx)
-  scope_declare(ctx, node.name)
+  scope_declare(ctx, node.name, "let")
   local fn = emit_fn(node, indent, ctx)
   return cg.local_decl(node.name, nil, indent)
     .. cg.expr_stmt(cg.binop("=", node.name, cg.call("_ljs_ctor", { fn })), indent)
@@ -1453,7 +1533,8 @@ local function lower_class(node, indent, ctx, opts)
     ctor_fn = emit_fn(constructor_method.value, indent, ctx, extra_scope)
   elseif has_super then
     local params = { "_ljs_this", "..." }
-    local body_code = cg.expr_stmt(cg.call("_ljs_call_this", { super_code, "_ljs_arrow_this", "..." }), indent + 1)
+    local body_code =
+      cg.expr_stmt(cg.call("_ljs_call_this", { super_code, "_ljs_arrow_this", "..." }), indent + 1)
     body_code = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. body_code
     ctor_fn = cg.fn_expr(cg.join(params), body_code, indent)
   else
@@ -1502,7 +1583,7 @@ local function lower_class(node, indent, ctx, opts)
 end
 
 gen.ClassDeclaration = function(node, indent, ctx)
-  scope_declare(ctx, node.name)
+  scope_declare(ctx, node.name, "let")
   local result = lower_class(node, indent, ctx, {
     class_name = node.name,
     extra_scope = nil,
@@ -1585,7 +1666,11 @@ gen.ForOfStatement = function(node, indent, ctx)
     var_name = node.left.name
   end
   scope_push(ctx)
-  scope_declare(ctx, var_name)
+  scope_declare(
+    ctx,
+    var_name,
+    node.left.type == ast.TYPE_VARIABLE_DECLARATION and node.left.kind or "let"
+  )
   local body = emit(node.body, indent, ctx)
   if has_continue(node.body) then
     body = cg.do_block(body, indent + 1) .. cg.label("_continue", indent + 1)
@@ -1605,7 +1690,11 @@ gen.ForInStatement = function(node, indent, ctx)
     var_name = node.left.name
   end
   scope_push(ctx)
-  scope_declare(ctx, var_name)
+  scope_declare(
+    ctx,
+    var_name,
+    node.left.type == ast.TYPE_VARIABLE_DECLARATION and node.left.kind or "let"
+  )
   local body = emit(node.body, indent, ctx)
   if has_continue(node.body) then
     body = cg.do_block(body, indent + 1) .. cg.label("_continue", indent + 1)
@@ -1620,17 +1709,12 @@ end
 -- each loop iteration body (before the continue label, if present).
 gen.ForStatement = function(node, indent, ctx)
   local parts = {}
+  scope_push(ctx)
   if node.init then
     parts[#parts + 1] = emit(node.init, indent, ctx)
   end
   local test_code = node.test and cg.call("_ljs_to_boolean", { emit(node.test, indent, ctx) })
     or "true"
-  scope_push(ctx)
-  if node.init and node.init.type == ast.TYPE_VARIABLE_DECLARATION then
-    for _, decl in ipairs(node.init.declarations) do
-      scope_declare(ctx, decl.name.name)
-    end
-  end
   local body = emit(node.body, indent, ctx)
   if has_continue(node.body) then
     body = cg.do_block(body, indent + 1) .. cg.label("_continue", indent + 1)
@@ -1705,7 +1789,7 @@ gen.TryStatement = function(node, indent, ctx)
   if node.handler then
     scope_push(ctx)
     if param then
-      scope_declare(ctx, param)
+      scope_declare(ctx, param, "let")
     end
     catch_body = emit(node.handler.body, indent + 1, ctx)
     scope_pop(ctx)
@@ -1733,7 +1817,8 @@ gen.TryStatement = function(node, indent, ctx)
     end
     local rethrow_block = cg.if_stmt(
       "not _ljs_ok",
-      rethrow_inner ~= "" and rethrow_inner or cg.expr_stmt(cg.call("error", { "_ljs_err", "0" }), indent + 2),
+      rethrow_inner ~= "" and rethrow_inner
+        or cg.expr_stmt(cg.call("error", { "_ljs_err", "0" }), indent + 2),
       nil,
       nil,
       indent
@@ -1806,7 +1891,10 @@ local COMPOUND_OPS = {
 
 gen.BinaryExpression = function(node, indent, ctx)
   local op = node.operator
-  if op == "=" and (node.left.type == ast.TYPE_ARRAY_PATTERN or node.left.type == ast.TYPE_OBJECT_PATTERN) then
+  if
+    op == "="
+    and (node.left.type == ast.TYPE_ARRAY_PATTERN or node.left.type == ast.TYPE_OBJECT_PATTERN)
+  then
     local right = emit(node.right, indent, ctx)
     local tmp = fresh_tmp()
     local out = {}
@@ -1814,6 +1902,11 @@ gen.BinaryExpression = function(node, indent, ctx)
     emit_assign_binding(node.left, tmp, indent, ctx, out)
     out[#out + 1] = cg.return_inline(tmp)
     return cg.iife(out)
+  end
+  if node.left.type == ast.TYPE_IDENTIFIER then
+    if op == "=" or COMPOUND_OPS[op] or op == "%=" then
+      check_assign(ctx, node.left.name)
+    end
   end
   local left = emit(node.left, indent, ctx)
   local right = emit(node.right, indent, ctx)
@@ -1827,7 +1920,14 @@ gen.BinaryExpression = function(node, indent, ctx)
   end
   -- Compound special: modulo
   if op == "%=" then
-    return cg.binop("=", left, cg.call("_ljs_mod", { cg.call("_ljs_to_number", { left }), cg.call("_ljs_to_number", { right }) }))
+    return cg.binop(
+      "=",
+      left,
+      cg.call(
+        "_ljs_mod",
+        { cg.call("_ljs_to_number", { left }), cg.call("_ljs_to_number", { right }) }
+      )
+    )
   end
   -- Direct mappings
   if op == "=" then
@@ -1864,7 +1964,10 @@ gen.BinaryExpression = function(node, indent, ctx)
     return cg.paren(cg.binop("~=", cg.member_index(right_expr, key_code), cg.nil_val()))
   -- Arithmetic special: modulo
   elseif op == "%" then
-    return cg.call("_ljs_mod", { cg.call("_ljs_to_number", { left }), cg.call("_ljs_to_number", { right }) })
+    return cg.call(
+      "_ljs_mod",
+      { cg.call("_ljs_to_number", { left }), cg.call("_ljs_to_number", { right }) }
+    )
   else
     return cg.binop(op, left, right)
   end
@@ -1931,6 +2034,9 @@ end
 -- Expression-context ++/--: wrapped in IIFE to return the value.
 -- Prefix returns the new value; postfix saves old value, increments, returns old.
 gen.UpdateExpression = function(node, indent, ctx)
+  if node.argument.type == ast.TYPE_IDENTIFIER then
+    check_assign(ctx, node.argument.name)
+  end
   local arg = emit(node.argument, indent, ctx)
   local val
   if node.operator == "++" then
@@ -1941,7 +2047,11 @@ gen.UpdateExpression = function(node, indent, ctx)
   if node.prefix then
     return cg.iife({ cg.binop("=", arg, val), cg.return_inline(arg) })
   end
-  return cg.iife({ cg.local_inline("_t", cg.call("_ljs_to_number", { arg })), cg.binop("=", arg, val), cg.return_inline("_t") })
+  return cg.iife({
+    cg.local_inline("_t", cg.call("_ljs_to_number", { arg })),
+    cg.binop("=", arg, val),
+    cg.return_inline("_t"),
+  })
 end
 
 gen.ConditionalExpression = function(node, indent, ctx)
@@ -1995,13 +2105,18 @@ gen.CallExpression = function(node, indent, ctx)
       })
     end
 
-    if node.callee.type == ast.TYPE_MEMBER_EXPRESSION and node.callee.object.type == ast.TYPE_SUPER_EXPRESSION then
+    if
+      node.callee.type == ast.TYPE_MEMBER_EXPRESSION
+      and node.callee.object.type == ast.TYPE_SUPER_EXPRESSION
+    then
       local super_parent = ctx.super_stack[#ctx.super_stack]
       local proto = cg.member_dot(super_parent, "prototype")
       local key_expr = member_key(node.callee, indent, ctx)
       return cg.iife({
         cg.local_inline("_s", build_call),
-        cg.return_inline(cg.call("_ljs_super_call", { proto, key_expr, "_ljs_arrow_this", unpack_call })),
+        cg.return_inline(
+          cg.call("_ljs_super_call", { proto, key_expr, "_ljs_arrow_this", unpack_call })
+        ),
       })
     end
 
@@ -2034,7 +2149,10 @@ gen.CallExpression = function(node, indent, ctx)
     return cg.call(super_parent, call_args)
   end
 
-  if node.callee.type == ast.TYPE_MEMBER_EXPRESSION and node.callee.object.type == ast.TYPE_SUPER_EXPRESSION then
+  if
+    node.callee.type == ast.TYPE_MEMBER_EXPRESSION
+    and node.callee.object.type == ast.TYPE_SUPER_EXPRESSION
+  then
     local super_parent = ctx.super_stack[#ctx.super_stack]
     local proto = cg.member_dot(super_parent, "prototype")
     local key_expr = member_key(node.callee, indent, ctx)
@@ -2067,7 +2185,9 @@ gen.NewExpression = function(node, indent, ctx)
     local spread_args = emit_spread_args(node.arguments, indent, ctx)
     return cg.iife({
       cg.local_inline("_s", cg.call("_ljs_spread_build", spread_args)),
-      cg.return_inline(cg.call("_ljs_new", { emit(node.callee, indent, ctx), cg.call("_ljs_unpack", { "_s" }) })),
+      cg.return_inline(
+        cg.call("_ljs_new", { emit(node.callee, indent, ctx), cg.call("_ljs_unpack", { "_s" }) })
+      ),
     })
   end
   local args = { emit(node.callee, indent, ctx) }
@@ -2157,9 +2277,15 @@ end
 
 -- Statement-context ++/--: direct assignment, no IIFE needed.
 gen_stmt.UpdateExpression = function(node, indent, ctx)
+  if node.argument.type == ast.TYPE_IDENTIFIER then
+    check_assign(ctx, node.argument.name)
+  end
   local arg = emit(node.argument, indent, ctx)
   if node.operator == "++" then
-    return cg.expr_stmt(cg.binop("=", arg, cg.binop("+", cg.call("_ljs_to_number", { arg }), "1")), indent)
+    return cg.expr_stmt(
+      cg.binop("=", arg, cg.binop("+", cg.call("_ljs_to_number", { arg }), "1")),
+      indent
+    )
   end
   return cg.expr_stmt(cg.binop("=", arg, cg.call("_ljs_sub", { arg, "1" })), indent)
 end
@@ -2184,7 +2310,10 @@ end
 
 gen_stmt.BinaryExpression = function(node, indent, ctx)
   local op = node.operator
-  if op == "=" and (node.left.type == ast.TYPE_ARRAY_PATTERN or node.left.type == ast.TYPE_OBJECT_PATTERN) then
+  if
+    op == "="
+    and (node.left.type == ast.TYPE_ARRAY_PATTERN or node.left.type == ast.TYPE_OBJECT_PATTERN)
+  then
     local right = emit(node.right, indent, ctx)
     local tmp = fresh_tmp()
     local out = {}
