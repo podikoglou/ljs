@@ -223,3 +223,115 @@ end)
 test("undefined is falsy", function()
   assert_eq(eval_js("undefined ? 'truthy' : 'falsy'"), "falsy")
 end)
+
+-- ============================================================================
+-- Phase 3: Boundary Normalization — property reads return _ljs_undefined
+-- ============================================================================
+
+test("obj.nonexistent === undefined (property miss returns undefined)", function()
+  assert_eq(exec_js("var obj = {a: 1}; return obj.nonexistent === undefined;"), true)
+end)
+
+test("obj.nonexistent == null (undefined == null)", function()
+  assert_eq(exec_js("var obj = {}; return obj.nonexistent == null;"), true)
+end)
+
+test("typeof obj.nonexistent === 'undefined'", function()
+  assert_eq(eval_js("typeof ({}).nonexistent"), "undefined")
+end)
+
+test("missing property stored in object creates present key", function()
+  assert_eq(exec_js([[
+    var obj1 = {a: 1};
+    var obj2 = {};
+    obj2.x = obj1.nonexistent;
+    return "x" in obj2;
+  ]]), true)
+end)
+
+test("arr[999] === undefined for out-of-bounds", function()
+  assert_eq(exec_js("var arr = [1, 2, 3]; return arr[10] === undefined;"), true)
+end)
+
+test("Object.create(null).nonexistent === undefined", function()
+  assert_eq(exec_js("var obj = Object.create(null); return obj.nonexistent === undefined;"), true)
+end)
+
+test("Object.create(null) still stores/retrieves own properties", function()
+  assert_eq(exec_js("var obj = Object.create(null); obj.x = 1; return obj.x;"), 1)
+end)
+
+-- ============================================================================
+-- Phase 3: Missing function args normalized to _ljs_undefined
+-- ============================================================================
+
+test("missing arg === undefined (param normalization)", function()
+  assert_eq(exec_js("function f(a, b) { return b === undefined; } return f(1);"), true)
+end)
+
+test("missing arg stored in array doesn't create hole", function()
+  assert_eq(exec_js([[
+    var arr = [];
+    function pushIt(x) { arr.push(x); }
+    pushIt();
+    return 0 in arr;
+  ]]), true)
+end)
+
+-- ============================================================================
+-- Phase 3: Default params work with undefined
+-- ============================================================================
+
+test("default param triggers for missing arg", function()
+  assert_eq(exec_js("function f(a = 42) { return a; } return f();"), 42)
+end)
+
+test("default param triggers for explicit undefined", function()
+  assert_eq(exec_js("function f(a = 42) { return a; } return f(undefined);"), 42)
+end)
+
+test("default param does NOT trigger for null", function()
+  assert_eq(exec_js("function f(a = 42) { return a === null; } return f(null);"), true)
+end)
+
+test("default param with prior regular params", function()
+  assert_eq(exec_js("function f(a, b = 10) { return a + b; } return f(5);"), 15)
+end)
+
+-- ============================================================================
+-- Phase 3: Uninitialized variable declarations
+-- ============================================================================
+
+test("var x; x === undefined", function()
+  assert_eq(exec_js("var x; return x === undefined;"), true)
+end)
+
+test("let y; y === undefined", function()
+  assert_eq(exec_js("let y; return y === undefined;"), true)
+end)
+
+test("uninitialized var stored in array creates present element", function()
+  assert_eq(exec_js([[
+    var arr = [];
+    var x;
+    arr.push(x);
+    return 0 in arr;
+  ]]), true)
+end)
+
+-- ============================================================================
+-- Phase 3: Bare return returns undefined
+-- ============================================================================
+
+test("bare return; returns undefined", function()
+  assert_eq(exec_js("function f() { return; } return f() === undefined;"), true)
+end)
+
+test("bare return stored in array creates present element", function()
+  assert_eq(exec_js([[
+    function f() { return; }
+    var arr = [];
+    arr.push(f());
+    return 0 in arr;
+  ]]), true)
+end)
