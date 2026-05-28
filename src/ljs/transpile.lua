@@ -2384,7 +2384,7 @@ end
 -- _ljs_to_number/_ljs_to_boolean before arithmetic and coercion helpers,
 -- _ljs_fn before _ljs_ctor (which depends on it), _ljs_to_object before
 -- _ljs_call_member (which calls it), _ljs_tostring, rest alphabetical.
--- All 27 helpers are always emitted unconditionally.
+-- All 44 helpers are always emitted unconditionally.
 local HELPER_ORDER = {
   "_ljs_to_int32",
   "_ljs_to_primitive",
@@ -2435,7 +2435,7 @@ local HELPER_ORDER = {
 local _preamble_cache = nil
 
 --- Build the runtime preamble (helpers + stdlib). Result is cached after first call.
--- Structure: proto declarations → _ljs_arrow_this → 24 helpers → runtime stdlib files.
+-- Structure: proto declarations → _ljs_arrow_this → _ljs_undefined → _ljs_null → setmetatable → 44 helpers → runtime stdlib files.
 -- Idempotent; safe to call for multi-file output (emit preamble once, then per-file emit).
 -- @return (string) Complete Lua preamble source
 function M.preamble()

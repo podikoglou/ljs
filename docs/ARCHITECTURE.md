@@ -71,7 +71,7 @@ Objects created via `Object.create(proto)` have a prototype chain implemented us
 
 **Known gaps:**
 - `for...in` does not walk prototype chain (Lua `pairs()` only sees own properties). A `_ljs_pairs` iterator is deferred.
-- nil/undefined confusion: Lua tables cannot store `nil` as a value. Properties set to `undefined` are indistinguishable from missing properties. `null` (`_ljs_null`) is storable and correctly preserved.
+- `undefined` is represented by `_ljs_undefined` (a unique table sentinel). Properties set to `undefined` are stored as `_ljs_undefined` and are distinct from missing properties (Lua `nil`). `null` uses its own `_ljs_null` sentinel.
 - Multi-level `__index` chaining is correct for prototype inheritance but may conflict with future metatable-based getters/descriptors. Migration to explicit `_ljs_get`/`_ljs_set` helpers is expected when descriptors are added.
 
 ## Constructors
@@ -164,15 +164,17 @@ To add a new standard library function (e.g. `Array.prototype.forEach`, `String.
 
 Internal operator/expression helpers (e.g. `_ljs_add`, `_ljs_ctor`, `_ljs_bnot`) follow a different pattern:
 1. Define the helper in the `HELPERS` table (ordered by `HELPER_ORDER`)
-2. All 22 helpers are always emitted unconditionally in the preamble
+2. All 44 helpers are always emitted unconditionally in the preamble
 3. No analysis pass required — helpers are part of the compiler ABI, always available
 
 **Preamble structure** (emitted before user code):
 1. Proto declarations (`_ljs_object_prototype`, `_ljs_function_prototype`) from `ljs.runtime.proto`
 2. `local _ljs_arrow_this = nil` — top-level `this` binding
-3. `local _ljs_null = {}` — null sentinel (distinct from Lua nil / JS undefined)
-4. All 22 helpers in order: `_ljs_to_int32` first, `_ljs_fn` second, rest alphabetical
-5. Runtime std lib files: `object`, `function`, `array`, `console`
+3. `local _ljs_undefined = {}` — undefined sentinel (distinct from Lua nil and `_ljs_null`)
+4. `local _ljs_null = {}` — null sentinel
+5. `setmetatable(_ljs_object_prototype, { __index = function(t, k) return _ljs_undefined end })` — missing properties return `undefined`
+6. All 44 helpers in order: `_ljs_to_int32` first, `_ljs_fn` second, rest alphabetical
+7. Runtime stdlib files: `object`, `function`, `number`, `string`, `boolean`, `array`, `error`, `object_tostring`, `console`, `json_lib`, `json`, `math`, `globals`
 
 **Public API:**
 - `ljs.preamble()` — cached preamble string (helpers + runtime, idempotent)
