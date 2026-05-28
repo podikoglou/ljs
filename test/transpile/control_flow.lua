@@ -68,7 +68,8 @@ end)
 
 test("for...of", function()
   local code = transpile_ok("for (const x of arr) { console.log(x); }")
-  assert(code:find("for _, x in ipairs"), "expected for _, x in ipairs")
+  assert(code:find("for _ljs_d"), "expected numeric for loop")
+  assert(code:find("%.length"), "expected .length bound")
 end)
 
 -- ============================================================================
@@ -99,7 +100,7 @@ end)
 test("for...in nested with for...of transpiles correctly", function()
   local code = transpile_ok("for (let k in obj) { for (const x of arr) { k; } }")
   assert(code:find("for k, _ in pairs"), "expected for k, _ in pairs")
-  assert(code:find("for _, x in ipairs"), "expected for _, x in ipairs")
+  assert(code:find("%.length"), "expected numeric for loop for for..of")
 end)
 
 test("for...in with console.log uses _ljs_call_member", function()
@@ -110,7 +111,7 @@ end)
 
 test("for-of still transpiles correctly after for-in (regression)", function()
   local code = transpile_ok("for (const x of arr) { console.log(x); }")
-  assert(code:find("for _, x in ipairs"), "expected for _, x in ipairs")
+  assert(code:find("%.length"), "expected numeric for loop for for..of")
 end)
 
 -- ============================================================================
@@ -174,7 +175,7 @@ end)
 
 test("for-of still transpiles correctly (regression)", function()
   local code = transpile_ok("for (const x of arr) { console.log(x); }")
-  assert(code:find("for _, x in ipairs"), "expected for _, x in ipairs")
+  assert(code:find("%.length"), "expected numeric for loop for for..of")
 end)
 
 test("for update placed at end of body", function()

@@ -9,7 +9,7 @@ local transpile_ok, run_js = H.transpile_ok, H.run_js
 
 test("function with default parameter transpiles nil check", function()
   local code = transpile_ok("function f(x = 10) { return x; }")
-  assert(code:find("if x == nil then", 1, true), "expected nil check for default param")
+  assert(code:find("x == nil or x == _ljs_undefined", 1, true), "expected nil/undefined check for default param")
 end)
 
 test("function with default parameter — default value used", function()

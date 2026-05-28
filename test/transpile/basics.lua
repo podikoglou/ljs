@@ -64,7 +64,7 @@ test("let with init", function()
 end)
 
 test("let without init", function()
-  assert_eq(expr_code("let x;"), "local x")
+  assert_eq(expr_code("let x;"), "local x = _ljs_undefined")
 end)
 
 test("const maps to local", function()
