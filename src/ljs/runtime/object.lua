@@ -110,13 +110,15 @@ Object.assign = _ljs_fn(function(_ljs_this, target, ...)
 end)
 
 Object.is = _ljs_fn(function(_ljs_this, x, y)
+  if x == y then return true end
   if type(x) == "number" and type(y) == "number" then
     if x ~= x and y ~= y then return true end
     if x == 0 and y == 0 then
       return (1 / x == 1 / y)
     end
+    return false
   end
-  return x == y
+  return (x == nil and y == _ljs_undefined) or (x == _ljs_undefined and y == nil)
 end)
 
 Object.getOwnPropertyNames = _ljs_fn(function(_ljs_this, obj)
