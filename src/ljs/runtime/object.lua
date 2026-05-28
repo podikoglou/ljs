@@ -140,12 +140,16 @@ Object.freeze = _ljs_fn(function(_ljs_this, obj)
     return obj
   end
   local mt = getmetatable(obj)
-  setmetatable(obj, {
-    __index = mt and mt.__index or nil,
-    __newindex = function(_, k, v)
-      error("TypeError: Cannot assign to property '" .. tostring(k) .. "' of frozen object")
+  local new_mt = {}
+  if mt then
+    for k, v in pairs(mt) do
+      new_mt[k] = v
     end
-  })
+  end
+  new_mt.__newindex = function(_, k, v)
+    error("TypeError: Cannot assign to property '" .. tostring(k) .. "' of frozen object")
+  end
+  setmetatable(obj, new_mt)
   return obj
 end)
 
@@ -157,14 +161,15 @@ Object.seal = _ljs_fn(function(_ljs_this, obj)
     return obj
   end
   local mt = getmetatable(obj)
-  setmetatable(obj, {
-    __index = mt and mt.__index or nil,
-    __newindex = function(t, k, v)
-      if rawget(t, k) == nil then
-        error("TypeError: Cannot add property '" .. tostring(k) .. "' to sealed object")
-      end
-      rawset(t, k, v)
+  local new_mt = {}
+  if mt then
+    for k, v in pairs(mt) do
+      new_mt[k] = v
     end
-  })
+  end
+  new_mt.__newindex = function(_, k, v)
+    error("TypeError: Cannot add property '" .. tostring(k) .. "' to sealed object")
+  end
+  setmetatable(obj, new_mt)
   return obj
 end)
