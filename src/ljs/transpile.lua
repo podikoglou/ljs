@@ -1057,7 +1057,7 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
       local default_code = emit(entry.default, indent + 1, ctx)
       preamble = preamble
         .. cg.if_stmt(
-          entry.tmp .. " == nil",
+          entry.tmp .. " == nil or " .. entry.tmp .. " == _ljs_undefined",
           cg.expr_stmt(cg.binop("=", entry.tmp, default_code), indent + 2),
           nil,
           nil,
@@ -1271,7 +1271,7 @@ local function emit_binding(target, access, indent, ctx, out, kind)
     end
     out[#out + 1] = cg.local_decl(var_name, access, indent)
     out[#out + 1] = cg.if_stmt(
-      var_name .. " == nil",
+      var_name .. " == nil or " .. var_name .. " == _ljs_undefined",
       cg.expr_stmt(cg.binop("=", var_name, default_expr), indent + 1),
       nil,
       nil,
@@ -1372,7 +1372,7 @@ local function emit_assign_target(target, access, indent, ctx, out)
       emit_assign_binding(inner, var_name, indent, ctx, out)
     end
     out[#out + 1] = cg.if_stmt(
-      var_name .. " == nil",
+      var_name .. " == nil or " .. var_name .. " == _ljs_undefined",
       cg.expr_stmt(cg.binop("=", var_name, default_expr), indent + 1),
       nil,
       nil,

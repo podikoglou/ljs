@@ -919,7 +919,7 @@ Array.prototype.toLocaleString = _ljs_fn(function(_ljs_this)
       result = result .. separator
     end
     local element = array[i]
-    if element ~= nil and element ~= _ljs_null then
+    if element ~= nil and element ~= _ljs_null and element ~= _ljs_undefined then
       local element_str = _ljs_call_member(element, "toLocaleString")
       result = result .. _ljs_tostring(element_str)
     end

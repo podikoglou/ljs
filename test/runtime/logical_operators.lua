@@ -45,8 +45,7 @@ test("&& returns right when left is truthy and right is falsy (0)", function()
 end)
 
 test("&& returns right when left is truthy and right is falsy (undefined)", function()
-  local val = eval_js("1 && undefined")
-  assert(val == nil, "expected nil (JS undefined)")
+  assert_eq(exec_js("return (1 && undefined) === undefined;"), true)
 end)
 
 test("&& short-circuits: right not evaluated when left is falsy", function()
