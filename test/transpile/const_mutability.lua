@@ -117,3 +117,15 @@ end)
 test("const bitwise assignment errors", function()
   assert_transpile_error("const x = 1; x &= 2;", "Assignment to constant variable")
 end)
+
+test("duplicate let in same scope errors", function()
+  assert_transpile_error("const x = 1; const x = 2;", "already been declared")
+end)
+
+test("const redeclaration in same scope errors", function()
+  assert_transpile_error("let x = 1; const x = 2;", "already been declared")
+end)
+
+test("const in C-style for update errors", function()
+  assert_transpile_error("for (const x = 0; x < 5; x = x + 1) {}", "Assignment to constant variable")
+end)
