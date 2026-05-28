@@ -28,18 +28,13 @@ local function auto_discover_tests(directory, describe_fn, prefix)
   end
 end
 
--- Register runtime tests with error handling
-local function register_runtime_tests(tests)
-  for _, name in ipairs(tests) do
-    T.describe("runtime/" .. name, function()
-      local ok, err = pcall(require, "test.runtime." .. name)
-      if not ok then
-        print(
-          string.format("  \27[33m⚠\27[0m runtime/%s: %s", name, tostring(err):match("^[^\n]*"))
-        )
-      end
-    end)
-  end
+local function describe_soft(name, mod)
+  T.describe(name, function()
+    local ok, err = pcall(require, mod)
+    if not ok then
+      print(string.format("  \27[33m⚠\27[0m %s: %s", name, tostring(err):match("^[^\n]*")))
+    end
+  end)
 end
 
 auto_discover_tests("test/parser", describe, "parser")
@@ -50,24 +45,6 @@ describe("codegen", "test.codegen")
 
 describe("public_api", "test.public_api")
 
-local runtime_tests = {
-  "array",
-  "error",
-  "json",
-  "math",
-  "console",
-  "globals",
-  "null_undefined",
-  "loose_equality",
-  "helpers",
-  "logical_operators",
-  "tostring",
-  "object_tostring",
-  "string",
-  "function_errors",
-  "number",
-  "object",
-}
-register_runtime_tests(runtime_tests)
+auto_discover_tests("test/runtime", describe_soft, "runtime")
 
 T.summary()
