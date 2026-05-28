@@ -126,6 +126,32 @@ test("const redeclaration in same scope errors", function()
   assert_transpile_error("let x = 1; const x = 2;", "already been declared")
 end)
 
+test("var redeclaration in same scope is allowed", function()
+  local code = transpile_ok("var x = 1; var x = 2;")
+  assert(code:find("local x = 1", 1, true), "expected local x = 1")
+  assert(code:find("local x = 2", 1, true), "expected local x = 2")
+end)
+
+test("let redeclaration in same scope errors", function()
+  assert_transpile_error("let x = 1; let x = 2;", "already been declared")
+end)
+
+test("var then let in same scope errors", function()
+  assert_transpile_error("var x = 1; let x = 2;", "already been declared")
+end)
+
+test("let then var in same scope errors", function()
+  assert_transpile_error("let x = 1; var x = 2;", "already been declared")
+end)
+
+test("var then const in same scope errors", function()
+  assert_transpile_error("var x = 1; const x = 2;", "already been declared")
+end)
+
+test("const then var in same scope errors", function()
+  assert_transpile_error("const x = 1; var x = 2;", "already been declared")
+end)
+
 test("const in C-style for update errors", function()
   assert_transpile_error("for (const x = 0; x < 5; x = x + 1) {}", "Assignment to constant variable")
 end)
