@@ -166,3 +166,62 @@ test("Object.assign with multiple sources", function()
   assert_eq(result.b, 2)
   assert_eq(result.c, 3)
 end)
+
+-- ============================================================================
+-- Object.is
+-- ============================================================================
+
+test("Object.is with same numbers", function()
+  assert_eq(exec_js("return Object.is(42, 42);"), true)
+end)
+
+test("Object.is with different numbers", function()
+  assert_eq(exec_js("return Object.is(1, 2);"), false)
+end)
+
+test("Object.is NaN equals NaN", function()
+  assert_eq(exec_js("return Object.is(NaN, NaN);"), true)
+end)
+
+test("Object.is distinguishes +0 and -0", function()
+  assert_eq(exec_js("return Object.is(0, -0);"), false)
+end)
+
+test("Object.is +0 equals +0", function()
+  assert_eq(exec_js("return Object.is(+0, +0);"), true)
+end)
+
+test("Object.is -0 equals -0", function()
+  assert_eq(exec_js("return Object.is(-0, -0);"), true)
+end)
+
+test("Object.is with same strings", function()
+  assert_eq(exec_js("return Object.is('hello', 'hello');"), true)
+end)
+
+test("Object.is with different strings", function()
+  assert_eq(exec_js("return Object.is('a', 'b');"), false)
+end)
+
+test("Object.is with same booleans", function()
+  assert_eq(exec_js("return Object.is(true, true);"), true)
+end)
+
+test("Object.is null equals null", function()
+  assert_eq(exec_js("return Object.is(null, null);"), true)
+end)
+
+test("Object.is null not equal to undefined", function()
+  assert_eq(exec_js("return Object.is(null, undefined);"), false)
+end)
+
+test("Object.is with objects checks identity", function()
+  assert_eq(exec_js([[
+    var obj = {};
+    return Object.is(obj, obj);
+  ]]), true)
+end)
+
+test("Object.is with different objects returns false", function()
+  assert_eq(exec_js("return Object.is({}, {});"), false)
+end)

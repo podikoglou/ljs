@@ -108,3 +108,13 @@ Object.assign = _ljs_fn(function(_ljs_this, target, ...)
   end
   return to
 end)
+
+Object.is = _ljs_fn(function(_ljs_this, x, y)
+  if type(x) == "number" and type(y) == "number" then
+    if x ~= x and y ~= y then return true end
+    if x == 0 and y == 0 then
+      return (1 / x == 1 / y)
+    end
+  end
+  return x == y
+end)
