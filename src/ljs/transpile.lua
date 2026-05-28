@@ -1709,18 +1709,12 @@ end
 -- each loop iteration body (before the continue label, if present).
 gen.ForStatement = function(node, indent, ctx)
   local parts = {}
+  scope_push(ctx)
   if node.init then
     parts[#parts + 1] = emit(node.init, indent, ctx)
   end
   local test_code = node.test and cg.call("_ljs_to_boolean", { emit(node.test, indent, ctx) })
     or "true"
-  scope_push(ctx)
-  if node.init and node.init.type == ast.TYPE_VARIABLE_DECLARATION then
-    local kind = node.init.kind
-    for _, decl in ipairs(node.init.declarations) do
-      scope_declare(ctx, decl.name.name, kind)
-    end
-  end
   local body = emit(node.body, indent, ctx)
   if has_continue(node.body) then
     body = cg.do_block(body, indent + 1) .. cg.label("_continue", indent + 1)

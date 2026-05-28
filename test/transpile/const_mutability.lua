@@ -129,3 +129,16 @@ end)
 test("const in C-style for update errors", function()
   assert_transpile_error("for (const x = 0; x < 5; x = x + 1) {}", "Assignment to constant variable")
 end)
+
+test("for-variable shadows outer let without duplicate error", function()
+  local code = transpile_ok("let x = 1; for (let x = 0; x < 5; x = x + 1) {}")
+  assert(code:find("local x = 1", 1, true), "expected outer local x = 1")
+  assert(code:find("local x = 0", 1, true), "expected inner local x = 0")
+end)
+
+test("for-const shadows outer let and errors on reassignment", function()
+  assert_transpile_error(
+    "let x = 1; for (const x = 0; x < 5; x = x + 1) {}",
+    "Assignment to constant variable"
+  )
+end)
