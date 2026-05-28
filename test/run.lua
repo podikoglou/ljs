@@ -3,192 +3,60 @@ if arg and arg[1] == "-v" then
   T.set_verbose(true)
 end
 
-local function describe(name, mod)
-  T.describe(name, function()
-    require(mod)
-  end)
+local function discover_lua_modules(dir)
+  local modules = {}
+  local p = io.popen(string.format('ls -1p "%s" 2>/dev/null', dir))
+  if not p then
+    return modules
+  end
+  for entry in p:lines() do
+    if not entry:match("/$") then
+      local name = entry:match("^(.+)%.lua$")
+      if name then
+        table.insert(modules, name)
+      end
+    end
+  end
+  p:close()
+  table.sort(modules)
+  return modules
 end
 
-describe("parser/tokenizer", "test.parser.tokenizer")
-describe("parser/expressions", "test.parser.expressions")
-describe("parser/statements", "test.parser.statements")
-describe("parser/objects", "test.parser.objects")
-describe("parser/typeof", "test.parser.typeof")
-describe("parser/delete", "test.parser.delete")
-describe("parser/bitwise", "test.parser.bitwise")
-describe("parser/ternary", "test.parser.ternary")
-describe("parser/switch", "test.parser.switch")
-describe("parser/for_loops", "test.parser.for_loops")
-describe("parser/do_while", "test.parser.do_while")
-describe("parser/in_operator", "test.parser.in_operator")
-describe("parser/class", "test.parser.class")
-describe("parser/constructors", "test.parser.constructors")
-describe("parser/location", "test.parser.location")
-describe("parser/integration", "test.parser.integration")
-describe("parser/this_expression", "test.parser.this_expression")
-describe("parser/error_handling", "test.parser.error_handling")
-describe("parser/member_literals", "test.parser.member_literals")
-describe("parser/default_rest_params", "test.parser.default_rest_params")
-describe("parser/template_literals", "test.parser.template_literals")
-describe("parser/spread", "test.parser.spread")
-describe("parser/destructuring", "test.parser.destructuring")
-describe("parser/empty_statement", "test.parser.empty_statement")
+local suites = {
+  { dir = "test/parser",    mod = "test.parser",    prefix = "parser" },
+  { dir = "test/transpile", mod = "test.transpile", prefix = "transpile" },
+  {
+    dir = "test",
+    mod = "test",
+    prefix = "",
+    exclude = { helpers = true, ljs_test = true, run = true },
+  },
+  { dir = "test/runtime", mod = "test.runtime", prefix = "runtime", pcall = true },
+}
 
-describe("transpile/basics", "test.transpile.basics")
-describe("transpile/control_flow", "test.transpile.control_flow")
-describe("transpile/objects_arrays", "test.transpile.objects_arrays")
-describe("transpile/typeof", "test.transpile.typeof")
-describe("transpile/delete", "test.transpile.delete")
-describe("transpile/class", "test.transpile.class")
-describe("transpile/constructors", "test.transpile.constructors")
-describe("transpile/update", "test.transpile.update")
-describe("transpile/this_binding", "test.transpile.this_binding")
-describe("transpile/prototypes", "test.transpile.prototypes")
-describe("transpile/bitwise", "test.transpile.bitwise")
-describe("transpile/ternary", "test.transpile.ternary")
-describe("transpile/exceptions", "test.transpile.exceptions")
-describe("transpile/do_while", "test.transpile.do_while")
-describe("transpile/in_operator", "test.transpile.in_operator")
-describe("transpile/switch", "test.transpile.switch")
-describe("transpile/integration", "test.transpile.integration")
-describe("transpile/function_prototype", "test.transpile.function_prototype")
-describe("transpile/object_prototype", "test.transpile.object_prototype")
-describe("transpile/array_prototype", "test.transpile.array_prototype")
-describe("transpile/primitive_boxing", "test.transpile.primitive_boxing")
-describe("transpile/function_objects", "test.transpile.function_objects")
-describe("transpile/continue", "test.transpile.continue")
-describe("transpile/member_literals", "test.transpile.member_literals")
-describe("transpile/toboolean", "test.transpile.toboolean")
-describe("transpile/modulo", "test.transpile.modulo")
-describe("transpile/default_rest_params", "test.transpile.default_rest_params")
-describe("transpile/template_literals", "test.transpile.template_literals")
-describe("transpile/spread", "test.transpile.spread")
-describe("transpile/destructuring", "test.transpile.destructuring")
-describe("transpile/semicolon", "test.transpile.semicolon")
-
-describe("codegen", "test.codegen")
-
-describe("public_api", "test.public_api")
-
-T.describe("runtime/array", function()
-  local ok, err = pcall(require, "test.runtime.array")
-  if not ok then
-    print(string.format("  \27[33m⚠\27[0m runtime/array: %s", tostring(err):match("^[^\n]*")))
+for _, suite in ipairs(suites) do
+  local modules = discover_lua_modules(suite.dir)
+  local exclude = suite.exclude or {}
+  for _, name in ipairs(modules) do
+    if not exclude[name] then
+      local display = suite.prefix ~= "" and (suite.prefix .. "/" .. name) or name
+      local mod_path = suite.mod .. "." .. name
+      if suite.pcall then
+        T.describe(display, function()
+          local ok, err = pcall(require, mod_path)
+          if not ok then
+            print(
+              string.format("  \27[33m⚠\27[0m %s: %s", display, tostring(err):match("^[^\n]*"))
+            )
+          end
+        end)
+      else
+        T.describe(display, function()
+          require(mod_path)
+        end)
+      end
+    end
   end
-end)
-
-T.describe("runtime/error", function()
-  local ok, err = pcall(require, "test.runtime.error")
-  if not ok then
-    print(string.format("  \27[33m⚠\27[0m runtime/error: %s", tostring(err):match("^[^\n]*")))
-  end
-end)
-
-T.describe("runtime/json", function()
-  local ok, err = pcall(require, "test.runtime.json")
-  if not ok then
-    print(string.format("  \27[33m⚠\27[0m runtime/json: %s", tostring(err):match("^[^\n]*")))
-  end
-end)
-
-T.describe("runtime/math", function()
-  local ok, err = pcall(require, "test.runtime.math")
-  if not ok then
-    print(string.format("  \27[33m⚠\27[0m runtime/math: %s", tostring(err):match("^[^\n]*")))
-  end
-end)
-
-T.describe("runtime/console", function()
-  local ok, err = pcall(require, "test.runtime.console")
-  if not ok then
-    print(string.format("  \27[33m⚠\27[0m runtime/console: %s", tostring(err):match("^[^\n]*")))
-  end
-end)
-
-T.describe("runtime/globals", function()
-  local ok, err = pcall(require, "test.runtime.globals")
-  if not ok then
-    print(string.format("  \27[33m⚠\27[0m runtime/globals: %s", tostring(err):match("^[^\n]*")))
-  end
-end)
-
-T.describe("runtime/null_undefined", function()
-  local ok, err = pcall(require, "test.runtime.null_undefined")
-  if not ok then
-    print(
-      string.format("  \27[33m⚠\27[0m runtime/null_undefined: %s", tostring(err):match("^[^\n]*"))
-    )
-  end
-end)
-
-T.describe("runtime/loose_equality", function()
-  local ok, err = pcall(require, "test.runtime.loose_equality")
-  if not ok then
-    print(
-      string.format("  \27[33m⚠\27[0m runtime/loose_equality: %s", tostring(err):match("^[^\n]*"))
-    )
-  end
-end)
-
-T.describe("runtime/helpers", function()
-  local ok, err = pcall(require, "test.runtime.helpers")
-  if not ok then
-    print(string.format("  \27[33m⚠\27[0m runtime/helpers: %s", tostring(err):match("^[^\n]*")))
-  end
-end)
-
-T.describe("runtime/logical_operators", function()
-  local ok, err = pcall(require, "test.runtime.logical_operators")
-  if not ok then
-    print(
-      string.format(
-        "  \27[33m⚠\27[0m runtime/logical_operators: %s",
-        tostring(err):match("^[^\n]*")
-      )
-    )
-  end
-end)
-
-T.describe("runtime/tostring", function()
-  local ok, err = pcall(require, "test.runtime.tostring")
-  if not ok then
-    print(string.format("  \27[33m⚠\27[0m runtime/tostring: %s", tostring(err):match("^[^\n]*")))
-  end
-end)
-
-T.describe("runtime/object_tostring", function()
-  local ok, err = pcall(require, "test.runtime.object_tostring")
-  if not ok then
-    print(string.format("  \27[33m⚠\27[0m runtime/object_tostring: %s", tostring(err):match("^[^\n]*")))
-  end
-end)
-
-T.describe("runtime/string", function()
-  local ok, err = pcall(require, "test.runtime.string")
-  if not ok then
-    print(string.format("  \27[33m⚠\27[0m runtime/string: %s", tostring(err):match("^[^\n]*")))
-  end
-end)
-
-T.describe("runtime/function_errors", function()
-  local ok, err = pcall(require, "test.runtime.function_errors")
-  if not ok then
-    print(string.format("  \27[33m⚠\27[0m runtime/function_errors: %s", tostring(err):match("^[^\n]*")))
-  end
-end)
-
-T.describe("runtime/number", function()
-  local ok, err = pcall(require, "test.runtime.number")
-  if not ok then
-    print(string.format("  \27[33m⚠\27[0m runtime/number: %s", tostring(err):match("^[^\n]*")))
-  end
-end)
-
-T.describe("runtime/object", function()
-  local ok, err = pcall(require, "test.runtime.object")
-  if not ok then
-    print(string.format("  \27[33m⚠\27[0m runtime/object: %s", tostring(err):match("^[^\n]*")))
-  end
-end)
+end
 
 T.summary()
