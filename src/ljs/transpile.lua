@@ -48,12 +48,20 @@ end
 -- ============================================================================
 -- Runtime helpers (emitted unconditionally in every preamble).
 -- These are the JS-ABI runtime functions that support operator semantics,
--- prototype chains, and constructor mechanics. All 22 are always emitted
+-- prototype chains, and constructor mechanics. All 46 are always emitted
 -- regardless of whether the source code uses them — no tree-shaking pass.
 -- See docs/ARCHITECTURE.md § "Runtime call ABI" and "Constructors".
 -- ============================================================================
 
 local HELPERS = {}
+
+HELPERS._ljs_is_undef = [[local function _ljs_is_undef(x)
+  return x == nil or x == _ljs_undefined
+end]]
+
+HELPERS._ljs_is_nilish = [[local function _ljs_is_nilish(x)
+  return x == nil or x == _ljs_null or x == _ljs_undefined
+end]]
 
 HELPERS._ljs_to_int32 = [[local function _ljs_to_int32(x)
   x = math.floor(x) % 0x100000000
@@ -65,7 +73,7 @@ HELPERS._ljs_to_number = [[local function _ljs_to_number(x)
   if x == _ljs_null then
     return 0
   end
-  if x == nil or x == _ljs_undefined then
+  if _ljs_is_undef(x) then
     return 0 / 0
   end
   local tx = type(x)
@@ -119,7 +127,7 @@ HELPERS._ljs_to_number = [[local function _ljs_to_number(x)
 end]]
 
 HELPERS._ljs_to_boolean = [[local function _ljs_to_boolean(x)
-  if x == nil or x == _ljs_null or x == _ljs_undefined then
+  if _ljs_is_nilish(x) then
     return false
   end
   if type(x) == "boolean" then
@@ -136,7 +144,7 @@ end]]
 
 HELPERS._ljs_tostring = [[local function _ljs_tostring(x)
   if x == _ljs_null then return "null"
-  elseif x == nil or x == _ljs_undefined then return "undefined"
+  elseif _ljs_is_undef(x) then return "undefined"
   elseif type(x) == "number" then
     if x ~= x then return "NaN" end
     if x == math.huge then return "Infinity" end
@@ -247,7 +255,7 @@ end]]
 
 -- typeof per §13.5.3: nil (undefined) → "undefined", _ljs_null → "object".
 HELPERS._ljs_typeof = [[local function _ljs_typeof(x)
-  if x == nil or x == _ljs_undefined then return "undefined"
+  if _ljs_is_undef(x) then return "undefined"
   elseif x == _ljs_null then return "object"
   elseif type(x) == "table" then
     local mt = getmetatable(x)
@@ -280,7 +288,7 @@ end]]
 -- Get a string representation of a value for error messages (similar to Node.js).
 -- Returns a representation suitable for use in "X is not a function" style errors.
 HELPERS._ljs_value_repr = [[local function _ljs_value_repr(x)
-  if x == nil or x == _ljs_undefined then return "undefined"
+  if _ljs_is_undef(x) then return "undefined"
   elseif x == _ljs_null then return "null"
   elseif type(x) == "number" then
     if x ~= x then return "NaN" end
@@ -333,8 +341,8 @@ end]]
 -- Boxes primitives via _ljs_to_object before property lookup.
 -- Throws TypeError if method is not callable.
 HELPERS._ljs_call_member = [[local function _ljs_call_member(obj, key, ...)
-  if obj == nil or obj == _ljs_null or obj == _ljs_undefined then
-    local desc = (obj == nil or obj == _ljs_undefined) and "undefined" or "null"
+  if _ljs_is_nilish(obj) then
+    local desc = _ljs_is_undef(obj) and "undefined" or "null"
     error("TypeError: Cannot read properties of " .. desc .. " (reading '" .. tostring(key) .. "')")
   end
   local boxed = _ljs_to_object(obj)
@@ -561,8 +569,8 @@ end]]
 HELPERS._ljs_eq = [[local function _ljs_eq(a, b)
   local a_is_null = (a == _ljs_null)
   local b_is_null = (b == _ljs_null)
-  local a_is_undef = (a == nil or a == _ljs_undefined)
-  local b_is_undef = (b == nil or b == _ljs_undefined)
+  local a_is_undef = _ljs_is_undef(a)
+  local b_is_undef = _ljs_is_undef(b)
   local ta = a_is_null and "null" or a_is_undef and "undefined" or type(a)
   local tb = b_is_null and "null" or b_is_undef and "undefined" or type(b)
   if ta == tb then
@@ -1087,7 +1095,7 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
       local default_code = emit(p.right, indent + 1, ctx)
       preamble = preamble
         .. cg.if_stmt(
-          pname .. " == nil or " .. pname .. " == _ljs_undefined",
+          "_ljs_is_undef(" .. pname .. ")",
           cg.expr_stmt(cg.binop("=", pname, default_code), indent + 2),
           nil,
           nil,
@@ -1100,7 +1108,7 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
       local default_code = emit(entry.default, indent + 1, ctx)
       preamble = preamble
         .. cg.if_stmt(
-          entry.tmp .. " == nil or " .. entry.tmp .. " == _ljs_undefined",
+          "_ljs_is_undef(" .. entry.tmp .. ")",
           cg.expr_stmt(cg.binop("=", entry.tmp, default_code), indent + 2),
           nil,
           nil,
@@ -1314,7 +1322,7 @@ local function emit_binding(target, access, indent, ctx, out, kind)
     end
     out[#out + 1] = cg.local_decl(var_name, access, indent)
     out[#out + 1] = cg.if_stmt(
-      var_name .. " == nil or " .. var_name .. " == _ljs_undefined",
+      "_ljs_is_undef(" .. var_name .. ")",
       cg.expr_stmt(cg.binop("=", var_name, default_expr), indent + 1),
       nil,
       nil,
@@ -1415,7 +1423,7 @@ local function emit_assign_target(target, access, indent, ctx, out)
       emit_assign_binding(inner, var_name, indent, ctx, out)
     end
     out[#out + 1] = cg.if_stmt(
-      var_name .. " == nil or " .. var_name .. " == _ljs_undefined",
+      "_ljs_is_undef(" .. var_name .. ")",
       cg.expr_stmt(cg.binop("=", var_name, default_expr), indent + 1),
       nil,
       nil,
@@ -2386,6 +2394,8 @@ end
 -- _ljs_call_member (which calls it), _ljs_tostring, rest alphabetical.
 -- All 44 helpers are always emitted unconditionally.
 local HELPER_ORDER = {
+  "_ljs_is_undef",
+  "_ljs_is_nilish",
   "_ljs_to_int32",
   "_ljs_to_primitive",
   "_ljs_to_number",
@@ -2435,7 +2445,7 @@ local HELPER_ORDER = {
 local _preamble_cache = nil
 
 --- Build the runtime preamble (helpers + stdlib). Result is cached after first call.
--- Structure: proto declarations → _ljs_arrow_this → _ljs_undefined → _ljs_null → setmetatable → 44 helpers → runtime stdlib files.
+-- Structure: proto declarations → _ljs_arrow_this → _ljs_undefined → _ljs_null → setmetatable → _ljs_is_undef → _ljs_is_nilish → 44 helpers → runtime stdlib files.
 -- Idempotent; safe to call for multi-file output (emit preamble once, then per-file emit).
 -- @return (string) Complete Lua preamble source
 function M.preamble()
