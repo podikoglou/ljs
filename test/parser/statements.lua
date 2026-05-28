@@ -16,9 +16,9 @@ test("parse const declaration", function()
   })
 end)
 
-test("parse var declaration (treated as let)", function()
+test("parse var declaration preserves kind", function()
   assert_parse_ok("var z = 3;", {
-    A.var_decl("let", { A.declarator(A.id("z"), A.num(3)) }),
+    A.var_decl("var", { A.declarator(A.id("z"), A.num(3)) }),
   })
 end)
 
@@ -71,9 +71,9 @@ test("parse whitespace-only source produces empty Program", function()
   assert_table_eq(ast, A.program({}))
 end)
 
-test("parse var multi-declarator normalizes to let", function()
+test("parse var multi-declarator preserves kind", function()
   assert_parse_ok("var a, b = 2;", {
-    A.var_decl("let", {
+    A.var_decl("var", {
       A.declarator(A.id("a")),
       A.declarator(A.id("b"), A.num(2)),
     }),

@@ -41,6 +41,7 @@ local TOKEN = {
 
   -- Declaration keywords
   LET = "let",
+  VAR = "var",
   CONST = "const",
   FUNCTION = "function",
   -- Control flow keywords
@@ -145,8 +146,7 @@ local TOKEN = {
 M.TOKEN = TOKEN
 
 -- Maps keyword strings to their token type. Looked up during tokenization
--- to distinguish keywords from plain identifiers. "var" maps to TOKEN.LET
--- so it's treated identically to let in the parser.
+-- to distinguish keywords from plain identifiers.
 local KEYWORDS = {
   ["let"] = TOKEN.LET,
   ["const"] = TOKEN.CONST,
@@ -172,7 +172,7 @@ local KEYWORDS = {
   ["false"] = TOKEN.BOOLEAN,
   ["null"] = TOKEN.NULL,
   ["undefined"] = TOKEN.UNDEFINED,
-  ["var"] = TOKEN.LET,
+  ["var"] = TOKEN.VAR,
   ["delete"] = TOKEN.DELETE,
   ["this"] = TOKEN.THIS,
   ["async"] = TOKEN.ASYNC,
@@ -479,9 +479,13 @@ local function tokenize(source)
             local extra_to_consume = 0
             for i = 1, max_digits - 1 do
               local peek_pos = pos + i
-              if peek_pos > len then break end
+              if peek_pos > len then
+                break
+              end
               local next_ch = source:sub(peek_pos, peek_pos)
-              if not next_ch:match("[0-7]") then break end
+              if not next_ch:match("[0-7]") then
+                break
+              end
               octal = octal .. next_ch
               extra_to_consume = extra_to_consume + 1
             end
@@ -525,7 +529,9 @@ local function tokenize(source)
                   return nil, make_parse_error("Invalid unicode escape sequence", line, col)
                 end
                 hex_str = hex_str .. hc
-                if i < 4 then advance() end
+                if i < 4 then
+                  advance()
+                end
               end
             end
             local cp = tonumber(hex_str, 16)
@@ -558,7 +564,6 @@ local function tokenize(source)
       end
       local str = table.concat(chars, "")
       table.insert(tokens, make_token(TOKEN.STRING, str, line, start_col))
-
     elseif c == "`" then
       local start_col = col
       advance()
@@ -598,9 +603,13 @@ local function tokenize(source)
                   if current() == "\\" then
                     advance()
                   end
-                  if current() then advance() end
+                  if current() then
+                    advance()
+                  end
                 end
-                if current() then advance() end
+                if current() then
+                  advance()
+                end
               elseif ec == "`" then
                 advance()
                 local inner_depth = 0
@@ -620,7 +629,9 @@ local function tokenize(source)
                     inner_depth = inner_depth - 1
                   elseif ic == "\\" then
                     advance()
-                    if current() then advance() end
+                    if current() then
+                      advance()
+                    end
                   else
                     advance()
                   end
@@ -671,9 +682,13 @@ local function tokenize(source)
             local extra_to_consume = 0
             for i = 1, max_digits - 1 do
               local peek_pos = pos + i
-              if peek_pos > len then break end
+              if peek_pos > len then
+                break
+              end
               local next_ch = source:sub(peek_pos, peek_pos)
-              if not next_ch:match("[0-7]") then break end
+              if not next_ch:match("[0-7]") then
+                break
+              end
               octal = octal .. next_ch
               extra_to_consume = extra_to_consume + 1
             end
@@ -718,7 +733,9 @@ local function tokenize(source)
                   return nil, make_parse_error("Invalid unicode escape sequence", line, col)
                 end
                 hex_str = hex_str .. hc
-                if i < 4 then advance() end
+                if i < 4 then
+                  advance()
+                end
               end
             end
             local cp = tonumber(hex_str, 16)
@@ -740,7 +757,12 @@ local function tokenize(source)
       end
       table.insert(
         tokens,
-        make_token(TOKEN.TEMPLATE_LITERAL, { quasis = quasis, expression_sources = expression_sources }, line, start_col)
+        make_token(
+          TOKEN.TEMPLATE_LITERAL,
+          { quasis = quasis, expression_sources = expression_sources },
+          line,
+          start_col
+        )
       )
 
     -- Punctuation and operators.
@@ -1225,7 +1247,7 @@ end
 -- @return (table|nil) AST node, or nil on error
 -- @return (string|nil) Error message if parsing failed
 function parse_statement(stream)
-  if stream.is(TOKEN.LET) or stream.is(TOKEN.CONST) then
+  if stream.is(TOKEN.LET) or stream.is(TOKEN.VAR) or stream.is(TOKEN.CONST) then
     return parse_variable_declaration(stream)
   elseif stream.is(TOKEN.IF) then
     return parse_if_statement(stream)
@@ -1283,7 +1305,6 @@ function parse_block_statement(stream)
 end
 
 --- Parse variable declaration: let/const/var x = expr, y = expr;
--- "var" is treated as "let" (maps to TOKEN.LET in the tokenizer).
 -- Supports multiple declarators separated by commas.
 -- Semicolon is optional.
 -- @param stream (table) Token stream
@@ -1293,8 +1314,10 @@ function parse_variable_declaration(stream, no_in)
   local kind
   if kind_token.type == TOKEN.LET then
     stream.advance()
-    -- var and let both map to TOKEN.LET; normalize var -> "let"
     kind = "let"
+  elseif kind_token.type == TOKEN.VAR then
+    stream.advance()
+    kind = "var"
   elseif kind_token.type == TOKEN.CONST then
     stream.advance()
     kind = "const"
@@ -1357,7 +1380,8 @@ function parse_object_pattern(stream)
     if stream.is(TOKEN.ELLIPSIS) then
       local ellipsis = stream.advance()
       local id_token = stream.consume(TOKEN.IDENTIFIER)
-      properties[#properties + 1] = ast.rest_element(ast.identifier(id_token.value, id_token), ellipsis)
+      properties[#properties + 1] =
+        ast.rest_element(ast.identifier(id_token.value, id_token), ellipsis)
     else
       local key_token = stream.consume_property_name()
       local key = ast.identifier(key_token.value, key_token)
@@ -1377,17 +1401,14 @@ function parse_object_pattern(stream)
           true
         )
       else
-        properties[#properties + 1] = ast.property(
-          key,
-          ast.identifier(key.name, key_token),
-          false,
-          key_token,
-          true
-        )
+        properties[#properties + 1] =
+          ast.property(key, ast.identifier(key.name, key_token), false, key_token, true)
       end
     end
 
-    if not stream.is(TOKEN.COMMA) then break end
+    if not stream.is(TOKEN.COMMA) then
+      break
+    end
     stream.advance()
   end
 
@@ -1410,12 +1431,16 @@ function parse_array_pattern(stream)
       local id_token = stream.consume(TOKEN.IDENTIFIER)
       elements[idx] = ast.rest_element(ast.identifier(id_token.value, id_token), ellipsis)
       idx = idx + 1
-      if stream.is(TOKEN.COMMA) then stream.advance() end
+      if stream.is(TOKEN.COMMA) then
+        stream.advance()
+      end
     else
       local elem = parse_binding_element(stream)
       elements[idx] = elem
       idx = idx + 1
-      if stream.is(TOKEN.COMMA) then stream.advance() end
+      if stream.is(TOKEN.COMMA) then
+        stream.advance()
+      end
     end
   end
 
@@ -1486,13 +1511,8 @@ convert_expression_to_pattern = function(node)
         else
           new_value = convert_expression_to_pattern(new_value)
         end
-        properties[#properties + 1] = ast.property(
-          prop_node.key,
-          new_value,
-          prop_node.computed,
-          prop_node,
-          prop_node.shorthand
-        )
+        properties[#properties + 1] =
+          ast.property(prop_node.key, new_value, prop_node.computed, prop_node, prop_node.shorthand)
       end
     end
     return ast.object_pattern(properties, node)
@@ -1560,7 +1580,7 @@ function parse_for_statement(stream)
     return parse_c_style_for(stream, nil, kw)
   end
 
-  if stream.is(TOKEN.LET) or stream.is(TOKEN.CONST) then
+  if stream.is(TOKEN.LET) or stream.is(TOKEN.VAR) or stream.is(TOKEN.CONST) then
     local decl = parse_variable_declaration(stream, true)
 
     if stream.is(TOKEN.OF) then
@@ -1931,9 +1951,13 @@ local function parse_comma_list(stream, close_token, parse_fn, allow_trailing)
     while true do
       local item = parse_fn(stream)
       table.insert(items, item)
-      if not stream.is(TOKEN.COMMA) then break end
+      if not stream.is(TOKEN.COMMA) then
+        break
+      end
       stream.advance()
-      if allow_trailing and stream.is(close_token) then break end
+      if allow_trailing and stream.is(close_token) then
+        break
+      end
     end
   end
   return items
@@ -1970,7 +1994,11 @@ function parse_parameters(stream)
   if not stream.is(TOKEN.RPAREN) then
     while true do
       if found_rest then
-        parse_error("Rest parameter must be the last parameter", stream.peek().line, stream.peek().col)
+        parse_error(
+          "Rest parameter must be the last parameter",
+          stream.peek().line,
+          stream.peek().col
+        )
       end
       local item = parse_param_item(stream)
       if item.type == ast.TYPE_REST_ELEMENT then
@@ -2177,7 +2205,8 @@ function parse_unary_expression(stream)
       if stream.is(TOKEN.DOT) then
         local dot = stream.advance()
         local prop_token = stream.consume_property_name()
-        callee = ast.member_expression(callee, ast.identifier(prop_token.value, prop_token), false, dot)
+        callee =
+          ast.member_expression(callee, ast.identifier(prop_token.value, prop_token), false, dot)
       else
         local lbracket = stream.advance()
         local prop = parse_expression(stream)
@@ -2273,12 +2302,19 @@ function parse_primary_expression(stream)
       if not stream.is(TOKEN.RPAREN) then
         while true do
           if found_rest then
-            parse_error("Rest parameter must be the last parameter", stream.peek().line, stream.peek().col)
+            parse_error(
+              "Rest parameter must be the last parameter",
+              stream.peek().line,
+              stream.peek().col
+            )
           end
           if stream.is(TOKEN.ELLIPSIS) then
             local ellipsis = stream.advance()
             local id_token = stream.consume(TOKEN.IDENTIFIER)
-            table.insert(params, ast.rest_element(ast.identifier(id_token.value, id_token), ellipsis))
+            table.insert(
+              params,
+              ast.rest_element(ast.identifier(id_token.value, id_token), ellipsis)
+            )
             found_rest = true
           elseif stream.is(TOKEN.LBRACKET) then
             local param = parse_array_pattern(stream)
@@ -2484,12 +2520,16 @@ function parse_array_literal(stream)
       local expr = parse_expression(stream)
       elements[idx] = ast.spread_element(expr, ellipsis)
       idx = idx + 1
-      if stream.is(TOKEN.COMMA) then stream.advance() end
+      if stream.is(TOKEN.COMMA) then
+        stream.advance()
+      end
     else
       local expr = parse_expression(stream)
       elements[idx] = expr
       idx = idx + 1
-      if stream.is(TOKEN.COMMA) then stream.advance() end
+      if stream.is(TOKEN.COMMA) then
+        stream.advance()
+      end
     end
   end
 
@@ -2540,11 +2580,7 @@ function parse_object_literal(stream)
     elseif key_is_identifier and (s.is(TOKEN.COMMA) or s.is(TOKEN.RBRACE)) then
       return ast.property(key, ast.identifier(key.name, key), false, key, true)
     else
-      parse_error(
-        "Expected ':', '(', ',', or '}' after property key",
-        s.peek().line,
-        s.peek().col
-      )
+      parse_error("Expected ':', '(', ',', or '}' after property key", s.peek().line, s.peek().col)
     end
   end
 
