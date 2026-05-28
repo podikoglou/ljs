@@ -1386,6 +1386,36 @@ test("reduceRight sparse array finds last present element as initial accumulator
 end)
 
 -- ============================================================================
+-- Array.prototype.keys
+-- ============================================================================
+
+test("keys returns iterator with next method", function()
+  local it = exec_js("return [10, 20, 30].keys();")
+  assert_eq(type(it.next) == "table" or type(it.next) == "function", true)
+end)
+
+test("keys iterator yields indices", function()
+  local it = exec_js("return [10, 20, 30].keys();")
+  local r1 = it.next()
+  assert_eq(r1.value, 0)
+  assert_eq(r1.done, false)
+  local r2 = it.next()
+  assert_eq(r2.value, 1)
+  assert_eq(r2.done, false)
+  local r3 = it.next()
+  assert_eq(r3.value, 2)
+  assert_eq(r3.done, false)
+  local r4 = it.next()
+  assert_eq(r4.done, true)
+end)
+
+test("keys on empty array returns immediately done iterator", function()
+  local it = exec_js("return [].keys();")
+  local r = it.next()
+  assert_eq(r.done, true)
+end)
+
+-- ============================================================================
 -- Array.prototype.flat
 -- ============================================================================
 
