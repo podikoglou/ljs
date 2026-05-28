@@ -884,7 +884,7 @@ Array.prototype.join = _ljs_fn(function(_ljs_this, sep)
   local parts = {}
   for i = 1, _ljs_this.length do
     local v = _ljs_this[i]
-    if v == nil then
+    if v == nil or v == _ljs_undefined then
       parts[i] = ""
     else
       parts[i] = tostring(v)
