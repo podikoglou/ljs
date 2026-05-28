@@ -81,3 +81,39 @@ test("shadowing const in inner scope", function()
   assert(code:find("local x = 1", 1, true), "expected outer local x = 1")
   assert(code:find("local x = 2", 1, true), "expected inner local x = 2")
 end)
+
+test("const in for-of transpiles", function()
+  local code = transpile_ok("for (const x of [1, 2]) { let y = x; }")
+  assert(code:find("local x", 1, true), "expected local x")
+end)
+
+test("const in for-in transpiles", function()
+  local code = transpile_ok("for (const k in {a: 1}) { let y = k; }")
+  assert(code:find("local k", 1, true), "expected local k")
+end)
+
+test("const in for-of reassignment errors", function()
+  assert_transpile_error("for (const x of [1, 2]) { x = 3; }", "Assignment to constant variable")
+end)
+
+test("const in for-in reassignment errors", function()
+  assert_transpile_error("for (const k in {a: 1}) { k = 'b'; }", "Assignment to constant variable")
+end)
+
+test("let reassignment still works", function()
+  local code = transpile_ok("let x = 1; x = 2;")
+  assert(code:find("x = 2", 1, true), "expected x = 2")
+end)
+
+test("let update still works", function()
+  local code = transpile_ok("let x = 1; x++;")
+  assert(code:find("x = ", 1, true), "expected x assignment")
+end)
+
+test("const modulo assignment errors", function()
+  assert_transpile_error("const x = 10; x %= 3;", "Assignment to constant variable")
+end)
+
+test("const bitwise assignment errors", function()
+  assert_transpile_error("const x = 1; x &= 2;", "Assignment to constant variable")
+end)
