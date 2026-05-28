@@ -355,6 +355,9 @@ HELPERS._ljs_object = [[local function _ljs_object(t)
 end]]
 
 HELPERS._ljs_object_create = [[local function _ljs_object_create(_ljs_this, proto)
+  if proto == nil or proto == _ljs_null then
+    return setmetatable({}, { __index = function(t, k) return _ljs_undefined end })
+  end
   return setmetatable({}, {__index = proto})
 end]]
 
@@ -625,6 +628,21 @@ HELPERS._ljs_ge = [[local function _ljs_ge(a, b)
     return a >= b
   end
   return _ljs_to_number(a) >= _ljs_to_number(b)
+end]]
+
+HELPERS._ljs_has_property = [[local function _ljs_has_property(obj, key)
+  local current = obj
+  while current ~= nil do
+    if rawget(current, key) ~= nil then
+      return true
+    end
+    local mt = getmetatable(current)
+    if mt == nil then break end
+    local idx = mt.__index
+    if type(idx) ~= "table" then break end
+    current = idx
+  end
+  return false
 end]]
 
 -- ============================================================================
@@ -1042,6 +1060,25 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
   local body = emit(fn_node.body, indent, ctx)
   local preamble = ""
   for _, p in ipairs(fn_node.params) do
+    if
+      p.type ~= ast.TYPE_REST_ELEMENT
+      and not is_pattern(p)
+      and p.type ~= ast.TYPE_ASSIGNMENT_PATTERN
+    then
+      local pname = param_name(p)
+      if pname then
+        preamble = preamble
+          .. cg.if_stmt(
+            pname .. " == nil",
+            cg.expr_stmt(cg.binop("=", pname, "_ljs_undefined"), indent + 2),
+            nil,
+            nil,
+            indent + 1
+          )
+      end
+    end
+  end
+  for _, p in ipairs(fn_node.params) do
     if p.type == ast.TYPE_REST_ELEMENT then
       preamble = preamble
         .. cg.local_decl(p.argument.name, cg.call("_ljs_new", { "Array", "..." }), indent + 1)
@@ -1050,7 +1087,7 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
       local default_code = emit(p.right, indent + 1, ctx)
       preamble = preamble
         .. cg.if_stmt(
-          pname .. " == nil",
+          pname .. " == nil or " .. pname .. " == _ljs_undefined",
           cg.expr_stmt(cg.binop("=", pname, default_code), indent + 2),
           nil,
           nil,
@@ -1464,7 +1501,7 @@ gen.VariableDeclaration = function(node, indent, ctx)
       scope_declare(ctx, decl.name.name, node.kind)
       local init = decl.init
       if not init then
-        out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
+        out[#out + 1] = cg.local_decl(decl.name.name, "_ljs_undefined", indent)
       elseif
         init.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION
         or init.type == ast.TYPE_FUNCTION_EXPRESSION
@@ -1485,7 +1522,7 @@ gen.VariableDeclaration = function(node, indent, ctx)
 end
 
 gen.ReturnStatement = function(node, indent, ctx)
-  local expr = node.argument and emit(node.argument, indent, ctx) or nil
+  local expr = node.argument and emit(node.argument, indent, ctx) or "_ljs_undefined"
   return cg.return_stmt(expr, indent)
 end
 
@@ -1673,6 +1710,9 @@ gen.ForOfStatement = function(node, indent, ctx)
   else
     var_name = node.left.name
   end
+  local iterable = emit(node.right, indent, ctx)
+  local iter_tmp = fresh_tmp()
+  local idx_tmp = fresh_tmp()
   scope_push(ctx)
   scope_declare(
     ctx,
@@ -1680,12 +1720,14 @@ gen.ForOfStatement = function(node, indent, ctx)
     node.left.type == ast.TYPE_VARIABLE_DECLARATION and node.left.kind or "let"
   )
   local body = emit(node.body, indent, ctx)
+  local var_init = cg.local_decl(var_name, cg.member_index(iter_tmp, idx_tmp), indent + 1)
+  body = var_init .. body
   if has_continue(node.body) then
     body = cg.do_block(body, indent + 1) .. cg.label("_continue", indent + 1)
   end
   scope_pop(ctx)
-  local iter = cg.call("ipairs", { emit(node.right, indent, ctx) })
-  return cg.for_in_stmt(cg.join({ "_", var_name }), iter, body, indent)
+  return cg.local_decl(iter_tmp, iterable, indent)
+    .. cg.numeric_for(idx_tmp, "1", cg.member_dot(iter_tmp, "length"), body, indent)
 end
 
 -- JS for..in → Lua pairs(). The dummy `_` catches the value since JS for..in
@@ -1969,7 +2011,7 @@ gen.BinaryExpression = function(node, indent, ctx)
       key_code = cg.binop("+", cg.paren(left), "1")
     end
     local right_expr = right:sub(1, 1) == "{" and cg.paren(right) or right
-    return cg.paren(cg.binop("~=", cg.member_index(right_expr, key_code), cg.nil_val()))
+    return cg.call("_ljs_has_property", { right_expr, key_code })
   -- Arithmetic special: modulo
   elseif op == "%" then
     return cg.call(
@@ -2387,6 +2429,7 @@ local HELPER_ORDER = {
   "_ljs_gt",
   "_ljs_le",
   "_ljs_ge",
+  "_ljs_has_property",
 }
 
 local _preamble_cache = nil
@@ -2407,7 +2450,8 @@ function M.preamble()
   _preamble_cache = read_runtime("proto")
     .. "local _ljs_arrow_this = nil\n"
     .. "local _ljs_undefined = {}\n"
-    .. "local _ljs_null = {}\n\n"
+    .. "local _ljs_null = {}\n"
+    .. "setmetatable(_ljs_object_prototype, { __index = function(t, k) return _ljs_undefined end })\n\n"
     .. helpers_str
     .. "\n\n"
     .. read_runtime("object")
