@@ -1436,6 +1436,9 @@ end
 gen.VariableDeclaration = function(node, indent, ctx)
   local out = {}
   for _, decl in ipairs(node.declarations) do
+    if node.kind == "const" and not decl.init then
+      error("SyntaxError: Missing initializer in const declaration", 0)
+    end
     local name_type = decl.name.type
     if name_type == ast.TYPE_OBJECT_PATTERN or name_type == ast.TYPE_ARRAY_PATTERN then
       if decl.init then

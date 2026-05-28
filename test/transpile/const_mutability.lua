@@ -28,3 +28,19 @@ end
 test("const reassignment errors", function()
   assert_transpile_error("const x = 1; x = 2;", "Assignment to constant variable")
 end)
+
+test("compound assignment to const errors", function()
+  assert_transpile_error("const x = 1; x += 1;", "Assignment to constant variable")
+end)
+
+test("update expression on const errors (postfix)", function()
+  assert_transpile_error("const x = 1; x++;", "Assignment to constant variable")
+end)
+
+test("update expression on const errors (prefix)", function()
+  assert_transpile_error("const x = 1; ++x;", "Assignment to constant variable")
+end)
+
+test("const without initializer errors", function()
+  assert_transpile_error("const x;", "Missing initializer in const declaration")
+end)
