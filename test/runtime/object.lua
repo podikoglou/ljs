@@ -62,3 +62,38 @@ test("Object.values throws TypeError on null", function()
   assert(not ok, "expected TypeError")
   assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
 end)
+
+-- ============================================================================
+-- Object.entries
+-- ============================================================================
+
+test("Object.entries on plain object", function()
+  local arr = exec_js("return Object.entries({a: 1, b: 2});")
+  assert_eq(arr.length, 2)
+  local found_a, found_b = false, false
+  for i = 1, arr.length do
+    local entry = arr[i]
+    assert_eq(entry.length, 2)
+    if entry[1] == "a" then
+      assert_eq(entry[2], 1)
+      found_a = true
+    end
+    if entry[1] == "b" then
+      assert_eq(entry[2], 2)
+      found_b = true
+    end
+  end
+  assert(found_a, "expected entry with key 'a'")
+  assert(found_b, "expected entry with key 'b'")
+end)
+
+test("Object.entries on empty object", function()
+  local arr = exec_js("return Object.entries({});")
+  assert_eq(arr.length, 0)
+end)
+
+test("Object.entries throws TypeError on null", function()
+  local ok, err = pcall(exec_js, "return Object.entries(null);")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)

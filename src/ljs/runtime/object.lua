@@ -73,3 +73,16 @@ Object.values = _ljs_fn(function(_ljs_this, obj)
   end
   return result
 end)
+
+Object.entries = _ljs_fn(function(_ljs_this, obj)
+  if obj == nil or obj == _ljs_null then
+    error("TypeError: Cannot convert " .. _ljs_value_repr(obj) .. " to object")
+  end
+  local o = _ljs_to_object(obj)
+  local entries = _ljs_own_entries(o)
+  local result = { length = #entries }
+  for i, e in ipairs(entries) do
+    rawset(result, i, { length = 2, e[1], e[2] })
+  end
+  return result
+end)
