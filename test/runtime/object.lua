@@ -281,3 +281,37 @@ end)
 test("Object.freeze on string returns the string", function()
   assert_eq(exec_js("return Object.freeze('hello');"), "hello")
 end)
+
+-- ============================================================================
+-- Object.seal
+-- ============================================================================
+
+test("Object.seal returns the object", function()
+  local result = exec_js([[
+    var obj = {a: 1};
+    return Object.seal(obj) === obj;
+  ]])
+  assert_eq(result, true)
+end)
+
+test("Object.seal prevents adding new properties", function()
+  local ok, err = pcall(exec_js, [[
+    var obj = Object.seal({a: 1});
+    obj.b = 2;
+  ]])
+  assert(not ok, "expected TypeError on sealed object")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("Object.seal allows modifying existing properties", function()
+  local result = exec_js([[
+    var obj = Object.seal({a: 1});
+    obj.a = 99;
+    return obj.a;
+  ]])
+  assert_eq(result, 99)
+end)
+
+test("Object.seal on non-object returns the value", function()
+  assert_eq(exec_js("return Object.seal(42);"), 42)
+end)

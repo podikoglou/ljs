@@ -148,3 +148,23 @@ Object.freeze = _ljs_fn(function(_ljs_this, obj)
   })
   return obj
 end)
+
+Object.seal = _ljs_fn(function(_ljs_this, obj)
+  if type(obj) ~= "table" then
+    return obj
+  end
+  if obj == _ljs_null then
+    return obj
+  end
+  local mt = getmetatable(obj)
+  setmetatable(obj, {
+    __index = mt and mt.__index or nil,
+    __newindex = function(t, k, v)
+      if rawget(t, k) == nil then
+        error("TypeError: Cannot add property '" .. tostring(k) .. "' to sealed object")
+      end
+      rawset(t, k, v)
+    end
+  })
+  return obj
+end)
