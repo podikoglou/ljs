@@ -184,4 +184,11 @@ T.describe("runtime/number", function()
   end
 end)
 
+T.describe("runtime/object", function()
+  local ok, err = pcall(require, "test.runtime.object")
+  if not ok then
+    print(string.format("  \27[33m⚠\27[0m runtime/object: %s", tostring(err):match("^[^\n]*")))
+  end
+end)
+
 T.summary()
