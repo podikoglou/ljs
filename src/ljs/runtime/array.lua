@@ -875,7 +875,7 @@ end)
 -- Converts each element to a string (using tostring; nil/undefined → ""),
 -- then concatenates with the given separator (default ",").
 Array.prototype.join = _ljs_fn(function(_ljs_this, sep)
-  if sep == nil then
+  if sep == nil or sep == _ljs_undefined then
     sep = ","
   end
   if _ljs_this.length == 0 then
