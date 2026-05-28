@@ -273,7 +273,7 @@ function M.member_expression(object, property, computed, token)
   }
 end
 
---- @param kind (string) "let" or "const"
+--- @param kind (string) "var", "let", or "const"
 --- @param declarations (table) Array of VariableDeclarator nodes
 --- @return table {type=M.TYPE_VARIABLE_DECLARATION, kind, declarations}
 function M.variable_declaration(kind, declarations, token)
