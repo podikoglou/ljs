@@ -1,5 +1,4 @@
 local T = require("test.ljs_test")
-local lfs = require("lfs")
 
 if arg and arg[1] == "-v" then
   T.set_verbose(true)
@@ -14,11 +13,15 @@ end
 -- Auto-discover tests from a directory
 local function auto_discover_tests(directory, describe_fn, prefix)
   local tests = {}
-  for entry in lfs.dir(directory) do
-    if entry ~= "." and entry ~= ".." and entry:match("%.lua$") then
-      local name = entry:sub(1, -5) -- remove .lua extension
-      tests[#tests + 1] = name
+  local p = io.popen('ls "' .. directory .. '"')
+  if p then
+    for entry in p:lines() do
+      if entry:match("%.lua$") then
+        local name = entry:sub(1, -5)
+        tests[#tests + 1] = name
+      end
     end
+    p:close()
   end
   table.sort(tests)
   for _, name in ipairs(tests) do
