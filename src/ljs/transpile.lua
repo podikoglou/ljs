@@ -594,6 +594,11 @@ HELPERS._ljs_eq = [[local function _ljs_eq(a, b)
   return false
 end]]
 
+HELPERS._ljs_strict_eq = [[local function _ljs_strict_eq(a, b)
+  if a == b then return true end
+  return (a == nil and b == _ljs_undefined) or (a == _ljs_undefined and b == nil)
+end]]
+
 HELPERS._ljs_lt = [[local function _ljs_lt(a, b)
   if type(a) == "string" and type(b) == "string" then
     return a < b
