@@ -131,3 +131,20 @@ Object.getOwnPropertyNames = _ljs_fn(function(_ljs_this, obj)
   end
   return result
 end)
+
+Object.freeze = _ljs_fn(function(_ljs_this, obj)
+  if type(obj) ~= "table" then
+    return obj
+  end
+  if obj == _ljs_null then
+    return obj
+  end
+  local mt = getmetatable(obj)
+  setmetatable(obj, {
+    __index = mt and mt.__index or nil,
+    __newindex = function(_, k, v)
+      error("TypeError: Cannot assign to property '" .. tostring(k) .. "' of frozen object")
+    end
+  })
+  return obj
+end)

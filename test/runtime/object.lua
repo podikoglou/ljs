@@ -252,3 +252,32 @@ test("Object.getOwnPropertyNames throws TypeError on null", function()
   assert(not ok, "expected TypeError")
   assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
 end)
+
+-- ============================================================================
+-- Object.freeze
+-- ============================================================================
+
+test("Object.freeze returns the object", function()
+  local result = exec_js([[
+    var obj = {a: 1};
+    return Object.freeze(obj) === obj;
+  ]])
+  assert_eq(result, true)
+end)
+
+test("Object.freeze prevents adding new properties", function()
+  local ok, err = pcall(exec_js, [[
+    var obj = Object.freeze({a: 1});
+    obj.b = 2;
+  ]])
+  assert(not ok, "expected TypeError on frozen object")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("Object.freeze on non-object returns the value", function()
+  assert_eq(exec_js("return Object.freeze(42);"), 42)
+end)
+
+test("Object.freeze on string returns the string", function()
+  assert_eq(exec_js("return Object.freeze('hello');"), "hello")
+end)
