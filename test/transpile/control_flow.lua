@@ -242,7 +242,7 @@ end)
 
 test("strict equality in body is wrapped", function()
   local code = transpile_ok("if (true) { x === 1; }")
-  assert(code:find("local _ = x == 1", 1, true), "expected local _ = x == 1")
+  assert(code:find("local _ = _ljs_strict_eq(x, 1)", 1, true), "expected local _ = _ljs_strict_eq(x, 1)")
 end)
 
 test("logical NOT in body is wrapped", function()

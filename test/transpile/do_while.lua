@@ -74,8 +74,8 @@ end)
 test("do-while with strict inequality condition", function()
   local code = transpile_ok("do { y; } while (x !== 0);")
   assert(
-    code:find("until not _ljs_to_boolean%(x ~= 0%)"),
-    "expected until not _ljs_to_boolean(x ~= 0)"
+    code:find("until not _ljs_to_boolean%(not _ljs_strict_eq%(x, 0%)%)"),
+    "expected until not _ljs_to_boolean(not _ljs_strict_eq(x, 0))"
   )
 end)
 

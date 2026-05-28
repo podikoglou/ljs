@@ -157,12 +157,12 @@ end)
 
 test("strict equality", function()
   local code = expr_code("x === 1")
-  assert_eq(code, "local _ = x == 1")
+  assert_eq(code, "local _ = _ljs_strict_eq(x, 1)")
 end)
 
 test("strict inequality", function()
   local code = expr_code("x !== 1")
-  assert_eq(code, "local _ = x ~= 1")
+  assert_eq(code, "local _ = not _ljs_strict_eq(x, 1)")
 end)
 
 test("logical AND", function()
