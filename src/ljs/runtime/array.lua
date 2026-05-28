@@ -536,11 +536,12 @@ end)
 -- Array.prototype.includes
 -- ---------------------------------------------------------------------------
 local function _ljs_same_value_zero(x, y)
+  if x == y then return true end
   if type(x) == "number" and type(y) == "number" then
     if x ~= x and y ~= y then return true end
-    return x == y
+    return false
   end
-  return x == y
+  return (x == nil and y == _ljs_undefined) or (x == _ljs_undefined and y == nil)
 end
 
 Array.prototype.includes = _ljs_fn(function(_ljs_this, searchElement, fromIndex)
