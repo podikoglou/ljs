@@ -8,11 +8,11 @@ end)
 Error.prototype.name = "Error"
 Error.prototype.toString = _ljs_fn(function(_ljs_this)
   local name = _ljs_this.name
-  if name == nil or name == _ljs_undefined then
+  if _ljs_is_undef(name) then
     name = "Error"
   end
   local msg = _ljs_this.message
-  if msg == nil or msg == _ljs_undefined then
+  if _ljs_is_undef(msg) then
     msg = ""
   end
   if name == "" then
