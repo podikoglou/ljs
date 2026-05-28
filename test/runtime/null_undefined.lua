@@ -193,6 +193,30 @@ test("{a: null}.hasOwnProperty('a') → true", function()
 end)
 
 -- ============================================================================
+-- Storable undefined: _ljs_undefined sentinel is stored in tables
+-- ============================================================================
+
+test("{a: undefined}.hasOwnProperty('a') → true", function()
+  assert_eq(exec_js("var o = {a: undefined}; return o.hasOwnProperty('a');"), true)
+end)
+
+test('"x" in {x: undefined} → true', function()
+  assert_eq(exec_js('return "x" in {x: undefined};'), true)
+end)
+
+test('"x" in {x: undefined} works where missing key returns false', function()
+  assert_eq(exec_js('return "y" in {x: undefined};'), false)
+end)
+
+test("0 in [undefined] → true (sentinel stored, not hole)", function()
+  assert_eq(exec_js("return 0 in [undefined];"), true)
+end)
+
+test("1 in [undefined, undefined] → true", function()
+  assert_eq(exec_js("return 1 in [undefined, undefined];"), true)
+end)
+
+-- ============================================================================
 -- Conditional: undefined is falsy
 -- ============================================================================
 
