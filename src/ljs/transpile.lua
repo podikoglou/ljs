@@ -1941,9 +1941,9 @@ gen.BinaryExpression = function(node, indent, ctx)
   if op == "=" then
     return cg.binop("=", left, right)
   elseif op == "===" then
-    return cg.binop("==", left, right)
+    return cg.call("_ljs_strict_eq", { left, right })
   elseif op == "!==" then
-    return cg.binop("~=", left, right)
+    return cg.unop("not", cg.call("_ljs_strict_eq", { left, right }))
   -- Equality with helper
   elseif op == "==" then
     return cg.call("_ljs_eq", { left, right })
@@ -2382,6 +2382,7 @@ local HELPER_ORDER = {
   "_ljs_unpack",
   "_ljs_rest",
   "_ljs_eq",
+  "_ljs_strict_eq",
   "_ljs_lt",
   "_ljs_gt",
   "_ljs_le",
