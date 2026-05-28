@@ -78,7 +78,7 @@ local function _ljs_json_stringify(val, stack)
   if val == json.null then
     return "null"
   end
-  if val == nil or val == _ljs_undefined then
+  if _ljs_is_undef(val) then
     return nil
   end
   if val == _ljs_null then

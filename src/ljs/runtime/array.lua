@@ -954,7 +954,7 @@ end)
 -- Converts each element to a string (using tostring; nil/undefined → ""),
 -- then concatenates with the given separator (default ",").
 Array.prototype.join = _ljs_fn(function(_ljs_this, sep)
-  if sep == nil or sep == _ljs_undefined then
+  if _ljs_is_undef(sep) then
     sep = ","
   end
   if _ljs_this.length == 0 then
@@ -963,7 +963,7 @@ Array.prototype.join = _ljs_fn(function(_ljs_this, sep)
   local parts = {}
   for i = 1, _ljs_this.length do
     local v = _ljs_this[i]
-    if v == nil or v == _ljs_undefined then
+    if _ljs_is_undef(v) then
       parts[i] = ""
     else
       parts[i] = tostring(v)
@@ -1002,7 +1002,7 @@ Array.prototype.toLocaleString = _ljs_fn(function(_ljs_this)
       result = result .. separator
     end
     local element = array[i]
-    if element ~= nil and element ~= _ljs_null and element ~= _ljs_undefined then
+    if not _ljs_is_nilish(element) then
       local element_str = _ljs_call_member(element, "toLocaleString")
       result = result .. _ljs_tostring(element_str)
     end
