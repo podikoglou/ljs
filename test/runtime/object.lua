@@ -97,3 +97,72 @@ test("Object.entries throws TypeError on null", function()
   assert(not ok, "expected TypeError")
   assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
 end)
+
+-- ============================================================================
+-- Object.assign
+-- ============================================================================
+
+test("Object.assign copies properties from source to target", function()
+  local result = exec_js([[
+    var target = {a: 1};
+    Object.assign(target, {b: 2, c: 3});
+    return target;
+  ]])
+  assert_eq(result.a, 1)
+  assert_eq(result.b, 2)
+  assert_eq(result.c, 3)
+end)
+
+test("Object.assign returns target", function()
+  local result = exec_js([[
+    var target = {x: 1};
+    var returned = Object.assign(target, {y: 2});
+    return returned === target;
+  ]])
+  assert_eq(result, true)
+end)
+
+test("Object.assign with single arg returns target", function()
+  local result = exec_js([[
+    var obj = {a: 1};
+    return Object.assign(obj) === obj;
+  ]])
+  assert_eq(result, true)
+end)
+
+test("Object.assign skips null and undefined sources", function()
+  local result = exec_js([[
+    var target = {a: 1};
+    Object.assign(target, null, undefined, {b: 2});
+    return target;
+  ]])
+  assert_eq(result.a, 1)
+  assert_eq(result.b, 2)
+end)
+
+test("Object.assign overwrites existing properties", function()
+  local result = exec_js([[
+    var target = {a: 1, b: 2};
+    Object.assign(target, {a: 10});
+    return target;
+  ]])
+  assert_eq(result.a, 10)
+  assert_eq(result.b, 2)
+end)
+
+test("Object.assign throws TypeError on null target", function()
+  local ok, err = pcall(exec_js, "return Object.assign(null, {a: 1});")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("Object.assign with multiple sources", function()
+  local result = exec_js([[
+    var target = {};
+    Object.assign(target, {a: 1}, {b: 2}, {c: 3});
+    return target;
+  ]])
+  assert_eq(result.a, 1)
+  assert_eq(result.b, 2)
+  assert_eq(result.c, 3)
+end)

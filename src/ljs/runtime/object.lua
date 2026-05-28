@@ -86,3 +86,25 @@ Object.entries = _ljs_fn(function(_ljs_this, obj)
   end
   return result
 end)
+
+Object.assign = _ljs_fn(function(_ljs_this, target, ...)
+  if target == nil or target == _ljs_null then
+    error("TypeError: Cannot convert " .. _ljs_value_repr(target) .. " to object")
+  end
+  local to = _ljs_to_object(target)
+  local n = select("#", ...)
+  if n == 0 then
+    return to
+  end
+  for i = 1, n do
+    local source = select(i, ...)
+    if source ~= nil and source ~= _ljs_null then
+      local from = _ljs_to_object(source)
+      local keys = _ljs_own_keys(from)
+      for _, k in ipairs(keys) do
+        rawset(to, k, rawget(from, k))
+      end
+    end
+  end
+  return to
+end)
