@@ -337,7 +337,7 @@ The `~` (bitwise NOT) operator coerces its operand to a 32-bit integer via `ToIn
 
 **Source:** `typeof x`, `typeof 42`, `typeof obj.prop`, `typeof f()`
 
-**Transpilation note:** `typeof null` returns `"undefined"` (not `"object"` as in JS). The transpiler maps JS `null` → Lua `nil`, which `_ljs_typeof` maps to `"undefined"`. All other `typeof` results match JS semantics.
+**Transpilation note:** `_ljs_typeof` returns `"object"` for `_ljs_null` and `"undefined"` for `nil`/`_ljs_undefined`, matching JS semantics exactly.
 
 ### UpdateExpression
 
