@@ -1416,6 +1416,36 @@ test("keys on empty array returns immediately done iterator", function()
 end)
 
 -- ============================================================================
+-- Array.prototype.values
+-- ============================================================================
+
+test("values returns iterator with next method", function()
+  local it = exec_js("return [10, 20, 30].values();")
+  assert_eq(type(it.next) == "table" or type(it.next) == "function", true)
+end)
+
+test("values iterator yields element values", function()
+  local it = exec_js("return [10, 20, 30].values();")
+  local r1 = it.next()
+  assert_eq(r1.value, 10)
+  assert_eq(r1.done, false)
+  local r2 = it.next()
+  assert_eq(r2.value, 20)
+  assert_eq(r2.done, false)
+  local r3 = it.next()
+  assert_eq(r3.value, 30)
+  assert_eq(r3.done, false)
+  local r4 = it.next()
+  assert_eq(r4.done, true)
+end)
+
+test("values on empty array returns immediately done iterator", function()
+  local it = exec_js("return [].values();")
+  local r = it.next()
+  assert_eq(r.done, true)
+end)
+
+-- ============================================================================
 -- Array.prototype.flat
 -- ============================================================================
 

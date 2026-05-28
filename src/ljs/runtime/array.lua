@@ -232,6 +232,13 @@ Array.prototype.keys = _ljs_fn(function(_ljs_this)
 end)
 
 -- ---------------------------------------------------------------------------
+-- Array.prototype.values
+-- ---------------------------------------------------------------------------
+Array.prototype.values = _ljs_fn(function(_ljs_this)
+  return _ljs_create_array_iterator(_ljs_this, "value")
+end)
+
+-- ---------------------------------------------------------------------------
 -- FlattenIntoArray (shared by flat and flatMap)
 -- ---------------------------------------------------------------------------
 local function flatten_into_array(target, source, source_len, start, depth, mapper, thisArg)
