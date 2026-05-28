@@ -118,3 +118,16 @@ Object.is = _ljs_fn(function(_ljs_this, x, y)
   end
   return x == y
 end)
+
+Object.getOwnPropertyNames = _ljs_fn(function(_ljs_this, obj)
+  if obj == nil or obj == _ljs_null then
+    error("TypeError: Cannot convert " .. _ljs_value_repr(obj) .. " to object")
+  end
+  local o = _ljs_to_object(obj)
+  local keyList = _ljs_own_keys(o)
+  local result = { length = #keyList }
+  for i, k in ipairs(keyList) do
+    rawset(result, i, k)
+  end
+  return result
+end)

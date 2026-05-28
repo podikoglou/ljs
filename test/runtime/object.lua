@@ -225,3 +225,30 @@ end)
 test("Object.is with different objects returns false", function()
   assert_eq(exec_js("return Object.is({}, {});"), false)
 end)
+
+-- ============================================================================
+-- Object.getOwnPropertyNames
+-- ============================================================================
+
+test("Object.getOwnPropertyNames on plain object", function()
+  local arr = exec_js("return Object.getOwnPropertyNames({a: 1, b: 2});")
+  assert_eq(arr.length, 2)
+  local found_a, found_b = false, false
+  for i = 1, arr.length do
+    if arr[i] == "a" then found_a = true end
+    if arr[i] == "b" then found_b = true end
+  end
+  assert(found_a, "expected key 'a'")
+  assert(found_b, "expected key 'b'")
+end)
+
+test("Object.getOwnPropertyNames on empty object", function()
+  local arr = exec_js("return Object.getOwnPropertyNames({});")
+  assert_eq(arr.length, 0)
+end)
+
+test("Object.getOwnPropertyNames throws TypeError on null", function()
+  local ok, err = pcall(exec_js, "return Object.getOwnPropertyNames(null);")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
