@@ -567,6 +567,7 @@ HELPERS._ljs_eq = [[local function _ljs_eq(a, b)
       if a ~= a or b ~= b then return false end
       return a == b
     end
+    if ta == "undefined" then return true end
     return a == b
   end
   if (ta == "null" and tb == "undefined") or (ta == "undefined" and tb == "null") then
