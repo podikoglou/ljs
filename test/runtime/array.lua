@@ -35,8 +35,8 @@ test("pop reduces length", function()
   assert_eq(arr[2], 2)
 end)
 
-test("pop on empty returns nil", function()
-  assert_eq(exec_js("return [].pop();"), nil)
+test("pop on empty returns undefined", function()
+  assert_eq(exec_js("return [].pop() === undefined;"), true)
 end)
 
 -- ============================================================================
@@ -600,11 +600,11 @@ test("at negative index second to last", function()
 end)
 
 test("at out of bounds positive returns undefined", function()
-  assert_eq(exec_js("return [1, 2, 3].at(3);"), nil)
+  assert_eq(exec_js("return [1, 2, 3].at(3) === undefined;"), true)
 end)
 
 test("at out of bounds negative returns undefined", function()
-  assert_eq(exec_js("return [1, 2, 3].at(-4);"), nil)
+  assert_eq(exec_js("return [1, 2, 3].at(-4) === undefined;"), true)
 end)
 
 test("at with no args returns first element", function()
@@ -620,7 +620,7 @@ test("at truncates negative fractional index", function()
 end)
 
 test("at on empty array returns undefined", function()
-  assert_eq(exec_js("return [].at(0);"), nil)
+  assert_eq(exec_js("return [].at(0) === undefined;"), true)
 end)
 
 test("at with NaN returns first element", function()
@@ -628,15 +628,15 @@ test("at with NaN returns first element", function()
 end)
 
 test("at with Infinity returns undefined", function()
-  assert_eq(exec_js("return [1, 2, 3].at(Infinity);"), nil)
+  assert_eq(exec_js("return [1, 2, 3].at(Infinity) === undefined;"), true)
 end)
 
 test("at with -Infinity returns undefined", function()
-  assert_eq(exec_js("return [1, 2, 3].at(-Infinity);"), nil)
+  assert_eq(exec_js("return [1, 2, 3].at(-Infinity) === undefined;"), true)
 end)
 
 test("at on sparse array hole returns undefined", function()
-  assert_eq(exec_js("return [1,,3].at(1);"), nil)
+  assert_eq(exec_js("return [1,,3].at(1) === undefined;"), true)
 end)
 
 -- ============================================================================
@@ -963,8 +963,8 @@ test("find returns first matching element", function()
   assert_eq(exec_js("return [1, 2, 3].find(function(x) { return x > 1; });"), 2)
 end)
 
-test("find returns nil when nothing matches", function()
-  assert_eq(exec_js("return [1, 2, 3].find(function(x) { return x > 10; });"), nil)
+test("find returns undefined when nothing matches", function()
+  assert_eq(exec_js("return [1, 2, 3].find(function(x) { return x > 10; }) === undefined;"), true)
 end)
 
 test("find with index argument", function()
@@ -1006,8 +1006,8 @@ test("find with callback returning empty string is falsy (#243)", function()
   assert_eq(exec_js("return ['', 'a'].find(x => x);"), "a")
 end)
 
-test("find with all falsy elements returns nil (#243)", function()
-  assert_eq(exec_js("return [0].find(x => x);"), nil)
+test("find with all falsy elements returns undefined (#243)", function()
+  assert_eq(exec_js("return [0].find(x => x) === undefined;"), true)
 end)
 
 test("find does not skip holes", function()
@@ -1018,8 +1018,8 @@ test("find does not skip holes", function()
   ]=]), true)
 end)
 
-test("find on empty array returns nil", function()
-  assert_eq(exec_js("return [].find(function() { return true; });"), nil)
+test("find on empty array returns undefined", function()
+  assert_eq(exec_js("return [].find(function() { return true; }) === undefined;"), true)
 end)
 
 -- ============================================================================
@@ -1142,7 +1142,7 @@ test("forEach with thisArg", function()
 end)
 
 test("forEach returns undefined", function()
-  assert_eq(exec_js("return [1, 2, 3].forEach(function() {});"), nil)
+  assert_eq(exec_js("return [1, 2, 3].forEach(function() {}) === undefined;"), true)
 end)
 
 test("forEach on empty array does nothing", function()
@@ -1759,8 +1759,8 @@ test("shift reduces length", function()
   assert_eq(arr[2], 3)
 end)
 
-test("shift on empty returns nil", function()
-  assert_eq(exec_js("return [].shift();"), nil)
+test("shift on empty returns undefined", function()
+  assert_eq(exec_js("return [].shift() === undefined;"), true)
 end)
 
 test("shift single element", function()

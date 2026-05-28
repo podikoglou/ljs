@@ -27,8 +27,8 @@ test("string bracket indexing string numeric key mid-string", function()
   assert_eq(exec_js('var s = "hello"; return s["2"];'), "l")
 end)
 
-test("string bracket indexing string numeric key OOB returns nil", function()
-  assert_eq(exec_js('var s = "hello"; return s["5"];'), nil)
+test("string bracket indexing string numeric key OOB returns undefined", function()
+  assert_eq(exec_js('var s = "hello"; return s["5"] === undefined;'), true)
 end)
 
 test("string bracket indexing string numeric key negative returns undefined", function()
