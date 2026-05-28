@@ -47,6 +47,10 @@ test("NullLiteral", function()
   assert_eq(expr_code("null;"), "local _ = _ljs_null")
 end)
 
+test("UndefinedLiteral", function()
+  assert_eq(expr_code("undefined;"), "local _ = _ljs_undefined")
+end)
+
 -- ============================================================================
 -- Unit tests — identifiers and declarations
 -- ============================================================================
