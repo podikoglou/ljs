@@ -147,3 +147,15 @@ end)
 test("Object.is(-0, 0 * -1) returns true", function()
   assert_eq(eval_js("Object.is(-0, 0 * -1)"), true)
 end)
+
+-- ============================================================================
+-- Mixed operations (end-to-end)
+-- ============================================================================
+
+test("(0 * -1) % 5 produces -0", function()
+  assert_minus_zero(eval_js("(0 * -1) % 5"), "(0 * -1) % 5")
+end)
+
+test("let x = 0; -x * 1 produces -0", function()
+  assert_minus_zero(eval_js("(function() { var x = 0; return -x * 1; })()"), "-x * 1")
+end)
