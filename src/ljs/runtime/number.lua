@@ -67,7 +67,7 @@ end)
 
 _ljs_number_prototype.toExponential = _ljs_fn(function(_ljs_this, fractionDigits)
   local x = _ljs_this_number_value(_ljs_this)
-  if fractionDigits == nil then
+  if fractionDigits == nil or fractionDigits == _ljs_undefined then
     local auto_frac
     if x ~= x then
       return "NaN"
