@@ -128,6 +128,11 @@ HELPERS._ljs_to_number = [[local function _ljs_to_number(x)
   return 0 / 0
 end]]
 
+HELPERS._ljs_to_float = [[local function _ljs_to_float(x)
+  if math.type(x) == "integer" then return x * 1.0 end
+  return x
+end]]
+
 HELPERS._ljs_to_boolean = [[local function _ljs_to_boolean(x)
   if _ljs_is_nilish(x) then
     return false
@@ -177,7 +182,7 @@ HELPERS._ljs_sub = [[local function _ljs_sub(a, b)
 end]]
 
 HELPERS._ljs_mul = [[local function _ljs_mul(a, b)
-  return _ljs_to_number(a) * _ljs_to_number(b)
+  return _ljs_to_float(_ljs_to_number(a)) * _ljs_to_float(_ljs_to_number(b))
 end]]
 
 HELPERS._ljs_div = [[local function _ljs_div(a, b)
@@ -2440,6 +2445,7 @@ local HELPER_ORDER = {
   "_ljs_to_primitive",
   "_ljs_to_number",
   "_ljs_to_int32",
+  "_ljs_to_float",
   "_ljs_to_boolean",
   "_ljs_fn",
   "_ljs_to_object",
