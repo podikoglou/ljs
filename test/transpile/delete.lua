@@ -14,7 +14,7 @@ end)
 
 test("delete obj[key] (statement)", function()
   local code = transpile_ok("delete obj[key];")
-  assert(code:find("rawset(obj, (key) + 1, nil)", 1, true), "expected rawset call")
+  assert(code:find("rawset(obj, _ljs_index(key), nil)", 1, true), "expected rawset call")
 end)
 
 test("delete obj['str'] (statement, string computed)", function()
@@ -70,7 +70,7 @@ end)
 
 test("let r = delete obj[key] (expression, computed)", function()
   local code = expr_code("let r = delete obj[key]")
-  assert_eq(code, "local r = (rawset(obj, (key) + 1, nil) and true)")
+  assert_eq(code, "local r = (rawset(obj, _ljs_index(key), nil) and true)")
 end)
 
 test("let r = delete arr[0] (expression, numeric)", function()

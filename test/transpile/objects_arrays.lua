@@ -42,9 +42,40 @@ test("computed string key no offset", function()
   assert_eq(code, 'local _ = _ljs_to_object(obj)["key"]')
 end)
 
-test("computed expression key adds offset", function()
+test("computed expression key uses _ljs_index", function()
   local code = expr_code("arr[i]")
-  assert_eq(code, "local _ = _ljs_to_object(arr)[(i) + 1]")
+  assert_eq(code, "local _ = _ljs_to_object(arr)[_ljs_index(i)]")
+end)
+
+-- ============================================================================
+-- Runtime fix: string variable keys must not get +1 (#292)
+-- ============================================================================
+
+test("string variable as computed key works (#292)", function()
+  local output = run_js([[
+    let k = "a";
+    let o = {a: 1};
+    console.log(o[k]);
+  ]])
+  assert_eq(output:match("%S+"), "1")
+end)
+
+test("numeric string variable as computed key works (#292)", function()
+  local output = run_js([[
+    let k = "0";
+    let arr = [42, 99];
+    console.log(arr[k]);
+  ]])
+  assert_eq(output:match("%S+"), "42")
+end)
+
+test("number variable as array index works (#292)", function()
+  local output = run_js([[
+    let i = 0;
+    let arr = [10, 20];
+    console.log(arr[i]);
+  ]])
+  assert_eq(output:match("%S+"), "10")
 end)
 
 -- ============================================================================

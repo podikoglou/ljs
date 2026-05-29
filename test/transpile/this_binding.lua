@@ -24,7 +24,7 @@ end)
 
 test("computed member call routes through _ljs_call_member", function()
   local code = expr_code("obj[k](a)")
-  assert_eq(code, "_ljs_call_member(obj, (k) + 1, a)")
+  assert_eq(code, "_ljs_call_member(obj, _ljs_index(k), a)")
 end)
 
 test("method shorthand gets _ljs_this param", function()
