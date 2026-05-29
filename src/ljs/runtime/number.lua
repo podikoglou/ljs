@@ -85,7 +85,7 @@ _ljs_number_prototype.toExponential = _ljs_fn(function(_ljs_this, fractionDigits
       abs_x = -abs_x
     end
     if abs_x == 0 then
-      return sign .. "0e+0"
+      return "0e+0"
     end
     local exp = math.floor(_ljs_log10(abs_x))
     local mantissa = abs_x / (10 ^ exp)
@@ -124,9 +124,9 @@ _ljs_number_prototype.toExponential = _ljs_fn(function(_ljs_this, fractionDigits
   end
   if abs_x == 0 then
     if f == 0 then
-      return sign .. "0e+0"
+      return "0e+0"
     end
-    return sign .. "0." .. string.rep("0", f) .. "e+0"
+    return "0." .. string.rep("0", f) .. "e+0"
   end
   local exp = math.floor(_ljs_log10(abs_x))
   local mantissa = abs_x / (10 ^ exp)
