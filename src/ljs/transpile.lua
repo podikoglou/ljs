@@ -183,11 +183,11 @@ HELPERS._ljs_add = [[local function _ljs_add(a, b)
   if type(a) == "string" or type(b) == "string" then
     return _ljs_tostring(a) .. _ljs_tostring(b)
   end
-  return _ljs_to_number(a) + _ljs_to_number(b)
+  return _ljs_to_float(_ljs_to_number(a)) + _ljs_to_float(_ljs_to_number(b))
 end]]
 
 HELPERS._ljs_sub = [[local function _ljs_sub(a, b)
-  return _ljs_to_number(a) - _ljs_to_number(b)
+  return _ljs_to_float(_ljs_to_number(a)) - _ljs_to_float(_ljs_to_number(b))
 end]]
 
 HELPERS._ljs_mul = [[local function _ljs_mul(a, b)
