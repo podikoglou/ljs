@@ -15,16 +15,40 @@ test("0 in arr transpiles to _ljs_has_property with +1 offset", function()
   assert_eq(expr_code("0 in arr"), "local _ = _ljs_has_property(arr, (0) + 1)")
 end)
 
-test("n in arr transpiles to _ljs_has_property with +1 offset", function()
-  assert_eq(expr_code("n in arr"), "local _ = _ljs_has_property(arr, (n) + 1)")
+test("n in arr transpiles to _ljs_has_property with _ljs_index", function()
+  assert_eq(expr_code("n in arr"), "local _ = _ljs_has_property(arr, _ljs_index(n))")
 end)
 
 test('"x" in obj.prop transpiles to _ljs_has_property', function()
-  assert_eq(expr_code('"x" in obj.prop'), 'local _ = _ljs_has_property(_ljs_to_object(obj).prop, "x")')
+  assert_eq(
+    expr_code('"x" in obj.prop'),
+    'local _ = _ljs_has_property(_ljs_to_object(obj).prop, "x")'
+  )
 end)
 
-test("key in obj transpiles to _ljs_has_property with +1 offset", function()
-  assert_eq(expr_code("key in obj"), "local _ = _ljs_has_property(obj, (key) + 1)")
+test("key in obj transpiles to _ljs_has_property with _ljs_index", function()
+  assert_eq(expr_code("key in obj"), "local _ = _ljs_has_property(obj, _ljs_index(key))")
+end)
+
+-- ============================================================================
+-- Runtime fix: string variable keys must not get +1 (#292, #340)
+-- ============================================================================
+
+test("string variable key in obj works (#340)", function()
+  local out = run_js([[
+    let k = "x";
+    let o = {x: 1};
+    console.log(k in o);
+  ]])
+  assert_eq(out, "true\n")
+end)
+
+test("number variable key in arr works (#340)", function()
+  local out = run_js([[
+    let n = 0;
+    console.log(n in [10, 20]);
+  ]])
+  assert_eq(out, "true\n")
 end)
 
 -- ============================================================================

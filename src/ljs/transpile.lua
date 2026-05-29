@@ -288,6 +288,17 @@ HELPERS._ljs_mod = [[local function _ljs_mod(n, d)
   return r
 end]]
 
+HELPERS._ljs_index = [[local function _ljs_index(k)
+  if type(k) == "string" then
+    local n = tonumber(k)
+    if n and math.floor(n) == n and n >= 0 and tostring(n) == k then
+      return n + 1
+    end
+    return k
+  end
+  return k + 1
+end]]
+
 -- typeof per §13.5.3: nil (undefined) → "undefined", _ljs_null → "object".
 HELPERS._ljs_typeof = [[local function _ljs_typeof(x)
   if _ljs_is_undef(x) then return "undefined"
@@ -1029,7 +1040,7 @@ local function emit_body(stmts, indent, ctx)
         prev = prev:sub(1, -2)
       end
       local prev_last = prev:match("(%S)$")
-      if prev_last == ")" then
+      if prev_last and (prev_last:match("[%w%)%]']") or prev_last == '"') then
         local first_sig = code:match("^%s*(%S)")
         if first_sig == "(" then
           code = cg.pad(indent) .. ";\n" .. code
@@ -1057,6 +1068,8 @@ end
 -- @return (string) Lua function expression string
 local fresh_tmp
 local emit_destructure
+local emit_block_body
+local emit_controlled_body
 
 local function param_name(p)
   if p.type == ast.TYPE_IDENTIFIER then
@@ -1110,7 +1123,7 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
       scope_declare(ctx, name, "let")
     end
   end
-  local body = emit(fn_node.body, indent, ctx)
+  local body = emit_block_body(fn_node.body, indent, ctx)
   local preamble = ""
   for _, p in ipairs(fn_node.params) do
     if
@@ -1200,7 +1213,7 @@ end
 -- @return (string) test, (string) then_body, (table|nil) elseifs, (string|nil) else_body
 local function collect_if_chain(node, indent, ctx)
   local test = cg.call("_ljs_to_boolean", { emit(node.test, indent, ctx) })
-  local body = emit(node.consequent, indent, ctx)
+  local body = emit_controlled_body(node.consequent, indent, ctx)
   local elseifs = {}
   local else_body = nil
 
@@ -1210,11 +1223,11 @@ local function collect_if_chain(node, indent, ctx)
       local inner = alternate.type == ast.TYPE_IF_STATEMENT and alternate or alternate.body[1]
       elseifs[#elseifs + 1] = {
         test = cg.call("_ljs_to_boolean", { emit(inner.test, indent, ctx) }),
-        body = emit(inner.consequent, indent, ctx),
+        body = emit_controlled_body(inner.consequent, indent, ctx),
       }
       alternate = inner.alternate
     else
-      else_body = emit(alternate, indent, ctx)
+      else_body = emit_controlled_body(alternate, indent, ctx)
       break
     end
   end
@@ -1733,7 +1746,21 @@ gen.BlockStatement = function(node, indent, ctx)
   scope_push(ctx)
   local code = emit_body(node.body, indent + 1, ctx)
   scope_pop(ctx)
+  return cg.do_block(code, indent)
+end
+
+emit_block_body = function(block_node, indent, ctx)
+  scope_push(ctx)
+  local code = emit_body(block_node.body, indent + 1, ctx)
+  scope_pop(ctx)
   return code
+end
+
+emit_controlled_body = function(node, indent, ctx)
+  if node.type == ast.TYPE_BLOCK_STATEMENT then
+    return emit_block_body(node, indent, ctx)
+  end
+  return emit(node, indent, ctx)
 end
 
 gen.IfStatement = function(node, indent, ctx)
@@ -1743,7 +1770,7 @@ end
 
 gen.WhileStatement = function(node, indent, ctx)
   local test_code = cg.call("_ljs_to_boolean", { emit(node.test, indent, ctx) })
-  local body = emit(node.body, indent, ctx)
+  local body = emit_controlled_body(node.body, indent, ctx)
   if has_continue(node.body) then
     body = cg.do_block(body, indent + 1) .. cg.label("_continue", indent + 1)
   end
@@ -1754,7 +1781,7 @@ end
 -- test is negated: JS `do {} while(cond)` → Lua `repeat until not cond`.
 gen.DoWhileStatement = function(node, indent, ctx)
   local test_code = emit(node.test, indent, ctx)
-  local body = emit(node.body, indent, ctx)
+  local body = emit_controlled_body(node.body, indent, ctx)
   if has_continue(node.body) then
     body = cg.do_block(body, indent + 1) .. cg.label("_continue", indent + 1)
   end
@@ -1778,7 +1805,7 @@ gen.ForOfStatement = function(node, indent, ctx)
     var_name,
     node.left.type == ast.TYPE_VARIABLE_DECLARATION and node.left.kind or "let"
   )
-  local body = emit(node.body, indent, ctx)
+  local body = emit_controlled_body(node.body, indent, ctx)
   local var_init = cg.local_decl(var_name, cg.member_index(iter_tmp, idx_tmp), indent + 1)
   body = var_init .. body
   if has_continue(node.body) then
@@ -1804,7 +1831,7 @@ gen.ForInStatement = function(node, indent, ctx)
     var_name,
     node.left.type == ast.TYPE_VARIABLE_DECLARATION and node.left.kind or "let"
   )
-  local body = emit(node.body, indent, ctx)
+  local body = emit_controlled_body(node.body, indent, ctx)
   if has_continue(node.body) then
     body = cg.do_block(body, indent + 1) .. cg.label("_continue", indent + 1)
   end
@@ -1824,7 +1851,7 @@ gen.ForStatement = function(node, indent, ctx)
   end
   local test_code = node.test and cg.call("_ljs_to_boolean", { emit(node.test, indent, ctx) })
     or "true"
-  local body = emit(node.body, indent, ctx)
+  local body = emit_controlled_body(node.body, indent, ctx)
   if has_continue(node.body) then
     body = cg.do_block(body, indent + 1) .. cg.label("_continue", indent + 1)
   end
@@ -1900,7 +1927,7 @@ gen.TryStatement = function(node, indent, ctx)
     if param then
       scope_declare(ctx, param, "let")
     end
-    catch_body = emit(node.handler.body, indent + 1, ctx)
+    catch_body = emit_block_body(node.handler.body, indent + 1, ctx)
     scope_pop(ctx)
   end
 
@@ -2012,6 +2039,28 @@ gen.BinaryExpression = function(node, indent, ctx)
     out[#out + 1] = cg.return_inline(tmp)
     return cg.iife(out)
   end
+  if op == "=" and node.right.type == ast.TYPE_BINARY_EXPRESSION and node.right.operator == "=" then
+    local targets = { node.left }
+    local current = node.right
+    while current.type == ast.TYPE_BINARY_EXPRESSION and current.operator == "=" do
+      targets[#targets + 1] = current.left
+      current = current.right
+    end
+    for _, lhs in ipairs(targets) do
+      if lhs.type == ast.TYPE_IDENTIFIER then
+        check_assign(ctx, lhs.name)
+      end
+    end
+    local value = emit(current, indent, ctx)
+    local tmp = fresh_tmp()
+    local stmts = {}
+    stmts[#stmts + 1] = cg.local_inline(tmp, value)
+    for _, lhs in ipairs(targets) do
+      stmts[#stmts + 1] = cg.binop("=", emit(lhs, indent, ctx), tmp)
+    end
+    stmts[#stmts + 1] = cg.return_inline(tmp)
+    return cg.iife(stmts)
+  end
   if node.left.type == ast.TYPE_IDENTIFIER then
     if op == "=" or COMPOUND_OPS[op] or op == "%=" then
       check_assign(ctx, node.left.name)
@@ -2066,8 +2115,10 @@ gen.BinaryExpression = function(node, indent, ctx)
     local key_code
     if node.left.type == ast.TYPE_STRING_LITERAL then
       key_code = left
-    else
+    elseif node.left.type == ast.TYPE_NUMBER_LITERAL then
       key_code = cg.binop("+", cg.paren(left), "1")
+    else
+      key_code = cg.call("_ljs_index", { left })
     end
     local right_expr = right:sub(1, 1) == "{" and cg.paren(right) or right
     return cg.call("_ljs_has_property", { right_expr, key_code })
@@ -2114,7 +2165,10 @@ local function member_key(node, indent, ctx)
     if node.property.type == ast.TYPE_STRING_LITERAL then
       return emit(node.property, indent, ctx)
     end
-    return cg.binop("+", cg.paren(emit(node.property, indent, ctx)), "1")
+    if node.property.type == ast.TYPE_NUMBER_LITERAL then
+      return cg.binop("+", cg.paren(emit(node.property, indent, ctx)), "1")
+    end
+    return cg.call("_ljs_index", { emit(node.property, indent, ctx) })
   end
   return cg.string(node.property.name)
 end
@@ -2507,6 +2561,7 @@ local HELPER_ORDER = {
   "_ljs_le",
   "_ljs_ge",
   "_ljs_has_property",
+  "_ljs_index",
 }
 
 local _preamble_cache = nil
