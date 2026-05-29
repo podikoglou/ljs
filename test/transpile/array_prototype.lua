@@ -9,7 +9,7 @@ local run_js, expr_code = H.run_js, H.expr_code
 
 test("Array constructor emitted in runtime init", function()
   local code = H.transpile_ok("let x = 1;")
-  assert(code:find("local Array = _ljs_ctor", 1, true), "expected Array constructor")
+  assert(code:find("Array = _ljs_ctor", 1, true), "expected Array constructor")
 end)
 
 test("Array.prototype.push emitted", function()

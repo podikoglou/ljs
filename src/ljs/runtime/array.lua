@@ -12,7 +12,7 @@ local function _ljs_arr_newindex(t, k, v)
   end
 end
 
-local Array = _ljs_ctor(function(_ljs_this, ...)
+Array = _ljs_ctor(function(_ljs_this, ...)
   local mt = getmetatable(_ljs_this)
   mt.__newindex = _ljs_arr_newindex
   local n = select("#", ...)
