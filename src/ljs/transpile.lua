@@ -1031,24 +1031,95 @@ end
 -- @param indent (number) Current indentation level
 -- @param ctx (table) Transpilation context
 -- @return (string) Concatenated Lua source
-local function emit_body(stmts, indent, ctx)
-  local parts = {}
-  for _, s in ipairs(stmts) do
-    local code = emit(s, indent, ctx)
-    if #parts > 0 and #code > 0 then
-      local prev = parts[#parts]
-      if prev:sub(-1) == "\n" then
-        prev = prev:sub(1, -2)
-      end
-      local prev_last = prev:match("(%S)$")
-      if prev_last and (prev_last:match("[%w%)%]']") or prev_last == '"') then
-        local first_sig = code:match("^%s*(%S)")
-        if first_sig == "(" then
-          code = cg.pad(indent) .. ";\n" .. code
-        end
+local function collect_var_names(node, names)
+  if node.type == ast.TYPE_VARIABLE_DECLARATION then
+    for _, decl in ipairs(node.declarations) do
+      local nt = decl.name.type
+      if nt == ast.TYPE_IDENTIFIER then
+        names[#names + 1] = decl.name.name
       end
     end
+  end
+end
+
+local function emit_body(stmts, indent, ctx)
+  local func_decls = {}
+  for _, s in ipairs(stmts) do
+    if s.type == ast.TYPE_FUNCTION_DECLARATION then
+      func_decls[#func_decls + 1] = s
+    end
+  end
+  if #func_decls == 0 then
+    local parts = {}
+    for _, s in ipairs(stmts) do
+      local code = emit(s, indent, ctx)
+      if #parts > 0 and #code > 0 then
+        local prev = parts[#parts]
+        if prev:sub(-1) == "\n" then
+          prev = prev:sub(1, -2)
+        end
+        local prev_last = prev:match("(%S)$")
+        if prev_last and (prev_last:match("[%w%)%]']") or prev_last == '"') then
+          local first_sig = code:match("^%s*(%S)")
+          if first_sig == "(" then
+            code = cg.pad(indent) .. ";\n" .. code
+          end
+        end
+      end
+      parts[#parts + 1] = code
+    end
+    return table.concat(parts)
+  end
+  local func_names = {}
+  for _, s in ipairs(func_decls) do
+    func_names[s.name] = true
+  end
+  local var_names = {}
+  for _, s in ipairs(stmts) do
+    if s.type ~= ast.TYPE_FUNCTION_DECLARATION then
+      collect_var_names(s, var_names)
+    end
+  end
+  local parts = {}
+  local all_fwd = {}
+  for name, _ in pairs(func_names) do
+    all_fwd[#all_fwd + 1] = name
+  end
+  for _, name in ipairs(var_names) do
+    if not func_names[name] then
+      all_fwd[#all_fwd + 1] = name
+    end
+  end
+  if #all_fwd > 0 then
+    table.sort(all_fwd)
+    parts[#parts + 1] = cg.local_decl(table.concat(all_fwd, ", "), nil, indent)
+    local scope = ctx.scopes[#ctx.scopes]
+    for _, name in ipairs(all_fwd) do
+      scope[name] = "__fwd"
+    end
+  end
+  for _, s in ipairs(func_decls) do
+    local code = emit(s, indent, ctx)
     parts[#parts + 1] = code
+  end
+  for _, s in ipairs(stmts) do
+    if s.type ~= ast.TYPE_FUNCTION_DECLARATION then
+      local code = emit(s, indent, ctx)
+      if #parts > 0 and #code > 0 then
+        local prev = parts[#parts]
+        if prev:sub(-1) == "\n" then
+          prev = prev:sub(1, -2)
+        end
+        local prev_last = prev:match("(%S)$")
+        if prev_last and (prev_last:match("[%w%)%]']") or prev_last == '"') then
+          local first_sig = code:match("^%s*(%S)")
+          if first_sig == "(" then
+            code = cg.pad(indent) .. ";\n" .. code
+          end
+        end
+      end
+      parts[#parts + 1] = code
+    end
   end
   return table.concat(parts)
 end
@@ -1571,10 +1642,20 @@ gen.VariableDeclaration = function(node, indent, ctx)
         emit_destructure(decl.name, tmp, indent, ctx, out, node.kind)
       end
     else
-      scope_declare(ctx, decl.name.name, node.kind)
+      local scope = ctx.scopes[#ctx.scopes]
+      local is_fwd = scope[decl.name.name] == "__fwd"
+      if is_fwd then
+        scope[decl.name.name] = node.kind
+      else
+        scope_declare(ctx, decl.name.name, node.kind)
+      end
       local init = decl.init
       if not init then
-        out[#out + 1] = cg.local_decl(decl.name.name, "_ljs_undefined", indent)
+        if is_fwd then
+          out[#out + 1] = cg.expr_stmt(cg.binop("=", decl.name.name, "_ljs_undefined"), indent)
+        else
+          out[#out + 1] = cg.local_decl(decl.name.name, "_ljs_undefined", indent)
+        end
       elseif
         init.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION
         or init.type == ast.TYPE_FUNCTION_EXPRESSION
@@ -1589,13 +1670,19 @@ gen.VariableDeclaration = function(node, indent, ctx)
         else
           inferred_name = cg.string(decl.name.name)
         end
-        out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
+        if not is_fwd then
+          out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
+        end
         out[#out + 1] = cg.expr_stmt(
           cg.binop("=", decl.name.name, cg.call(wrapper, { fn, inferred_name })),
           indent
         )
       else
-        out[#out + 1] = cg.local_decl(decl.name.name, emit(init, indent, ctx), indent)
+        if is_fwd then
+          out[#out + 1] = cg.expr_stmt(cg.binop("=", decl.name.name, emit(init, indent, ctx)), indent)
+        else
+          out[#out + 1] = cg.local_decl(decl.name.name, emit(init, indent, ctx), indent)
+        end
       end
     end
   end
@@ -1616,13 +1703,8 @@ end
 -- Declarations use the same split pattern as VariableDeclaration for the
 -- Lua 5.5 closure upvalue workaround.
 gen.FunctionDeclaration = function(node, indent, ctx)
-  scope_declare(ctx, node.name, "let")
   local fn = emit_fn(node, indent, ctx)
-  return cg.local_decl(node.name, nil, indent)
-    .. cg.expr_stmt(
-      cg.binop("=", node.name, cg.call("_ljs_ctor", { fn, cg.string(node.name) })),
-      indent
-    )
+  return cg.expr_stmt(cg.binop("=", node.name, cg.call("_ljs_ctor", { fn, cg.string(node.name) })), indent)
 end
 
 --- Shared lowering logic for ClassDeclaration and ClassExpression.
