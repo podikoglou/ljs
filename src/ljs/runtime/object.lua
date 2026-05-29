@@ -134,10 +134,11 @@ Object.getOwnPropertyNames = _ljs_fn(function(_ljs_this, obj)
   end
   local o = _ljs_to_object(obj)
   local keyList = _ljs_own_keys(o)
-  local result = { length = #keyList }
+  local result = _ljs_new(Array)
   for i, k in ipairs(keyList) do
     rawset(result, i, k)
   end
+  rawset(result, "length", #keyList)
   return result
 end)
 
