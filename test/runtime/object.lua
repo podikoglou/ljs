@@ -315,3 +315,11 @@ end)
 test("Object.seal on non-object returns the value", function()
   assert_eq(exec_js("return Object.seal(42);"), 42)
 end)
+
+-- ============================================================================
+-- Object.getPrototypeOf
+-- ============================================================================
+
+test("Object.getPrototypeOf({}) === Object.prototype", function()
+  assert_eq(exec_js("return Object.getPrototypeOf({}) === Object.prototype;"), true)
+end)
