@@ -112,3 +112,111 @@ test("Number.prototype.toPrecision: RangeError and TypeError", function()
   local _, err4 = pcall(exec_js, "return Number.prototype.toPrecision.call({});")
   assert_eq(err4:match("TypeError") ~= nil, true)
 end)
+
+-- ============================================================================
+-- Number.isNaN (ECMA-262 §21.1.2.4)
+-- ============================================================================
+
+test("Number.isNaN(NaN) is true", function()
+  assert_eq(eval_js("Number.isNaN(NaN)"), true)
+end)
+
+test("Number.isNaN(0/0) is true", function()
+  assert_eq(eval_js("Number.isNaN(0/0)"), true)
+end)
+
+test("Number.isNaN(42) is false", function()
+  assert_eq(eval_js("Number.isNaN(42)"), false)
+end)
+
+test("Number.isNaN(Infinity) is false", function()
+  assert_eq(eval_js("Number.isNaN(Infinity)"), false)
+end)
+
+test("Number.isNaN(-Infinity) is false", function()
+  assert_eq(eval_js("Number.isNaN(-Infinity)"), false)
+end)
+
+test("Number.isNaN('NaN') is false (no coercion)", function()
+  assert_eq(eval_js("Number.isNaN('NaN')"), false)
+end)
+
+test("Number.isNaN(undefined) is false (no coercion)", function()
+  assert_eq(eval_js("Number.isNaN(undefined)"), false)
+end)
+
+test("Number.isNaN('hello') is false (no coercion)", function()
+  assert_eq(eval_js("Number.isNaN('hello')"), false)
+end)
+
+test("Number.isNaN(true) is false (no coercion)", function()
+  assert_eq(eval_js("Number.isNaN(true)"), false)
+end)
+
+test("Number.isNaN(null) is false (no coercion)", function()
+  assert_eq(eval_js("Number.isNaN(null)"), false)
+end)
+
+-- ============================================================================
+-- Number.isFinite (ECMA-262 §21.1.2.2)
+-- ============================================================================
+
+test("Number.isFinite(42) is true", function()
+  assert_eq(eval_js("Number.isFinite(42)"), true)
+end)
+
+test("Number.isFinite(0) is true", function()
+  assert_eq(eval_js("Number.isFinite(0)"), true)
+end)
+
+test("Number.isFinite(Infinity) is false", function()
+  assert_eq(eval_js("Number.isFinite(Infinity)"), false)
+end)
+
+test("Number.isFinite(-Infinity) is false", function()
+  assert_eq(eval_js("Number.isFinite(-Infinity)"), false)
+end)
+
+test("Number.isFinite(NaN) is false", function()
+  assert_eq(eval_js("Number.isFinite(NaN)"), false)
+end)
+
+test("Number.isFinite('42') is false (no coercion)", function()
+  assert_eq(eval_js("Number.isFinite('42')"), false)
+end)
+
+test("Number.isFinite(null) is false (no coercion)", function()
+  assert_eq(eval_js("Number.isFinite(null)"), false)
+end)
+
+test("Number.isFinite(undefined) is false (no coercion)", function()
+  assert_eq(eval_js("Number.isFinite(undefined)"), false)
+end)
+
+-- ============================================================================
+-- Number.parseInt (ECMA-262 §21.1.2.13)
+-- ============================================================================
+
+test("Number.parseInt('42') is 42", function()
+  assert_eq(eval_js("Number.parseInt('42')"), 42)
+end)
+
+test("Number.parseInt('FF', 16) is 255", function()
+  assert_eq(eval_js("Number.parseInt('FF', 16)"), 255)
+end)
+
+test("typeof Number.parseInt is 'function'", function()
+  assert_eq(eval_js("typeof Number.parseInt"), "function")
+end)
+
+-- ============================================================================
+-- Number.parseFloat (ECMA-262 §21.1.2.12)
+-- ============================================================================
+
+test("Number.parseFloat('3.14abc') is 3.14", function()
+  assert_eq(eval_js("Number.parseFloat('3.14abc')"), 3.14)
+end)
+
+test("Number.parseFloat === parseFloat is true", function()
+  assert_eq(eval_js("Number.parseFloat === parseFloat"), true)
+end)

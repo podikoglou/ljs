@@ -37,24 +37,34 @@ end
 
 local function _ljs_parse_exp(s)
   local m_str, e_sign, e_str = s:match("^([%d%.]+)e([+-])(%d+)$")
-  if not m_str then return nil, nil end
+  if not m_str then
+    return nil, nil
+  end
   local exp = tonumber(e_str)
-  if e_sign == "-" then exp = -exp end
+  if e_sign == "-" then
+    exp = -exp
+  end
   local int_part, frac_part = m_str:match("^(%d+)%.?(%d*)$")
-  if not int_part then return nil, nil end
+  if not int_part then
+    return nil, nil
+  end
   local digits = int_part .. frac_part
   return digits, exp
 end
 
 local function _ljs_format_exp_str(abs_x, f)
   if abs_x == 0 then
-    if f == 0 then return "0", 0 end
+    if f == 0 then
+      return "0", 0
+    end
     return "0" .. string.rep("0", f), 0
   end
   local fmt = "%." .. math.min(f, 99) .. "e"
   local raw = string.format(fmt, abs_x)
   local digits, exp = _ljs_parse_exp(raw)
-  if not digits then return "0", 0 end
+  if not digits then
+    return "0", 0
+  end
   if f > 99 then
     digits = digits .. string.rep("0", f - 99)
   end
@@ -80,9 +90,15 @@ _ljs_number_prototype.toExponential = _ljs_fn(function(_ljs_this, fractionDigits
   else
     f = _ljs_to_integer_or_infinity(fractionDigits)
   end
-  if x ~= x then return "NaN" end
-  if x == math.huge then return "Infinity" end
-  if x == -math.huge then return "-Infinity" end
+  if x ~= x then
+    return "NaN"
+  end
+  if x == math.huge then
+    return "Infinity"
+  end
+  if x == -math.huge then
+    return "-Infinity"
+  end
   if not auto and (f < 0 or f > 100) then
     error("RangeError: toExponential() argument must be between 0 and 100")
   end
@@ -111,7 +127,11 @@ _ljs_number_prototype.toExponential = _ljs_fn(function(_ljs_this, fractionDigits
           local c = tonumber(d:sub(j, j))
           if carry then
             c = c + 1
-            if c >= 10 then c = 0 else carry = false end
+            if c >= 10 then
+              c = 0
+            else
+              carry = false
+            end
           end
           t[j] = tostring(c)
         end
@@ -130,7 +150,9 @@ _ljs_number_prototype.toExponential = _ljs_fn(function(_ljs_this, fractionDigits
     end
     local digits = all_digits
     digits = digits:gsub("0+$", "")
-    if #digits == 0 then digits = "0" end
+    if #digits == 0 then
+      digits = "0"
+    end
     local mantissa_str = digits:sub(1, 1)
     local frac = digits:sub(2)
     if #frac > 0 then
@@ -141,7 +163,9 @@ _ljs_number_prototype.toExponential = _ljs_fn(function(_ljs_this, fractionDigits
     return sign .. mantissa_str .. "e" .. exp_sign .. tostring(exp_abs)
   end
   if abs_x == 0 then
-    if f == 0 then return "0e+0" end
+    if f == 0 then
+      return "0e+0"
+    end
     return "0." .. string.rep("0", f) .. "e+0"
   end
   local digits, exp = _ljs_format_exp_str(abs_x, f)
@@ -159,9 +183,15 @@ _ljs_number_prototype.toPrecision = _ljs_fn(function(_ljs_this, precision)
     return _ljs_tostring(x)
   end
   local p = _ljs_to_integer_or_infinity(precision)
-  if x ~= x then return "NaN" end
-  if x == math.huge then return "Infinity" end
-  if x == -math.huge then return "-Infinity" end
+  if x ~= x then
+    return "NaN"
+  end
+  if x == math.huge then
+    return "Infinity"
+  end
+  if x == -math.huge then
+    return "-Infinity"
+  end
   if p < 1 or p > 100 then
     error("RangeError: toPrecision() argument must be between 1 and 100")
   end
@@ -172,7 +202,9 @@ _ljs_number_prototype.toPrecision = _ljs_fn(function(_ljs_this, precision)
     abs_x = -abs_x
   end
   if abs_x == 0 then
-    if p == 1 then return "0" end
+    if p == 1 then
+      return "0"
+    end
     return "0." .. string.rep("0", p - 1)
   end
   local digits, exp = _ljs_format_exp_str(abs_x, p - 1)
@@ -215,3 +247,23 @@ local Number = _ljs_fn(function(_ljs_this, ...)
 end)
 Number.prototype = _ljs_number_prototype
 _ljs_number_prototype.constructor = Number
+
+Number.isNaN = _ljs_fn(function(_ljs_this, number)
+  if type(number) ~= "number" then
+    return false
+  end
+  return number ~= number
+end)
+
+Number.isFinite = _ljs_fn(function(_ljs_this, number)
+  if type(number) ~= "number" then
+    return false
+  end
+  if number ~= number then
+    return false
+  end
+  if number == math.huge or number == -math.huge then
+    return false
+  end
+  return true
+end)
