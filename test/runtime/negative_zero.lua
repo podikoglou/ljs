@@ -17,3 +17,31 @@ end
 test("multiply: 0 * -1 produces -0", function()
   assert_minus_zero(eval_js("0 * -1"), "0 * -1")
 end)
+
+test("multiply: -1 * 0 produces -0", function()
+  assert_minus_zero(eval_js("-1 * 0"), "-1 * 0")
+end)
+
+test("multiply: -0 * 1 produces -0", function()
+  assert_minus_zero(eval_js("(-0) * 1"), "(-0) * 1")
+end)
+
+test("multiply: 0 * 0 produces +0", function()
+  assert_plus_zero(eval_js("0 * 0"), "0 * 0")
+end)
+
+test("multiply: 2 * 3 = 6 (regression)", function()
+  assert_eq(eval_js("2 * 3"), 6)
+end)
+
+test("subtract: -0 - 0 produces -0", function()
+  assert_minus_zero(eval_js("(-0) - 0"), "(-0) - 0")
+end)
+
+test("subtract: 0 - 0 produces +0", function()
+  assert_plus_zero(eval_js("0 - 0"), "0 - 0")
+end)
+
+test("subtract: 5 - 3 = 2 (regression)", function()
+  assert_eq(eval_js("5 - 3"), 2)
+end)
