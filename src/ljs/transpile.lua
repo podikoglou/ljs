@@ -408,7 +408,7 @@ HELPERS._ljs_new = [[local function _ljs_new(ctor, ...)
   else
     result = ctor(instance, ...)
   end
-  if type(result) == "table" then
+  if type(result) == "table" and not _ljs_is_undef(result) and result ~= _ljs_null then
     return result
   end
   return instance
@@ -1125,7 +1125,13 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
   end
   local save_src = fn_node.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION and "_ljs_arrow_this"
     or "_ljs_this"
-  body = cg.local_decl("_ljs_arrow_this", save_src, indent + 1) .. preamble .. body
+  local stmts = fn_node.body.body
+  local last = stmts[#stmts]
+  local trailing = ""
+  if not last or last.type ~= ast.TYPE_RETURN_STATEMENT then
+    trailing = cg.return_stmt("_ljs_undefined", indent + 1)
+  end
+  body = cg.local_decl("_ljs_arrow_this", save_src, indent + 1) .. preamble .. body .. trailing
   scope_pop(ctx)
   return cg.fn_expr(cg.join(params), body, indent)
 end

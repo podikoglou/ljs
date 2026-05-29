@@ -430,3 +430,26 @@ test("true > null coerces to 1 > 0 → true", function()
   local output = run_js("console.log(true > null);")
   assert_eq(output:match("%S+"), "true")
 end)
+
+test("function without return yields undefined", function()
+  local output = run_js("console.log((function() {})());")
+  assert_eq(output:match("%S+"), "undefined")
+end)
+
+test("arrow function without return yields undefined", function()
+  local output = run_js([[
+    var f = () => {};
+    console.log(f());
+  ]])
+  assert_eq(output:match("%S+"), "undefined")
+end)
+
+test("function with explicit return still works after implicit undefined fix", function()
+  local output = run_js("console.log((function() { return 42; })());")
+  assert_eq(output:match("%S+"), "42")
+end)
+
+test("bare return still yields undefined", function()
+  local output = run_js("console.log((function() { return; })());")
+  assert_eq(output:match("%S+"), "undefined")
+end)
