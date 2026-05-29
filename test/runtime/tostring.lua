@@ -364,3 +364,67 @@ end)
 test('(1+2).toString() → "3" (integer-valued float from addition)', function()
   assert_eq(eval_js("(1+2).toString()"), "3")
 end)
+
+-- ============================================================================
+-- _ljs_tostring with table operands (arrays/objects) — issue #284
+-- ============================================================================
+
+test('String([]) → "" (empty array)', function()
+  assert_eq(eval_js("String([])"), "")
+end)
+
+test('String([1,2,3]) → "1,2,3" (array with elements)', function()
+  assert_eq(eval_js("String([1,2,3])"), "1,2,3")
+end)
+
+test('String({}) → "[object Object]" (plain object)', function()
+  assert_eq(eval_js("String({})"), "[object Object]")
+end)
+
+test('tostring: "" + [] → "" (concat with empty array)', function()
+  assert_eq(eval_js('"" + []'), "")
+end)
+
+test('tostring: "" + [1,2,3] → "1,2,3" (concat with array)', function()
+  assert_eq(eval_js('"" + [1,2,3]'), "1,2,3")
+end)
+
+test('tostring: "" + {} → "[object Object]" (concat with object)', function()
+  assert_eq(eval_js('"" + {}'), "[object Object]")
+end)
+
+-- ============================================================================
+-- _ljs_add with table operands — issue #281
+-- ============================================================================
+
+test('add: [] + [] → ""', function()
+  assert_eq(eval_js("[] + []"), "")
+end)
+
+test('add: {} + [] → "[object Object]"', function()
+  assert_eq(eval_js("{} + []"), "[object Object]")
+end)
+
+test('add: [] + {} → "[object Object]"', function()
+  assert_eq(eval_js("[] + {}"), "[object Object]")
+end)
+
+test('add: {} + {} → "[object Object][object Object]"', function()
+  assert_eq(eval_js("{} + {}"), "[object Object][object Object]")
+end)
+
+test('add: [1] + [2] → "12"', function()
+  assert_eq(eval_js("[1] + [2]"), "12")
+end)
+
+test('add: [1,2] + [3,4] → "1,23,4"', function()
+  assert_eq(eval_js("[1,2] + [3,4]"), "1,23,4")
+end)
+
+test('add: true + [] → "true"', function()
+  assert_eq(eval_js("true + []"), "true")
+end)
+
+test('add: [] + true → "true"', function()
+  assert_eq(eval_js("[] + true"), "true")
+end)

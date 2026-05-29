@@ -154,10 +154,18 @@ HELPERS._ljs_tostring = [[local function _ljs_tostring(x)
     if x == 0 then return "0" end
     if math.floor(x) == x then return tostring(math.floor(x)) end
     return tostring(x)
+  elseif type(x) == "table" then
+    return _ljs_tostring(_ljs_to_primitive(x))
   else return tostring(x) end
 end]]
 
 HELPERS._ljs_add = [[local function _ljs_add(a, b)
+  if type(a) == "table" and a ~= _ljs_null and not _ljs_is_undef(a) then
+    a = _ljs_to_primitive(a)
+  end
+  if type(b) == "table" and b ~= _ljs_null and not _ljs_is_undef(b) then
+    b = _ljs_to_primitive(b)
+  end
   if type(a) == "string" or type(b) == "string" then
     return _ljs_tostring(a) .. _ljs_tostring(b)
   end
