@@ -35,26 +35,6 @@ local function _ljs_to_integer_or_infinity(x)
   return _ljs_trunc(n)
 end
 
-local function _ljs_log10(n)
-  if n <= 0 then
-    return -math.huge
-  end
-  return math.log(n) / math.log(10)
-end
-
-local function _ljs_format_fixed(val, n)
-  if n <= 99 then
-    return string.format("%." .. n .. "f", val)
-  end
-  local safe = string.format("%.50f", val)
-  local int_part, frac_part = safe:match("^(-?%d+)%.(%d+)$")
-  if not int_part then
-    return safe
-  end
-  frac_part = frac_part .. string.rep("0", n - #frac_part)
-  return int_part .. "." .. frac_part
-end
-
 local function _ljs_parse_exp(s)
   local m_str, e_sign, e_str = s:match("^([%d%.]+)e([+-])(%d+)$")
   if not m_str then return nil, nil end
