@@ -89,3 +89,61 @@ end)
 test("pow: 2 ** 3 = 8 (regression)", function()
   assert_eq(eval_js("2 ** 3"), 8)
 end)
+
+-- ============================================================================
+-- Console display (matches Node.js behavior)
+-- ============================================================================
+
+local function capture_stdout(fn)
+  local old = io.stdout
+  local tmp = io.tmpfile()
+  io.stdout = tmp
+  fn()
+  tmp:seek("set")
+  local out = tmp:read("*a")
+  tmp:close()
+  io.stdout = old
+  return out
+end
+
+test("console.log(-0) displays '-0'", function()
+  local out = capture_stdout(function()
+    exec_js("console.log(-0);")
+  end)
+  assert_eq(out, "-0\n")
+end)
+
+test("console.log(0 * -1) displays '-0'", function()
+  local out = capture_stdout(function()
+    exec_js("console.log(0 * -1);")
+  end)
+  assert_eq(out, "-0\n")
+end)
+
+-- ============================================================================
+-- String/toString regression (spec: both +0 and -0 stringify to "0")
+-- ============================================================================
+
+test("String(-0) returns '0' (regression)", function()
+  assert_eq(eval_js("String(-0)"), "0")
+end)
+
+test("(-0).toString() returns '0' (regression)", function()
+  assert_eq(eval_js("(-0).toString()"), "0")
+end)
+
+test("String(0 * -1) returns '0'", function()
+  assert_eq(eval_js("String(0 * -1)"), "0")
+end)
+
+-- ============================================================================
+-- Object.is still distinguishes ±0
+-- ============================================================================
+
+test("Object.is(0, 0 * -1) returns false", function()
+  assert_eq(eval_js("Object.is(0, 0 * -1)"), false)
+end)
+
+test("Object.is(-0, 0 * -1) returns true", function()
+  assert_eq(eval_js("Object.is(-0, 0 * -1)"), true)
+end)
