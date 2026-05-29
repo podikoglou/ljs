@@ -453,3 +453,52 @@ test("bare return still yields undefined", function()
   local output = run_js("console.log((function() { return; })());")
   assert_eq(output:match("%S+"), "undefined")
 end)
+
+-- ============================================================================
+-- Block-scoped let (#283)
+-- ============================================================================
+
+test("block-scoped let does not leak to outer scope (#283)", function()
+  local output = run_js([[
+    let x = 1;
+    {
+      let x = 2;
+    }
+    console.log(x);
+  ]])
+  assert_eq(output:match("%S+"), "1")
+end)
+
+test("block-scoped let unit: standalone block wraps in do...end (#283)", function()
+  local code = transpile_ok([[
+    let x = 1;
+    {
+      let x = 2;
+    }
+  ]])
+  assert(code:find("do\n", 1, true), "expected do block in output")
+  assert(code:find("end\n", 1, true), "expected end block in output")
+end)
+
+-- ============================================================================
+-- Chained assignment (#291)
+-- Per ECMA-262 §13.15: assignment is right-associative and returns the value
+-- ============================================================================
+
+test("chained assignment a = b = 5 (#291)", function()
+  local output = run_js([[
+    let a, b;
+    a = b = 5;
+    console.log(a, b);
+  ]])
+  assert_eq(output:match("%S+"), "5")
+end)
+
+test("chained assignment returns value (#291)", function()
+  local output = run_js([[
+    let a, b;
+    let c = (a = b = 42);
+    console.log(a, b, c);
+  ]])
+  assert_eq(output:match("^%S+"), "42")
+end)
