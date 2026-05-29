@@ -54,10 +54,11 @@ Object.keys = _ljs_fn(function(_ljs_this, obj)
   end
   local o = _ljs_to_object(obj)
   local keyList = _ljs_own_keys(o)
-  local result = { length = #keyList }
+  local result = _ljs_new(Array)
   for i, k in ipairs(keyList) do
     rawset(result, i, k)
   end
+  rawset(result, "length", #keyList)
   return result
 end)
 
@@ -67,10 +68,11 @@ Object.values = _ljs_fn(function(_ljs_this, obj)
   end
   local o = _ljs_to_object(obj)
   local entries = _ljs_own_entries(o)
-  local result = { length = #entries }
+  local result = _ljs_new(Array)
   for i, e in ipairs(entries) do
     rawset(result, i, e[2])
   end
+  rawset(result, "length", #entries)
   return result
 end)
 
@@ -80,10 +82,15 @@ Object.entries = _ljs_fn(function(_ljs_this, obj)
   end
   local o = _ljs_to_object(obj)
   local entries = _ljs_own_entries(o)
-  local result = { length = #entries }
+  local result = _ljs_new(Array)
   for i, e in ipairs(entries) do
-    rawset(result, i, { length = 2, e[1], e[2] })
+    local pair = _ljs_new(Array)
+    rawset(pair, 1, e[1])
+    rawset(pair, 2, e[2])
+    rawset(pair, "length", 2)
+    rawset(result, i, pair)
   end
+  rawset(result, "length", #entries)
   return result
 end)
 
@@ -127,10 +134,11 @@ Object.getOwnPropertyNames = _ljs_fn(function(_ljs_this, obj)
   end
   local o = _ljs_to_object(obj)
   local keyList = _ljs_own_keys(o)
-  local result = { length = #keyList }
+  local result = _ljs_new(Array)
   for i, k in ipairs(keyList) do
     rawset(result, i, k)
   end
+  rawset(result, "length", #keyList)
   return result
 end)
 

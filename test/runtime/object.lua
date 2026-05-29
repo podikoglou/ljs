@@ -19,6 +19,17 @@ test("Object.keys on plain object", function()
   assert(found_b, "expected key 'b'")
 end)
 
+test("Object.keys returns a JS Array", function()
+  assert_eq(exec_js("return Array.isArray(Object.keys({a: 1}));"), true)
+end)
+
+test("Object.keys result has Array.prototype methods", function()
+  assert_eq(exec_js([[
+    var k = Object.keys({a: 1, b: 2, c: 3});
+    return typeof k.map === "function" && typeof k.join === "function";
+  ]]), true)
+end)
+
 test("Object.keys on empty object", function()
   local arr = exec_js("return Object.keys({});")
   assert_eq(arr.length, 0)
@@ -57,6 +68,17 @@ test("Object.values on empty object", function()
   assert_eq(arr.length, 0)
 end)
 
+test("Object.values returns a JS Array", function()
+  assert_eq(exec_js("return Array.isArray(Object.values({a: 1}));"), true)
+end)
+
+test("Object.values result has Array.prototype methods", function()
+  assert_eq(exec_js([[
+    var v = Object.values({a: 1, b: 2});
+    return typeof v.map === "function" && typeof v.join === "function";
+  ]]), true)
+end)
+
 test("Object.values throws TypeError on null", function()
   local ok, err = pcall(exec_js, "return Object.values(null);")
   assert(not ok, "expected TypeError")
@@ -90,6 +112,31 @@ end)
 test("Object.entries on empty object", function()
   local arr = exec_js("return Object.entries({});")
   assert_eq(arr.length, 0)
+end)
+
+test("Object.entries returns a JS Array", function()
+  assert_eq(exec_js("return Array.isArray(Object.entries({a: 1}));"), true)
+end)
+
+test("Object.entries result has Array.prototype methods", function()
+  assert_eq(exec_js([[
+    var e = Object.entries({a: 1, b: 2});
+    return typeof e.map === "function" && typeof e.join === "function";
+  ]]), true)
+end)
+
+test("Object.entries sub-arrays are JS Arrays", function()
+  assert_eq(exec_js([[
+    var e = Object.entries({a: 1});
+    return Array.isArray(e[0]);
+  ]]), true)
+end)
+
+test("Object.entries sub-arrays have Array.prototype methods", function()
+  assert_eq(exec_js([[
+    var e = Object.entries({a: 1});
+    return typeof e[0].map === "function";
+  ]]), true)
 end)
 
 test("Object.entries throws TypeError on null", function()
@@ -245,6 +292,17 @@ end)
 test("Object.getOwnPropertyNames on empty object", function()
   local arr = exec_js("return Object.getOwnPropertyNames({});")
   assert_eq(arr.length, 0)
+end)
+
+test("Object.getOwnPropertyNames returns a JS Array", function()
+  assert_eq(exec_js("return Array.isArray(Object.getOwnPropertyNames({a: 1}));"), true)
+end)
+
+test("Object.getOwnPropertyNames result has Array.prototype methods", function()
+  assert_eq(exec_js([[
+    var n = Object.getOwnPropertyNames({a: 1, b: 2});
+    return typeof n.map === "function" && typeof n.join === "function";
+  ]]), true)
 end)
 
 test("Object.getOwnPropertyNames throws TypeError on null", function()
