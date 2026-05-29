@@ -45,3 +45,15 @@ end)
 test("subtract: 5 - 3 = 2 (regression)", function()
   assert_eq(eval_js("5 - 3"), 2)
 end)
+
+test("add: -0 + -0 produces -0", function()
+  assert_minus_zero(eval_js("(-0) + (-0)"), "(-0) + (-0)")
+end)
+
+test("add: 0 + 0 produces +0", function()
+  assert_plus_zero(eval_js("0 + 0"), "0 + 0")
+end)
+
+test("add: 2 + 3 = 5 (regression)", function()
+  assert_eq(eval_js("2 + 3"), 5)
+end)
