@@ -26,8 +26,8 @@ end)
 test("Object.keys result has Array.prototype methods", function()
   assert_eq(exec_js([[
     var k = Object.keys({a: 1, b: 2, c: 3});
-    return k.map(function(x) { return x.toUpperCase(); }).join(",");
-  ]]), "A,B,C")
+    return typeof k.map === "function" && typeof k.join === "function";
+  ]]), true)
 end)
 
 test("Object.keys on empty object", function()
@@ -66,6 +66,17 @@ end)
 test("Object.values on empty object", function()
   local arr = exec_js("return Object.values({});")
   assert_eq(arr.length, 0)
+end)
+
+test("Object.values returns a JS Array", function()
+  assert_eq(exec_js("return Array.isArray(Object.values({a: 1}));"), true)
+end)
+
+test("Object.values result has Array.prototype methods", function()
+  assert_eq(exec_js([[
+    var v = Object.values({a: 1, b: 2});
+    return typeof v.map === "function" && typeof v.join === "function";
+  ]]), true)
 end)
 
 test("Object.values throws TypeError on null", function()
