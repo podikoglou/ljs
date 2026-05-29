@@ -242,6 +242,10 @@ test("join with empty separator", function()
   assert_eq(exec_js("return [1, 2, 3].join('');"), "123")
 end)
 
+test("join with nested arrays", function()
+  assert_eq(exec_js("return [1, [2, 3]].join();"), "1,2,3")
+end)
+
 -- ============================================================================
 -- Array.prototype.toString
 -- ============================================================================
@@ -267,7 +271,10 @@ test("toString with mixed types", function()
 end)
 
 test("toString falls back to Object.prototype.toString when join is null", function()
-  assert_eq(exec_js("let arr = [1, 2, 3]; arr.join = null; return arr.toString();"), "[object Array]")
+  assert_eq(
+    exec_js("let arr = [1, 2, 3]; arr.join = null; return arr.toString();"),
+    "[object Array]"
+  )
 end)
 
 test("toString falls back to Object.prototype.toString when join is a number", function()
@@ -275,11 +282,19 @@ test("toString falls back to Object.prototype.toString when join is a number", f
 end)
 
 test("toString falls back to Object.prototype.toString when join is a string", function()
-  assert_eq(exec_js("let arr = [1, 2, 3]; arr.join = 'hello'; return arr.toString();"), "[object Array]")
+  assert_eq(
+    exec_js("let arr = [1, 2, 3]; arr.join = 'hello'; return arr.toString();"),
+    "[object Array]"
+  )
 end)
 
 test("toString uses custom join when join is callable", function()
-  assert_eq(exec_js("let arr = [1, 2, 3]; arr.join = function() { return 'custom'; }; return arr.toString();"), "custom")
+  assert_eq(
+    exec_js(
+      "let arr = [1, 2, 3]; arr.join = function() { return 'custom'; }; return arr.toString();"
+    ),
+    "custom"
+  )
 end)
 
 -- ============================================================================
@@ -665,10 +680,13 @@ test("some short-circuits on first match", function()
 end)
 
 test("some with thisArg", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var ctx = { threshold: 3 };
     return [1, 2, 4].some(function(x) { return x > this.threshold; }, ctx);
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 test("some skips holes in sparse array", function()
@@ -747,10 +765,13 @@ test("every short-circuits on first mismatch", function()
 end)
 
 test("every with thisArg", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var ctx = { max: 5 };
     return [1, 2, 3].every(function(x) { return x < this.max; }, ctx);
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 test("every skips holes in sparse array", function()
@@ -976,10 +997,13 @@ test("find with array argument", function()
 end)
 
 test("find with thisArg", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var ctx = { threshold: 2 };
     return [1, 2, 3].find(function(x) { return x > this.threshold; }, ctx);
-  ]]), 3)
+  ]]),
+    3
+  )
 end)
 
 test("find throws TypeError on non-function", function()
@@ -1011,11 +1035,14 @@ test("find with all falsy elements returns undefined (#243)", function()
 end)
 
 test("find does not skip holes", function()
-  assert_eq(exec_js([=[
+  assert_eq(
+    exec_js([=[
     var found = false;
     [1,,3].find(function(x) { if (x === undefined) found = true; return false; });
     return found;
-  ]=]), true)
+  ]=]),
+    true
+  )
 end)
 
 test("find on empty array returns undefined", function()
@@ -1043,10 +1070,13 @@ test("findIndex with array argument", function()
 end)
 
 test("findIndex with thisArg", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var ctx = { threshold: 2 };
     return [1, 2, 3].findIndex(function(x) { return x > this.threshold; }, ctx);
-  ]]), 2)
+  ]]),
+    2
+  )
 end)
 
 test("findIndex throws TypeError on non-function", function()
@@ -1078,11 +1108,14 @@ test("findIndex with all falsy elements returns -1 (#243)", function()
 end)
 
 test("findIndex does not skip holes", function()
-  assert_eq(exec_js([=[
+  assert_eq(
+    exec_js([=[
     var found = false;
     [1,,3].findIndex(function(x) { if (x === undefined) found = true; return false; });
     return found;
-  ]=]), true)
+  ]=]),
+    true
+  )
 end)
 
 test("findIndex on empty array returns -1", function()
@@ -1347,11 +1380,17 @@ test("reduceRight with initialValue", function()
 end)
 
 test("reduceRight iterates indices in descending order", function()
-  assert_eq(exec_js("return [10, 20, 30].reduceRight(function(acc, x, i) { return acc + i; }, 0);"), 3)
+  assert_eq(
+    exec_js("return [10, 20, 30].reduceRight(function(acc, x, i) { return acc + i; }, 0);"),
+    3
+  )
 end)
 
 test("reduceRight passes array as fourth argument", function()
-  assert_eq(exec_js("return [1, 2, 3].reduceRight(function(acc, x, i, a) { return a.length; }, 0);"), 3)
+  assert_eq(
+    exec_js("return [1, 2, 3].reduceRight(function(acc, x, i, a) { return a.length; }, 0);"),
+    3
+  )
 end)
 
 test("reduceRight empty array with initialValue returns initialValue", function()
@@ -1839,7 +1878,10 @@ test("unshift on sparse array", function()
   ]=])
   assert_eq(arr.length, 4)
   assert_eq(arr[1], 0)
-  assert_eq(exec_js("var a=[,,3]; a.unshift(0); return a[1]===undefined && a[2]===undefined;"), true)
+  assert_eq(
+    exec_js("var a=[,,3]; a.unshift(0); return a[1]===undefined && a[2]===undefined;"),
+    true
+  )
   assert_eq(arr[4], 3)
 end)
 
@@ -2016,7 +2058,10 @@ test("sort sparse array removes holes", function()
   assert_eq(arr[1], 1)
   assert_eq(arr[2], 2)
   assert_eq(arr[3], 3)
-  assert_eq(exec_js("var a=[3,,1,,2]; a.sort(); return a[3]===undefined && a[4]===undefined;"), true)
+  assert_eq(
+    exec_js("var a=[3,,1,,2]; a.sort(); return a[3]===undefined && a[4]===undefined;"),
+    true
+  )
 end)
 
 test("sort throws TypeError on non-callable comparator", function()
@@ -2080,7 +2125,10 @@ test("Object.prototype.toLocaleString delegates to toString", function()
 end)
 
 test("Object.prototype.toLocaleString uses custom toString", function()
-  assert_eq(exec_js("return ({toString: function() { return 'custom'; }}).toLocaleString();"), "custom")
+  assert_eq(
+    exec_js("return ({toString: function() { return 'custom'; }}).toLocaleString();"),
+    "custom"
+  )
 end)
 
 -- ============================================================================
