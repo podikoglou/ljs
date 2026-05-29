@@ -233,3 +233,27 @@ test("delete member in switch case", function()
   assert(code:find('rawset(obj, "prop", nil)', 1, true), "expected rawset in case")
   assert(code:find("_ljs_sw == 1", 1, true), "expected case comparison")
 end)
+
+test("let r = delete undefined (non-configurable global)", function()
+  assert_eq(expr_code("let r = delete undefined"), "local r = false")
+end)
+
+test("let r = delete NaN (non-configurable global)", function()
+  assert_eq(expr_code("let r = delete NaN"), "local r = false")
+end)
+
+test("let r = delete Infinity (non-configurable global)", function()
+  assert_eq(expr_code("let r = delete Infinity"), "local r = false")
+end)
+
+test("let r = delete declared_var (declared identifier)", function()
+  assert_eq(expr_code("let x; let r = delete x"), "local r = false")
+end)
+
+test("delete delete undefined (double delete — inner false, outer true)", function()
+  assert_eq(expr_code("let r = delete delete undefined"), "local r = true")
+end)
+
+test("let r = delete undeclaredVar (undeclared identifier — true)", function()
+  assert_eq(expr_code("let r = delete undeclaredVar"), "local r = true")
+end)
