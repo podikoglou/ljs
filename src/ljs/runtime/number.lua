@@ -22,8 +22,8 @@ local function _ljs_to_integer_or_infinity(x)
   if x == nil then
     return 0
   end
-  local n = tonumber(x)
-  if n == nil or n ~= n then
+  local n = _ljs_to_number(x)
+  if n ~= n then
     return 0
   end
   if n == 0 then
@@ -96,8 +96,39 @@ _ljs_number_prototype.toExponential = _ljs_fn(function(_ljs_this, fractionDigits
     if abs_x == 0 then
       return "0e+0"
     end
-    local raw = string.format("%.15e", abs_x)
-    local digits, exp = _ljs_parse_exp(raw)
+    local raw = string.format("%.17e", abs_x)
+    local all_digits, exp = _ljs_parse_exp(raw)
+    local nd
+    for i = 1, 17 do
+      local last = tonumber(all_digits:sub(i, i))
+      local next_d = tonumber(all_digits:sub(i + 1, i + 1)) or 0
+      local d = all_digits:sub(1, i)
+      local e = exp
+      if next_d >= 5 then
+        local carry = true
+        local t = {}
+        for j = i, 1, -1 do
+          local c = tonumber(d:sub(j, j))
+          if carry then
+            c = c + 1
+            if c >= 10 then c = 0 else carry = false end
+          end
+          t[j] = tostring(c)
+        end
+        d = table.concat(t)
+        if carry then
+          d = "1" .. d:sub(2)
+          e = e + 1
+        end
+      end
+      local s = d:sub(1, 1) .. "." .. d:sub(2) .. "e" .. e
+      if tonumber(s) == abs_x then
+        all_digits = d
+        exp = e
+        break
+      end
+    end
+    local digits = all_digits
     digits = digits:gsub("0+$", "")
     if #digits == 0 then digits = "0" end
     local mantissa_str = digits:sub(1, 1)
