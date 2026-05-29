@@ -953,3 +953,191 @@ test("~~5.7 truncates to int after refactor", function()
   local output = run_js("console.log(~~5.7);")
   assert_eq(output:gsub("%s+", ""), "5")
 end)
+
+-- ============================================================================
+-- Integration tests — ToNumber coercion for non-number operands (#282)
+-- ============================================================================
+
+test("bitwise NOT ~null = -1", function()
+  local output = run_js("console.log(~null);")
+  assert_eq(output:gsub("%s+", ""), "-1")
+end)
+
+test("bitwise NOT ~undefined = -1", function()
+  local output = run_js("console.log(~undefined);")
+  assert_eq(output:gsub("%s+", ""), "-1")
+end)
+
+test("bitwise NOT ~true = -2", function()
+  local output = run_js("console.log(~true);")
+  assert_eq(output:gsub("%s+", ""), "-2")
+end)
+
+test("bitwise NOT ~false = -1", function()
+  local output = run_js("console.log(~false);")
+  assert_eq(output:gsub("%s+", ""), "-1")
+end)
+
+test("1 & null = 0", function()
+  local output = run_js("console.log(1 & null);")
+  assert_eq(output:gsub("%s+", ""), "0")
+end)
+
+test("1 & true = 1", function()
+  local output = run_js("console.log(1 & true);")
+  assert_eq(output:gsub("%s+", ""), "1")
+end)
+
+test("1 | null = 1", function()
+  local output = run_js("console.log(1 | null);")
+  assert_eq(output:gsub("%s+", ""), "1")
+end)
+
+test("1 | false = 1", function()
+  local output = run_js("console.log(1 | false);")
+  assert_eq(output:gsub("%s+", ""), "1")
+end)
+
+test("1 ^ null = 1", function()
+  local output = run_js("console.log(1 ^ null);")
+  assert_eq(output:gsub("%s+", ""), "1")
+end)
+
+test("1 ^ true = 0", function()
+  local output = run_js("console.log(1 ^ true);")
+  assert_eq(output:gsub("%s+", ""), "0")
+end)
+
+test("1 << null = 1", function()
+  local output = run_js("console.log(1 << null);")
+  assert_eq(output:gsub("%s+", ""), "1")
+end)
+
+test("1 >> null = 1", function()
+  local output = run_js("console.log(1 >> null);")
+  assert_eq(output:gsub("%s+", ""), "1")
+end)
+
+test("1 >>> null = 1", function()
+  local output = run_js("console.log(1 >>> null);")
+  assert_eq(output:gsub("%s+", ""), "1")
+end)
+
+test("1 << true = 2", function()
+  local output = run_js("console.log(1 << true);")
+  assert_eq(output:gsub("%s+", ""), "2")
+end)
+
+test("1 >> true = 0", function()
+  local output = run_js("console.log(1 >> true);")
+  assert_eq(output:gsub("%s+", ""), "0")
+end)
+
+test("true & true = 1", function()
+  local output = run_js("console.log(true & true);")
+  assert_eq(output:gsub("%s+", ""), "1")
+end)
+
+test("true | false = 1", function()
+  local output = run_js("console.log(true | false);")
+  assert_eq(output:gsub("%s+", ""), "1")
+end)
+
+test("null & null = 0", function()
+  local output = run_js("console.log(null & null);")
+  assert_eq(output:gsub("%s+", ""), "0")
+end)
+
+test("null | null = 0", function()
+  local output = run_js("console.log(null | null);")
+  assert_eq(output:gsub("%s+", ""), "0")
+end)
+
+test("NaN >>> 0 = 0", function()
+  local output = run_js("console.log(NaN >>> 0);")
+  assert_eq(output:gsub("%s+", ""), "0")
+end)
+
+test("null >>> 0 = 0", function()
+  local output = run_js("console.log(null >>> 0);")
+  assert_eq(output:gsub("%s+", ""), "0")
+end)
+
+test("true >>> 0 = 1", function()
+  local output = run_js("console.log(true >>> 0);")
+  assert_eq(output:gsub("%s+", ""), "1")
+end)
+
+test("false >>> 0 = 0", function()
+  local output = run_js("console.log(false >>> 0);")
+  assert_eq(output:gsub("%s+", ""), "0")
+end)
+
+-- ============================================================================
+-- Integration tests — NaN shift operands (#300)
+-- ============================================================================
+
+test("1 << NaN = 1", function()
+  local output = run_js("console.log(1 << NaN);")
+  assert_eq(output:gsub("%s+", ""), "1")
+end)
+
+test("1 >> NaN = 1", function()
+  local output = run_js("console.log(1 >> NaN);")
+  assert_eq(output:gsub("%s+", ""), "1")
+end)
+
+test("1 >>> NaN = 1", function()
+  local output = run_js("console.log(1 >>> NaN);")
+  assert_eq(output:gsub("%s+", ""), "1")
+end)
+
+test("NaN & 1 = 0", function()
+  local output = run_js("console.log(NaN & 1);")
+  assert_eq(output:gsub("%s+", ""), "0")
+end)
+
+test("NaN | 1 = 1", function()
+  local output = run_js("console.log(NaN | 1);")
+  assert_eq(output:gsub("%s+", ""), "1")
+end)
+
+test("NaN ^ 1 = 1", function()
+  local output = run_js("console.log(NaN ^ 1);")
+  assert_eq(output:gsub("%s+", ""), "1")
+end)
+
+test("~NaN = -1", function()
+  local output = run_js("console.log(~NaN);")
+  assert_eq(output:gsub("%s+", ""), "-1")
+end)
+
+test("NaN ^ 5 = 5", function()
+  local output = run_js("console.log(NaN ^ 5);")
+  assert_eq(output:gsub("%s+", ""), "5")
+end)
+
+test("undefined ^ 5 = 5", function()
+  local output = run_js("console.log(undefined ^ 5);")
+  assert_eq(output:gsub("%s+", ""), "5")
+end)
+
+test("5 ^ NaN = 5", function()
+  local output = run_js("console.log(5 ^ NaN);")
+  assert_eq(output:gsub("%s+", ""), "5")
+end)
+
+test("NaN ^ NaN = 0", function()
+  local output = run_js("console.log(NaN ^ NaN);")
+  assert_eq(output:gsub("%s+", ""), "0")
+end)
+
+test("NaN ^ 255 = 255", function()
+  local output = run_js("console.log(NaN ^ 255);")
+  assert_eq(output:gsub("%s+", ""), "255")
+end)
+
+test("undefined ^ 0xAB = 171", function()
+  local output = run_js("console.log(undefined ^ 0xAB);")
+  assert_eq(output:gsub("%s+", ""), "171")
+end)

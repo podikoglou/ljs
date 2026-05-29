@@ -64,6 +64,8 @@ HELPERS._ljs_is_nilish = [[local function _ljs_is_nilish(x)
 end]]
 
 HELPERS._ljs_to_int32 = [[local function _ljs_to_int32(x)
+  x = _ljs_to_number(x)
+  if x ~= x then return 0 end
   x = math.floor(x) % 0x100000000
   if x >= 0x80000000 then x = x - 0x100000000 end
   return x
@@ -187,8 +189,8 @@ HELPERS._ljs_bnot = [[local function _ljs_bnot(x)
 end]]
 
 HELPERS._ljs_band = [[local function _ljs_band(a, b)
-  a = math.floor(a) % 0x100000000
-  b = math.floor(b) % 0x100000000
+  a = math.floor(_ljs_to_number(a)) % 0x100000000
+  b = math.floor(_ljs_to_number(b)) % 0x100000000
   local r, m = 0, 1
   while a > 0 and b > 0 do
     if a % 2 == 1 and b % 2 == 1 then r = r + m end
@@ -198,8 +200,8 @@ HELPERS._ljs_band = [[local function _ljs_band(a, b)
 end]]
 
 HELPERS._ljs_bor = [[local function _ljs_bor(a, b)
-  a = math.floor(a) % 0x100000000
-  b = math.floor(b) % 0x100000000
+  a = math.floor(_ljs_to_number(a)) % 0x100000000
+  b = math.floor(_ljs_to_number(b)) % 0x100000000
   local r, m = 0, 1
   while a > 0 or b > 0 do
     if a % 2 == 1 or b % 2 == 1 then r = r + m end
@@ -209,8 +211,12 @@ HELPERS._ljs_bor = [[local function _ljs_bor(a, b)
 end]]
 
 HELPERS._ljs_bxor = [[local function _ljs_bxor(a, b)
-  a = math.floor(a) % 0x100000000
-  b = math.floor(b) % 0x100000000
+  local an = _ljs_to_number(a)
+  if an ~= an then an = 0 else an = math.floor(an) % 0x100000000 end
+  a = an
+  local bn = _ljs_to_number(b)
+  if bn ~= bn then bn = 0 else bn = math.floor(bn) % 0x100000000 end
+  b = bn
   local r, m = 0, 1
   while a > 0 or b > 0 do
     if a % 2 ~= b % 2 then r = r + m end
@@ -221,21 +227,28 @@ end]]
 
 HELPERS._ljs_shl = [[local function _ljs_shl(a, b)
   a = _ljs_to_int32(a)
-  b = math.floor(b) % 32
+  local bn = _ljs_to_number(b)
+  if bn ~= bn then return a end
+  b = math.floor(bn) % 32
   if b == 0 then return a end
   return _ljs_to_int32(a * 2^b)
 end]]
 
 HELPERS._ljs_shr = [[local function _ljs_shr(a, b)
   a = _ljs_to_int32(a)
-  b = math.floor(b) % 32
+  local bn = _ljs_to_number(b)
+  if bn ~= bn then return a end
+  b = math.floor(bn) % 32
   if b == 0 then return a end
   return math.floor(a / 2^b)
 end]]
 
 HELPERS._ljs_usr = [[local function _ljs_usr(a, b)
-  a = math.floor(a) % 0x100000000
-  b = math.floor(b) % 32
+  local an = _ljs_to_number(a)
+  if an ~= an then an = 0 else an = math.floor(an) % 0x100000000 end
+  a = an
+  local bn = _ljs_to_number(b)
+  if bn ~= bn then b = 0 else b = math.floor(bn) % 32 end
   if b == 0 then return a end
   return math.floor(a / 2^b)
 end]]
@@ -2396,7 +2409,7 @@ end
 
 -- === Top-level preamble and emit ===
 
--- Emission order: _ljs_to_int32 first (other helpers depend on it),
+-- Emission order: _ljs_to_number before _ljs_to_int32 (which depends on it),
 -- _ljs_to_number/_ljs_to_boolean before arithmetic and coercion helpers,
 -- _ljs_fn before _ljs_ctor (which depends on it), _ljs_to_object before
 -- _ljs_call_member (which calls it), _ljs_tostring, rest alphabetical.
@@ -2404,9 +2417,9 @@ end
 local HELPER_ORDER = {
   "_ljs_is_undef",
   "_ljs_is_nilish",
-  "_ljs_to_int32",
   "_ljs_to_primitive",
   "_ljs_to_number",
+  "_ljs_to_int32",
   "_ljs_to_boolean",
   "_ljs_fn",
   "_ljs_to_object",
@@ -2453,7 +2466,7 @@ local HELPER_ORDER = {
 local _preamble_cache = nil
 
 --- Build the runtime preamble (helpers + stdlib). Result is cached after first call.
--- Structure: proto declarations → _ljs_arrow_this → _ljs_undefined → _ljs_null → setmetatable → _ljs_is_undef → _ljs_is_nilish → 44 helpers → runtime stdlib files.
+-- Structure: proto declarations → _ljs_arrow_this → _ljs_undefined → _ljs_null → setmetatable → _ljs_is_undef → _ljs_is_nilish → _ljs_to_primitive → _ljs_to_number → _ljs_to_int32 → remaining helpers → runtime stdlib files.
 -- Idempotent; safe to call for multi-file output (emit preamble once, then per-file emit).
 -- @return (string) Complete Lua preamble source
 function M.preamble()
