@@ -175,3 +175,19 @@ Object.seal = _ljs_fn(function(_ljs_this, obj)
   setmetatable(obj, new_mt)
   return obj
 end)
+
+Object.getPrototypeOf = _ljs_fn(function(_ljs_this, obj)
+  if _ljs_is_nilish(obj) then
+    error("TypeError: Cannot convert " .. _ljs_value_repr(obj) .. " to object")
+  end
+  local o = _ljs_to_object(obj)
+  local mt = getmetatable(o)
+  if mt == nil then
+    return _ljs_null
+  end
+  local proto = mt.__index
+  if type(proto) ~= "table" then
+    return _ljs_null
+  end
+  return proto
+end)

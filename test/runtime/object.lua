@@ -315,3 +315,39 @@ end)
 test("Object.seal on non-object returns the value", function()
   assert_eq(exec_js("return Object.seal(42);"), 42)
 end)
+
+-- ============================================================================
+-- Object.getPrototypeOf
+-- ============================================================================
+
+test("Object.getPrototypeOf({}) === Object.prototype", function()
+  assert_eq(exec_js("return Object.getPrototypeOf({}) === Object.prototype;"), true)
+end)
+
+test("Object.getPrototypeOf(Object.create(null)) returns null", function()
+  assert_eq(exec_js("return Object.getPrototypeOf(Object.create(null)) === null;"), true)
+end)
+
+test("Object.getPrototypeOf(Object.prototype) returns null", function()
+  assert_eq(exec_js("return Object.getPrototypeOf(Object.prototype) === null;"), true)
+end)
+
+test("Object.getPrototypeOf throws TypeError on null", function()
+  local ok, err = pcall(exec_js, "return Object.getPrototypeOf(null);")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("Object.getPrototypeOf throws TypeError on undefined", function()
+  local ok, err = pcall(exec_js, "return Object.getPrototypeOf(undefined);")
+  assert(not ok, "expected TypeError")
+  assert(tostring(err):find("TypeError"), "expected TypeError in: " .. tostring(err))
+end)
+
+test("Object.getPrototypeOf on function returns Function.prototype", function()
+  assert_eq(exec_js("return Object.getPrototypeOf(function(){}) === Function.prototype;"), true)
+end)
+
+test("Object.getPrototypeOf on number returns Number.prototype", function()
+  assert_eq(exec_js("return Object.getPrototypeOf(42) === Number.prototype;"), true)
+end)
