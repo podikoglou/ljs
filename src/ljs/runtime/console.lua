@@ -8,7 +8,10 @@ local function _ljs_inspect(x, depth, stack)
 
   if x == _ljs_null then return "null" end
   if _ljs_is_undef(x) then return "undefined" end
-  if type(x) == "number" then return _ljs_tostring(x) end
+  if type(x) == "number" then
+    if x == 0 and 1/x < 0 then return "-0" end
+    return _ljs_tostring(x)
+  end
   if type(x) == "string" then
     if depth > 0 then
       return "'" .. x .. "'"

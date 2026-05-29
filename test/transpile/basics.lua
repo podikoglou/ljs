@@ -188,7 +188,7 @@ end)
 
 test("unary minus", function()
   local code = expr_code("-x")
-  assert_eq(code, "local _ = -_ljs_to_number(x)")
+  assert_eq(code, "local _ = _ljs_neg(x)")
 end)
 
 test("unary minus -0 emits negative zero", function()
