@@ -50,7 +50,7 @@ Object.create = _ljs_fn(_ljs_object_create)
 
 Object.keys = _ljs_fn(function(_ljs_this, obj)
   if _ljs_is_nilish(obj) then
-    error("TypeError: Cannot convert " .. _ljs_value_repr(obj) .. " to object")
+    _ljs_type_error("Cannot convert " .. _ljs_value_repr(obj) .. " to object")
   end
   local o = _ljs_to_object(obj)
   local keyList = _ljs_own_keys(o)
@@ -64,7 +64,7 @@ end)
 
 Object.values = _ljs_fn(function(_ljs_this, obj)
   if _ljs_is_nilish(obj) then
-    error("TypeError: Cannot convert " .. _ljs_value_repr(obj) .. " to object")
+    _ljs_type_error("Cannot convert " .. _ljs_value_repr(obj) .. " to object")
   end
   local o = _ljs_to_object(obj)
   local entries = _ljs_own_entries(o)
@@ -78,7 +78,7 @@ end)
 
 Object.entries = _ljs_fn(function(_ljs_this, obj)
   if _ljs_is_nilish(obj) then
-    error("TypeError: Cannot convert " .. _ljs_value_repr(obj) .. " to object")
+    _ljs_type_error("Cannot convert " .. _ljs_value_repr(obj) .. " to object")
   end
   local o = _ljs_to_object(obj)
   local entries = _ljs_own_entries(o)
@@ -96,7 +96,7 @@ end)
 
 Object.assign = _ljs_fn(function(_ljs_this, target, ...)
   if _ljs_is_nilish(target) then
-    error("TypeError: Cannot convert " .. _ljs_value_repr(target) .. " to object")
+    _ljs_type_error("Cannot convert " .. _ljs_value_repr(target) .. " to object")
   end
   local to = _ljs_to_object(target)
   local n = select("#", ...)
@@ -130,7 +130,7 @@ end)
 
 Object.getOwnPropertyNames = _ljs_fn(function(_ljs_this, obj)
   if _ljs_is_nilish(obj) then
-    error("TypeError: Cannot convert " .. _ljs_value_repr(obj) .. " to object")
+    _ljs_type_error("Cannot convert " .. _ljs_value_repr(obj) .. " to object")
   end
   local o = _ljs_to_object(obj)
   local keyList = _ljs_own_keys(o)
@@ -157,7 +157,7 @@ Object.freeze = _ljs_fn(function(_ljs_this, obj)
     end
   end
   new_mt.__newindex = function(_, k, v)
-    error("TypeError: Cannot assign to property '" .. tostring(k) .. "' of frozen object")
+    _ljs_type_error("Cannot assign to property '" .. tostring(k) .. "' of frozen object")
   end
   setmetatable(obj, new_mt)
   return obj
@@ -178,7 +178,7 @@ Object.seal = _ljs_fn(function(_ljs_this, obj)
     end
   end
   new_mt.__newindex = function(_, k, v)
-    error("TypeError: Cannot add property '" .. tostring(k) .. "' to sealed object")
+    _ljs_type_error("Cannot add property '" .. tostring(k) .. "' to sealed object")
   end
   setmetatable(obj, new_mt)
   return obj
@@ -186,7 +186,7 @@ end)
 
 Object.getPrototypeOf = _ljs_fn(function(_ljs_this, obj)
   if _ljs_is_nilish(obj) then
-    error("TypeError: Cannot convert " .. _ljs_value_repr(obj) .. " to object")
+    _ljs_type_error("Cannot convert " .. _ljs_value_repr(obj) .. " to object")
   end
   local o = _ljs_to_object(obj)
   local mt = getmetatable(o)

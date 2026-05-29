@@ -15,7 +15,7 @@ local function _ljs_this_number_value(_ljs_this)
   if type(_ljs_this) == "table" and rawget(_ljs_this, "_ljs_data") ~= nil then
     return rawget(_ljs_this, "_ljs_data")
   end
-  error("TypeError: this is not a Number")
+  _ljs_type_error("this is not a Number")
 end
 
 local function _ljs_to_integer_or_infinity(x)
@@ -100,7 +100,7 @@ _ljs_number_prototype.toExponential = _ljs_fn(function(_ljs_this, fractionDigits
     return "-Infinity"
   end
   if not auto and (f < 0 or f > 100) then
-    error("RangeError: toExponential() argument must be between 0 and 100")
+    _ljs_range_error("toExponential() argument must be between 0 and 100")
   end
   local sign = ""
   local abs_x = x
@@ -193,7 +193,7 @@ _ljs_number_prototype.toPrecision = _ljs_fn(function(_ljs_this, precision)
     return "-Infinity"
   end
   if p < 1 or p > 100 then
-    error("RangeError: toPrecision() argument must be between 1 and 100")
+    _ljs_range_error("toPrecision() argument must be between 1 and 100")
   end
   local sign = ""
   local abs_x = x

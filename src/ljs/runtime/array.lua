@@ -46,7 +46,7 @@ end)
 -- ---------------------------------------------------------------------------
 Array.prototype.map = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
   if not _ljs_is_function(callbackFn) then
-    error("TypeError: " .. _ljs_value_repr(callbackFn) .. " is not a function")
+    _ljs_type_error(_ljs_value_repr(callbackFn) .. " is not a function")
   end
   local len = _ljs_this.length or 0
   local result = _ljs_new(Array)
@@ -66,7 +66,7 @@ end)
 -- ---------------------------------------------------------------------------
 Array.prototype.forEach = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
   if not _ljs_is_function(callbackFn) then
-    error("TypeError: " .. _ljs_value_repr(callbackFn) .. " is not a function")
+    _ljs_type_error(_ljs_value_repr(callbackFn) .. " is not a function")
   end
   local len = _ljs_this.length or 0
   for i = 1, len do
@@ -83,7 +83,7 @@ end)
 -- ---------------------------------------------------------------------------
 Array.prototype.filter = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
   if not _ljs_is_function(callbackFn) then
-    error("TypeError: " .. _ljs_value_repr(callbackFn) .. " is not a function")
+    _ljs_type_error(_ljs_value_repr(callbackFn) .. " is not a function")
   end
   local len = _ljs_this.length or 0
   local result = _ljs_new(Array)
@@ -107,7 +107,7 @@ end)
 -- ---------------------------------------------------------------------------
 Array.prototype.reduce = _ljs_fn(function(_ljs_this, callbackFn, initialValue)
   if not _ljs_is_function(callbackFn) then
-    error("TypeError: " .. _ljs_value_repr(callbackFn) .. " is not a function")
+    _ljs_type_error(_ljs_value_repr(callbackFn) .. " is not a function")
   end
   local len = _ljs_this.length or 0
   local accumulator
@@ -116,7 +116,7 @@ Array.prototype.reduce = _ljs_fn(function(_ljs_this, callbackFn, initialValue)
     accumulator = initialValue
   else
     if len == 0 then
-      error("TypeError: Reduce of empty array with no initial value")
+      _ljs_type_error("Reduce of empty array with no initial value")
     end
     local found = false
     while k <= len do
@@ -130,7 +130,7 @@ Array.prototype.reduce = _ljs_fn(function(_ljs_this, callbackFn, initialValue)
       k = k + 1
     end
     if not found then
-      error("TypeError: Reduce of empty array with no initial value")
+      _ljs_type_error("Reduce of empty array with no initial value")
     end
   end
   while k <= len do
@@ -148,7 +148,7 @@ end)
 -- ---------------------------------------------------------------------------
 Array.prototype.reduceRight = _ljs_fn(function(_ljs_this, callbackFn, initialValue)
   if not _ljs_is_function(callbackFn) then
-    error("TypeError: " .. _ljs_value_repr(callbackFn) .. " is not a function")
+    _ljs_type_error(_ljs_value_repr(callbackFn) .. " is not a function")
   end
   local len = _ljs_this.length or 0
   local accumulator
@@ -157,7 +157,7 @@ Array.prototype.reduceRight = _ljs_fn(function(_ljs_this, callbackFn, initialVal
     accumulator = initialValue
   else
     if len == 0 then
-      error("TypeError: Reduce of empty array with no initial value")
+      _ljs_type_error("Reduce of empty array with no initial value")
     end
     local found = false
     while k >= 1 do
@@ -171,7 +171,7 @@ Array.prototype.reduceRight = _ljs_fn(function(_ljs_this, callbackFn, initialVal
       k = k - 1
     end
     if not found then
-      error("TypeError: Reduce of empty array with no initial value")
+      _ljs_type_error("Reduce of empty array with no initial value")
     end
   end
   while k >= 1 do
@@ -308,7 +308,7 @@ end)
 -- ---------------------------------------------------------------------------
 Array.prototype.flatMap = _ljs_fn(function(_ljs_this, mapperFunction, thisArg)
   if not _ljs_is_function(mapperFunction) then
-    error("TypeError: " .. _ljs_value_repr(mapperFunction) .. " is not a function")
+    _ljs_type_error(_ljs_value_repr(mapperFunction) .. " is not a function")
   end
   local len = _ljs_this.length or 0
   local result = _ljs_new(Array)
@@ -322,7 +322,7 @@ end)
 -- ---------------------------------------------------------------------------
 Array.prototype.some = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
   if not _ljs_is_function(callbackFn) then
-    error("TypeError: " .. _ljs_value_repr(callbackFn) .. " is not a function")
+    _ljs_type_error(_ljs_value_repr(callbackFn) .. " is not a function")
   end
   local len = _ljs_this.length or 0
   for i = 1, len do
@@ -342,7 +342,7 @@ end)
 -- ---------------------------------------------------------------------------
 Array.prototype.every = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
   if not _ljs_is_function(callbackFn) then
-    error("TypeError: " .. _ljs_value_repr(callbackFn) .. " is not a function")
+    _ljs_type_error(_ljs_value_repr(callbackFn) .. " is not a function")
   end
   local len = _ljs_this.length or 0
   for i = 1, len do
@@ -623,7 +623,7 @@ end)
 -- ---------------------------------------------------------------------------
 Array.prototype.find = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
   if not _ljs_is_function(callbackFn) then
-    error("TypeError: " .. _ljs_value_repr(callbackFn) .. " is not a function")
+    _ljs_type_error(_ljs_value_repr(callbackFn) .. " is not a function")
   end
   local len = _ljs_this.length or 0
   for i = 1, len do
@@ -644,7 +644,7 @@ end)
 -- ---------------------------------------------------------------------------
 Array.prototype.findIndex = _ljs_fn(function(_ljs_this, callbackFn, thisArg)
   if not _ljs_is_function(callbackFn) then
-    error("TypeError: " .. _ljs_value_repr(callbackFn) .. " is not a function")
+    _ljs_type_error(_ljs_value_repr(callbackFn) .. " is not a function")
   end
   local len = _ljs_this.length or 0
   for i = 1, len do
@@ -905,7 +905,7 @@ end
 
 Array.prototype.sort = _ljs_fn(function(_ljs_this, comparator)
   if comparator ~= nil and not _ljs_is_function(comparator) then
-    error("TypeError: " .. _ljs_value_repr(comparator) .. " is not a function")
+    _ljs_type_error(_ljs_value_repr(comparator) .. " is not a function")
   end
   local len = _ljs_this.length or 0
   local items = {}
