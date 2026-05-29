@@ -211,8 +211,12 @@ HELPERS._ljs_bor = [[local function _ljs_bor(a, b)
 end]]
 
 HELPERS._ljs_bxor = [[local function _ljs_bxor(a, b)
-  a = math.floor(_ljs_to_number(a)) % 0x100000000
-  b = math.floor(_ljs_to_number(b)) % 0x100000000
+  local an = _ljs_to_number(a)
+  if an ~= an then an = 0 else an = math.floor(an) % 0x100000000 end
+  a = an
+  local bn = _ljs_to_number(b)
+  if bn ~= bn then bn = 0 else bn = math.floor(bn) % 0x100000000 end
+  b = bn
   local r, m = 0, 1
   while a > 0 or b > 0 do
     if a % 2 ~= b % 2 then r = r + m end

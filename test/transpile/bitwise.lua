@@ -1111,3 +1111,33 @@ test("~NaN = -1", function()
   local output = run_js("console.log(~NaN);")
   assert_eq(output:gsub("%s+", ""), "-1")
 end)
+
+test("NaN ^ 5 = 5", function()
+  local output = run_js("console.log(NaN ^ 5);")
+  assert_eq(output:gsub("%s+", ""), "5")
+end)
+
+test("undefined ^ 5 = 5", function()
+  local output = run_js("console.log(undefined ^ 5);")
+  assert_eq(output:gsub("%s+", ""), "5")
+end)
+
+test("5 ^ NaN = 5", function()
+  local output = run_js("console.log(5 ^ NaN);")
+  assert_eq(output:gsub("%s+", ""), "5")
+end)
+
+test("NaN ^ NaN = 0", function()
+  local output = run_js("console.log(NaN ^ NaN);")
+  assert_eq(output:gsub("%s+", ""), "0")
+end)
+
+test("NaN ^ 255 = 255", function()
+  local output = run_js("console.log(NaN ^ 255);")
+  assert_eq(output:gsub("%s+", ""), "255")
+end)
+
+test("undefined ^ 0xAB = 171", function()
+  local output = run_js("console.log(undefined ^ 0xAB);")
+  assert_eq(output:gsub("%s+", ""), "171")
+end)
