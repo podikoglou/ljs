@@ -966,7 +966,7 @@ Array.prototype.join = _ljs_fn(function(_ljs_this, sep)
     if _ljs_is_undef(v) then
       parts[i] = ""
     else
-      parts[i] = tostring(v)
+      parts[i] = _ljs_tostring(v)
     end
   end
   return table.concat(parts, sep)
