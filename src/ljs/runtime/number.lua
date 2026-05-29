@@ -154,6 +154,74 @@ _ljs_number_prototype.toExponential = _ljs_fn(function(_ljs_this, fractionDigits
   return sign .. mantissa_str .. "e" .. exp_sign .. tostring(exp_abs)
 end)
 
+_ljs_number_prototype.toPrecision = _ljs_fn(function(_ljs_this, precision)
+  local x = _ljs_this_number_value(_ljs_this)
+  if precision == nil or precision == _ljs_undefined then
+    return _ljs_tostring(x)
+  end
+  local p = _ljs_to_integer_or_infinity(precision)
+  if x ~= x then return "NaN" end
+  if x == math.huge then return "Infinity" end
+  if x == -math.huge then return "-Infinity" end
+  if p < 1 or p > 100 then
+    error("RangeError: toPrecision() argument must be between 1 and 100")
+  end
+  local sign = ""
+  local abs_x = x
+  if abs_x < 0 or (1 / abs_x) == -math.huge then
+    sign = "-"
+    abs_x = -abs_x
+  end
+  if abs_x == 0 then
+    if p == 1 then
+      return sign .. "0"
+    end
+    return sign .. "0." .. string.rep("0", p - 1)
+  end
+  local exp = math.floor(_ljs_log10(abs_x))
+  local mantissa = abs_x / (10 ^ exp)
+  if mantissa >= 10 then
+    mantissa = mantissa / 10
+    exp = exp + 1
+  end
+  if mantissa < 1 then
+    mantissa = mantissa * 10
+    exp = exp - 1
+  end
+  local rounded = math.floor(mantissa * (10 ^ (p - 1)) + 0.5) / (10 ^ (p - 1))
+  if rounded >= 10 then
+    rounded = rounded / 10
+    exp = exp + 1
+  end
+  local m
+  if p <= 99 then
+    m = string.format("%." .. (p - 1) .. "f", rounded)
+  else
+    m = _ljs_format_fixed(rounded, p - 1)
+  end
+  local digits = m:gsub("%.", "")
+  if exp < -6 or exp >= p then
+    local int_part = digits:sub(1, 1)
+    local frac = digits:sub(2)
+    local exp_sign = exp >= 0 and "+" or "-"
+    local exp_abs = math.abs(exp)
+    if p == 1 then
+      return sign .. int_part .. "e" .. exp_sign .. tostring(exp_abs)
+    end
+    return sign .. int_part .. "." .. frac .. "e" .. exp_sign .. tostring(exp_abs)
+  end
+  if exp == p - 1 then
+    return sign .. digits
+  end
+  if exp >= 0 then
+    local int_part = digits:sub(1, exp + 1)
+    local frac_part = digits:sub(exp + 2)
+    return sign .. int_part .. "." .. frac_part
+  end
+  local zeros = string.rep("0", -(exp + 1))
+  return sign .. "0." .. zeros .. digits
+end)
+
 setmetatable(_ljs_number_prototype, { __index = _ljs_object_prototype })
 
 local Number = _ljs_fn(function(_ljs_this, ...)
