@@ -27,25 +27,36 @@ end)
 local parseInt = _ljs_fn(function(_ljs_this, string, radix)
   local s = _ljs_tostring(string)
   s = s:match("^%s*(.-)$")
-  if s == "" then return 0 / 0 end
+  if s == "" then
+    return 0 / 0
+  end
   local sign = 1
   if s:sub(1, 1) == "-" then
-    sign = -1; s = s:sub(2)
+    sign = -1
+    s = s:sub(2)
   elseif s:sub(1, 1) == "+" then
     s = s:sub(2)
   end
-  if s == "" then return 0 / 0 end
+  if s == "" then
+    return 0 / 0
+  end
 
   local r = 0
   if radix ~= nil then
     r = _ljs_to_int32(radix)
-    if r ~= r then r = 0 end
+    if r ~= r then
+      r = 0
+    end
   end
 
   local strip_prefix = true
   if r ~= 0 then
-    if r < 2 or r > 36 then return 0 / 0 end
-    if r ~= 16 then strip_prefix = false end
+    if r < 2 or r > 36 then
+      return 0 / 0
+    end
+    if r ~= 16 then
+      strip_prefix = false
+    end
   else
     r = 10
   end
@@ -55,12 +66,20 @@ local parseInt = _ljs_fn(function(_ljs_this, string, radix)
     r = 16
   end
 
-  if s == "" then return 0 / 0 end
+  if s == "" then
+    return 0 / 0
+  end
 
   local function digit_value(c)
-    if c >= "0" and c <= "9" then return c:byte() - 48 end
-    if c >= "a" and c <= "z" then return c:byte() - 87 end
-    if c >= "A" and c <= "Z" then return c:byte() - 55 end
+    if c >= "0" and c <= "9" then
+      return c:byte() - 48
+    end
+    if c >= "a" and c <= "z" then
+      return c:byte() - 87
+    end
+    if c >= "A" and c <= "Z" then
+      return c:byte() - 55
+    end
     return -1
   end
 
@@ -68,20 +87,29 @@ local parseInt = _ljs_fn(function(_ljs_this, string, radix)
   local found = false
   for i = 1, #s do
     local d = digit_value(s:sub(i, i))
-    if d < 0 or d >= r then break end
+    if d < 0 or d >= r then
+      break
+    end
     result = result * r + d
     found = true
   end
 
-  if not found then return 0 / 0 end
+  if not found then
+    return 0 / 0
+  end
   return sign * result
 end)
+
+Number.parseInt = parseInt
+Number.parseFloat = parseFloat
 
 -- parseFloat(string): ECMA-262 §19.2.4.
 local parseFloat = _ljs_fn(function(_ljs_this, string)
   local s = _ljs_tostring(string)
   s = s:match("^%s*(.-)$")
-  if s == "" then return 0 / 0 end
+  if s == "" then
+    return 0 / 0
+  end
 
   local sign = ""
   if s:sub(1, 1) == "+" or s:sub(1, 1) == "-" then
@@ -90,20 +118,26 @@ local parseFloat = _ljs_fn(function(_ljs_this, string)
   end
 
   if s:sub(1, 1) == "I" and s:sub(1, #"Infinity") == "Infinity" then
-    if sign == "-" then return -math.huge end
+    if sign == "-" then
+      return -math.huge
+    end
     return math.huge
   end
 
   local matched = s:match("^%d+%.%d*[eE][+-]?%d+")
-      or s:match("^%d+%.%d*")
-      or s:match("^%d+[eE][+-]?%d+")
-      or s:match("^%d+")
-      or s:match("^%.%d+[eE][+-]?%d+")
-      or s:match("^%.%d+")
-      or s:match("^[eE][+-]?%d+")
+    or s:match("^%d+%.%d*")
+    or s:match("^%d+[eE][+-]?%d+")
+    or s:match("^%d+")
+    or s:match("^%.%d+[eE][+-]?%d+")
+    or s:match("^%.%d+")
+    or s:match("^[eE][+-]?%d+")
 
-  if not matched then return 0 / 0 end
+  if not matched then
+    return 0 / 0
+  end
   local n = tonumber(sign .. matched)
-  if n == nil then return 0 / 0 end
+  if n == nil then
+    return 0 / 0
+  end
   return n
 end)
