@@ -146,12 +146,10 @@ Represents the `this` keyword. Binds to the calling context at runtime: the rece
 | Field | Type | Description |
 |-------|------|-------------|
 | `type` | `"VariableDeclaration"` | |
-| `kind` | `string` | `"let"` or `"const"` |
+| `kind` | `string` | `"var"`, `"let"`, or `"const"` |
 | `declarations` | `VariableDeclarator[]` | One or more declarators |
 
-`var` is normalized to `"let"`.
-
-**Source:** `let x = 1;`, `const y = 2, z = 3;`, `var v = 4;`
+**Source:** `var v = 4;`, `let x = 1;`, `const y = 2, z = 3;`
 
 ### VariableDeclarator
 

@@ -920,8 +920,10 @@ end
 local function scope_declare(ctx, name, kind)
   local scope = ctx.scopes[#ctx.scopes]
   local existing = scope[name]
-  if existing and (existing == "const" or kind == "const") then
-    error("SyntaxError: Identifier '" .. name .. "' has already been declared", 0)
+  if existing then
+    if not (existing == "var" and kind == "var") then
+      error("SyntaxError: Identifier '" .. name .. "' has already been declared", 0)
+    end
   end
   scope[name] = kind or "let"
 end
