@@ -1645,6 +1645,9 @@ gen.VariableDeclaration = function(node, indent, ctx)
       local scope = ctx.scopes[#ctx.scopes]
       local is_fwd = scope[decl.name.name] == "__fwd"
       if is_fwd then
+        if node.kind == "let" or node.kind == "const" then
+          error("SyntaxError: Identifier '" .. decl.name.name .. "' has already been declared", 0)
+        end
         scope[decl.name.name] = node.kind
       else
         scope_declare(ctx, decl.name.name, node.kind)
