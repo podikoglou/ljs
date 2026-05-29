@@ -22,14 +22,14 @@ test("Array.prototype.pop emitted", function()
   assert(code:find("Array.prototype.pop", 1, true), "expected Array.prototype.pop")
 end)
 
-test("array literal emits _ljs_new(Array, ...)", function()
+test("array literal emits _ljs_arr_lit(...)", function()
   local code = expr_code("[1, 2, 3]")
-  assert_eq(code, "_ljs_new(Array, 1, 2, 3)")
+  assert_eq(code, "_ljs_arr_lit(1, 2, 3)")
 end)
 
-test("empty array literal emits _ljs_new(Array)", function()
+test("empty array literal emits _ljs_arr_lit()", function()
   local code = expr_code("[]")
-  assert_eq(code, "_ljs_new(Array)")
+  assert_eq(code, "_ljs_arr_lit()")
 end)
 
 -- ============================================================================

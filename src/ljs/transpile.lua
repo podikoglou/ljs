@@ -469,6 +469,16 @@ HELPERS._ljs_new = [[local function _ljs_new(ctor, ...)
   return instance
 end]]
 
+HELPERS._ljs_arr_lit = [[local function _ljs_arr_lit(...)
+  local _t = _ljs_new(Array)
+  local _n = select("#", ...)
+  for _i = 1, _n do
+    rawset(_t, _i, select(_i, ...))
+  end
+  rawset(_t, "length", _n)
+  return _t
+end]]
+
 HELPERS._ljs_call_this = [[local function _ljs_call_this(fn, this_val, ...)
   if not _ljs_is_function(fn) then
     _ljs_type_error(_ljs_value_repr(fn) .. " is not a function")
@@ -1219,7 +1229,7 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
   for _, p in ipairs(fn_node.params) do
     if p.type == ast.TYPE_REST_ELEMENT then
       preamble = preamble
-        .. cg.local_decl(p.argument.name, cg.call("_ljs_new", { "Array", "..." }), indent + 1)
+        .. cg.local_decl(p.argument.name, cg.call("_ljs_arr_lit", { "..." }), indent + 1)
     elseif p.type == ast.TYPE_ASSIGNMENT_PATTERN and not is_pattern(p.left) then
       local pname = p.left.name
       local default_code = emit(p.right, indent + 1, ctx)
@@ -1515,7 +1525,7 @@ emit_destructure = function(pattern, rhs, indent, ctx, out, kind)
           cg.iife({
             cg.local_inline("_r", cg.array({ cg.call("table.unpack", { rhs, tostring(i) }) })),
             "_r.n = #" .. rhs .. " - " .. tostring(i - 1),
-            cg.return_inline(cg.call("_ljs_new", { "Array", cg.call("_ljs_unpack", { "_r" }) })),
+            cg.return_inline(cg.call("_ljs_arr_lit", { cg.call("_ljs_unpack", { "_r" }) })),
           }),
           indent
         )
@@ -1614,7 +1624,7 @@ emit_assign_binding = function(pattern, rhs, indent, ctx, out)
             cg.iife({
               cg.local_inline("_r", cg.array({ cg.call("table.unpack", { rhs, tostring(i) }) })),
               "_r.n = #" .. rhs .. " - " .. tostring(i - 1),
-              cg.return_inline(cg.call("_ljs_new", { "Array", cg.call("_ljs_unpack", { "_r" }) })),
+              cg.return_inline(cg.call("_ljs_arr_lit", { cg.call("_ljs_unpack", { "_r" }) })),
             })
           ),
           indent
@@ -1682,7 +1692,8 @@ gen.VariableDeclaration = function(node, indent, ctx)
         )
       else
         if is_fwd then
-          out[#out + 1] = cg.expr_stmt(cg.binop("=", decl.name.name, emit(init, indent, ctx)), indent)
+          out[#out + 1] =
+            cg.expr_stmt(cg.binop("=", decl.name.name, emit(init, indent, ctx)), indent)
         else
           out[#out + 1] = cg.local_decl(decl.name.name, emit(init, indent, ctx), indent)
         end
@@ -1707,7 +1718,10 @@ end
 -- Lua 5.5 closure upvalue workaround.
 gen.FunctionDeclaration = function(node, indent, ctx)
   local fn = emit_fn(node, indent, ctx)
-  return cg.expr_stmt(cg.binop("=", node.name, cg.call("_ljs_ctor", { fn, cg.string(node.name) })), indent)
+  return cg.expr_stmt(
+    cg.binop("=", node.name, cg.call("_ljs_ctor", { fn, cg.string(node.name) })),
+    indent
+  )
 end
 
 --- Shared lowering logic for ClassDeclaration and ClassExpression.
@@ -2517,7 +2531,7 @@ gen.ArrayExpression = function(node, indent, ctx)
     end
   end
   if not has_spread then
-    local args = { "Array" }
+    local args = {}
     for i = 1, count do
       local e = node.elements[i]
       if e ~= nil then
@@ -2526,7 +2540,7 @@ gen.ArrayExpression = function(node, indent, ctx)
         args[#args + 1] = "nil"
       end
     end
-    return cg.call("_ljs_new", args)
+    return cg.call("_ljs_arr_lit", args)
   end
   local spread_args = {}
   for i = 1, count do
@@ -2544,7 +2558,7 @@ gen.ArrayExpression = function(node, indent, ctx)
   end
   return cg.iife({
     cg.local_inline("_s", cg.call("_ljs_spread_build", spread_args)),
-    cg.return_inline(cg.call("_ljs_new", { "Array", cg.call("_ljs_unpack", { "_s" }) })),
+    cg.return_inline(cg.call("_ljs_arr_lit", { cg.call("_ljs_unpack", { "_s" }) })),
   })
 end
 
@@ -2650,6 +2664,7 @@ local HELPER_ORDER = {
   "_ljs_object_create",
   "_ljs_ctor",
   "_ljs_new",
+  "_ljs_arr_lit",
   "_ljs_call_this",
   "_ljs_instanceof",
   "_ljs_str_to_num",

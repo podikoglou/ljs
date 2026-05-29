@@ -24,12 +24,12 @@ end)
 
 test("empty array", function()
   local code = expr_code("[]")
-  assert_eq(code, "_ljs_new(Array)")
+  assert_eq(code, "_ljs_arr_lit()")
 end)
 
 test("array with elements", function()
   local code = expr_code("[1, 2, 3]")
-  assert_eq(code, "_ljs_new(Array, 1, 2, 3)")
+  assert_eq(code, "_ljs_arr_lit(1, 2, 3)")
 end)
 
 test("dot access", function()
@@ -158,22 +158,22 @@ end)
 
 test("sparse array with hole emits nil (#191)", function()
   local code = expr_code("[1,,3]")
-  assert_eq(code, "_ljs_new(Array, 1, nil, 3)")
+  assert_eq(code, "_ljs_arr_lit(1, nil, 3)")
 end)
 
 test("leading hole in array (#191)", function()
   local code = expr_code("[,1,2]")
-  assert_eq(code, "_ljs_new(Array, nil, 1, 2)")
+  assert_eq(code, "_ljs_arr_lit(nil, 1, 2)")
 end)
 
 test("multiple consecutive holes in array (#191)", function()
   local code = expr_code("[1,,,4]")
-  assert_eq(code, "_ljs_new(Array, 1, nil, nil, 4)")
+  assert_eq(code, "_ljs_arr_lit(1, nil, nil, 4)")
 end)
 
 test("trailing comma does not add slot (#191)", function()
   local code = expr_code("[1,2,]")
-  assert_eq(code, "_ljs_new(Array, 1, 2)")
+  assert_eq(code, "_ljs_arr_lit(1, 2)")
 end)
 
 test("method shorthand mixed with shorthand property", function()

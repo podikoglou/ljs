@@ -58,6 +58,42 @@ test("new Array with elements", function()
   assert_eq(arr.length, 3)
 end)
 
+test("new Array(n) creates sparse array with length n (#290)", function()
+  local arr = eval_js("new Array(3)")
+  assert_eq(arr.length, 3)
+  assert_eq(rawget(arr, 1), nil)
+  assert_eq(rawget(arr, 2), nil)
+  assert_eq(rawget(arr, 3), nil)
+end)
+
+test("new Array(0) creates empty array (#290)", function()
+  local arr = eval_js("new Array(0)")
+  assert_eq(arr.length, 0)
+end)
+
+test("new Array(string) creates array with that value (#290)", function()
+  local arr = eval_js("new Array('hello')")
+  assert_eq(arr.length, 1)
+  assert_eq(arr[1], "hello")
+end)
+
+test("new Array(3.5) throws RangeError (#290)", function()
+  local ok, err = pcall(eval_js, "new Array(3.5)")
+  assert(not ok, "expected RangeError")
+  assert(err.name == "RangeError", "expected RangeError in: " .. tostring(err.name))
+end)
+
+test("new Array(-1) throws RangeError (#290)", function()
+  local ok, err = pcall(eval_js, "new Array(-1)")
+  assert(not ok, "expected RangeError")
+  assert(err.name == "RangeError", "expected RangeError in: " .. tostring(err.name))
+end)
+
+test("new Array() creates empty array (#290)", function()
+  local arr = eval_js("new Array()")
+  assert_eq(arr.length, 0)
+end)
+
 -- ============================================================================
 -- Object.prototype.toString
 -- ============================================================================
