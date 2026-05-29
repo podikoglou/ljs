@@ -73,3 +73,19 @@ end)
 test("unary minus: -5 produces -5 (regression)", function()
   assert_eq(eval_js("-5"), -5)
 end)
+
+test("pow: (-0) ** 3 produces -0", function()
+  assert_minus_zero(eval_js("(-0) ** 3"), "(-0) ** 3")
+end)
+
+test("pow: (-0) ** 2 produces +0", function()
+  assert_plus_zero(eval_js("(-0) ** 2"), "(-0) ** 2")
+end)
+
+test("pow: 0 ** 3 produces +0", function()
+  assert_plus_zero(eval_js("0 ** 3"), "0 ** 3")
+end)
+
+test("pow: 2 ** 3 = 8 (regression)", function()
+  assert_eq(eval_js("2 ** 3"), 8)
+end)
