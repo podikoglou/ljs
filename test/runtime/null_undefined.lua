@@ -135,11 +135,11 @@ test("console.log(undefined) prints 'undefined'", function()
   assert_eq(out, "undefined\n")
 end)
 
-test("console.log(null, undefined) prints 'null\\tundefined'", function()
+test("console.log(null, undefined) prints 'null undefined'", function()
   local out = capture_stdout(function()
     exec_js("console.log(null, undefined);")
   end)
-  assert_eq(out, "null\tundefined\n")
+  assert_eq(out, "null undefined\n")
 end)
 
 -- ============================================================================
@@ -241,12 +241,15 @@ test("typeof obj.nonexistent === 'undefined'", function()
 end)
 
 test("missing property stored in object creates present key", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var obj1 = {a: 1};
     var obj2 = {};
     obj2.x = obj1.nonexistent;
     return "x" in obj2;
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 test("arr[999] === undefined for out-of-bounds", function()
@@ -270,12 +273,15 @@ test("missing arg === undefined (param normalization)", function()
 end)
 
 test("missing arg stored in array doesn't create hole", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var arr = [];
     function pushIt(x) { arr.push(x); }
     pushIt();
     return 0 in arr;
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 -- ============================================================================
@@ -311,12 +317,15 @@ test("let y; y === undefined", function()
 end)
 
 test("uninitialized var stored in array creates present element", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var arr = [];
     var x;
     arr.push(x);
     return 0 in arr;
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 -- ============================================================================
@@ -328,12 +337,15 @@ test("bare return; returns undefined", function()
 end)
 
 test("bare return stored in array creates present element", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     function f() { return; }
     var arr = [];
     arr.push(f());
     return 0 in arr;
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 -- ============================================================================
@@ -345,11 +357,14 @@ test("[].pop() === undefined", function()
 end)
 
 test("[].pop() stored in array creates present element", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var arr = [];
     arr.push([].pop());
     return 0 in arr;
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 test("[].shift() === undefined", function()
@@ -357,19 +372,25 @@ test("[].shift() === undefined", function()
 end)
 
 test("[].shift() stored in array creates present element", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var arr = [];
     arr.push([].shift());
     return 0 in arr;
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 test("forEach returns undefined (storable)", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var arr = [];
     arr.push([1].forEach(x => x));
     return 0 in arr;
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 test("[1,2].at(5) === undefined (out of bounds)", function()
@@ -381,11 +402,14 @@ test("[1,2,3].find(x => x > 10) === undefined (not found)", function()
 end)
 
 test("find not found stored in array creates present element", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var arr = [];
     arr.push([1].find(x => x > 10));
     return 0 in arr;
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 test('"hello"[10] === undefined (string index OOB)', function()
@@ -401,10 +425,13 @@ end)
 -- ============================================================================
 
 test("[1,,3].find(x => x === undefined) returns undefined (hole as undefined)", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var arr = [1, , 3];
     return arr.find(x => x === undefined) === undefined;
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 test("[1,,3].findIndex(x => x === undefined) returns 1 (hole as undefined)", function()
@@ -416,11 +443,14 @@ test("[1,,3].at(1) === undefined (hole at index)", function()
 end)
 
 test("[,2,3].shift() === undefined (hole at first position)", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var arr = [, 2, 3];
     var result = arr.shift();
     return result === undefined;
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 -- ============================================================================
@@ -428,38 +458,50 @@ end)
 -- ============================================================================
 
 test("iterator done value is undefined", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var it = [1].values();
     it.next();
     var result = it.next();
     return result.value === undefined && result.done === true;
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 test("iterator visits holes as undefined (values)", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var it = [1, , 3].values();
     it.next();
     var result = it.next();
     return result.value === undefined && result.done === false;
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 test("iterator visits holes as undefined (entries)", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var it = [1, , 3].entries();
     it.next();
     var result = it.next();
     return result.value[1] === undefined && result.done === false;
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 test("iterator done on exhausted array", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var it = [].values();
     var result = it.next();
     return result.value === undefined && result.done === true;
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 -- ============================================================================
@@ -483,17 +525,23 @@ test("[].lastIndexOf() === -1 (missing searchElement, not in array)", function()
 end)
 
 test("arr.fill() fills with undefined (present elements)", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var arr = [1, 2, 3];
     arr.fill();
     return arr[0] === undefined && 0 in arr;
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 test("arr.fill() creates present elements (not holes)", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var arr = [1, 2, 3];
     arr.fill();
     return 0 in arr && 1 in arr && 2 in arr;
-  ]]), true)
+  ]]),
+    true
+  )
 end)

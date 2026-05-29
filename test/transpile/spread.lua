@@ -15,7 +15,7 @@ end)
 
 test("array with spread elements [...a] has correct values", function()
   local out = run_js("let a = [10, 20]; let b = [...a]; console.log(b[0], b[1]);")
-  assert_eq(out, "10\t20\n")
+  assert_eq(out, "10 20\n")
 end)
 
 test("array with spread and literal [1, ...a]", function()
@@ -45,7 +45,7 @@ end)
 
 test("new with spread new Fn(...a)", function()
   local out = run_js("function Pair(x, y) { this.x = x; this.y = y; }\nlet args = [10, 20]; let p = new Pair(...args); console.log(p.x, p.y);")
-  assert_eq(out, "10\t20\n")
+  assert_eq(out, "10 20\n")
 end)
 
 test("method call with spread obj.fn(...a)", function()
@@ -55,20 +55,20 @@ end)
 
 test("spread string in array [...\"abc\"] produces chars", function()
   local out = run_js([[let r = [..."abc"]; console.log(r.length, r[0], r[1], r[2]);]])
-  assert_eq(out, "3\ta\tb\tc\n")
+  assert_eq(out, "3 a b c\n")
 end)
 
 test("mixed literal and string spread [1, ...\"xy\"]", function()
   local out = run_js([[let r = [1, ..."xy"]; console.log(r.length, r[0], r[1], r[2]);]])
-  assert_eq(out, "3\t1\tx\ty\n")
+  assert_eq(out, "3 1 x y\n")
 end)
 
 test("spread string in function call fn(...\"ab\")", function()
   local out = run_js([[function f(a, b) { console.log(a, b); } let r = f(..."ab");]])
-  assert_eq(out, "a\tb\n")
+  assert_eq(out, "a b\n")
 end)
 
 test("mixed array and string spread [...a, ...\"de\"]", function()
   local out = run_js([[let a = [1, 2]; let r = [...a, ..."de"]; console.log(r.length, r[0], r[1], r[2], r[3]);]])
-  assert_eq(out, "4\t1\t2\td\te\n")
+  assert_eq(out, "4 1 2 d e\n")
 end)

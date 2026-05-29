@@ -12,7 +12,7 @@ end)
 
 test("array destructuring — runtime values", function()
   local out = run_js("let [a, b] = [10, 20];\nconsole.log(a, b);")
-  assert_eq(out, "10\t20\n")
+  assert_eq(out, "10 20\n")
 end)
 
 test("object destructuring transpiles to temp + key extraction", function()
@@ -24,7 +24,7 @@ end)
 
 test("object destructuring — runtime values", function()
   local out = run_js('let {x, y} = {x: 1, y: 2};\nconsole.log(x, y);')
-  assert_eq(out, "1\t2\n")
+  assert_eq(out, "1 2\n")
 end)
 
 test("object rename destructuring", function()
@@ -54,7 +54,7 @@ end)
 
 test("rest in array destructuring", function()
   local out = run_js('let [a, ...rest] = [1, 2, 3];\nconsole.log(a, rest[0], rest[1]);')
-  assert_eq(out, "1\t2\t3\n")
+  assert_eq(out, "1 2 3\n")
 end)
 
 test("hole in array destructuring", function()
@@ -94,7 +94,7 @@ end)
 
 test("rest in object destructuring", function()
   local out = run_js('let {x, ...rest} = {x: 1, y: 2, z: 3};\nconsole.log(x, rest.y, rest.z);')
-  assert_eq(out, "1\t2\t3\n")
+  assert_eq(out, "1 2 3\n")
 end)
 
 test("destructure_counter resets between transpiles (#174)", function()
@@ -108,22 +108,22 @@ end)
 
 test("bare array destructuring assignment — runtime values (#181)", function()
   local out = run_js("let a, b; [a, b] = [1, 2];\nconsole.log(a, b);")
-  assert_eq(out, "1\t2\n")
+  assert_eq(out, "1 2\n")
 end)
 
 test("bare array destructuring with holes — runtime values (#181)", function()
   local out = run_js("let a, b; [a, , b] = [1, 2, 3];\nconsole.log(a, b);")
-  assert_eq(out, "1\t3\n")
+  assert_eq(out, "1 3\n")
 end)
 
 test("bare object destructuring assignment — runtime values (#181)", function()
   local out = run_js('let x, y; ({x, y} = {x: 1, y: 2});\nconsole.log(x, y);')
-  assert_eq(out, "1\t2\n")
+  assert_eq(out, "1 2\n")
 end)
 
 test("nested array destructuring assignment — runtime values (#181)", function()
   local out = run_js("let a, b; [a, [b]] = [1, [2]];\nconsole.log(a, b);")
-  assert_eq(out, "1\t2\n")
+  assert_eq(out, "1 2\n")
 end)
 
 test("default value in bare array destructuring — default used (#181)", function()
@@ -138,7 +138,7 @@ end)
 
 test("rest in bare array destructuring assignment (#181)", function()
   local out = run_js("let a, b; [a, ...b] = [1, 2, 3];\nconsole.log(a, b[0], b[1]);")
-  assert_eq(out, "1\t2\t3\n")
+  assert_eq(out, "1 2 3\n")
 end)
 
 test("destructuring assignment expression context — IIFE (#181)", function()
@@ -148,7 +148,7 @@ end)
 
 test("destructuring assignment returns RHS value (#181)", function()
   local out = run_js("let a, b; let c = [a, b] = [42, 99];\nconsole.log(c[0], c[1]);")
-  assert_eq(out, "42\t99\n")
+  assert_eq(out, "42 99\n")
 end)
 
 test("object destructuring assignment with rename (#181)", function()
@@ -158,7 +158,7 @@ end)
 
 test("function expression with array destructuring param (#182)", function()
   local out = run_js("(function([a, b]) { console.log(a, b); })([10, 20]);")
-  assert_eq(out, "10\t20\n")
+  assert_eq(out, "10 20\n")
 end)
 
 test("function expression with array destructuring param and hole (#182)", function()
@@ -168,7 +168,7 @@ end)
 
 test("arrow function with array destructuring param (#182)", function()
   local out = run_js("(([a, b]) => { console.log(a, b); })([10, 20]);")
-  assert_eq(out, "10\t20\n")
+  assert_eq(out, "10 20\n")
 end)
 
 test("arrow function with array destructuring param and hole (#182)", function()
@@ -178,10 +178,10 @@ end)
 
 test("function expression with object destructuring param (#182)", function()
   local out = run_js("(function({x, y}) { console.log(x, y); })({x: 1, y: 2});")
-  assert_eq(out, "1\t2\n")
+  assert_eq(out, "1 2\n")
 end)
 
 test("arrow function with object destructuring param (#182)", function()
   local out = run_js("(({x, y}) => { console.log(x, y); })({x: 1, y: 2});")
-  assert_eq(out, "1\t2\n")
+  assert_eq(out, "1 2\n")
 end)

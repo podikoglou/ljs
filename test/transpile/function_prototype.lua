@@ -114,7 +114,7 @@ test("console.log.apply works", function()
   local out = run_js([[
     console.log.apply(null, ["hello", "from", "apply"]);
   ]])
-  assert_eq(out, "hello\tfrom\tapply\n")
+  assert_eq(out, "hello from apply\n")
 end)
 
 test("function inherits Object.prototype.hasOwnProperty", function()
