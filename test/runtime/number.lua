@@ -208,3 +208,15 @@ end)
 test("typeof Number.parseInt is 'function'", function()
   assert_eq(eval_js("typeof Number.parseInt"), "function")
 end)
+
+-- ============================================================================
+-- Number.parseFloat (ECMA-262 §21.1.2.12)
+-- ============================================================================
+
+test("Number.parseFloat('3.14abc') is 3.14", function()
+  assert_eq(eval_js("Number.parseFloat('3.14abc')"), 3.14)
+end)
+
+test("Number.parseFloat === parseFloat is true", function()
+  assert_eq(eval_js("Number.parseFloat === parseFloat"), true)
+end)

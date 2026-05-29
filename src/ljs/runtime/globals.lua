@@ -101,7 +101,6 @@ local parseInt = _ljs_fn(function(_ljs_this, string, radix)
 end)
 
 Number.parseInt = parseInt
-Number.parseFloat = parseFloat
 
 -- parseFloat(string): ECMA-262 §19.2.4.
 local parseFloat = _ljs_fn(function(_ljs_this, string)
@@ -141,3 +140,5 @@ local parseFloat = _ljs_fn(function(_ljs_this, string)
   end
   return n
 end)
+
+Number.parseFloat = parseFloat
