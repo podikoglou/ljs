@@ -425,7 +425,7 @@ end]]
 
 -- Wraps a plain Lua function as a callable table with Function.prototype chain.
 -- Used for arrow functions and method shorthand — no .prototype property.
-HELPERS._ljs_fn = [[local function _ljs_fn(fn)
+HELPERS._ljs_fn = [[local function _ljs_fn(fn, name)
   local t = setmetatable({}, {
     __call = function(_, ...)
       return fn(nil, ...)
@@ -433,14 +433,15 @@ HELPERS._ljs_fn = [[local function _ljs_fn(fn)
     __index = _ljs_function_prototype,
   })
   rawset(t, "_ljs_raw", fn)
+  rawset(t, "name", name or "")
   return t
 end]]
 
 -- Wraps a function as a constructor: callable table + .prototype inheriting
 -- from _ljs_object_prototype. Used for FunctionDeclaration, FunctionExpression,
 -- and class constructors.
-HELPERS._ljs_ctor = [[local function _ljs_ctor(fn)
-  local ctor = _ljs_fn(fn)
+HELPERS._ljs_ctor = [[local function _ljs_ctor(fn, name)
+  local ctor = _ljs_fn(fn, name)
   ctor.prototype = setmetatable({ constructor = ctor }, { __index = _ljs_object_prototype })
   return ctor
 end]]
@@ -1582,9 +1583,17 @@ gen.VariableDeclaration = function(node, indent, ctx)
         local wrapper = (init.type == ast.TYPE_FUNCTION_EXPRESSION and not init.is_method)
             and "_ljs_ctor"
           or "_ljs_fn"
+        local inferred_name
+        if init.type == ast.TYPE_FUNCTION_EXPRESSION and init.name then
+          inferred_name = cg.string(init.name)
+        else
+          inferred_name = cg.string(decl.name.name)
+        end
         out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
-        out[#out + 1] =
-          cg.expr_stmt(cg.binop("=", decl.name.name, cg.call(wrapper, { fn })), indent)
+        out[#out + 1] = cg.expr_stmt(
+          cg.binop("=", decl.name.name, cg.call(wrapper, { fn, inferred_name })),
+          indent
+        )
       else
         out[#out + 1] = cg.local_decl(decl.name.name, emit(init, indent, ctx), indent)
       end
@@ -1610,7 +1619,10 @@ gen.FunctionDeclaration = function(node, indent, ctx)
   scope_declare(ctx, node.name, "let")
   local fn = emit_fn(node, indent, ctx)
   return cg.local_decl(node.name, nil, indent)
-    .. cg.expr_stmt(cg.binop("=", node.name, cg.call("_ljs_ctor", { fn })), indent)
+    .. cg.expr_stmt(
+      cg.binop("=", node.name, cg.call("_ljs_ctor", { fn, cg.string(node.name) })),
+      indent
+    )
 end
 
 --- Shared lowering logic for ClassDeclaration and ClassExpression.
@@ -1675,17 +1687,19 @@ local function lower_class(node, indent, ctx, opts)
 
   for _, m in ipairs(methods) do
     local m_fn = emit_fn(m.value, indent, ctx, extra_scope)
+    local m_name = method_key(m)
     stmts[#stmts + 1] = cg.binop(
       "=",
-      cg.member_index(cg.member_dot(class_name, "prototype"), method_key(m)),
-      cg.call("_ljs_fn", { m_fn })
+      cg.member_index(cg.member_dot(class_name, "prototype"), m_name),
+      cg.call("_ljs_fn", { m_fn, m_name })
     )
   end
 
   for _, m in ipairs(statics) do
     local m_fn = emit_fn(m.value, indent, ctx, extra_scope)
+    local m_name = method_key(m)
     stmts[#stmts + 1] =
-      cg.binop("=", cg.member_index(class_name, method_key(m)), cg.call("_ljs_fn", { m_fn }))
+      cg.binop("=", cg.member_index(class_name, m_name), cg.call("_ljs_fn", { m_fn, m_name }))
   end
 
   if has_super then
@@ -1694,7 +1708,7 @@ local function lower_class(node, indent, ctx, opts)
 
   return {
     class_name = class_name,
-    ctor_init_expr = cg.call("_ljs_ctor", { ctor_fn }),
+    ctor_init_expr = cg.call("_ljs_ctor", { ctor_fn, cg.string(class_name) }),
     stmts = stmts,
   }
 end
@@ -1732,7 +1746,11 @@ gen.FunctionExpression = function(node, indent, ctx)
   if node.is_method then
     return cg.call("_ljs_fn", { fn })
   end
-  return cg.call("_ljs_ctor", { fn })
+  local args = { fn }
+  if node.name then
+    args[#args + 1] = cg.string(node.name)
+  end
+  return cg.call("_ljs_ctor", args)
 end
 
 gen.ArrowFunctionExpression = function(node, indent, ctx)

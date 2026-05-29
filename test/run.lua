@@ -47,4 +47,6 @@ describe("public_api", "test.public_api")
 
 auto_discover_tests("test/runtime", describe_soft, "runtime")
 
+auto_discover_tests("test/spec", describe, "spec")
+
 T.summary()
