@@ -294,6 +294,17 @@ test("Object.getOwnPropertyNames on empty object", function()
   assert_eq(arr.length, 0)
 end)
 
+test("Object.getOwnPropertyNames returns a JS Array", function()
+  assert_eq(exec_js("return Array.isArray(Object.getOwnPropertyNames({a: 1}));"), true)
+end)
+
+test("Object.getOwnPropertyNames result has Array.prototype methods", function()
+  assert_eq(exec_js([[
+    var n = Object.getOwnPropertyNames({a: 1, b: 2});
+    return typeof n.map === "function" && typeof n.join === "function";
+  ]]), true)
+end)
+
 test("Object.getOwnPropertyNames throws TypeError on null", function()
   local ok, err = pcall(exec_js, "return Object.getOwnPropertyNames(null);")
   assert(not ok, "expected TypeError")
