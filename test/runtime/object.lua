@@ -19,6 +19,17 @@ test("Object.keys on plain object", function()
   assert(found_b, "expected key 'b'")
 end)
 
+test("Object.keys returns a JS Array", function()
+  assert_eq(exec_js("return Array.isArray(Object.keys({a: 1}));"), true)
+end)
+
+test("Object.keys result has Array.prototype methods", function()
+  assert_eq(exec_js([[
+    var k = Object.keys({a: 1, b: 2, c: 3});
+    return k.map(function(x) { return x.toUpperCase(); }).join(",");
+  ]]), "A,B,C")
+end)
+
 test("Object.keys on empty object", function()
   local arr = exec_js("return Object.keys({});")
   assert_eq(arr.length, 0)
