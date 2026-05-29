@@ -2111,6 +2111,18 @@ gen.DeleteExpression = function(node, indent, ctx)
   if obj then
     return cg.paren(cg.binop("and", cg.call("rawset", { obj, key, cg.nil_val() }), "true"))
   end
+  local arg = node.argument
+  if arg.type == ast.TYPE_UNDEFINED_LITERAL then
+    return "false"
+  end
+  if arg.type == ast.TYPE_IDENTIFIER then
+    if arg.name == "NaN" or arg.name == "Infinity" then
+      return "false"
+    end
+    if scope_lookup(ctx, arg.name) then
+      return "false"
+    end
+  end
   return "true"
 end
 
