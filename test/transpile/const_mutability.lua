@@ -168,3 +168,16 @@ test("for-const shadows outer let and errors on reassignment", function()
     "Assignment to constant variable"
   )
 end)
+
+test("function then let in same scope errors", function()
+  assert_transpile_error("function foo() {} let foo = 1;", "already been declared")
+end)
+
+test("function then const in same scope errors", function()
+  assert_transpile_error("function foo() {} const foo = 1;", "already been declared")
+end)
+
+test("function then var in same scope is allowed", function()
+  local code = transpile_ok("function foo() {} var foo = 1;")
+  assert(code:find("foo", 1, true), "expected foo in output")
+end)

@@ -425,7 +425,7 @@ end]]
 
 -- Wraps a plain Lua function as a callable table with Function.prototype chain.
 -- Used for arrow functions and method shorthand — no .prototype property.
-HELPERS._ljs_fn = [[local function _ljs_fn(fn)
+HELPERS._ljs_fn = [[local function _ljs_fn(fn, name)
   local t = setmetatable({}, {
     __call = function(_, ...)
       return fn(nil, ...)
@@ -433,14 +433,15 @@ HELPERS._ljs_fn = [[local function _ljs_fn(fn)
     __index = _ljs_function_prototype,
   })
   rawset(t, "_ljs_raw", fn)
+  rawset(t, "name", name or "")
   return t
 end]]
 
 -- Wraps a function as a constructor: callable table + .prototype inheriting
 -- from _ljs_object_prototype. Used for FunctionDeclaration, FunctionExpression,
 -- and class constructors.
-HELPERS._ljs_ctor = [[local function _ljs_ctor(fn)
-  local ctor = _ljs_fn(fn)
+HELPERS._ljs_ctor = [[local function _ljs_ctor(fn, name)
+  local ctor = _ljs_fn(fn, name)
   ctor.prototype = setmetatable({ constructor = ctor }, { __index = _ljs_object_prototype })
   return ctor
 end]]
@@ -1030,24 +1031,95 @@ end
 -- @param indent (number) Current indentation level
 -- @param ctx (table) Transpilation context
 -- @return (string) Concatenated Lua source
-local function emit_body(stmts, indent, ctx)
-  local parts = {}
-  for _, s in ipairs(stmts) do
-    local code = emit(s, indent, ctx)
-    if #parts > 0 and #code > 0 then
-      local prev = parts[#parts]
-      if prev:sub(-1) == "\n" then
-        prev = prev:sub(1, -2)
-      end
-      local prev_last = prev:match("(%S)$")
-      if prev_last and (prev_last:match("[%w%)%]']") or prev_last == '"') then
-        local first_sig = code:match("^%s*(%S)")
-        if first_sig == "(" then
-          code = cg.pad(indent) .. ";\n" .. code
-        end
+local function collect_var_names(node, names)
+  if node.type == ast.TYPE_VARIABLE_DECLARATION then
+    for _, decl in ipairs(node.declarations) do
+      local nt = decl.name.type
+      if nt == ast.TYPE_IDENTIFIER then
+        names[#names + 1] = decl.name.name
       end
     end
+  end
+end
+
+local function emit_body(stmts, indent, ctx)
+  local func_decls = {}
+  for _, s in ipairs(stmts) do
+    if s.type == ast.TYPE_FUNCTION_DECLARATION then
+      func_decls[#func_decls + 1] = s
+    end
+  end
+  if #func_decls == 0 then
+    local parts = {}
+    for _, s in ipairs(stmts) do
+      local code = emit(s, indent, ctx)
+      if #parts > 0 and #code > 0 then
+        local prev = parts[#parts]
+        if prev:sub(-1) == "\n" then
+          prev = prev:sub(1, -2)
+        end
+        local prev_last = prev:match("(%S)$")
+        if prev_last and (prev_last:match("[%w%)%]']") or prev_last == '"') then
+          local first_sig = code:match("^%s*(%S)")
+          if first_sig == "(" then
+            code = cg.pad(indent) .. ";\n" .. code
+          end
+        end
+      end
+      parts[#parts + 1] = code
+    end
+    return table.concat(parts)
+  end
+  local func_names = {}
+  for _, s in ipairs(func_decls) do
+    func_names[s.name] = true
+  end
+  local var_names = {}
+  for _, s in ipairs(stmts) do
+    if s.type ~= ast.TYPE_FUNCTION_DECLARATION then
+      collect_var_names(s, var_names)
+    end
+  end
+  local parts = {}
+  local all_fwd = {}
+  for name, _ in pairs(func_names) do
+    all_fwd[#all_fwd + 1] = name
+  end
+  for _, name in ipairs(var_names) do
+    if not func_names[name] then
+      all_fwd[#all_fwd + 1] = name
+    end
+  end
+  if #all_fwd > 0 then
+    table.sort(all_fwd)
+    parts[#parts + 1] = cg.local_decl(table.concat(all_fwd, ", "), nil, indent)
+    local scope = ctx.scopes[#ctx.scopes]
+    for _, name in ipairs(all_fwd) do
+      scope[name] = "__fwd"
+    end
+  end
+  for _, s in ipairs(func_decls) do
+    local code = emit(s, indent, ctx)
     parts[#parts + 1] = code
+  end
+  for _, s in ipairs(stmts) do
+    if s.type ~= ast.TYPE_FUNCTION_DECLARATION then
+      local code = emit(s, indent, ctx)
+      if #parts > 0 and #code > 0 then
+        local prev = parts[#parts]
+        if prev:sub(-1) == "\n" then
+          prev = prev:sub(1, -2)
+        end
+        local prev_last = prev:match("(%S)$")
+        if prev_last and (prev_last:match("[%w%)%]']") or prev_last == '"') then
+          local first_sig = code:match("^%s*(%S)")
+          if first_sig == "(" then
+            code = cg.pad(indent) .. ";\n" .. code
+          end
+        end
+      end
+      parts[#parts + 1] = code
+    end
   end
   return table.concat(parts)
 end
@@ -1570,10 +1642,23 @@ gen.VariableDeclaration = function(node, indent, ctx)
         emit_destructure(decl.name, tmp, indent, ctx, out, node.kind)
       end
     else
-      scope_declare(ctx, decl.name.name, node.kind)
+      local scope = ctx.scopes[#ctx.scopes]
+      local is_fwd = scope[decl.name.name] == "__fwd"
+      if is_fwd then
+        if node.kind == "let" or node.kind == "const" then
+          error("SyntaxError: Identifier '" .. decl.name.name .. "' has already been declared", 0)
+        end
+        scope[decl.name.name] = node.kind
+      else
+        scope_declare(ctx, decl.name.name, node.kind)
+      end
       local init = decl.init
       if not init then
-        out[#out + 1] = cg.local_decl(decl.name.name, "_ljs_undefined", indent)
+        if is_fwd then
+          out[#out + 1] = cg.expr_stmt(cg.binop("=", decl.name.name, "_ljs_undefined"), indent)
+        else
+          out[#out + 1] = cg.local_decl(decl.name.name, "_ljs_undefined", indent)
+        end
       elseif
         init.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION
         or init.type == ast.TYPE_FUNCTION_EXPRESSION
@@ -1582,11 +1667,25 @@ gen.VariableDeclaration = function(node, indent, ctx)
         local wrapper = (init.type == ast.TYPE_FUNCTION_EXPRESSION and not init.is_method)
             and "_ljs_ctor"
           or "_ljs_fn"
-        out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
-        out[#out + 1] =
-          cg.expr_stmt(cg.binop("=", decl.name.name, cg.call(wrapper, { fn })), indent)
+        local inferred_name
+        if init.type == ast.TYPE_FUNCTION_EXPRESSION and init.name then
+          inferred_name = cg.string(init.name)
+        else
+          inferred_name = cg.string(decl.name.name)
+        end
+        if not is_fwd then
+          out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
+        end
+        out[#out + 1] = cg.expr_stmt(
+          cg.binop("=", decl.name.name, cg.call(wrapper, { fn, inferred_name })),
+          indent
+        )
       else
-        out[#out + 1] = cg.local_decl(decl.name.name, emit(init, indent, ctx), indent)
+        if is_fwd then
+          out[#out + 1] = cg.expr_stmt(cg.binop("=", decl.name.name, emit(init, indent, ctx)), indent)
+        else
+          out[#out + 1] = cg.local_decl(decl.name.name, emit(init, indent, ctx), indent)
+        end
       end
     end
   end
@@ -1607,10 +1706,8 @@ end
 -- Declarations use the same split pattern as VariableDeclaration for the
 -- Lua 5.5 closure upvalue workaround.
 gen.FunctionDeclaration = function(node, indent, ctx)
-  scope_declare(ctx, node.name, "let")
   local fn = emit_fn(node, indent, ctx)
-  return cg.local_decl(node.name, nil, indent)
-    .. cg.expr_stmt(cg.binop("=", node.name, cg.call("_ljs_ctor", { fn })), indent)
+  return cg.expr_stmt(cg.binop("=", node.name, cg.call("_ljs_ctor", { fn, cg.string(node.name) })), indent)
 end
 
 --- Shared lowering logic for ClassDeclaration and ClassExpression.
@@ -1675,17 +1772,19 @@ local function lower_class(node, indent, ctx, opts)
 
   for _, m in ipairs(methods) do
     local m_fn = emit_fn(m.value, indent, ctx, extra_scope)
+    local m_name = method_key(m)
     stmts[#stmts + 1] = cg.binop(
       "=",
-      cg.member_index(cg.member_dot(class_name, "prototype"), method_key(m)),
-      cg.call("_ljs_fn", { m_fn })
+      cg.member_index(cg.member_dot(class_name, "prototype"), m_name),
+      cg.call("_ljs_fn", { m_fn, m_name })
     )
   end
 
   for _, m in ipairs(statics) do
     local m_fn = emit_fn(m.value, indent, ctx, extra_scope)
+    local m_name = method_key(m)
     stmts[#stmts + 1] =
-      cg.binop("=", cg.member_index(class_name, method_key(m)), cg.call("_ljs_fn", { m_fn }))
+      cg.binop("=", cg.member_index(class_name, m_name), cg.call("_ljs_fn", { m_fn, m_name }))
   end
 
   if has_super then
@@ -1694,7 +1793,7 @@ local function lower_class(node, indent, ctx, opts)
 
   return {
     class_name = class_name,
-    ctor_init_expr = cg.call("_ljs_ctor", { ctor_fn }),
+    ctor_init_expr = cg.call("_ljs_ctor", { ctor_fn, cg.string(class_name) }),
     stmts = stmts,
   }
 end
@@ -1732,7 +1831,11 @@ gen.FunctionExpression = function(node, indent, ctx)
   if node.is_method then
     return cg.call("_ljs_fn", { fn })
   end
-  return cg.call("_ljs_ctor", { fn })
+  local args = { fn }
+  if node.name then
+    args[#args + 1] = cg.string(node.name)
+  end
+  return cg.call("_ljs_ctor", args)
 end
 
 gen.ArrowFunctionExpression = function(node, indent, ctx)
