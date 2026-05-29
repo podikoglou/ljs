@@ -174,9 +174,9 @@ _ljs_number_prototype.toPrecision = _ljs_fn(function(_ljs_this, precision)
   end
   if abs_x == 0 then
     if p == 1 then
-      return sign .. "0"
+      return "0"
     end
-    return sign .. "0." .. string.rep("0", p - 1)
+    return "0." .. string.rep("0", p - 1)
   end
   local exp = math.floor(_ljs_log10(abs_x))
   local mantissa = abs_x / (10 ^ exp)
