@@ -68,10 +68,11 @@ Object.values = _ljs_fn(function(_ljs_this, obj)
   end
   local o = _ljs_to_object(obj)
   local entries = _ljs_own_entries(o)
-  local result = { length = #entries }
+  local result = _ljs_new(Array)
   for i, e in ipairs(entries) do
     rawset(result, i, e[2])
   end
+  rawset(result, "length", #entries)
   return result
 end)
 
