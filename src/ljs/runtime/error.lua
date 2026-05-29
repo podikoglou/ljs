@@ -37,7 +37,7 @@ local function _ljs_error_subclass(name)
   return Ctor
 end
 
-local TypeError = _ljs_error_subclass("TypeError")
-local RangeError = _ljs_error_subclass("RangeError")
+TypeError = _ljs_error_subclass("TypeError")
+RangeError = _ljs_error_subclass("RangeError")
 local SyntaxError = _ljs_error_subclass("SyntaxError")
 local ReferenceError = _ljs_error_subclass("ReferenceError")

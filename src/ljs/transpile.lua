@@ -345,9 +345,17 @@ end]]
 
 -- Direct call: f(a,b) → _ljs_call(f,a,b). Passes nil as _ljs_this (no receiver).
 -- Throws TypeError if fn is not callable.
+HELPERS._ljs_type_error = [[local function _ljs_type_error(msg)
+  error(setmetatable({ message = msg }, { __index = TypeError.prototype }), 0)
+end]]
+
+HELPERS._ljs_range_error = [[local function _ljs_range_error(msg)
+  error(setmetatable({ message = msg }, { __index = RangeError.prototype }), 0)
+end]]
+
 HELPERS._ljs_call = [[local function _ljs_call(fn, ...)
   if not _ljs_is_function(fn) then
-    error("TypeError: " .. _ljs_value_repr(fn) .. " is not a function")
+    _ljs_type_error(_ljs_value_repr(fn) .. " is not a function")
   end
   if type(fn) == "table" then
     local raw = rawget(fn, "_ljs_raw")
@@ -378,12 +386,12 @@ end]]
 HELPERS._ljs_call_member = [[local function _ljs_call_member(obj, key, ...)
   if _ljs_is_nilish(obj) then
     local desc = _ljs_is_undef(obj) and "undefined" or "null"
-    error("TypeError: Cannot read properties of " .. desc .. " (reading '" .. tostring(key) .. "')")
+    _ljs_type_error("Cannot read properties of " .. desc .. " (reading '" .. tostring(key) .. "')")
   end
   local boxed = _ljs_to_object(obj)
   local method = boxed[key]
   if not _ljs_is_function(method) then
-    error("TypeError: " .. _ljs_value_repr(method) .. " is not a function")
+    _ljs_type_error(_ljs_value_repr(method) .. " is not a function")
   end
   if type(method) == "table" then
     local raw = rawget(method, "_ljs_raw")
@@ -432,7 +440,7 @@ end]]
 -- Throws TypeError if ctor is not a constructor.
 HELPERS._ljs_new = [[local function _ljs_new(ctor, ...)
   if not _ljs_is_constructor(ctor) then
-    error("TypeError: " .. _ljs_value_repr(ctor) .. " is not a constructor")
+    _ljs_type_error(_ljs_value_repr(ctor) .. " is not a constructor")
   end
   local proto = ctor.prototype
   local instance = setmetatable({}, {__index = proto})
@@ -451,7 +459,7 @@ end]]
 
 HELPERS._ljs_call_this = [[local function _ljs_call_this(fn, this_val, ...)
   if not _ljs_is_function(fn) then
-    error("TypeError: " .. _ljs_value_repr(fn) .. " is not a function")
+    _ljs_type_error(_ljs_value_repr(fn) .. " is not a function")
   end
   if type(fn) == "table" then
     local raw = rawget(fn, "_ljs_raw")
@@ -567,7 +575,7 @@ HELPERS._ljs_to_primitive = [[local function _ljs_to_primitive(obj)
     local result = _ljs_invoke(to_str, obj)
     if type(result) ~= "table" then return result end
   end
-  error("TypeError: Cannot convert object to primitive value")
+  _ljs_type_error("Cannot convert object to primitive value")
 end]]
 
 -- StringToNumber per §7.1.4.1: converts a JS string to a number.
@@ -2451,6 +2459,8 @@ end
 local HELPER_ORDER = {
   "_ljs_is_undef",
   "_ljs_is_nilish",
+  "_ljs_type_error",
+  "_ljs_range_error",
   "_ljs_to_primitive",
   "_ljs_to_number",
   "_ljs_to_int32",
@@ -2518,6 +2528,7 @@ function M.preamble()
     .. "local _ljs_arrow_this = nil\n"
     .. "local _ljs_undefined = {}\n"
     .. "local _ljs_null = {}\n"
+    .. "local TypeError, RangeError\n"
     .. "setmetatable(_ljs_object_prototype, { __index = function(t, k) return _ljs_undefined end })\n\n"
     .. helpers_str
     .. "\n\n"
