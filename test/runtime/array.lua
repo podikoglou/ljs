@@ -2212,3 +2212,50 @@ test("toLocaleString generic call", function()
   ]])
   assert_eq(out, "a,b,c")
 end)
+
+-- ============================================================================
+-- for-in on arrays (#289)
+-- ============================================================================
+
+test("for-in on array yields 0-based keys (#289)", function()
+  assert_eq(exec_js([[
+    var r = "";
+    for (var k in [10, 20, 30]) { r += k; }
+    return r;
+  ]]), "012")
+end)
+
+test("for-in on single-element array (#289)", function()
+  assert_eq(exec_js([[
+    var r = "";
+    for (var k in [10]) { r += k; }
+    return r;
+  ]]), "0")
+end)
+
+test("for-in on sparse array yields only existing keys (#289)", function()
+  assert_eq(exec_js([[
+    var arr = []; arr[5] = 'x';
+    var r = "";
+    for (var k in arr) { r += k; }
+    return r;
+  ]]), "5")
+end)
+
+test("for-in on empty array yields nothing (#289)", function()
+  assert_eq(exec_js([[
+    var r = "";
+    for (var k in []) { r += k; }
+    return r;
+  ]]), "")
+end)
+
+test("for-in on object still works (#289)", function()
+  local result = exec_js([[
+    var keys = [];
+    for (var k in {a: 1, b: 2}) { keys.push(k); }
+    keys.sort();
+    return keys.join(",");
+  ]])
+  assert_eq(result, "a,b")
+end)

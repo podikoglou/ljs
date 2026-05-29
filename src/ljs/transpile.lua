@@ -364,6 +364,28 @@ HELPERS._ljs_range_error = [[local function _ljs_range_error(msg)
   error(setmetatable({ message = msg }, { __index = RangeError.prototype }), 0)
 end]]
 
+HELPERS._ljs_for_in_keys = [[local function _ljs_for_in_keys(obj)
+  local keys = {}
+  if type(obj) ~= "table" then
+    return keys
+  end
+  if _ljs_instanceof(obj, Array) then
+    local len = obj.length or 0
+    for i = 1, len do
+      if rawget(obj, i) ~= nil then
+        keys[#keys + 1] = tostring(i - 1)
+      end
+    end
+  else
+    for k in pairs(obj) do
+      if type(k) == "string" then
+        keys[#keys + 1] = k
+      end
+    end
+  end
+  return keys
+end]]
+
 HELPERS._ljs_call = [[local function _ljs_call(fn, ...)
   if not _ljs_is_function(fn) then
     _ljs_type_error(_ljs_value_repr(fn) .. " is not a function")
@@ -1948,13 +1970,18 @@ gen.ForInStatement = function(node, indent, ctx)
     var_name,
     node.left.type == ast.TYPE_VARIABLE_DECLARATION and node.left.kind or "let"
   )
+  local iter_tmp = fresh_tmp()
+  local idx_tmp = fresh_tmp()
   local body = emit_controlled_body(node.body, indent, ctx)
+  local var_init = cg.local_decl(var_name, cg.member_index(iter_tmp, idx_tmp), indent + 1)
+  body = var_init .. body
   if has_continue(node.body) then
     body = cg.do_block(body, indent + 1) .. cg.label("_continue", indent + 1)
   end
   scope_pop(ctx)
-  local iter = cg.call("pairs", { emit(node.right, indent, ctx) })
-  return cg.for_in_stmt(cg.join({ var_name, "_" }), iter, body, indent)
+  local keys_expr = cg.call("_ljs_for_in_keys", { emit(node.right, indent, ctx) })
+  return cg.local_decl(iter_tmp, keys_expr, indent)
+    .. cg.numeric_for(idx_tmp, "1", "#" .. iter_tmp, body, indent)
 end
 
 -- C-style for → init statement + while loop. The init is emitted as a separate
@@ -2667,6 +2694,7 @@ local HELPER_ORDER = {
   "_ljs_arr_lit",
   "_ljs_call_this",
   "_ljs_instanceof",
+  "_ljs_for_in_keys",
   "_ljs_str_to_num",
   "_ljs_super_call",
   "_ljs_spread_build",

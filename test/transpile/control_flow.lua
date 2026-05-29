@@ -76,36 +76,36 @@ end)
 -- for...in transpile tests
 -- ============================================================================
 
-test("for...in with let transpiles to pairs", function()
+test("for...in with let transpiles to _ljs_for_in_keys", function()
   local code = transpile_ok("for (let key in obj) { console.log(key); }")
-  assert(code:find("for key, _ in pairs"), "expected for key, _ in pairs")
+  assert(code:find("_ljs_for_in_keys"), "expected _ljs_for_in_keys")
 end)
 
-test("for...in with const transpiles to pairs", function()
+test("for...in with const transpiles to _ljs_for_in_keys", function()
   local code = transpile_ok("for (const k in obj) { k; }")
-  assert(code:find("for k, _ in pairs"), "expected for k, _ in pairs")
+  assert(code:find("_ljs_for_in_keys"), "expected _ljs_for_in_keys")
 end)
 
-test("for...in with expression left transpiles to pairs (no local)", function()
+test("for...in with expression left transpiles to _ljs_for_in_keys (no local)", function()
   local code = transpile_ok("for (key in obj) { key; }")
-  assert(code:find("for key, _ in pairs"), "expected for key, _ in pairs")
+  assert(code:find("_ljs_for_in_keys"), "expected _ljs_for_in_keys")
 end)
 
 test("for...in with object literal right transpiles correctly", function()
   local code = transpile_ok("for (let k in {a: 1}) { k; }")
-  assert(code:find("for k, _ in pairs"), "expected for k, _ in pairs")
+  assert(code:find("_ljs_for_in_keys"), "expected _ljs_for_in_keys")
   assert(code:find("{a = 1}"), "expected object literal")
 end)
 
 test("for...in nested with for...of transpiles correctly", function()
   local code = transpile_ok("for (let k in obj) { for (const x of arr) { k; } }")
-  assert(code:find("for k, _ in pairs"), "expected for k, _ in pairs")
+  assert(code:find("_ljs_for_in_keys"), "expected _ljs_for_in_keys")
   assert(code:find("%.length"), "expected numeric for loop for for..of")
 end)
 
 test("for...in with console.log uses _ljs_call_member", function()
   local code = transpile_ok("for (let k in obj) { console.log(k); }")
-  assert(code:find("for k, _ in pairs"), "expected for k, _ in pairs")
+  assert(code:find("_ljs_for_in_keys"), "expected _ljs_for_in_keys")
   assert(code:find("_ljs_call_member"), "expected _ljs_call_member for console.log")
 end)
 
