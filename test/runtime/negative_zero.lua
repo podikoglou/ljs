@@ -57,3 +57,19 @@ end)
 test("add: 2 + 3 = 5 (regression)", function()
   assert_eq(eval_js("2 + 3"), 5)
 end)
+
+test("unary minus: -0 produces -0", function()
+  assert_minus_zero(eval_js("-0"), "-0")
+end)
+
+test("unary minus: -x where x is integer 0 produces -0", function()
+  assert_minus_zero(eval_js("(function() { var x = 0; return -x; })()"), "-(integer 0)")
+end)
+
+test("unary minus: -(-0) produces +0", function()
+  assert_plus_zero(eval_js("-(-0)"), "-(-0)")
+end)
+
+test("unary minus: -5 produces -5 (regression)", function()
+  assert_eq(eval_js("-5"), -5)
+end)

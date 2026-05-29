@@ -128,6 +128,15 @@ HELPERS._ljs_to_number = [[local function _ljs_to_number(x)
   return 0 / 0
 end]]
 
+HELPERS._ljs_neg = [[local function _ljs_neg(x)
+  x = _ljs_to_number(x)
+  if x == 0 then
+    if 1/x == math.huge then return -0.0 end
+    return 0.0
+  end
+  return -x
+end]]
+
 HELPERS._ljs_to_float = [[local function _ljs_to_float(x)
   if math.type(x) == "integer" then return x * 1.0 end
   return x
@@ -2081,7 +2090,7 @@ gen.UnaryExpression = function(node, indent, ctx)
   elseif node.operator == "+" then
     return cg.call("_ljs_to_number", { expr })
   end
-  return cg.unop("-", cg.call("_ljs_to_number", { expr }))
+  return cg.call("_ljs_neg", { expr })
 end
 
 --- Compute the Lua key for a MemberExpression.
@@ -2446,6 +2455,7 @@ local HELPER_ORDER = {
   "_ljs_to_number",
   "_ljs_to_int32",
   "_ljs_to_float",
+  "_ljs_neg",
   "_ljs_to_boolean",
   "_ljs_fn",
   "_ljs_to_object",

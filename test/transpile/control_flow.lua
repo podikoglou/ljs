@@ -253,7 +253,7 @@ end)
 
 test("unary minus in body is wrapped", function()
   local code = transpile_ok("if (true) { -x; }")
-  assert(code:find("local _ = -_ljs_to_number(x)", 1, true), "expected local _ = -...")
+  assert(code:find("local _ = _ljs_neg(x)", 1, true), "expected local _ = _ljs_neg...")
 end)
 
 test("call expression in body is NOT wrapped", function()
