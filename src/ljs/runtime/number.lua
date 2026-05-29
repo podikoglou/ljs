@@ -42,6 +42,19 @@ local function _ljs_log10(n)
   return math.log(n) / math.log(10)
 end
 
+local function _ljs_format_fixed(val, n)
+  if n <= 99 then
+    return string.format("%." .. n .. "f", val)
+  end
+  local safe = string.format("%.50f", val)
+  local int_part, frac_part = safe:match("^(-?%d+)%.(%d+)$")
+  if not int_part then
+    return safe
+  end
+  frac_part = frac_part .. string.rep("0", n - #frac_part)
+  return int_part .. "." .. frac_part
+end
+
 _ljs_number_prototype.toString = _ljs_fn(function(_ljs_this)
   return _ljs_tostring(_ljs_this._ljs_data)
 end)
@@ -110,29 +123,35 @@ _ljs_number_prototype.toExponential = _ljs_fn(function(_ljs_this, fractionDigits
     abs_x = -abs_x
   end
   if abs_x == 0 then
-    local frac = string.rep("0", f)
     if f == 0 then
       return sign .. "0e+0"
     end
-    return sign .. "0." .. frac .. "e+0"
+    return sign .. "0." .. string.rep("0", f) .. "e+0"
   end
   local exp = math.floor(_ljs_log10(abs_x))
-  local scale = 10 ^ (exp - f)
-  local int_sig = math.floor(abs_x / scale + 0.5)
-  if int_sig >= 10 ^ (f + 2) then
+  local mantissa = abs_x / (10 ^ exp)
+  if mantissa >= 10 then
+    mantissa = mantissa / 10
     exp = exp + 1
-    scale = 10 ^ (exp - f)
-    int_sig = math.floor(abs_x / scale + 0.5)
   end
-  local sig_str = string.format("%0" .. (f + 1) .. "d", int_sig)
-  local int_part = sig_str:sub(1, 1)
+  if mantissa < 1 then
+    mantissa = mantissa * 10
+    exp = exp - 1
+  end
+  local rounded = math.floor(mantissa * (10 ^ f) + 0.5) / (10 ^ f)
+  if rounded >= 10 then
+    rounded = rounded / 10
+    exp = exp + 1
+  end
+  local mantissa_str
+  if f == 0 then
+    mantissa_str = string.format("%.0f", rounded)
+  else
+    mantissa_str = _ljs_format_fixed(rounded, f)
+  end
   local exp_sign = exp >= 0 and "+" or "-"
   local exp_abs = math.abs(exp)
-  if f == 0 then
-    return sign .. int_part .. "e" .. exp_sign .. tostring(exp_abs)
-  end
-  local frac_part = sig_str:sub(2)
-  return sign .. int_part .. "." .. frac_part .. "e" .. exp_sign .. tostring(exp_abs)
+  return sign .. mantissa_str .. "e" .. exp_sign .. tostring(exp_abs)
 end)
 
 setmetatable(_ljs_number_prototype, { __index = _ljs_object_prototype })
