@@ -6,7 +6,7 @@ local function _console_write(handle, ...)
   for i = 1, n do
     parts[i] = _ljs_tostring((select(i, ...)))
   end
-  handle:write(table.concat(parts, "\t") .. "\n")
+  handle:write(table.concat(parts, " ") .. "\n")
 end
 
 console.log = _ljs_fn(function(_ljs_this, ...)
