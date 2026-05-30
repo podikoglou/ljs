@@ -12,27 +12,7 @@ local function _ljs_number_to_string(x)
     return "Infinity"
   end
 
-  local s_digits, k, n
-  for precision = 0, 20 do
-    local fmt = "%." .. precision .. "e"
-    local str = string.format(fmt, x)
-    if tonumber(str) == x then
-      local mant, e_str = str:match("^(.+)e(.+)$")
-      local exp = tonumber(e_str)
-      local digits = mant:gsub("%.", "")
-      digits = digits:gsub("0+$", "")
-      if #digits == 0 then
-        digits = "0"
-      end
-      s_digits = digits
-      k = #digits
-      n = exp + 1
-      break
-    end
-  end
-
-  if not s_digits then
-    local str = string.format("%.20e", x)
+  local function parse_exponential(str)
     local mant, e_str = str:match("^(.+)e(.+)$")
     local exp = tonumber(e_str)
     local digits = mant:gsub("%.", "")
@@ -40,9 +20,21 @@ local function _ljs_number_to_string(x)
     if #digits == 0 then
       digits = "0"
     end
-    s_digits = digits
-    k = #digits
-    n = exp + 1
+    return digits, #digits, exp + 1
+  end
+
+  local s_digits, k, n
+  for precision = 0, 20 do
+    local fmt = "%." .. precision .. "e"
+    local str = string.format(fmt, x)
+    if tonumber(str) == x then
+      s_digits, k, n = parse_exponential(str)
+      break
+    end
+  end
+
+  if not s_digits then
+    s_digits, k, n = parse_exponential(string.format("%.20e", x))
   end
 
   if n >= -5 and n <= 21 then
