@@ -116,3 +116,10 @@ test("Object.prototype.constructor === Object", function()
   ]])
   assert_eq(out, "true\n")
 end)
+
+test("__proto__ getter: ({}).__proto__ === Object.prototype", function()
+  local out = run_js([[
+    console.log(({}).__proto__ === Object.prototype);
+  ]])
+  assert_eq(out, "true\n")
+end)

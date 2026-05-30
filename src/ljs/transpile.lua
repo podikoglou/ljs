@@ -464,6 +464,26 @@ HELPERS._ljs_call_member = [[local function _ljs_call_member(obj, key, ...)
   return method(boxed, ...)
 end]]
 
+HELPERS._ljs_get_proto = [[local function _ljs_get_proto(obj)
+  if type(obj) ~= "table" then return _ljs_undefined end
+  local mt = getmetatable(obj)
+  if mt == nil then return _ljs_null end
+  local proto = mt.__index
+  if type(proto) ~= "table" then return _ljs_null end
+  return proto
+end]]
+
+HELPERS._ljs_set_proto = [[local function _ljs_set_proto(obj, value)
+  if type(obj) ~= "table" then return end
+  local mt = getmetatable(obj)
+  if mt == nil then return end
+  if value == _ljs_null then
+    rawset(mt, "__index", function(t, k) return _ljs_undefined end)
+  elseif type(value) == "table" and not _ljs_is_undef(value) then
+    rawset(mt, "__index", value)
+  end
+end]]
+
 -- Wraps a table with Object.prototype as __index. Used for all object literals.
 HELPERS._ljs_object = [[local function _ljs_object(t)
   return setmetatable(t, { __index = _ljs_object_prototype })
@@ -1899,13 +1919,27 @@ local function emit_assign_target(target, access, indent, ctx, out)
     out[#out + 1] = cg.expr_stmt(cg.binop("=", target.name, access), indent)
   elseif target.type == ast.TYPE_MEMBER_EXPRESSION then
     local obj = emit(target.object, indent, ctx)
-    local prop
-    if target.computed then
-      prop = emit(target.property, indent, ctx)
-    else
-      prop = cg.string(target.property.name)
+    local is_proto = false
+    if not target.computed and target.property.name == "__proto__" then
+      is_proto = true
+    elseif
+      target.computed
+      and target.property.type == ast.TYPE_STRING_LITERAL
+      and target.property.value == "__proto__"
+    then
+      is_proto = true
     end
-    out[#out + 1] = cg.expr_stmt(cg.binop("=", cg.member_index(obj, prop), access), indent)
+    if is_proto then
+      out[#out + 1] = cg.expr_stmt(cg.call("_ljs_set_proto", { obj, access }), indent)
+    else
+      local prop
+      if target.computed then
+        prop = emit(target.property, indent, ctx)
+      else
+        prop = cg.string(target.property.name)
+      end
+      out[#out + 1] = cg.expr_stmt(cg.binop("=", cg.member_index(obj, prop), access), indent)
+    end
   elseif target.type == ast.TYPE_ASSIGNMENT_PATTERN then
     local inner = target.left
     local default_expr = emit(target.right, indent, ctx)
@@ -3065,6 +3099,19 @@ gen.MemberExpression = function(node, indent, ctx)
     obj = emit(node.object, indent, ctx)
   end
   obj = cg.call("_ljs_to_object", { obj })
+  local is_proto = false
+  if not node.computed and node.property.name == "__proto__" then
+    is_proto = true
+  elseif
+    node.computed
+    and node.property.type == ast.TYPE_STRING_LITERAL
+    and node.property.value == "__proto__"
+  then
+    is_proto = true
+  end
+  if is_proto then
+    return cg.call("_ljs_get_proto", { obj })
+  end
   if node.computed then
     return cg.member_index(obj, member_key(node, indent, ctx))
   end
@@ -3236,6 +3283,8 @@ local HELPER_ORDER = {
   "_ljs_value_repr",
   "_ljs_call",
   "_ljs_call_member",
+  "_ljs_get_proto",
+  "_ljs_set_proto",
   "_ljs_object",
   "_ljs_object_create",
   "_ljs_ctor",
