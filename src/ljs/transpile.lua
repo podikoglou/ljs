@@ -2464,7 +2464,7 @@ gen.CallExpression = function(node, indent, ctx)
       local super_parent = ctx.super_stack[#ctx.super_stack]
       return cg.iife({
         cg.local_inline("_s", build_call),
-        cg.return_inline(cg.call(super_parent, { "_ljs_arrow_this", unpack_call })),
+        cg.return_inline(cg.call("_ljs_call_this", { super_parent, "_ljs_arrow_this", unpack_call })),
       })
     end
 
@@ -2505,11 +2505,11 @@ gen.CallExpression = function(node, indent, ctx)
 
   if node.callee.type == ast.TYPE_SUPER_EXPRESSION then
     local super_parent = ctx.super_stack[#ctx.super_stack]
-    local call_args = { "_ljs_arrow_this" }
+    local call_args = { super_parent, "_ljs_arrow_this" }
     for _, a in ipairs(args) do
       call_args[#call_args + 1] = a
     end
-    return cg.call(super_parent, call_args)
+    return cg.call("_ljs_call_this", call_args)
   end
 
   if

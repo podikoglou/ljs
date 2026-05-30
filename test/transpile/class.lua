@@ -48,12 +48,15 @@ end)
 test("default ctor with extends forwards args", function()
   local code = H.transpile_ok("class Dog extends Animal {}")
   assert(code:find("function%(_ljs_this, %.%.%.%)"), "expected vararg params")
-  assert(code:find("_ljs_call_this%(Animal, _ljs_arrow_this, %.%.%.%)"), "expected super forwarding")
+  assert(
+    code:find("_ljs_call_this%(Animal, _ljs_arrow_this, %.%.%.%)"),
+    "expected super forwarding"
+  )
 end)
 
 test("super() in constructor", function()
   local code = H.transpile_ok('class Dog extends Animal { constructor() { super("Rex"); } }')
-  assert(code:find('Animal%(_ljs_arrow_this, "Rex"%)'), "expected super call")
+  assert(code:find('_ljs_call_this%(Animal, _ljs_arrow_this, "Rex"%)'), "expected super call via _ljs_call_this")
 end)
 
 test("super.method() uses _ljs_super_call", function()
@@ -230,4 +233,32 @@ test("class with no methods — instance is object", function()
     console.log(typeof f);
   ]])
   assert_eq(out, "object\n")
+end)
+
+test("explicit super() in constructor sets properties", function()
+  local out = run_js([[
+    class A {
+      constructor() { this.x = 1; }
+    }
+    class B extends A {
+      constructor() { super(); }
+    }
+    let b = new B();
+    console.log(b.x);
+  ]])
+  assert_eq(out, "1\n")
+end)
+
+test("explicit super() with args forwards them", function()
+  local out = run_js([[
+    class A {
+      constructor(x) { this.x = x; }
+    }
+    class B extends A {
+      constructor() { super(42); }
+    }
+    let b = new B();
+    console.log(b.x);
+  ]])
+  assert_eq(out, "42\n")
 end)
