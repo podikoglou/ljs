@@ -5,9 +5,14 @@ local _ljs_internal_keys = { _ljs_raw = true, _ljs_data = true }
 local function _ljs_escape_string(s)
   local has_single = s:find("'") ~= nil
   local has_double = s:find('"') ~= nil
-  local escaped = s:gsub("\\", "\\\\"):gsub("\n", "\\n"):gsub("\r", "\\r"):gsub("\t", "\\t")
+  local escaped = s:gsub("\\", "\\\\")
+    :gsub("\b", "\\b")
+    :gsub("\f", "\\f")
+    :gsub("\n", "\\n")
+    :gsub("\r", "\\r")
+    :gsub("\t", "\\t")
   for i = 0, 0x1F do
-    if i ~= 9 and i ~= 10 and i ~= 13 then
+    if i ~= 8 and i ~= 9 and i ~= 10 and i ~= 12 and i ~= 13 then
       local ch = string.char(i)
       local hex = string.format("\\x%02X", i)
       escaped = escaped:gsub(ch, hex)

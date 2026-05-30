@@ -296,7 +296,13 @@ HELPERS._ljs_index = [[local function _ljs_index(k)
     end
     return k
   end
-  return k + 1
+  if type(k) == "number" then
+    if math.floor(k) == k and k >= 0 then
+      return k + 1
+    end
+    return _ljs_tostring(k)
+  end
+  return k
 end]]
 
 -- typeof per §13.5.3: nil (undefined) → "undefined", _ljs_null → "object".
@@ -817,6 +823,41 @@ local function body_references_arguments(node)
   return false
 end
 
+local function references_identifier(node, name)
+  if not node or type(node) ~= "table" then
+    return false
+  end
+  if node.type == ast.TYPE_IDENTIFIER and node.name == name then
+    return true
+  end
+  if
+    node.type == ast.TYPE_FUNCTION_DECLARATION
+    or node.type == ast.TYPE_FUNCTION_EXPRESSION
+    or node.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION
+  then
+    return false
+  end
+  if node.type == ast.TYPE_MEMBER_EXPRESSION and not node.computed then
+    return references_identifier(node.object, name)
+  end
+  if node.type == ast.TYPE_PROPERTY and not node.computed then
+    return references_identifier(node.value, name)
+  end
+  if node.type == ast.TYPE_CATCH_CLAUSE then
+    if node.param and node.param.name == name then
+      return false
+    end
+    return references_identifier(node.body, name)
+  end
+  for _, v in pairs(node) do
+    if type(v) == "table" then
+      if references_identifier(v, name) then
+        return true
+      end
+    end
+  end
+  return false
+end
 local function extract_binding_names(target, out)
   out = out or {}
   if not target then
@@ -844,10 +885,57 @@ local function extract_binding_names(target, out)
   return out
 end
 
-local function scope_has_lexical_name(stmts, name)
-  for _, s in ipairs(stmts) do
-    if s.type == ast.TYPE_VARIABLE_DECLARATION and (s.kind == "let" or s.kind == "const") then
-      for _, d in ipairs(s.declarations) do
+local function check_pattern_defaults_tdz(pattern, binding_names)
+  if not pattern or type(pattern) ~= "table" then
+    return
+  end
+  if pattern.type == ast.TYPE_ASSIGNMENT_PATTERN then
+    for _, name in ipairs(binding_names) do
+      if references_identifier(pattern.right, name) then
+        error("ReferenceError: Cannot access '" .. name .. "' before initialization", 0)
+      end
+    end
+    check_pattern_defaults_tdz(pattern.left, binding_names)
+  elseif pattern.type == ast.TYPE_OBJECT_PATTERN then
+    for _, prop in ipairs(pattern.properties) do
+      if prop.type == ast.TYPE_REST_ELEMENT then
+        check_pattern_defaults_tdz(prop.argument, binding_names)
+      else
+        check_pattern_defaults_tdz(prop.value, binding_names)
+      end
+    end
+  elseif pattern.type == ast.TYPE_ARRAY_PATTERN then
+    for _, elem in ipairs(pattern.elements) do
+      check_pattern_defaults_tdz(elem, binding_names)
+    end
+  elseif pattern.type == ast.TYPE_REST_ELEMENT then
+    check_pattern_defaults_tdz(pattern.argument, binding_names)
+  end
+end
+
+local function scope_shadows_name(node, name)
+  if node.type == ast.TYPE_BLOCK_STATEMENT then
+    for _, s in ipairs(node.body) do
+      if s.type == ast.TYPE_VARIABLE_DECLARATION and s.kind ~= "var" then
+        for _, d in ipairs(s.declarations) do
+          local names = extract_binding_names(d.name)
+          for _, n in ipairs(names) do
+            if n == name then
+              return true
+            end
+          end
+        end
+      end
+    end
+    return false
+  end
+  if node.type == ast.TYPE_FOR_STATEMENT then
+    if
+      node.init
+      and node.init.type == ast.TYPE_VARIABLE_DECLARATION
+      and node.init.kind ~= "var"
+    then
+      for _, d in ipairs(node.init.declarations) do
         local names = extract_binding_names(d.name)
         for _, n in ipairs(names) do
           if n == name then
@@ -856,11 +944,42 @@ local function scope_has_lexical_name(stmts, name)
         end
       end
     end
+    return false
+  end
+  if node.type == ast.TYPE_FOR_OF_STATEMENT or node.type == ast.TYPE_FOR_IN_STATEMENT then
+    if node.left.type == ast.TYPE_VARIABLE_DECLARATION and node.left.kind ~= "var" then
+      for _, d in ipairs(node.left.declarations) do
+        local names = extract_binding_names(d.name)
+        for _, n in ipairs(names) do
+          if n == name then
+            return true
+          end
+        end
+      end
+    end
+    return false
+  end
+  if node.type == ast.TYPE_SWITCH_STATEMENT then
+    for _, c in ipairs(node.cases) do
+      for _, s in ipairs(c.consequent) do
+        if s.type == ast.TYPE_VARIABLE_DECLARATION and s.kind ~= "var" then
+          for _, d in ipairs(s.declarations) do
+            local names = extract_binding_names(d.name)
+            for _, n in ipairs(names) do
+              if n == name then
+                return true
+              end
+            end
+          end
+        end
+      end
+    end
+    return false
   end
   return false
 end
 
-local function references_identifier(node, name)
+local function references_identifier_scope_aware(node, name)
   if not node or type(node) ~= "table" then
     return false
   end
@@ -874,97 +993,33 @@ local function references_identifier(node, name)
   then
     return false
   end
+  if node.type == ast.TYPE_VARIABLE_DECLARATOR then
+    return node.init and references_identifier_scope_aware(node.init, name) or false
+  end
   if node.type == ast.TYPE_MEMBER_EXPRESSION and not node.computed then
-    return references_identifier(node.object, name)
+    return references_identifier_scope_aware(node.object, name)
   end
   if node.type == ast.TYPE_PROPERTY and not node.computed then
-    return references_identifier(node.value, name)
+    return references_identifier_scope_aware(node.value, name)
   end
   if node.type == ast.TYPE_CATCH_CLAUSE then
     if node.param and node.param.name == name then
       return false
     end
-    return references_identifier(node.body, name)
+    return references_identifier_scope_aware(node.body, name)
   end
-  if node.type == ast.TYPE_BLOCK_STATEMENT then
-    if scope_has_lexical_name(node.body, name) then
-      return false
-    end
-    for _, v in ipairs(node.body) do
-      if references_identifier(v, name) then
-        return true
-      end
-    end
+  if scope_shadows_name(node, name) then
     return false
-  end
-  if node.type == ast.TYPE_SWITCH_STATEMENT then
-    for _, c in ipairs(node.cases) do
-      if c.consequent and scope_has_lexical_name(c.consequent, name) then
-        return false
-      end
-      if references_identifier(c, name) then
-        return true
-      end
-    end
-    return references_identifier(node.discriminant, name)
-  end
-  if
-    node.type == ast.TYPE_FOR_STATEMENT
-    or node.type == ast.TYPE_FOR_OF_STATEMENT
-    or node.type == ast.TYPE_FOR_IN_STATEMENT
-  then
-    local init = node.init or node.left
-    if
-      init
-      and init.type == ast.TYPE_VARIABLE_DECLARATION
-      and (init.kind == "let" or init.kind == "const")
-    then
-      local names = extract_binding_names(
-        init.declarations and init.declarations[1] and init.declarations[1].name
-      )
-      for _, n in ipairs(names) do
-        if n == name then
-          return false
-        end
-      end
-    end
   end
   for _, v in pairs(node) do
     if type(v) == "table" then
-      if references_identifier(v, name) then
+      if references_identifier_scope_aware(v, name) then
         return true
       end
     end
   end
   return false
 end
-
-local function collect_pattern_defaults(pattern, out)
-  out = out or {}
-  if not pattern or type(pattern) ~= "table" then
-    return out
-  end
-  if pattern.type == ast.TYPE_ASSIGNMENT_PATTERN then
-    out[#out + 1] = pattern.right
-    collect_pattern_defaults(pattern.left, out)
-  elseif pattern.type == ast.TYPE_OBJECT_PATTERN then
-    for _, prop in ipairs(pattern.properties) do
-      if prop.type == ast.TYPE_REST_ELEMENT then
-        collect_pattern_defaults(prop.argument, out)
-      else
-        collect_pattern_defaults(prop.value, out)
-      end
-    end
-  elseif pattern.type == ast.TYPE_ARRAY_PATTERN then
-    for _, elem in ipairs(pattern.elements) do
-      collect_pattern_defaults(elem, out)
-    end
-  elseif pattern.type == ast.TYPE_REST_ELEMENT then
-    collect_pattern_defaults(pattern.argument, out)
-  end
-  return out
-end
-
 -- that would cross a pcall function boundary.
 -- Stops at loop boundaries (for break/continue) and function boundaries.
 -- @param node (table|nil) AST node
@@ -1249,48 +1304,30 @@ end
 local function collect_var_names(node, names)
   if node.type == ast.TYPE_VARIABLE_DECLARATION then
     for _, decl in ipairs(node.declarations) do
-      local nt = decl.name.type
-      if nt == ast.TYPE_IDENTIFIER then
-        names[#names + 1] = decl.name.name
-      end
+      extract_binding_names(decl.name, names)
     end
   end
 end
 
 local function emit_body(stmts, indent, ctx)
-  do
-    local seen_names = {}
-    local var_names = {}
-    local lexical_decls = {}
-    for i, s in ipairs(stmts) do
-      if s.type == ast.TYPE_VARIABLE_DECLARATION then
-        for _, decl in ipairs(s.declarations) do
-          local names = extract_binding_names(decl.name)
-          for _, n in ipairs(names) do
-            if s.kind == "var" then
-              var_names[n] = true
-            elseif not seen_names[n] then
-              seen_names[n] = true
-              lexical_decls[#lexical_decls + 1] = { name = n, stmt_idx = i }
-            end
-          end
-        end
-      end
-    end
-    for _, entry in ipairs(lexical_decls) do
-      if not var_names[entry.name] then
-        for i = 1, entry.stmt_idx - 1 do
-          if references_identifier(stmts[i], entry.name) then
-            error("ReferenceError: Cannot access '" .. entry.name .. "' before initialization", 0)
-          end
-        end
-      end
-    end
-  end
   local func_decls = {}
   for _, s in ipairs(stmts) do
     if s.type == ast.TYPE_FUNCTION_DECLARATION then
       func_decls[#func_decls + 1] = s
+    end
+  end
+  for i, s in ipairs(stmts) do
+    if s.type == ast.TYPE_VARIABLE_DECLARATION and s.kind ~= "var" then
+      for _, decl in ipairs(s.declarations) do
+        local names = extract_binding_names(decl.name)
+        for _, n in ipairs(names) do
+          for j = 1, i - 1 do
+            if references_identifier_scope_aware(stmts[j], n) then
+              error("ReferenceError: Cannot access '" .. n .. "' before initialization", 0)
+            end
+          end
+        end
+      end
     end
   end
   if #func_decls == 0 then
@@ -1702,7 +1739,17 @@ end
 
 local function emit_binding(target, access, indent, ctx, out, kind)
   if target.type == ast.TYPE_IDENTIFIER then
-    scope_declare(ctx, target.name, kind)
+    local scope = ctx.scopes[#ctx.scopes]
+    local existing = scope[target.name]
+    local is_fwd = existing == "__fwd_func" or existing == "__fwd_var"
+    if is_fwd then
+      if existing == "__fwd_func" and (kind == "let" or kind == "const") then
+        error("SyntaxError: Identifier '" .. target.name .. "' has already been declared", 0)
+      end
+      scope[target.name] = kind
+    else
+      scope_declare(ctx, target.name, kind)
+    end
     out[#out + 1] = cg.local_decl(target.name, access, indent)
   elseif target.type == ast.TYPE_ASSIGNMENT_PATTERN then
     local inner = target.left
@@ -1710,7 +1757,17 @@ local function emit_binding(target, access, indent, ctx, out, kind)
     local var_name
     if inner.type == ast.TYPE_IDENTIFIER then
       var_name = inner.name
-      scope_declare(ctx, var_name, kind)
+      local scope = ctx.scopes[#ctx.scopes]
+      local existing = scope[var_name]
+      local is_fwd = existing == "__fwd_func" or existing == "__fwd_var"
+      if is_fwd then
+        if existing == "__fwd_func" and (kind == "let" or kind == "const") then
+          error("SyntaxError: Identifier '" .. var_name .. "' has already been declared", 0)
+        end
+        scope[var_name] = kind
+      else
+        scope_declare(ctx, var_name, kind)
+      end
     else
       var_name = fresh_tmp()
     end
@@ -1737,7 +1794,17 @@ emit_destructure = function(pattern, rhs, indent, ctx, out, kind)
     for _, prop_node in ipairs(pattern.properties) do
       if prop_node.type == ast.TYPE_REST_ELEMENT then
         local rest_name = prop_node.argument.name
-        scope_declare(ctx, rest_name, kind)
+        local scope = ctx.scopes[#ctx.scopes]
+        local existing = scope[rest_name]
+        local is_fwd = existing == "__fwd_func" or existing == "__fwd_var"
+        if is_fwd then
+          if existing == "__fwd_func" and (kind == "let" or kind == "const") then
+            error("SyntaxError: Identifier '" .. rest_name .. "' has already been declared", 0)
+          end
+          scope[rest_name] = kind
+        else
+          scope_declare(ctx, rest_name, kind)
+        end
         local collected = {}
         for _, p in ipairs(pattern.properties) do
           if p.type == ast.TYPE_PROPERTY then
@@ -1767,7 +1834,17 @@ emit_destructure = function(pattern, rhs, indent, ctx, out, kind)
         -- hole: skip
       elseif elem.type == ast.TYPE_REST_ELEMENT then
         local rest_name = elem.argument.name
-        scope_declare(ctx, rest_name, kind)
+        local scope = ctx.scopes[#ctx.scopes]
+        local existing = scope[rest_name]
+        local is_fwd = existing == "__fwd_func" or existing == "__fwd_var"
+        if is_fwd then
+          if existing == "__fwd_func" and (kind == "let" or kind == "const") then
+            error("SyntaxError: Identifier '" .. rest_name .. "' has already been declared", 0)
+          end
+          scope[rest_name] = kind
+        else
+          scope_declare(ctx, rest_name, kind)
+        end
         out[#out + 1] = cg.local_decl(
           rest_name,
           cg.iife({
@@ -1904,21 +1981,15 @@ gen.VariableDeclaration = function(node, indent, ctx)
           end
         end
       end
-      local name_type = decl.name.type
-      if name_type == ast.TYPE_OBJECT_PATTERN or name_type == ast.TYPE_ARRAY_PATTERN then
-        local defaults = collect_pattern_defaults(decl.name)
-        for _, default_expr in ipairs(defaults) do
-          for _, entry in ipairs(names_by_index) do
-            if entry.index >= i then
-              if references_identifier(default_expr, entry.name) then
-                error(
-                  "ReferenceError: Cannot access '" .. entry.name .. "' before initialization",
-                  0
-                )
-              end
-            end
-          end
+    end
+    for _, decl in ipairs(node.declarations) do
+      local nt = decl.name.type
+      if nt == ast.TYPE_OBJECT_PATTERN or nt == ast.TYPE_ARRAY_PATTERN then
+        local all_names = {}
+        for _, d in ipairs(node.declarations) do
+          extract_binding_names(d.name, all_names)
         end
+        check_pattern_defaults_tdz(decl.name, all_names)
       end
     end
   end
@@ -2221,8 +2292,8 @@ gen.ForOfStatement = function(node, indent, ctx)
     .. cg.numeric_for(idx_tmp, "1", cg.member_dot(iter_tmp, "length"), body, indent)
 end
 
--- JS for..in → Lua pairs(). The dummy `_` catches the value since JS for..in
--- only yields keys. Note: does not walk prototype chain (Lua pairs() limitation).
+-- JS for..in → _ljs_for_in_keys(). Iterates own + enumerable keys via
+-- _ljs_for_in_keys. Does not walk prototype chain.
 gen.ForInStatement = function(node, indent, ctx)
   local var_name
   if node.left.type == ast.TYPE_VARIABLE_DECLARATION then
