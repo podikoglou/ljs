@@ -2057,6 +2057,9 @@ gen.ForOfStatement = function(node, indent, ctx)
   local var_name
   if node.left.type == ast.TYPE_VARIABLE_DECLARATION then
     var_name = node.left.declarations[1].name.name
+    if references_identifier(node.right, var_name) then
+      error("ReferenceError: Cannot access '" .. var_name .. "' before initialization", 0)
+    end
   else
     var_name = node.left.name
   end
@@ -2086,6 +2089,9 @@ gen.ForInStatement = function(node, indent, ctx)
   local var_name
   if node.left.type == ast.TYPE_VARIABLE_DECLARATION then
     var_name = node.left.declarations[1].name.name
+    if references_identifier(node.right, var_name) then
+      error("ReferenceError: Cannot access '" .. var_name .. "' before initialization", 0)
+    end
   else
     var_name = node.left.name
   end
