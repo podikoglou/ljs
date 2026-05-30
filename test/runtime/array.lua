@@ -2320,3 +2320,41 @@ test("for-in on string variable (#350)", function()
     "01234"
   )
 end)
+
+-- for-in on boxed strings (#393)
+-- ============================================================================
+
+test("for-in on new String yields index keys (#393)", function()
+  assert_eq(
+    exec_js([[
+    var r = "";
+    for (var k in new String("abc")) { r += k; }
+    return r;
+  ]]),
+    "012"
+  )
+end)
+
+test("for-in on new String with extra property (#393)", function()
+  assert_eq(
+    exec_js([[
+    var s = new String("abc");
+    s.custom = "x";
+    var r = "";
+    for (var k in s) { r += k; }
+    return r;
+  ]]),
+    "012custom"
+  )
+end)
+
+test("for-in on new String('') yields nothing (#393)", function()
+  assert_eq(
+    exec_js([[
+    var r = "";
+    for (var k in new String("")) { r += k; }
+    return r;
+  ]]),
+    ""
+  )
+end)
