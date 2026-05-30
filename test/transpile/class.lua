@@ -56,7 +56,10 @@ end)
 
 test("super() in constructor", function()
   local code = H.transpile_ok('class Dog extends Animal { constructor() { super("Rex"); } }')
-  assert(code:find('_ljs_call_this%(Animal, _ljs_arrow_this, "Rex"%)'), "expected super call via _ljs_call_this")
+  assert(
+    code:find('_ljs_call_this%(Animal, _ljs_arrow_this, "Rex"%)'),
+    "expected super call via _ljs_call_this"
+  )
 end)
 
 test("super.method() uses _ljs_super_call", function()
@@ -261,4 +264,18 @@ test("explicit super() with args forwards them", function()
     console.log(b.x);
   ]])
   assert_eq(out, "42\n")
+end)
+
+test("super() as expression returns this", function()
+  local out = run_js([[
+    class A { constructor() { this.x = 1; } }
+    class B extends A {
+      constructor() {
+        const result = super();
+        console.log(result === this);
+      }
+    }
+    new B();
+  ]])
+  assert_eq(out, "true\n")
 end)
