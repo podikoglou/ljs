@@ -324,3 +324,30 @@ test("bare expr in while body produces valid Lua (integration)", function()
   local output = run_js("let x = 0; while (x < 1) { x; x = x + 1; }")
   assert_eq(output, "")
 end)
+
+-- ============================================================================
+-- for...of on arguments (#293)
+-- ============================================================================
+
+test("for...of on arguments iterates values", function()
+  local out = run_js([[
+    function f() {
+      let r = "";
+      for (let x of arguments) { r += x; }
+      return r;
+    }
+    console.log(f(1, 2, 3));
+  ]])
+  assert_eq(out, "123\n")
+end)
+
+test("arguments has length and indexed access", function()
+  local out = run_js([[
+    function f() {
+      console.log(arguments.length);
+      console.log(arguments[0]);
+    }
+    f("a", "b");
+  ]])
+  assert_eq(out, "2\na\n")
+end)
