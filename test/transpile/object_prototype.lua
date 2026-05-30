@@ -116,3 +116,107 @@ test("Object.prototype.constructor === Object", function()
   ]])
   assert_eq(out, "true\n")
 end)
+
+test("__proto__ getter: ({}).__proto__ === Object.prototype", function()
+  local out = run_js([[
+    console.log(({}).__proto__ === Object.prototype);
+  ]])
+  assert_eq(out, "true\n")
+end)
+
+test("__proto__ getter: Object.prototype.__proto__ is null", function()
+  local out = run_js([[
+    console.log(Object.prototype.__proto__);
+  ]])
+  assert_eq(out, "null\n")
+end)
+
+test("__proto__ setter: reassign prototype and inherit", function()
+  local out = run_js([[
+    let parent = { x: 42 };
+    let obj = {};
+    obj.__proto__ = parent;
+    console.log(obj.x);
+  ]])
+  assert_eq(out, "42\n")
+end)
+
+test("__proto__ setter: set to null breaks prototype chain", function()
+  local out = run_js([[
+    let obj = {};
+    obj.__proto__ = null;
+    console.log(obj.toString === undefined);
+  ]])
+  assert_eq(out, "true\n")
+end)
+
+test("__proto__ setter: non-object value is no-op", function()
+  local out = run_js([[
+    let obj = {};
+    obj.__proto__ = 42;
+    console.log(obj.toString === undefined);
+  ]])
+  assert_eq(out, "false\n")
+end)
+
+test("__proto__ computed access returns prototype", function()
+  local out = run_js([[
+    let obj = {};
+    console.log(obj["__proto__"] === Object.prototype);
+  ]])
+  assert_eq(out, "true\n")
+end)
+
+test("__proto__ on constructor instance", function()
+  local out = run_js([[
+    function Foo() {}
+    let f = new Foo();
+    console.log(f.__proto__ === Foo.prototype);
+  ]])
+  assert_eq(out, "true\n")
+end)
+
+test("__proto__ getter on function returns Function.prototype", function()
+  local out = run_js([[
+    function foo() {}
+    console.log(foo.__proto__ === Function.prototype);
+  ]])
+  assert_eq(out, "true\n")
+end)
+
+test("__proto__ computed setter: obj[\"__proto__\"] = parent", function()
+  local out = run_js([[
+    let parent = { x: 99 };
+    let obj = {};
+    obj["__proto__"] = parent;
+    console.log(obj.x);
+  ]])
+  assert_eq(out, "99\n")
+end)
+
+test("__proto__ assignment expression returns value", function()
+  local out = run_js([[
+    let parent = { x: 7 };
+    let obj = {};
+    let r = (obj.__proto__ = parent);
+    console.log(r === parent);
+  ]])
+  assert_eq(out, "true\n")
+end)
+
+test("__proto__ destructuring target", function()
+  local out = run_js([[
+    let parent = { x: 55 };
+    let obj = {};
+    [obj.__proto__] = [parent];
+    console.log(obj.__proto__ === parent);
+  ]])
+  assert_eq(out, "true\n")
+end)
+
+test("string primitive __proto__ returns String.prototype", function()
+  local out = run_js([[
+    console.log("hello".__proto__ === String.prototype);
+  ]])
+  assert_eq(out, "true\n")
+end)
