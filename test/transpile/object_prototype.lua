@@ -140,3 +140,12 @@ test("__proto__ setter: reassign prototype and inherit", function()
   ]])
   assert_eq(out, "42\n")
 end)
+
+test("__proto__ setter: set to null breaks prototype chain", function()
+  local out = run_js([[
+    let obj = {};
+    obj.__proto__ = null;
+    console.log(obj.toString === undefined);
+  ]])
+  assert_eq(out, "true\n")
+end)
