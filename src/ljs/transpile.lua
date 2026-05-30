@@ -1306,10 +1306,7 @@ end
 local function collect_var_names(node, names)
   if node.type == ast.TYPE_VARIABLE_DECLARATION then
     for _, decl in ipairs(node.declarations) do
-      local nt = decl.name.type
-      if nt == ast.TYPE_IDENTIFIER then
-        names[#names + 1] = decl.name.name
-      end
+      extract_binding_names(decl.name, names)
     end
   end
 end
@@ -1744,7 +1741,17 @@ end
 
 local function emit_binding(target, access, indent, ctx, out, kind)
   if target.type == ast.TYPE_IDENTIFIER then
-    scope_declare(ctx, target.name, kind)
+    local scope = ctx.scopes[#ctx.scopes]
+    local existing = scope[target.name]
+    local is_fwd = existing == "__fwd_func" or existing == "__fwd_var"
+    if is_fwd then
+      if existing == "__fwd_func" and (kind == "let" or kind == "const") then
+        error("SyntaxError: Identifier '" .. target.name .. "' has already been declared", 0)
+      end
+      scope[target.name] = kind
+    else
+      scope_declare(ctx, target.name, kind)
+    end
     out[#out + 1] = cg.local_decl(target.name, access, indent)
   elseif target.type == ast.TYPE_ASSIGNMENT_PATTERN then
     local inner = target.left
@@ -1752,7 +1759,17 @@ local function emit_binding(target, access, indent, ctx, out, kind)
     local var_name
     if inner.type == ast.TYPE_IDENTIFIER then
       var_name = inner.name
-      scope_declare(ctx, var_name, kind)
+      local scope = ctx.scopes[#ctx.scopes]
+      local existing = scope[var_name]
+      local is_fwd = existing == "__fwd_func" or existing == "__fwd_var"
+      if is_fwd then
+        if existing == "__fwd_func" and (kind == "let" or kind == "const") then
+          error("SyntaxError: Identifier '" .. var_name .. "' has already been declared", 0)
+        end
+        scope[var_name] = kind
+      else
+        scope_declare(ctx, var_name, kind)
+      end
     else
       var_name = fresh_tmp()
     end
@@ -1779,7 +1796,17 @@ emit_destructure = function(pattern, rhs, indent, ctx, out, kind)
     for _, prop_node in ipairs(pattern.properties) do
       if prop_node.type == ast.TYPE_REST_ELEMENT then
         local rest_name = prop_node.argument.name
-        scope_declare(ctx, rest_name, kind)
+        local scope = ctx.scopes[#ctx.scopes]
+        local existing = scope[rest_name]
+        local is_fwd = existing == "__fwd_func" or existing == "__fwd_var"
+        if is_fwd then
+          if existing == "__fwd_func" and (kind == "let" or kind == "const") then
+            error("SyntaxError: Identifier '" .. rest_name .. "' has already been declared", 0)
+          end
+          scope[rest_name] = kind
+        else
+          scope_declare(ctx, rest_name, kind)
+        end
         local collected = {}
         for _, p in ipairs(pattern.properties) do
           if p.type == ast.TYPE_PROPERTY then
@@ -1809,7 +1836,17 @@ emit_destructure = function(pattern, rhs, indent, ctx, out, kind)
         -- hole: skip
       elseif elem.type == ast.TYPE_REST_ELEMENT then
         local rest_name = elem.argument.name
-        scope_declare(ctx, rest_name, kind)
+        local scope = ctx.scopes[#ctx.scopes]
+        local existing = scope[rest_name]
+        local is_fwd = existing == "__fwd_func" or existing == "__fwd_var"
+        if is_fwd then
+          if existing == "__fwd_func" and (kind == "let" or kind == "const") then
+            error("SyntaxError: Identifier '" .. rest_name .. "' has already been declared", 0)
+          end
+          scope[rest_name] = kind
+        else
+          scope_declare(ctx, rest_name, kind)
+        end
         out[#out + 1] = cg.local_decl(
           rest_name,
           cg.iife({

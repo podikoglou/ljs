@@ -60,3 +60,48 @@ test("function expression is NOT hoisted", function()
   ]])
   assert_eq(out, "undefined\n")
 end)
+
+test("function hoisting with var destructured object — ok", function()
+  local out = run_js([[
+    function a() {}
+    var {a} = {};
+    console.log(typeof a);
+  ]])
+  assert_eq(out, "undefined\n")
+end)
+
+test("function hoisting with let destructured object — SyntaxError", function()
+  local ok, err = pcall(run_js, [[
+    function a() {}
+    let {a} = {};
+  ]])
+  assert_eq(ok, false)
+  assert(err:find("SyntaxError"), "expected SyntaxError, got: " .. tostring(err))
+end)
+
+test("function hoisting with var multi-prop destructured object — ok", function()
+  local out = run_js([[
+    function a() {}
+    var {a, b} = {b: 2};
+    console.log(typeof a, b);
+  ]])
+  assert_eq(out, "undefined 2\n")
+end)
+
+test("function hoisting with var simple declaration — ok", function()
+  local out = run_js([[
+    function a() {}
+    var a = 1;
+    console.log(a);
+  ]])
+  assert_eq(out, "1\n")
+end)
+
+test("function hoisting with var rest destructured object — ok", function()
+  local out = run_js([[
+    function a() {}
+    var {...a} = {x: 1};
+    console.log(a.x);
+  ]])
+  assert_eq(out, "1\n")
+end)
