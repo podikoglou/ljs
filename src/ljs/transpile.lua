@@ -1753,7 +1753,17 @@ local function emit_binding(target, access, indent, ctx, out, kind)
     local var_name
     if inner.type == ast.TYPE_IDENTIFIER then
       var_name = inner.name
-      scope_declare(ctx, var_name, kind)
+      local scope = ctx.scopes[#ctx.scopes]
+      local existing = scope[var_name]
+      local is_fwd = existing == "__fwd_func" or existing == "__fwd_var"
+      if is_fwd then
+        if existing == "__fwd_func" and (kind == "let" or kind == "const") then
+          error("SyntaxError: Identifier '" .. var_name .. "' has already been declared", 0)
+        end
+        scope[var_name] = kind
+      else
+        scope_declare(ctx, var_name, kind)
+      end
     else
       var_name = fresh_tmp()
     end
