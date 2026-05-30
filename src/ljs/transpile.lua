@@ -915,7 +915,9 @@ local function scope_shadows_name(node, name)
         for _, d in ipairs(s.declarations) do
           local names = extract_binding_names(d.name)
           for _, n in ipairs(names) do
-            if n == name then return true end
+            if n == name then
+              return true
+            end
           end
         end
       end
@@ -923,11 +925,17 @@ local function scope_shadows_name(node, name)
     return false
   end
   if node.type == ast.TYPE_FOR_STATEMENT then
-    if node.init and node.init.type == ast.TYPE_VARIABLE_DECLARATION and node.init.kind ~= "var" then
+    if
+      node.init
+      and node.init.type == ast.TYPE_VARIABLE_DECLARATION
+      and node.init.kind ~= "var"
+    then
       for _, d in ipairs(node.init.declarations) do
         local names = extract_binding_names(d.name)
         for _, n in ipairs(names) do
-          if n == name then return true end
+          if n == name then
+            return true
+          end
         end
       end
     end
@@ -938,7 +946,9 @@ local function scope_shadows_name(node, name)
       for _, d in ipairs(node.left.declarations) do
         local names = extract_binding_names(d.name)
         for _, n in ipairs(names) do
-          if n == name then return true end
+          if n == name then
+            return true
+          end
         end
       end
     end
@@ -951,7 +961,9 @@ local function scope_shadows_name(node, name)
           for _, d in ipairs(s.declarations) do
             local names = extract_binding_names(d.name)
             for _, n in ipairs(names) do
-              if n == name then return true end
+              if n == name then
+                return true
+              end
             end
           end
         end
@@ -969,9 +981,11 @@ local function references_identifier_scope_aware(node, name)
   if node.type == ast.TYPE_IDENTIFIER and node.name == name then
     return true
   end
-  if node.type == ast.TYPE_FUNCTION_DECLARATION
+  if
+    node.type == ast.TYPE_FUNCTION_DECLARATION
     or node.type == ast.TYPE_FUNCTION_EXPRESSION
-    or node.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION then
+    or node.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION
+  then
     return false
   end
   if node.type == ast.TYPE_VARIABLE_DECLARATOR then
@@ -2237,8 +2251,8 @@ gen.ForOfStatement = function(node, indent, ctx)
     .. cg.numeric_for(idx_tmp, "1", cg.member_dot(iter_tmp, "length"), body, indent)
 end
 
--- JS for..in → Lua pairs(). The dummy `_` catches the value since JS for..in
--- only yields keys. Note: does not walk prototype chain (Lua pairs() limitation).
+-- JS for..in → _ljs_for_in_keys(). Iterates own + enumerable keys via
+-- _ljs_for_in_keys. Does not walk prototype chain.
 gen.ForInStatement = function(node, indent, ctx)
   local var_name
   if node.left.type == ast.TYPE_VARIABLE_DECLARATION then
