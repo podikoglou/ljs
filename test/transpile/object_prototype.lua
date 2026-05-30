@@ -158,3 +158,28 @@ test("__proto__ setter: non-object value is no-op", function()
   ]])
   assert_eq(out, "false\n")
 end)
+
+test("__proto__ computed access returns prototype", function()
+  local out = run_js([[
+    let obj = {};
+    console.log(obj["__proto__"] === Object.prototype);
+  ]])
+  assert_eq(out, "true\n")
+end)
+
+test("__proto__ on constructor instance", function()
+  local out = run_js([[
+    function Foo() {}
+    let f = new Foo();
+    console.log(f.__proto__ === Foo.prototype);
+  ]])
+  assert_eq(out, "true\n")
+end)
+
+test("__proto__ getter on function returns Function.prototype", function()
+  local out = run_js([[
+    function foo() {}
+    console.log(foo.__proto__ === Function.prototype);
+  ]])
+  assert_eq(out, "true\n")
+end)
