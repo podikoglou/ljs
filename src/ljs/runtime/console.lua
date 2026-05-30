@@ -19,6 +19,7 @@ local function _ljs_escape_string(s)
     end
   end
   if has_single and has_double then
+    escaped = escaped:gsub("`", "\\`")
     return "`" .. escaped .. "`"
   elseif has_single then
     return '"' .. escaped .. '"'
