@@ -48,19 +48,7 @@ local function emit_expr_code(src)
   return code:match("([^\n]*)$")
 end
 
-local function expr_code(src)
-  local ast, err = parser.parse(src)
-  if not ast then
-    error("parse failed: " .. tostring(err))
-  end
-  local code, err2 = transpile.transpile(ast)
-  if not code then
-    error("transpile failed: " .. tostring(err2))
-  end
-  code = code:gsub("\n$", "")
-  local last_line = code:match("([^\n]*)$")
-  return last_line
-end
+local expr_code = emit_expr_code
 
 -- Integration test helpers
 
