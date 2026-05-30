@@ -512,6 +512,16 @@ HELPERS._ljs_call_this = [[local function _ljs_call_this(fn, this_val, ...)
   return fn(this_val, ...)
 end]]
 
+HELPERS._ljs_arguments = [[local function _ljs_arguments(...)
+  local args = _ljs_object({})
+  local n = select("#", ...)
+  args.length = n
+  for i = 1, n do
+    args[i] = select(i, ...)
+  end
+  return args
+end]]
+
 HELPERS._ljs_spread_build = [[local function _ljs_spread_build(...)
   local result = {}
   result.n = 0
@@ -781,7 +791,29 @@ local function has_continue(node)
   return false
 end
 
---- Check whether an AST subtree contains break, continue, or return
+local function body_references_arguments(node)
+  if not node or type(node) ~= "table" then
+    return false
+  end
+  if node.type == ast.TYPE_IDENTIFIER and node.name == "arguments" then
+    return true
+  end
+  if
+    node.type == ast.TYPE_FUNCTION_DECLARATION
+    or node.type == ast.TYPE_FUNCTION_EXPRESSION
+    or node.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION
+  then
+    return false
+  end
+  for _, v in pairs(node) do
+    if type(v) == "table" then
+      if body_references_arguments(v) then
+        return true
+      end
+    end
+  end
+  return false
+end
 -- that would cross a pcall function boundary.
 -- Stops at loop boundaries (for break/continue) and function boundaries.
 -- @param node (table|nil) AST node
@@ -1211,6 +1243,8 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
   end
   if has_rest then
     params[#params + 1] = "..."
+  elseif body_references_arguments(fn_node.body) then
+    params[#params + 1] = "..."
   end
   scope_push(ctx)
   if extra_scope_names then
@@ -1282,6 +1316,10 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
     for _, line in ipairs(out) do
       preamble = preamble .. line
     end
+  end
+  if body_references_arguments(fn_node.body) then
+    preamble = preamble
+      .. cg.local_decl("arguments", cg.call("_ljs_arguments", { "..." }), indent + 1)
   end
   local save_src = fn_node.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION and "_ljs_arrow_this"
     or "_ljs_this"
@@ -2692,6 +2730,7 @@ local HELPER_ORDER = {
   "_ljs_ctor",
   "_ljs_new",
   "_ljs_arr_lit",
+  "_ljs_arguments",
   "_ljs_call_this",
   "_ljs_instanceof",
   "_ljs_for_in_keys",
