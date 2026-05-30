@@ -2558,11 +2558,18 @@ local function emit_compound_expr(node, indent, ctx)
   if lhs.type == ast.TYPE_IDENTIFIER then
     check_assign(ctx, lhs.name)
   end
-  local obj_code, suffix = member_ref(lhs, indent, ctx)
+  local obj_code, suffix, key_code = member_ref(lhs, indent, ctx)
   local refs = {}
   if obj_code then
     local rtmp = fresh_tmp()
-    refs[#refs + 1] = { tmp = rtmp, suffix = suffix, obj_code = obj_code }
+    local entry = { tmp = rtmp, suffix = suffix, obj_code = obj_code }
+    if key_code then
+      local ktmp = fresh_tmp()
+      entry.key_tmp = ktmp
+      entry.key_code = key_code
+      entry.suffix = "[" .. ktmp .. "]"
+    end
+    refs[#refs + 1] = entry
   else
     refs[#refs + 1] = { name = lhs.name }
   end
@@ -2593,6 +2600,9 @@ local function emit_compound_expr(node, indent, ctx)
   for _, r in ipairs(refs) do
     if r.obj_code then
       stmts[#stmts + 1] = cg.local_inline(r.tmp, r.obj_code)
+    end
+    if r.key_tmp then
+      stmts[#stmts + 1] = cg.local_inline(r.key_tmp, r.key_code)
     end
   end
   stmts[#stmts + 1] = cg.local_inline(vtmp, value)
@@ -2646,10 +2656,17 @@ gen.BinaryExpression = function(node, indent, ctx)
       end
       local refs = {}
       for _, lhs in ipairs(targets) do
-        local obj_code, suffix = member_ref(lhs, indent, ctx)
+        local obj_code, suffix, key_code = member_ref(lhs, indent, ctx)
         if obj_code then
           local tmp = fresh_tmp()
-          refs[#refs + 1] = { tmp = tmp, suffix = suffix, obj_code = obj_code }
+          local entry = { tmp = tmp, suffix = suffix, obj_code = obj_code }
+          if key_code then
+            local ktmp = fresh_tmp()
+            entry.key_tmp = ktmp
+            entry.key_code = key_code
+            entry.suffix = "[" .. ktmp .. "]"
+          end
+          refs[#refs + 1] = entry
         else
           refs[#refs + 1] = { name = lhs.name }
         end
@@ -2658,6 +2675,9 @@ gen.BinaryExpression = function(node, indent, ctx)
       for _, r in ipairs(refs) do
         if r.obj_code then
           stmts[#stmts + 1] = cg.local_inline(r.tmp, r.obj_code)
+        end
+        if r.key_tmp then
+          stmts[#stmts + 1] = cg.local_inline(r.key_tmp, r.key_code)
         end
       end
       local value
@@ -2693,10 +2713,17 @@ gen.BinaryExpression = function(node, indent, ctx)
       end
       local refs = {}
       for _, lhs in ipairs(targets) do
-        local obj_code, suffix = member_ref(lhs, indent, ctx)
+        local obj_code, suffix, key_code = member_ref(lhs, indent, ctx)
         if obj_code then
           local tmp = fresh_tmp()
-          refs[#refs + 1] = { tmp = tmp, suffix = suffix, obj_code = obj_code }
+          local entry = { tmp = tmp, suffix = suffix, obj_code = obj_code }
+          if key_code then
+            local ktmp = fresh_tmp()
+            entry.key_tmp = ktmp
+            entry.key_code = key_code
+            entry.suffix = "[" .. ktmp .. "]"
+          end
+          refs[#refs + 1] = entry
         else
           refs[#refs + 1] = { name = lhs.name }
         end
@@ -2719,6 +2746,9 @@ gen.BinaryExpression = function(node, indent, ctx)
       for _, r in ipairs(refs) do
         if r.obj_code then
           stmts[#stmts + 1] = cg.local_inline(r.tmp, r.obj_code)
+        end
+        if r.key_tmp then
+          stmts[#stmts + 1] = cg.local_inline(r.key_tmp, r.key_code)
         end
       end
       stmts[#stmts + 1] = cg.local_inline(tmp, value)
@@ -2847,11 +2877,12 @@ local function member_key(node, indent, ctx)
 end
 
 member_ref = function(node, indent, ctx)
-  -- Returns (object_code, access_suffix) for a MemberExpression LHS.
+  -- Returns (object_code, access_suffix, key_code) for a MemberExpression LHS.
   -- object_code: expression that evaluates the base object (wrapped in _ljs_to_object)
   -- access_suffix: ".prop" or "[key]" for the property access
+  -- key_code: nil for dot access, key expression string for computed access
   if node.type ~= ast.TYPE_MEMBER_EXPRESSION then
-    return nil, nil
+    return nil, nil, nil
   end
   local obj
   if node.object.type == ast.TYPE_SUPER_EXPRESSION then
@@ -2862,9 +2893,10 @@ member_ref = function(node, indent, ctx)
   end
   obj = cg.call("_ljs_to_object", { obj })
   if node.computed then
-    return obj, "[" .. member_key(node, indent, ctx) .. "]"
+    local key = member_key(node, indent, ctx)
+    return obj, "[" .. key .. "]", key
   end
-  return obj, "." .. node.property.name
+  return obj, "." .. node.property.name, nil
 end
 
 local function delete_key_and_obj(arg, indent, ctx)
