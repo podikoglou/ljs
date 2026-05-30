@@ -109,7 +109,8 @@ local function _ljs_inspect(x, depth, ctx)
     return "[ " .. table.concat(items, ", ") .. " ]"
   end
 
-  local parts = {}
+  local string_keys = {}
+  local num_keys = {}
   local k = nil
   while true do
     k = next(x, k)
@@ -117,12 +118,19 @@ local function _ljs_inspect(x, depth, ctx)
       break
     end
     if type(k) == "string" and not _ljs_internal_keys[k] then
-      local v = rawget(x, k)
-      parts[#parts + 1] = _ljs_format_key(k) .. ": " .. _ljs_inspect(v, depth + 1, ctx)
+      string_keys[#string_keys + 1] = k
     elseif type(k) == "number" then
-      local v = rawget(x, k)
-      parts[#parts + 1] = _ljs_format_key(k) .. ": " .. _ljs_inspect(v, depth + 1, ctx)
+      num_keys[#num_keys + 1] = k
     end
+  end
+  table.sort(num_keys, function(a, b) return a < b end)
+  table.sort(string_keys)
+  local parts = {}
+  for _, k in ipairs(num_keys) do
+    parts[#parts + 1] = _ljs_format_key(k) .. ": " .. _ljs_inspect(rawget(x, k), depth + 1, ctx)
+  end
+  for _, k in ipairs(string_keys) do
+    parts[#parts + 1] = _ljs_format_key(k) .. ": " .. _ljs_inspect(rawget(x, k), depth + 1, ctx)
   end
   ctx.path[x] = nil
   if #parts == 0 then

@@ -160,8 +160,14 @@ test("console.log formats nested object", function()
   local out = capture_stdout(function()
     exec_js("console.log({a: [1], b: {c: 2}});")
   end)
-  local valid = out == "{ a: [ 1 ], b: { c: 2 } }\n" or out == "{ b: { c: 2 }, a: [ 1 ] }\n"
-  assert(valid, "unexpected output: " .. out)
+  assert_eq(out, "{ a: [ 1 ], b: { c: 2 } }\n")
+end)
+
+test("console.log sorts object keys alphabetically", function()
+  local out = capture_stdout(function()
+    exec_js("console.log({z: 1, a: 2, m: 3});")
+  end)
+  assert_eq(out, "{ a: 2, m: 3, z: 1 }\n")
 end)
 
 test("console.log formats mixed args", function()
