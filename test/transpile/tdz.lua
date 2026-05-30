@@ -116,3 +116,56 @@ end)
 test("destructuring literal default is fine (#376)", function()
   transpile_ok("let {x = 1} = {};")
 end)
+
+-- ============================================================================
+-- #372: Block-level use-before-declaration TDZ
+-- ============================================================================
+
+test("use before let in expression errors (#372)", function()
+  assert_transpile_error("console.log(x); let x = 5;", "Cannot access 'x' before initialization")
+end)
+
+test("bare identifier use before let errors (#372)", function()
+  assert_transpile_error("x; let x = 5;", "Cannot access 'x' before initialization")
+end)
+
+test("typeof before let errors (#372)", function()
+  assert_transpile_error("typeof x; let x = 5;", "Cannot access 'x' before initialization")
+end)
+
+test("use in if-condition before let errors (#372)", function()
+  assert_transpile_error("if (x) {} let x = 5;", "Cannot access 'x' before initialization")
+end)
+
+test("use before const errors (#372)", function()
+  assert_transpile_error("console.log(x); const x = 5;", "Cannot access 'x' before initialization")
+end)
+
+test("inner block shadow use before let errors (#372)", function()
+  assert_transpile_error(
+    "let x = 1; { console.log(x); let x = 2; }",
+    "Cannot access 'x' before initialization"
+  )
+end)
+
+-- #372: Valid code that must still work
+
+test("declaration before use is fine (#372)", function()
+  transpile_ok("let x = 5; console.log(x);")
+end)
+
+test("var has no TDZ (#372)", function()
+  transpile_ok("console.log(x); var x = 5;")
+end)
+
+test("function hoisting is fine (#372)", function()
+  transpile_ok("foo(); function foo() {}")
+end)
+
+test("inner block declared before use is fine (#372)", function()
+  transpile_ok("let x = 1; { let x = 2; console.log(x); }")
+end)
+
+test("inner block no shadow is fine (#372)", function()
+  transpile_ok("let x = 1; { console.log(x); }")
+end)

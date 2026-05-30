@@ -1199,6 +1199,35 @@ local function collect_var_names(node, names)
 end
 
 local function emit_body(stmts, indent, ctx)
+  do
+    local seen_names = {}
+    local var_names = {}
+    local lexical_decls = {}
+    for i, s in ipairs(stmts) do
+      if s.type == ast.TYPE_VARIABLE_DECLARATION then
+        for _, decl in ipairs(s.declarations) do
+          local names = extract_binding_names(decl.name)
+          for _, n in ipairs(names) do
+            if s.kind == "var" then
+              var_names[n] = true
+            elseif not seen_names[n] then
+              seen_names[n] = true
+              lexical_decls[#lexical_decls + 1] = { name = n, stmt_idx = i }
+            end
+          end
+        end
+      end
+    end
+    for _, entry in ipairs(lexical_decls) do
+      if not var_names[entry.name] then
+        for i = 1, entry.stmt_idx - 1 do
+          if references_identifier(stmts[i], entry.name) then
+            error("ReferenceError: Cannot access '" .. entry.name .. "' before initialization", 0)
+          end
+        end
+      end
+    end
+  end
   local func_decls = {}
   for _, s in ipairs(stmts) do
     if s.type == ast.TYPE_FUNCTION_DECLARATION then
