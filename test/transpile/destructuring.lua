@@ -103,7 +103,7 @@ test("destructure_counter resets between transpiles (#174)", function()
   local code2 = transpile_ok(src)
   assert(code1:find("_ljs_d1", 1, true), "first transpile should use _ljs_d1")
   assert(code2:find("_ljs_d1", 1, true), "second transpile should also use _ljs_d1")
-  assert(not code2:find("_ljs_d2", 1, true), "second transpile should not leak _ljs_d2")
+  assert(not code2:find("_ljs_d3", 1, true), "second transpile should not leak _ljs_d3")
 end)
 
 test("bare array destructuring assignment — runtime values (#181)", function()
@@ -228,4 +228,61 @@ test("destructure statement with compound RHS (#390)", function()
   assert(fn ~= nil, "Generated Lua is invalid: " .. tostring(err))
 end)
 
+test("object destructure declaration with number RHS (#397)", function()
+  local out = run_js("let {a} = 10;\nconsole.log(a);")
+  assert_eq(out, "undefined\n")
+end)
 
+test("object destructure declaration with string RHS (#397)", function()
+  local out = run_js('let {length} = "hello";\nconsole.log(length);')
+  assert_eq(out, "5\n")
+end)
+
+test("object destructure declaration with boolean RHS (#397)", function()
+  local out = run_js("let {constructor: c} = 42;\nconsole.log(typeof c);")
+  assert_eq(out, "function\n")
+end)
+
+test("object destructure assignment with number RHS (#397)", function()
+  local out = run_js("let a; ({a} = 10);\nconsole.log(a);")
+  assert_eq(out, "undefined\n")
+end)
+
+test("object destructure assignment with string RHS (#397)", function()
+  local out = run_js('let a; ({length: a} = "hello");\nconsole.log(a);')
+  assert_eq(out, "5\n")
+end)
+
+test("object destructure declaration with null RHS throws TypeError (#397)", function()
+  local out = run_js([[
+    try { let {a} = null; console.log("no error"); }
+    catch(e) { console.log("caught"); }
+  ]])
+  assert_eq(out, "caught\n")
+end)
+
+test("object destructure declaration with undefined RHS throws TypeError (#397)", function()
+  local out = run_js([[
+    try { let {a} = undefined; console.log("no error"); }
+    catch(e) { console.log("caught"); }
+  ]])
+  assert_eq(out, "caught\n")
+end)
+
+test("object destructure assignment with null RHS throws TypeError (#397)", function()
+  local out = run_js([[
+    let a;
+    try { ({a} = null); console.log("no error"); }
+    catch(e) { console.log("caught"); }
+  ]])
+  assert_eq(out, "caught\n")
+end)
+
+test("object destructure assignment with undefined RHS throws TypeError (#397)", function()
+  local out = run_js([[
+    let a;
+    try { ({a} = undefined); console.log("no error"); }
+    catch(e) { console.log("caught"); }
+  ]])
+  assert_eq(out, "caught\n")
+end)

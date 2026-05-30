@@ -63,6 +63,13 @@ HELPERS._ljs_is_nilish = [[local function _ljs_is_nilish(x)
   return x == nil or x == _ljs_null or x == _ljs_undefined
 end]]
 
+HELPERS._ljs_require_object_coercible = [[local function _ljs_require_object_coercible(v)
+  if _ljs_is_nilish(v) then
+    local desc = _ljs_is_undef(v) and "undefined" or "null"
+    _ljs_type_error("Cannot destructure property of " .. desc)
+  end
+end]]
+
 HELPERS._ljs_to_int32 = [[local function _ljs_to_int32(x)
   x = _ljs_to_number(x)
   if x ~= x then return 0 end
@@ -1814,6 +1821,9 @@ end
 
 emit_destructure = function(pattern, rhs, indent, ctx, out, kind)
   if pattern.type == ast.TYPE_OBJECT_PATTERN then
+    out[#out + 1] = cg.expr_stmt(cg.call("_ljs_require_object_coercible", { rhs }), indent)
+    local boxed = fresh_tmp()
+    out[#out + 1] = cg.local_decl(boxed, cg.call("_ljs_to_object", { rhs }), indent)
     for _, prop_node in ipairs(pattern.properties) do
       if prop_node.type == ast.TYPE_REST_ELEMENT then
         local rest_name = prop_node.argument.name
@@ -1837,7 +1847,7 @@ emit_destructure = function(pattern, rhs, indent, ctx, out, kind)
           end
         end
         local keys_expr = cg.array(collected)
-        out[#out + 1] = cg.local_decl(rest_name, cg.call("_ljs_rest", { rhs, keys_expr }), indent)
+        out[#out + 1] = cg.local_decl(rest_name, cg.call("_ljs_rest", { boxed, keys_expr }), indent)
       else
         local key_str
         if prop_node.key.type == ast.TYPE_IDENTIFIER then
@@ -1845,7 +1855,7 @@ emit_destructure = function(pattern, rhs, indent, ctx, out, kind)
         else
           key_str = emit(prop_node.key, indent, ctx)
         end
-        local access = cg.member_index(rhs, key_str)
+        local access = cg.member_index(boxed, key_str)
         emit_binding(prop_node.value, access, indent, ctx, out, kind)
       end
     end
@@ -1932,6 +1942,9 @@ end
 
 emit_assign_binding = function(pattern, rhs, indent, ctx, out)
   if pattern.type == ast.TYPE_OBJECT_PATTERN then
+    out[#out + 1] = cg.expr_stmt(cg.call("_ljs_require_object_coercible", { rhs }), indent)
+    local boxed = fresh_tmp()
+    out[#out + 1] = cg.local_decl(boxed, cg.call("_ljs_to_object", { rhs }), indent)
     for _, prop_node in ipairs(pattern.properties) do
       if prop_node.type == ast.TYPE_REST_ELEMENT then
         local rest_name = prop_node.argument.name
@@ -1945,7 +1958,7 @@ emit_assign_binding = function(pattern, rhs, indent, ctx, out)
         end
         local keys_expr = cg.array(collected)
         out[#out + 1] =
-          cg.expr_stmt(cg.binop("=", rest_name, cg.call("_ljs_rest", { rhs, keys_expr })), indent)
+          cg.expr_stmt(cg.binop("=", rest_name, cg.call("_ljs_rest", { boxed, keys_expr })), indent)
       else
         local key_str
         if prop_node.key.type == ast.TYPE_IDENTIFIER then
@@ -1953,7 +1966,7 @@ emit_assign_binding = function(pattern, rhs, indent, ctx, out)
         else
           key_str = emit(prop_node.key, indent, ctx)
         end
-        local access = cg.member_index(rhs, key_str)
+        local access = cg.member_index(boxed, key_str)
         emit_assign_target(prop_node.value, access, indent, ctx, out)
       end
     end
@@ -3180,12 +3193,13 @@ end
 -- _ljs_to_number/_ljs_to_boolean before arithmetic and coercion helpers,
 -- _ljs_fn before _ljs_ctor (which depends on it), _ljs_to_object before
 -- _ljs_call_member (which calls it), _ljs_tostring, rest alphabetical.
--- All 44 helpers are always emitted unconditionally.
+-- All 45 helpers are always emitted unconditionally.
 local HELPER_ORDER = {
   "_ljs_is_undef",
   "_ljs_is_nilish",
   "_ljs_type_error",
   "_ljs_range_error",
+  "_ljs_require_object_coercible",
   "_ljs_to_primitive",
   "_ljs_to_number",
   "_ljs_to_int32",
