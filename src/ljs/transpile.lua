@@ -816,6 +816,66 @@ local function body_references_arguments(node)
   end
   return false
 end
+
+local function references_identifier(node, name)
+  if not node or type(node) ~= "table" then
+    return false
+  end
+  if node.type == ast.TYPE_IDENTIFIER and node.name == name then
+    return true
+  end
+  if node.type == ast.TYPE_FUNCTION_DECLARATION
+    or node.type == ast.TYPE_FUNCTION_EXPRESSION
+    or node.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION then
+    return false
+  end
+  if node.type == ast.TYPE_MEMBER_EXPRESSION and not node.computed then
+    return references_identifier(node.object, name)
+  end
+  if node.type == ast.TYPE_PROPERTY and not node.computed then
+    return references_identifier(node.value, name)
+  end
+  if node.type == ast.TYPE_CATCH_CLAUSE then
+    if node.param and node.param.name == name then
+      return false
+    end
+    return references_identifier(node.body, name)
+  end
+  for _, v in pairs(node) do
+    if type(v) == "table" then
+      if references_identifier(v, name) then
+        return true
+      end
+    end
+  end
+  return false
+end
+
+local function extract_binding_names(target, out)
+  out = out or {}
+  if not target then return out end
+  if target.type == ast.TYPE_IDENTIFIER then
+    out[#out + 1] = target.name
+  elseif target.type == ast.TYPE_OBJECT_PATTERN then
+    for _, prop in ipairs(target.properties) do
+      if prop.type == ast.TYPE_REST_ELEMENT then
+        extract_binding_names(prop.argument, out)
+      else
+        extract_binding_names(prop.value, out)
+      end
+    end
+  elseif target.type == ast.TYPE_ARRAY_PATTERN then
+    for _, elem in ipairs(target.elements) do
+      extract_binding_names(elem, out)
+    end
+  elseif target.type == ast.TYPE_ASSIGNMENT_PATTERN then
+    extract_binding_names(target.left, out)
+  elseif target.type == ast.TYPE_REST_ELEMENT then
+    extract_binding_names(target.argument, out)
+  end
+  return out
+end
+
 -- that would cross a pcall function boundary.
 -- Stops at loop boundaries (for break/continue) and function boundaries.
 -- @param node (table|nil) AST node
@@ -1704,6 +1764,26 @@ emit_assign_binding = function(pattern, rhs, indent, ctx, out)
 end
 
 gen.VariableDeclaration = function(node, indent, ctx)
+  if node.kind ~= "var" then
+    local names_by_index = {}
+    for i, decl in ipairs(node.declarations) do
+      local names = extract_binding_names(decl.name)
+      for _, n in ipairs(names) do
+        names_by_index[#names_by_index + 1] = { name = n, index = i }
+      end
+    end
+    for i, decl in ipairs(node.declarations) do
+      if decl.init then
+        for _, entry in ipairs(names_by_index) do
+          if entry.index >= i then
+            if references_identifier(decl.init, entry.name) then
+              error("ReferenceError: Cannot access '" .. entry.name .. "' before initialization", 0)
+            end
+          end
+        end
+      end
+    end
+  end
   local out = {}
   for _, decl in ipairs(node.declarations) do
     if node.kind == "const" and not decl.init then
