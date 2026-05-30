@@ -153,7 +153,10 @@ test("const then var in same scope errors", function()
 end)
 
 test("const in C-style for update errors", function()
-  assert_transpile_error("for (const x = 0; x < 5; x = x + 1) {}", "Assignment to constant variable")
+  assert_transpile_error(
+    "for (const x = 0; x < 5; x = x + 1) {}",
+    "Assignment to constant variable"
+  )
 end)
 
 test("for-variable shadows outer let without duplicate error", function()
@@ -180,4 +183,26 @@ end)
 test("function then var in same scope is allowed", function()
   local code = transpile_ok("function foo() {} var foo = 1;")
   assert(code:find("foo", 1, true), "expected foo in output")
+end)
+
+test("function with unrelated let does not false positive (#348)", function()
+  local code = transpile_ok("function sum() {} let args = [3, 4];")
+  assert(code:find("args", 1, true), "expected args in output")
+  assert(code:find("sum", 1, true), "expected sum in output")
+end)
+
+test("function with multiple unrelated lets (#348)", function()
+  local code = transpile_ok("function fn() {} let x = 1; let y = 2;")
+  assert(code:find("x", 1, true), "expected x in output")
+  assert(code:find("y", 1, true), "expected y in output")
+end)
+
+test("function with unrelated const and let (#348)", function()
+  local code = transpile_ok("function fn() {} const x = 1; let y = 2;")
+  assert(code:find("x", 1, true), "expected x in output")
+  assert(code:find("y", 1, true), "expected y in output")
+end)
+
+test("let before function in same scope errors", function()
+  assert_transpile_error("let foo = 1; function foo() {}", "already been declared")
 end)
