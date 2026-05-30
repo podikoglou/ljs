@@ -621,3 +621,25 @@ test("computed key eval order: key before RHS in = chain (#403)", function()
   ]])
   assert_eq(output:match("^%S+"), "A,K,B")
 end)
+
+test("computed key eval order: both sides computed in = chain (#403)", function()
+  local output = run_js([[
+    let order = [];
+    function getObj(label) { order.push(label); return {}; }
+    function getKey(label) { order.push(label); return "x"; }
+    getObj("A")[getKey("K1")] = getObj("B")[getKey("K2")] = 5;
+    console.log(order[0] + "," + order[1] + "," + order[2] + "," + order[3]);
+  ]])
+  assert_eq(output:match("^%S+"), "A,K1,B,K2")
+end)
+
+test("computed key eval order: compound chain with computed keys (#403)", function()
+  local output = run_js([[
+    let order = [];
+    function getObj(label) { order.push(label); return { x: 10 }; }
+    function getKey(label) { order.push(label); return "x"; }
+    getObj("A")[getKey("K1")] = getObj("B")[getKey("K2")] += 5;
+    console.log(order[0] + "," + order[1] + "," + order[2] + "," + order[3]);
+  ]])
+  assert_eq(output:match("^%S+"), "A,K1,B,K2")
+end)
