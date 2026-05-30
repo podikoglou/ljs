@@ -53,21 +53,38 @@ local expr_code = emit_expr_code
 -- Integration test helpers
 
 local function run_lua_source(code)
-  local tmp = os.tmpname()
-  local f = io.open(tmp, "w")
-  if not f then
-    error("cannot open temp file: " .. tmp)
+  local old_stdout = io.stdout
+  local old_stderr = io.stderr
+  local old_print = print
+  local tmp = io.tmpfile()
+  io.stdout = tmp
+  io.stderr = tmp
+  print = function(...)
+    local n = select("#", ...)
+    for i = 1, n do
+      if i > 1 then
+        tmp:write("\t")
+      end
+      tmp:write(tostring(select(i, ...)))
+    end
+    tmp:write("\n")
   end
-  f:write(code)
-  f:close()
-  local pipe = io.popen("lua " .. tmp .. " 2>&1", "r")
-  if not pipe then
-    os.remove(tmp)
-    error("cannot popen lua")
+  local fn, load_err = load(code)
+  local output = ""
+  if fn then
+    local ok, err = pcall(fn)
+    if not ok then
+      tmp:write(tostring(err) .. "\n")
+    end
+    tmp:seek("set")
+    output = tmp:read("*a")
+  else
+    output = tostring(load_err) .. "\n"
   end
-  local output = pipe:read("*a")
-  pipe:close()
-  os.remove(tmp)
+  tmp:close()
+  io.stdout = old_stdout
+  io.stderr = old_stderr
+  print = old_print
   return output
 end
 
