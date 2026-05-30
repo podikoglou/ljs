@@ -428,3 +428,15 @@ end)
 test('add: [] + true → "true"', function()
   assert_eq(eval_js("[] + true"), "true")
 end)
+
+test('add: true + [] → "true"', function()
+  assert_eq(eval_js("true + []"), "true")
+end)
+
+-- ============================================================================
+-- Spec-compliant Number-to-String (ECMA-262 §6.1.6.1.20) — issue #334
+-- ============================================================================
+
+test('tostring: String(1e20) → "100000000000000000000" (large int, fixed-point)', function()
+  assert_eq(eval_js("String(1e20)"), "100000000000000000000")
+end)

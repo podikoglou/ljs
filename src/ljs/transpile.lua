@@ -169,12 +169,7 @@ HELPERS._ljs_tostring = [[local function _ljs_tostring(x)
   if x == _ljs_null then return "null"
   elseif _ljs_is_undef(x) then return "undefined"
   elseif type(x) == "number" then
-    if x ~= x then return "NaN" end
-    if x == math.huge then return "Infinity" end
-    if x == -math.huge then return "-Infinity" end
-    if x == 0 then return "0" end
-    if math.floor(x) == x then return tostring(math.floor(x)) end
-    return tostring(x)
+    return _ljs_number_to_string(x)
   elseif type(x) == "table" then
     return _ljs_tostring(_ljs_to_primitive(x))
   else return tostring(x) end
@@ -3286,6 +3281,7 @@ function M.preamble()
     .. "local _ljs_null = {}\n"
     .. "local TypeError, RangeError\n"
     .. "setmetatable(_ljs_object_prototype, { __index = function(t, k) return _ljs_undefined end })\n\n"
+    .. read_runtime("number_tostring")
     .. helpers_str
     .. "\n\n"
     .. read_runtime("object")
