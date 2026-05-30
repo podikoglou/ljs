@@ -53,39 +53,56 @@ local expr_code = emit_expr_code
 -- Integration test helpers
 
 local function run_lua_source(code)
+  local chunks = {}
+  local function emit(s)
+    chunks[#chunks + 1] = s
+  end
+  local capture = {
+    write = function(_, ...)
+      for i = 1, select("#", ...) do
+        emit(tostring(select(i, ...)))
+      end
+    end,
+    close = function() end,
+    flush = function() end,
+  }
+
   local old_stdout = io.stdout
   local old_stderr = io.stderr
   local old_print = print
-  local tmp = io.tmpfile()
-  io.stdout = tmp
-  io.stderr = tmp
+  io.stdout = capture
+  io.stderr = capture
   print = function(...)
     local n = select("#", ...)
     for i = 1, n do
       if i > 1 then
-        tmp:write("\t")
+        emit("\t")
       end
-      tmp:write(tostring(select(i, ...)))
+      emit(tostring(select(i, ...)))
     end
-    tmp:write("\n")
+    emit("\n")
   end
-  local fn, load_err = load(code)
-  local output = ""
-  if fn then
-    local ok, err = pcall(fn)
-    if not ok then
-      tmp:write(tostring(err) .. "\n")
+
+  local ok, result = pcall(function()
+    local fn, load_err = load(code)
+    if not fn then
+      return tostring(load_err) .. "\n"
     end
-    tmp:seek("set")
-    output = tmp:read("*a")
-  else
-    output = tostring(load_err) .. "\n"
-  end
-  tmp:close()
+    local pok, err = pcall(fn)
+    if not pok then
+      emit(tostring(err) .. "\n")
+    end
+    return table.concat(chunks)
+  end)
+
   io.stdout = old_stdout
   io.stderr = old_stderr
   print = old_print
-  return output
+
+  if not ok then
+    error(result)
+  end
+  return result
 end
 
 local function run_js(js)
