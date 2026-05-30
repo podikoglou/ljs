@@ -2397,6 +2397,7 @@ gen.SwitchStatement = function(node, indent, ctx)
   local parts = {}
   parts[#parts + 1] = cg.local_decl("_ljs_sw", disc, indent)
   parts[#parts + 1] = cg.local_decl("_ljs_matched", "false", indent)
+  scope_push(ctx)
   local cases_body = {}
   for _, case in ipairs(node.cases) do
     local case_body = cg.expr_stmt("_ljs_matched = true", indent + 2)
@@ -2411,6 +2412,7 @@ gen.SwitchStatement = function(node, indent, ctx)
       cases_body[#cases_body + 1] = cg.if_stmt("true", case_body, nil, nil, indent + 1)
     end
   end
+  scope_pop(ctx)
   parts[#parts + 1] = cg.numeric_for("_", "1", "1", table.concat(cases_body), indent)
   return table.concat(parts)
 end
