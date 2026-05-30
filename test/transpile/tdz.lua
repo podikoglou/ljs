@@ -96,3 +96,38 @@ test("let x = {x: 1} is fine (property key, not variable ref)", function()
   local code = transpile_ok("let x = {x: 1};")
   assert(code:find("x", 1, true), "expected x in output")
 end)
+
+-- ============================================================================
+-- #376: Destructuring default values TDZ
+-- ============================================================================
+
+test("let {x = x} = {} errors (object default self-ref)", function()
+  assert_transpile_error("let {x = x} = {};", "Cannot access 'x' before initialization")
+end)
+
+test("let [x = x] = [] errors (array default self-ref)", function()
+  assert_transpile_error("let [x = x] = [];", "Cannot access 'x' before initialization")
+end)
+
+test("let {x = x} = {x: 1} errors (static, conservative)", function()
+  assert_transpile_error("let {x = x} = {x: 1};", "Cannot access 'x' before initialization")
+end)
+
+test("let {x: {y = y}} = {x: {}} errors (nested default self-ref)", function()
+  assert_transpile_error("let {x: {y = y}} = {x: {}};", "Cannot access 'y' before initialization")
+end)
+
+test("let {x = 1} = {} is fine (literal default)", function()
+  local code = transpile_ok("let {x = 1} = {};")
+  assert(code:find("x", 1, true), "expected x in output")
+end)
+
+test("let {x = y} = {} is fine (default refs unrelated name)", function()
+  local code = transpile_ok("let {x = y} = {};")
+  assert(code:find("x", 1, true), "expected x in output")
+end)
+
+test("let {x = y} = {x: 1} is fine (default refs unrelated name)", function()
+  local code = transpile_ok("let {x = y} = {x: 1};")
+  assert(code:find("x", 1, true), "expected x in output")
+end)

@@ -824,9 +824,11 @@ local function references_identifier(node, name)
   if node.type == ast.TYPE_IDENTIFIER and node.name == name then
     return true
   end
-  if node.type == ast.TYPE_FUNCTION_DECLARATION
+  if
+    node.type == ast.TYPE_FUNCTION_DECLARATION
     or node.type == ast.TYPE_FUNCTION_EXPRESSION
-    or node.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION then
+    or node.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION
+  then
     return false
   end
   if node.type == ast.TYPE_MEMBER_EXPRESSION and not node.computed then
@@ -853,7 +855,9 @@ end
 
 local function extract_binding_names(target, out)
   out = out or {}
-  if not target then return out end
+  if not target then
+    return out
+  end
   if target.type == ast.TYPE_IDENTIFIER then
     out[#out + 1] = target.name
   elseif target.type == ast.TYPE_OBJECT_PATTERN then
@@ -874,6 +878,34 @@ local function extract_binding_names(target, out)
     extract_binding_names(target.argument, out)
   end
   return out
+end
+
+local function check_pattern_defaults_tdz(pattern, binding_names)
+  if not pattern or type(pattern) ~= "table" then
+    return
+  end
+  if pattern.type == ast.TYPE_ASSIGNMENT_PATTERN then
+    for _, name in ipairs(binding_names) do
+      if references_identifier(pattern.right, name) then
+        error("ReferenceError: Cannot access '" .. name .. "' before initialization", 0)
+      end
+    end
+    check_pattern_defaults_tdz(pattern.left, binding_names)
+  elseif pattern.type == ast.TYPE_OBJECT_PATTERN then
+    for _, prop in ipairs(pattern.properties) do
+      if prop.type == ast.TYPE_REST_ELEMENT then
+        check_pattern_defaults_tdz(prop.argument, binding_names)
+      else
+        check_pattern_defaults_tdz(prop.value, binding_names)
+      end
+    end
+  elseif pattern.type == ast.TYPE_ARRAY_PATTERN then
+    for _, elem in ipairs(pattern.elements) do
+      check_pattern_defaults_tdz(elem, binding_names)
+    end
+  elseif pattern.type == ast.TYPE_REST_ELEMENT then
+    check_pattern_defaults_tdz(pattern.argument, binding_names)
+  end
 end
 
 -- that would cross a pcall function boundary.
@@ -1383,7 +1415,11 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
       preamble = preamble .. line
     end
   end
-  if body_references_arguments(fn_node.body) and not has_arguments_param and fn_node.type ~= ast.TYPE_ARROW_FUNCTION_EXPRESSION then
+  if
+    body_references_arguments(fn_node.body)
+    and not has_arguments_param
+    and fn_node.type ~= ast.TYPE_ARROW_FUNCTION_EXPRESSION
+  then
     preamble = preamble
       .. cg.local_decl("arguments", cg.call("_ljs_arguments", { "..." }), indent + 1)
   end
@@ -1781,6 +1817,16 @@ gen.VariableDeclaration = function(node, indent, ctx)
             end
           end
         end
+      end
+    end
+    for _, decl in ipairs(node.declarations) do
+      local nt = decl.name.type
+      if nt == ast.TYPE_OBJECT_PATTERN or nt == ast.TYPE_ARRAY_PATTERN then
+        local all_names = {}
+        for _, d in ipairs(node.declarations) do
+          extract_binding_names(d.name, all_names)
+        end
+        check_pattern_defaults_tdz(decl.name, all_names)
       end
     end
   end
@@ -2551,7 +2597,9 @@ gen.CallExpression = function(node, indent, ctx)
       local super_parent = ctx.super_stack[#ctx.super_stack]
       return cg.iife({
         cg.local_inline("_s", build_call),
-        cg.return_inline(cg.call("_ljs_call_this", { super_parent, "_ljs_arrow_this", unpack_call })),
+        cg.return_inline(
+          cg.call("_ljs_call_this", { super_parent, "_ljs_arrow_this", unpack_call })
+        ),
       })
     end
 
