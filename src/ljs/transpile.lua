@@ -390,6 +390,22 @@ HELPERS._ljs_for_in_keys = [[local function _ljs_for_in_keys(obj)
       end
     end
   else
+    local data = rawget(obj, "_ljs_data")
+    if type(data) == "string" then
+      local mt = getmetatable(obj)
+      if mt and (mt.__index == _ljs_string_box_index or mt.__index == _ljs_string_prototype) then
+        local len = #data
+        for i = 1, len do
+          keys[#keys + 1] = tostring(i - 1)
+        end
+        for k in pairs(obj) do
+          if type(k) == "string" and k ~= "_ljs_data" then
+            keys[#keys + 1] = k
+          end
+        end
+        return keys
+      end
+    end
     for k in pairs(obj) do
       if type(k) == "string" then
         keys[#keys + 1] = k
