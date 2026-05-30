@@ -543,9 +543,10 @@ HELPERS._ljs_call_this = [[local function _ljs_call_this(fn, this_val, ...)
   end
   if type(fn) == "table" then
     local raw = rawget(fn, "_ljs_raw")
-    if raw then return raw(this_val, ...) end
+    if raw then raw(this_val, ...); return this_val end
   end
-  return fn(this_val, ...)
+  fn(this_val, ...)
+  return this_val
 end]]
 
 HELPERS._ljs_arguments = [[local function _ljs_arguments(...)
