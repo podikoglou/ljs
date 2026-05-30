@@ -2199,7 +2199,7 @@ end
 gen.FunctionExpression = function(node, indent, ctx)
   local fn = emit_fn(node, indent, ctx)
   if node.is_method then
-    return cg.call("_ljs_fn", { fn })
+    return cg.call("_ljs_fn", { fn, cg.string(node.name) })
   end
   local args = { fn }
   if node.name then

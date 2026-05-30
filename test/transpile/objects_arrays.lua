@@ -109,7 +109,16 @@ end)
 test("method shorthand transpiles to function value", function()
   local code = transpile_ok("let o = { foo() { return 1; } };")
   assert(code:find("foo = _ljs_fn(function", 1, true), "expected foo = _ljs_fn(function")
+  assert(code:find(', "foo")', 1, true), "expected name arg 'foo' in _ljs_fn call (#346)")
   assert(code:find("return 1"), "expected return 1")
+end)
+
+test("method shorthand .name is correct at runtime (#346)", function()
+  local output = run_js([[
+    let o = { greet() { return "hi"; } };
+    console.log(o.greet.name);
+  ]])
+  assert_eq(output:match("%S+"), "greet")
 end)
 
 test("method shorthand with params transpiles correctly", function()
