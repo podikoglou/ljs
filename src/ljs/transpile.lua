@@ -798,12 +798,14 @@ local function body_references_arguments(node)
   if node.type == ast.TYPE_IDENTIFIER and node.name == "arguments" then
     return true
   end
-  if
-    node.type == ast.TYPE_FUNCTION_DECLARATION
-    or node.type == ast.TYPE_FUNCTION_EXPRESSION
-    or node.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION
-  then
+  if node.type == ast.TYPE_FUNCTION_DECLARATION or node.type == ast.TYPE_FUNCTION_EXPRESSION then
     return false
+  end
+  if node.type == ast.TYPE_MEMBER_EXPRESSION and not node.computed then
+    return body_references_arguments(node.object)
+  end
+  if node.type == ast.TYPE_PROPERTY and not node.computed then
+    return body_references_arguments(node.value)
   end
   for _, v in pairs(node) do
     if type(v) == "table" then
@@ -1255,8 +1257,12 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
   if fn_node.name then
     scope_declare(ctx, fn_node.name, "let")
   end
+  local has_arguments_param = false
   for _, p in ipairs(fn_node.params) do
     local name = param_name(p)
+    if name == "arguments" then
+      has_arguments_param = true
+    end
     if name then
       scope_declare(ctx, name, "let")
     end
@@ -1317,7 +1323,7 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
       preamble = preamble .. line
     end
   end
-  if body_references_arguments(fn_node.body) then
+  if body_references_arguments(fn_node.body) and not has_arguments_param and fn_node.type ~= ast.TYPE_ARROW_FUNCTION_EXPRESSION then
     preamble = preamble
       .. cg.local_decl("arguments", cg.call("_ljs_arguments", { "..." }), indent + 1)
   end

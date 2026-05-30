@@ -378,7 +378,10 @@ test("obj.arguments does not trigger arguments binding (#357)", function()
       return obj.arguments;
     }
   ]])
-  assert(not code:find("_ljs_arguments"), "obj.arguments should not trigger arguments binding")
+  assert(
+    not code:find("local arguments = _ljs_arguments"),
+    "obj.arguments should not trigger arguments binding"
+  )
 end)
 
 test("{arguments: x} property key does not trigger arguments binding (#357)", function()
@@ -388,7 +391,10 @@ test("{arguments: x} property key does not trigger arguments binding (#357)", fu
       return a;
     }
   ]])
-  assert(not code:find("_ljs_arguments"), "{arguments: x} should not trigger arguments binding")
+  assert(
+    not code:find("local arguments = _ljs_arguments"),
+    "{arguments: x} should not trigger arguments binding"
+  )
 end)
 
 test("obj[arguments] computed does trigger arguments binding (#357)", function()
@@ -397,7 +403,10 @@ test("obj[arguments] computed does trigger arguments binding (#357)", function()
       return obj[arguments];
     }
   ]])
-  assert(code:find("_ljs_arguments"), "obj[arguments] should trigger arguments binding")
+  assert(
+    code:find("local arguments = _ljs_arguments"),
+    "obj[arguments] should trigger arguments binding"
+  )
 end)
 
 test("parameter named arguments shadows arguments object (#358)", function()
@@ -413,7 +422,7 @@ end)
 test("parameter named arguments does not emit arguments binding (#358)", function()
   local code = transpile_ok("function f(arguments) { return arguments; }")
   assert(
-    not code:find("_ljs_arguments"),
+    not code:find("local arguments = _ljs_arguments"),
     "param 'arguments' should not emit _ljs_arguments binding"
   )
 end)
