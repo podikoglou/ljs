@@ -300,7 +300,7 @@ HELPERS._ljs_index = [[local function _ljs_index(k)
     if math.floor(k) == k and k >= 0 then
       return k + 1
     end
-    return tostring(k)
+    return _ljs_tostring(k)
   end
   return k
 end]]
