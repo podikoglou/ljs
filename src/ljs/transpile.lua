@@ -858,7 +858,6 @@ local function references_identifier(node, name)
   end
   return false
 end
-
 local function extract_binding_names(target, out)
   out = out or {}
   if not target then
@@ -1021,7 +1020,6 @@ local function references_identifier_scope_aware(node, name)
   end
   return false
 end
-
 -- that would cross a pcall function boundary.
 -- Stops at loop boundaries (for break/continue) and function boundaries.
 -- @param node (table|nil) AST node

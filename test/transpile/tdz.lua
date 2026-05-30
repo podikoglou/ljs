@@ -165,7 +165,10 @@ test("console.log(x); const x = 5; errors (const TDZ)", function()
 end)
 
 test("inner block TDZ: { console.log(x); let x = 2; } errors", function()
-  assert_transpile_error("{ console.log(x); let x = 2; }", "Cannot access 'x' before initialization")
+  assert_transpile_error(
+    "{ console.log(x); let x = 2; }",
+    "Cannot access 'x' before initialization"
+  )
 end)
 
 test("let x = 5; console.log(x); is fine (decl before use)", function()

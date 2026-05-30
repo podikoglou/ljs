@@ -71,10 +71,13 @@ test("function hoisting with var destructured object — ok", function()
 end)
 
 test("function hoisting with let destructured object — SyntaxError", function()
-  local ok, err = pcall(run_js, [[
+  local ok, err = pcall(
+    run_js,
+    [[
     function a() {}
     let {a} = {};
-  ]])
+  ]]
+  )
   assert_eq(ok, false)
   assert(err:find("SyntaxError"), "expected SyntaxError, got: " .. tostring(err))
 end)
