@@ -58,6 +58,42 @@ test("new Array with elements", function()
   assert_eq(arr.length, 3)
 end)
 
+test("new Array(n) creates sparse array with length n (#290)", function()
+  local arr = eval_js("new Array(3)")
+  assert_eq(arr.length, 3)
+  assert_eq(rawget(arr, 1), nil)
+  assert_eq(rawget(arr, 2), nil)
+  assert_eq(rawget(arr, 3), nil)
+end)
+
+test("new Array(0) creates empty array (#290)", function()
+  local arr = eval_js("new Array(0)")
+  assert_eq(arr.length, 0)
+end)
+
+test("new Array(string) creates array with that value (#290)", function()
+  local arr = eval_js("new Array('hello')")
+  assert_eq(arr.length, 1)
+  assert_eq(arr[1], "hello")
+end)
+
+test("new Array(3.5) throws RangeError (#290)", function()
+  local ok, err = pcall(eval_js, "new Array(3.5)")
+  assert(not ok, "expected RangeError")
+  assert(err.name == "RangeError", "expected RangeError in: " .. tostring(err.name))
+end)
+
+test("new Array(-1) throws RangeError (#290)", function()
+  local ok, err = pcall(eval_js, "new Array(-1)")
+  assert(not ok, "expected RangeError")
+  assert(err.name == "RangeError", "expected RangeError in: " .. tostring(err.name))
+end)
+
+test("new Array() creates empty array (#290)", function()
+  local arr = eval_js("new Array()")
+  assert_eq(arr.length, 0)
+end)
+
 -- ============================================================================
 -- Object.prototype.toString
 -- ============================================================================
@@ -2175,4 +2211,51 @@ test("toLocaleString generic call", function()
     return Array.prototype.toLocaleString.call(obj);
   ]])
   assert_eq(out, "a,b,c")
+end)
+
+-- ============================================================================
+-- for-in on arrays (#289)
+-- ============================================================================
+
+test("for-in on array yields 0-based keys (#289)", function()
+  assert_eq(exec_js([[
+    var r = "";
+    for (var k in [10, 20, 30]) { r += k; }
+    return r;
+  ]]), "012")
+end)
+
+test("for-in on single-element array (#289)", function()
+  assert_eq(exec_js([[
+    var r = "";
+    for (var k in [10]) { r += k; }
+    return r;
+  ]]), "0")
+end)
+
+test("for-in on sparse array yields only existing keys (#289)", function()
+  assert_eq(exec_js([[
+    var arr = []; arr[5] = 'x';
+    var r = "";
+    for (var k in arr) { r += k; }
+    return r;
+  ]]), "5")
+end)
+
+test("for-in on empty array yields nothing (#289)", function()
+  assert_eq(exec_js([[
+    var r = "";
+    for (var k in []) { r += k; }
+    return r;
+  ]]), "")
+end)
+
+test("for-in on object still works (#289)", function()
+  local result = exec_js([[
+    var keys = [];
+    for (var k in {a: 1, b: 2}) { keys.push(k); }
+    keys.sort();
+    return keys.join(",");
+  ]])
+  assert_eq(result, "a,b")
 end)

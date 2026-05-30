@@ -16,10 +16,25 @@ Array = _ljs_ctor(function(_ljs_this, ...)
   local mt = getmetatable(_ljs_this)
   mt.__newindex = _ljs_arr_newindex
   local n = select("#", ...)
-  for i = 1, n do
-    rawset(_ljs_this, i, select(i, ...))
+  if n == 1 then
+    local arg = select(1, ...)
+    local num = tonumber(arg)
+    if num ~= nil then
+      local int_len = math.floor(num)
+      if int_len ~= num or int_len < 0 or int_len > 0xFFFFFFFF then
+        _ljs_range_error("Invalid array length")
+      end
+      rawset(_ljs_this, "length", int_len)
+    else
+      rawset(_ljs_this, 1, arg)
+      rawset(_ljs_this, "length", 1)
+    end
+  else
+    for i = 1, n do
+      rawset(_ljs_this, i, select(i, ...))
+    end
+    rawset(_ljs_this, "length", n)
   end
-  rawset(_ljs_this, "length", n)
 end)
 -- push supports multiple arguments (matching JS Array.prototype.push semantics).
 Array.prototype.push = _ljs_fn(function(_ljs_this, ...)
@@ -1060,5 +1075,5 @@ end)
 -- Array.of
 -- ---------------------------------------------------------------------------
 Array.of = _ljs_fn(function(_ljs_this, ...)
-  return _ljs_new(Array, ...)
+  return _ljs_arr_lit(...)
 end)
