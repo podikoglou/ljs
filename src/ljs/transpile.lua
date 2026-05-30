@@ -1951,7 +1951,7 @@ gen.ForOfStatement = function(node, indent, ctx)
     body = cg.do_block(body, indent + 1) .. cg.label("_continue", indent + 1)
   end
   scope_pop(ctx)
-  return cg.local_decl(iter_tmp, iterable, indent)
+  return cg.local_decl(iter_tmp, cg.call("_ljs_to_object", { iterable }), indent)
     .. cg.numeric_for(idx_tmp, "1", cg.member_dot(iter_tmp, "length"), body, indent)
 end
 
