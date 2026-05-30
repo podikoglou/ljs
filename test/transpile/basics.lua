@@ -605,3 +605,19 @@ test("= chain eval order: three member targets with plain RHS (#400)", function(
   ]])
   assert_eq(output:match("^%S+"), "A,B,C,D")
 end)
+
+-- ============================================================================
+-- Computed member key eval order (#403)
+-- Per ECMA-262 §13.15.2: key expression evaluated during LHS eval, not PutValue
+-- ============================================================================
+
+test("computed key eval order: key before RHS in = chain (#403)", function()
+  local output = run_js([[
+    let order = [];
+    function getObj(label) { order.push(label); return {}; }
+    function getKey(label) { order.push(label); return "x"; }
+    getObj("A")[getKey("K")] = getObj("B").y = 5;
+    console.log(order[0] + "," + order[1] + "," + order[2]);
+  ]])
+  assert_eq(output:match("^%S+"), "A,K,B")
+end)
