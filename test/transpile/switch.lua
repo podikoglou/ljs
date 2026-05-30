@@ -165,3 +165,21 @@ test("switch integration: switch inside while with break", function()
   assert(output:find("other"), "expected other for i=0")
   assert(output:find("one"), "expected one for i=1")
 end)
+
+test("switch scope isolation: let inside and outside switch", function()
+  local output = run_js([[
+    switch (1) { case 1: let x = 2; console.log(x); break; }
+    let x = 1;
+    console.log(x);
+  ]])
+  assert_eq(output:gsub("%s+", ""), "21")
+end)
+
+test("switch scope isolation: const inside and outside switch", function()
+  local output = run_js([[
+    switch (1) { case 1: const x = 2; console.log(x); break; }
+    const x = 1;
+    console.log(x);
+  ]])
+  assert_eq(output:gsub("%s+", ""), "21")
+end)
