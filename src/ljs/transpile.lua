@@ -908,6 +908,100 @@ local function check_pattern_defaults_tdz(pattern, binding_names)
   end
 end
 
+local function scope_shadows_name(node, name)
+  if node.type == ast.TYPE_BLOCK_STATEMENT then
+    for _, s in ipairs(node.body) do
+      if s.type == ast.TYPE_VARIABLE_DECLARATION and s.kind ~= "var" then
+        for _, d in ipairs(s.declarations) do
+          local names = extract_binding_names(d.name)
+          for _, n in ipairs(names) do
+            if n == name then return true end
+          end
+        end
+      end
+    end
+    return false
+  end
+  if node.type == ast.TYPE_FOR_STATEMENT then
+    if node.init and node.init.type == ast.TYPE_VARIABLE_DECLARATION and node.init.kind ~= "var" then
+      for _, d in ipairs(node.init.declarations) do
+        local names = extract_binding_names(d.name)
+        for _, n in ipairs(names) do
+          if n == name then return true end
+        end
+      end
+    end
+    return false
+  end
+  if node.type == ast.TYPE_FOR_OF_STATEMENT or node.type == ast.TYPE_FOR_IN_STATEMENT then
+    if node.left.type == ast.TYPE_VARIABLE_DECLARATION and node.left.kind ~= "var" then
+      for _, d in ipairs(node.left.declarations) do
+        local names = extract_binding_names(d.name)
+        for _, n in ipairs(names) do
+          if n == name then return true end
+        end
+      end
+    end
+    return false
+  end
+  if node.type == ast.TYPE_SWITCH_STATEMENT then
+    for _, c in ipairs(node.cases) do
+      for _, s in ipairs(c.consequent) do
+        if s.type == ast.TYPE_VARIABLE_DECLARATION and s.kind ~= "var" then
+          for _, d in ipairs(s.declarations) do
+            local names = extract_binding_names(d.name)
+            for _, n in ipairs(names) do
+              if n == name then return true end
+            end
+          end
+        end
+      end
+    end
+    return false
+  end
+  return false
+end
+
+local function references_identifier_scope_aware(node, name)
+  if not node or type(node) ~= "table" then
+    return false
+  end
+  if node.type == ast.TYPE_IDENTIFIER and node.name == name then
+    return true
+  end
+  if node.type == ast.TYPE_FUNCTION_DECLARATION
+    or node.type == ast.TYPE_FUNCTION_EXPRESSION
+    or node.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION then
+    return false
+  end
+  if node.type == ast.TYPE_VARIABLE_DECLARATOR then
+    return node.init and references_identifier_scope_aware(node.init, name) or false
+  end
+  if node.type == ast.TYPE_MEMBER_EXPRESSION and not node.computed then
+    return references_identifier_scope_aware(node.object, name)
+  end
+  if node.type == ast.TYPE_PROPERTY and not node.computed then
+    return references_identifier_scope_aware(node.value, name)
+  end
+  if node.type == ast.TYPE_CATCH_CLAUSE then
+    if node.param and node.param.name == name then
+      return false
+    end
+    return references_identifier_scope_aware(node.body, name)
+  end
+  if scope_shadows_name(node, name) then
+    return false
+  end
+  for _, v in pairs(node) do
+    if type(v) == "table" then
+      if references_identifier_scope_aware(v, name) then
+        return true
+      end
+    end
+  end
+  return false
+end
+
 -- that would cross a pcall function boundary.
 -- Stops at loop boundaries (for break/continue) and function boundaries.
 -- @param node (table|nil) AST node
@@ -1205,6 +1299,20 @@ local function emit_body(stmts, indent, ctx)
   for _, s in ipairs(stmts) do
     if s.type == ast.TYPE_FUNCTION_DECLARATION then
       func_decls[#func_decls + 1] = s
+    end
+  end
+  for i, s in ipairs(stmts) do
+    if s.type == ast.TYPE_VARIABLE_DECLARATION and s.kind ~= "var" then
+      for _, decl in ipairs(s.declarations) do
+        local names = extract_binding_names(decl.name)
+        for _, n in ipairs(names) do
+          for j = 1, i - 1 do
+            if references_identifier_scope_aware(stmts[j], n) then
+              error("ReferenceError: Cannot access '" .. n .. "' before initialization", 0)
+            end
+          end
+        end
+      end
     end
   end
   if #func_decls == 0 then
