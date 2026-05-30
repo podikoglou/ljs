@@ -96,3 +96,23 @@ test("let x = {x: 1} is fine (property key, not variable ref)", function()
   local code = transpile_ok("let x = {x: 1};")
   assert(code:find("x", 1, true), "expected x in output")
 end)
+
+-- ============================================================================
+-- #376: Destructuring default value TDZ
+-- ============================================================================
+
+test("destructuring object default self-reference errors (#376)", function()
+  assert_transpile_error("let {x = x} = {};", "Cannot access 'x' before initialization")
+end)
+
+test("destructuring array default self-reference errors (#376)", function()
+  assert_transpile_error("let [x = x] = [];", "Cannot access 'x' before initialization")
+end)
+
+test("destructuring cross-default TDZ errors (#376)", function()
+  assert_transpile_error("let {a = b, b = 1} = {};", "Cannot access 'b' before initialization")
+end)
+
+test("destructuring literal default is fine (#376)", function()
+  transpile_ok("let {x = 1} = {};")
+end)

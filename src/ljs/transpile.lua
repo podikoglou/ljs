@@ -824,9 +824,11 @@ local function references_identifier(node, name)
   if node.type == ast.TYPE_IDENTIFIER and node.name == name then
     return true
   end
-  if node.type == ast.TYPE_FUNCTION_DECLARATION
+  if
+    node.type == ast.TYPE_FUNCTION_DECLARATION
     or node.type == ast.TYPE_FUNCTION_EXPRESSION
-    or node.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION then
+    or node.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION
+  then
     return false
   end
   if node.type == ast.TYPE_MEMBER_EXPRESSION and not node.computed then
@@ -853,7 +855,9 @@ end
 
 local function extract_binding_names(target, out)
   out = out or {}
-  if not target then return out end
+  if not target then
+    return out
+  end
   if target.type == ast.TYPE_IDENTIFIER then
     out[#out + 1] = target.name
   elseif target.type == ast.TYPE_OBJECT_PATTERN then
@@ -872,6 +876,32 @@ local function extract_binding_names(target, out)
     extract_binding_names(target.left, out)
   elseif target.type == ast.TYPE_REST_ELEMENT then
     extract_binding_names(target.argument, out)
+  end
+  return out
+end
+
+local function collect_pattern_defaults(pattern, out)
+  out = out or {}
+  if not pattern or type(pattern) ~= "table" then
+    return out
+  end
+  if pattern.type == ast.TYPE_ASSIGNMENT_PATTERN then
+    out[#out + 1] = pattern.right
+    collect_pattern_defaults(pattern.left, out)
+  elseif pattern.type == ast.TYPE_OBJECT_PATTERN then
+    for _, prop in ipairs(pattern.properties) do
+      if prop.type == ast.TYPE_REST_ELEMENT then
+        collect_pattern_defaults(prop.argument, out)
+      else
+        collect_pattern_defaults(prop.value, out)
+      end
+    end
+  elseif pattern.type == ast.TYPE_ARRAY_PATTERN then
+    for _, elem in ipairs(pattern.elements) do
+      collect_pattern_defaults(elem, out)
+    end
+  elseif pattern.type == ast.TYPE_REST_ELEMENT then
+    collect_pattern_defaults(pattern.argument, out)
   end
   return out
 end
@@ -1383,7 +1413,11 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
       preamble = preamble .. line
     end
   end
-  if body_references_arguments(fn_node.body) and not has_arguments_param and fn_node.type ~= ast.TYPE_ARROW_FUNCTION_EXPRESSION then
+  if
+    body_references_arguments(fn_node.body)
+    and not has_arguments_param
+    and fn_node.type ~= ast.TYPE_ARROW_FUNCTION_EXPRESSION
+  then
     preamble = preamble
       .. cg.local_decl("arguments", cg.call("_ljs_arguments", { "..." }), indent + 1)
   end
@@ -1778,6 +1812,22 @@ gen.VariableDeclaration = function(node, indent, ctx)
           if entry.index >= i then
             if references_identifier(decl.init, entry.name) then
               error("ReferenceError: Cannot access '" .. entry.name .. "' before initialization", 0)
+            end
+          end
+        end
+      end
+      local name_type = decl.name.type
+      if name_type == ast.TYPE_OBJECT_PATTERN or name_type == ast.TYPE_ARRAY_PATTERN then
+        local defaults = collect_pattern_defaults(decl.name)
+        for _, default_expr in ipairs(defaults) do
+          for _, entry in ipairs(names_by_index) do
+            if entry.index >= i then
+              if references_identifier(default_expr, entry.name) then
+                error(
+                  "ReferenceError: Cannot access '" .. entry.name .. "' before initialization",
+                  0
+                )
+              end
             end
           end
         end
@@ -2551,7 +2601,9 @@ gen.CallExpression = function(node, indent, ctx)
       local super_parent = ctx.super_stack[#ctx.super_stack]
       return cg.iife({
         cg.local_inline("_s", build_call),
-        cg.return_inline(cg.call("_ljs_call_this", { super_parent, "_ljs_arrow_this", unpack_call })),
+        cg.return_inline(
+          cg.call("_ljs_call_this", { super_parent, "_ljs_arrow_this", unpack_call })
+        ),
       })
     end
 
