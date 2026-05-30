@@ -56,7 +56,7 @@ end)
 
 test("super() in constructor", function()
   local code = H.transpile_ok('class Dog extends Animal { constructor() { super("Rex"); } }')
-  assert(code:find('Animal%(_ljs_arrow_this, "Rex"%)'), "expected super call")
+  assert(code:find('_ljs_call_this%(Animal, _ljs_arrow_this, "Rex"%)'), "expected super call via _ljs_call_this")
 end)
 
 test("super.method() uses _ljs_super_call", function()
