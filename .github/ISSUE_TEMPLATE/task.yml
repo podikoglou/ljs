@@ -1,0 +1,35 @@
+name: Task
+description: Refactoring, tooling, docs, or other non-feature work
+labels: []
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What needs to be done and why.
+    validations:
+      required: true
+
+  - type: textarea
+    id: deliverables
+    attributes:
+      label: Deliverables
+      description: Concrete list of things to produce or change.
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Additional context, conventions to follow, or findings from prior analysis.
+    validations:
+      required: false
+
+  - type: textarea
+    id: related
+    attributes:
+      label: Dependencies / Related
+      description: Links to blocking or related issues.
+    validations:
+      required: false
