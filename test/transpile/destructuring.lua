@@ -191,3 +191,41 @@ test("destructure with compound += RHS produces valid Lua (#390)", function()
   local fn, err = load(lua)
   assert(fn ~= nil, "Generated Lua is invalid: " .. tostring(err))
 end)
+
+test("destructure {a} = b += 5 produces valid Lua (#390)", function()
+  local lua = transpile_ok("let a, b; a = 1; b = 5; ({a} = b += 5)")
+  local fn, err = load(lua)
+  assert(fn ~= nil, "Generated Lua is invalid: " .. tostring(err))
+end)
+
+test("destructure {a} = b -= 3 produces valid Lua (#390)", function()
+  local lua = transpile_ok("let a, b; a = 1; b = 10; ({a} = b -= 3)")
+  local fn, err = load(lua)
+  assert(fn ~= nil, "Generated Lua is invalid: " .. tostring(err))
+end)
+
+test("destructure {a} = b %= 3 produces valid Lua (#390)", function()
+  local lua = transpile_ok("let a, b; b = 10; ({a} = b %= 3)")
+  local fn, err = load(lua)
+  assert(fn ~= nil, "Generated Lua is invalid: " .. tostring(err))
+end)
+
+test("destructure chain: n += o -= 1 produces valid Lua (#390)", function()
+  local lua = transpile_ok("let m, n, o; n = 2; o = 3; ({m} = n += o -= 1)")
+  local fn, err = load(lua)
+  assert(fn ~= nil, "Generated Lua is invalid: " .. tostring(err))
+end)
+
+test("destructure {a} = obj.b += 5 produces valid Lua (#390)", function()
+  local lua = transpile_ok("let a; const obj = {b: 5}; ({a} = obj.b += 5)")
+  local fn, err = load(lua)
+  assert(fn ~= nil, "Generated Lua is invalid: " .. tostring(err))
+end)
+
+test("destructure statement with compound RHS (#390)", function()
+  local lua = transpile_ok("let a, b; b = 5; ({a} = b += 5);")
+  local fn, err = load(lua)
+  assert(fn ~= nil, "Generated Lua is invalid: " .. tostring(err))
+end)
+
+
