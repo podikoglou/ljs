@@ -108,3 +108,60 @@ test("function hoisting with var rest destructured object — ok", function()
   ]])
   assert_eq(out, "1\n")
 end)
+
+test("function hoisting with var destructured object default value — ok (#387)", function()
+  local out = run_js([[
+    function a() {}
+    var {a = 1} = {};
+    console.log(a);
+  ]])
+  assert_eq(out, "1\n")
+end)
+
+test("function hoisting with var destructured array default value — ok (#387)", function()
+  local out = run_js([==[
+    function a() {}
+    var [[a = 1]] = [[]];
+    console.log(a);
+  ]==])
+  assert_eq(out, "1\n")
+end)
+
+test(
+  "function hoisting with let destructured object default value — SyntaxError (#387)",
+  function()
+    local ok, err = pcall(
+      run_js,
+      [[
+    function a() {}
+    let {a = 1} = {};
+  ]]
+    )
+    assert_eq(ok, false)
+    assert(err:find("SyntaxError"), "expected SyntaxError, got: " .. tostring(err))
+  end
+)
+
+test(
+  "function hoisting with const destructured object default value — SyntaxError (#387)",
+  function()
+    local ok, err = pcall(
+      run_js,
+      [[
+    function a() {}
+    const {a = 1} = {};
+  ]]
+    )
+    assert_eq(ok, false)
+    assert(err:find("SyntaxError"), "expected SyntaxError, got: " .. tostring(err))
+  end
+)
+
+test("function hoisting with var destructured nested object default value — ok (#387)", function()
+  local out = run_js([[
+    function a() {}
+    var {x: {a = 1}} = {x: {}};
+    console.log(a);
+  ]])
+  assert_eq(out, "1\n")
+end)
