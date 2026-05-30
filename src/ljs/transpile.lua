@@ -474,14 +474,15 @@ HELPERS._ljs_get_proto = [[local function _ljs_get_proto(obj)
 end]]
 
 HELPERS._ljs_set_proto = [[local function _ljs_set_proto(obj, value)
-  if type(obj) ~= "table" then return end
+  if type(obj) ~= "table" then return value end
   local mt = getmetatable(obj)
-  if mt == nil then return end
+  if mt == nil then return value end
   if value == _ljs_null then
     rawset(mt, "__index", function(t, k) return _ljs_undefined end)
   elseif type(value) == "table" and not _ljs_is_undef(value) then
     rawset(mt, "__index", value)
   end
+  return value
 end]]
 
 -- Wraps a table with Object.prototype as __index. Used for all object literals.
@@ -2726,6 +2727,20 @@ gen.BinaryExpression = function(node, indent, ctx)
   if node.left.type == ast.TYPE_IDENTIFIER then
     if op == "=" or COMPOUND_OPS[op] or op == "%=" then
       check_assign(ctx, node.left.name)
+    end
+  end
+  if op == "=" and node.left.type == ast.TYPE_MEMBER_EXPRESSION then
+    local lhs = node.left
+    local is_proto = false
+    if not lhs.computed and lhs.property.name == "__proto__" then
+      is_proto = true
+    elseif lhs.computed and lhs.property.type == ast.TYPE_STRING_LITERAL and lhs.property.value == "__proto__" then
+      is_proto = true
+    end
+    if is_proto then
+      local obj = emit(lhs.object, indent, ctx)
+      local value = emit(node.right, indent, ctx)
+      return cg.call("_ljs_set_proto", { obj, value })
     end
   end
   local left = emit(node.left, indent, ctx)

@@ -130,3 +130,13 @@ test("__proto__ getter: Object.prototype.__proto__ is null", function()
   ]])
   assert_eq(out, "null\n")
 end)
+
+test("__proto__ setter: reassign prototype and inherit", function()
+  local out = run_js([[
+    let parent = { x: 42 };
+    let obj = {};
+    obj.__proto__ = parent;
+    console.log(obj.x);
+  ]])
+  assert_eq(out, "42\n")
+end)
