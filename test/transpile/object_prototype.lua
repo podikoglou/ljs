@@ -123,3 +123,10 @@ test("__proto__ getter: ({}).__proto__ === Object.prototype", function()
   ]])
   assert_eq(out, "true\n")
 end)
+
+test("__proto__ getter: Object.prototype.__proto__ is null", function()
+  local out = run_js([[
+    console.log(Object.prototype.__proto__);
+  ]])
+  assert_eq(out, "null\n")
+end)
