@@ -149,3 +149,12 @@ test("__proto__ setter: set to null breaks prototype chain", function()
   ]])
   assert_eq(out, "true\n")
 end)
+
+test("__proto__ setter: non-object value is no-op", function()
+  local out = run_js([[
+    let obj = {};
+    obj.__proto__ = 42;
+    console.log(obj.toString === undefined);
+  ]])
+  assert_eq(out, "false\n")
+end)
