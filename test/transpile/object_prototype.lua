@@ -183,3 +183,40 @@ test("__proto__ getter on function returns Function.prototype", function()
   ]])
   assert_eq(out, "true\n")
 end)
+
+test("__proto__ computed setter: obj[\"__proto__\"] = parent", function()
+  local out = run_js([[
+    let parent = { x: 99 };
+    let obj = {};
+    obj["__proto__"] = parent;
+    console.log(obj.x);
+  ]])
+  assert_eq(out, "99\n")
+end)
+
+test("__proto__ assignment expression returns value", function()
+  local out = run_js([[
+    let parent = { x: 7 };
+    let obj = {};
+    let r = (obj.__proto__ = parent);
+    console.log(r === parent);
+  ]])
+  assert_eq(out, "true\n")
+end)
+
+test("__proto__ destructuring target", function()
+  local out = run_js([[
+    let parent = { x: 55 };
+    let obj = {};
+    [obj.__proto__] = [parent];
+    console.log(obj.__proto__ === parent);
+  ]])
+  assert_eq(out, "true\n")
+end)
+
+test("string primitive __proto__ returns String.prototype", function()
+  local out = run_js([[
+    console.log("hello".__proto__ === String.prototype);
+  ]])
+  assert_eq(out, "true\n")
+end)

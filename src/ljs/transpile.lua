@@ -469,6 +469,9 @@ HELPERS._ljs_get_proto = [[local function _ljs_get_proto(obj)
   local mt = getmetatable(obj)
   if mt == nil then return _ljs_null end
   local proto = mt.__index
+  if proto == _ljs_string_box_index then
+    return _ljs_string_prototype
+  end
   if type(proto) ~= "table" then return _ljs_null end
   return proto
 end]]
@@ -1334,6 +1337,20 @@ local function method_key(m)
   return cg.string(m.key.value)
 end
 
+local function is_proto_member(node)
+  if not node.computed and node.property.name == "__proto__" then
+    return true
+  end
+  if
+    node.computed
+    and node.property.type == ast.TYPE_STRING_LITERAL
+    and node.property.value == "__proto__"
+  then
+    return true
+  end
+  return false
+end
+
 --- Dispatch to the type-specific emitter for the given AST node.
 -- @param node (table) AST node with a `type` field
 -- @param indent (number) Current indentation level
@@ -1920,16 +1937,7 @@ local function emit_assign_target(target, access, indent, ctx, out)
     out[#out + 1] = cg.expr_stmt(cg.binop("=", target.name, access), indent)
   elseif target.type == ast.TYPE_MEMBER_EXPRESSION then
     local obj = emit(target.object, indent, ctx)
-    local is_proto = false
-    if not target.computed and target.property.name == "__proto__" then
-      is_proto = true
-    elseif
-      target.computed
-      and target.property.type == ast.TYPE_STRING_LITERAL
-      and target.property.value == "__proto__"
-    then
-      is_proto = true
-    end
+    local is_proto = is_proto_member(target)
     if is_proto then
       out[#out + 1] = cg.expr_stmt(cg.call("_ljs_set_proto", { obj, access }), indent)
     else
@@ -2731,12 +2739,7 @@ gen.BinaryExpression = function(node, indent, ctx)
   end
   if op == "=" and node.left.type == ast.TYPE_MEMBER_EXPRESSION then
     local lhs = node.left
-    local is_proto = false
-    if not lhs.computed and lhs.property.name == "__proto__" then
-      is_proto = true
-    elseif lhs.computed and lhs.property.type == ast.TYPE_STRING_LITERAL and lhs.property.value == "__proto__" then
-      is_proto = true
-    end
+    local is_proto = is_proto_member(lhs)
     if is_proto then
       local obj = emit(lhs.object, indent, ctx)
       local value = emit(node.right, indent, ctx)
@@ -3114,16 +3117,7 @@ gen.MemberExpression = function(node, indent, ctx)
     obj = emit(node.object, indent, ctx)
   end
   obj = cg.call("_ljs_to_object", { obj })
-  local is_proto = false
-  if not node.computed and node.property.name == "__proto__" then
-    is_proto = true
-  elseif
-    node.computed
-    and node.property.type == ast.TYPE_STRING_LITERAL
-    and node.property.value == "__proto__"
-  then
-    is_proto = true
-  end
+  local is_proto = is_proto_member(node)
   if is_proto then
     return cg.call("_ljs_get_proto", { obj })
   end
