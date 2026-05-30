@@ -2644,6 +2644,22 @@ gen.BinaryExpression = function(node, indent, ctx)
           check_assign(ctx, lhs.name)
         end
       end
+      local refs = {}
+      for _, lhs in ipairs(targets) do
+        local obj_code, suffix = member_ref(lhs, indent, ctx)
+        if obj_code then
+          local tmp = fresh_tmp()
+          refs[#refs + 1] = { tmp = tmp, suffix = suffix, obj_code = obj_code }
+        else
+          refs[#refs + 1] = { name = lhs.name }
+        end
+      end
+      local stmts = {}
+      for _, r in ipairs(refs) do
+        if r.obj_code then
+          stmts[#stmts + 1] = cg.local_inline(r.tmp, r.obj_code)
+        end
+      end
       local value
       if
         current.type == ast.TYPE_BINARY_EXPRESSION
@@ -2654,10 +2670,14 @@ gen.BinaryExpression = function(node, indent, ctx)
         value = emit(current, indent, ctx)
       end
       local tmp = fresh_tmp()
-      local stmts = {}
       stmts[#stmts + 1] = cg.local_inline(tmp, value)
-      for _, lhs in ipairs(targets) do
-        stmts[#stmts + 1] = cg.binop("=", emit(lhs, indent, ctx), tmp)
+      for i = #refs, 1, -1 do
+        local r = refs[i]
+        if r.obj_code then
+          stmts[#stmts + 1] = cg.binop("=", r.tmp .. r.suffix, tmp)
+        else
+          stmts[#stmts + 1] = cg.binop("=", r.name, tmp)
+        end
       end
       stmts[#stmts + 1] = cg.return_inline(tmp)
       return cg.iife(stmts)

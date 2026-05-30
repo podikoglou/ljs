@@ -556,3 +556,52 @@ test("chained compound eval order: ident outer, member inner (#389)", function()
   ]])
   assert_eq(output:match("^%S+"), "only")
 end)
+
+-- ============================================================================
+-- = chain eval order (#400)
+-- Per ECMA-262 §13.15.2: evaluate LHS refs left-to-right before RHS value
+-- ============================================================================
+
+test("= chain eval order: member targets before RHS value (#400)", function()
+  local output = run_js([[
+    let order = [];
+    function get(label) { order.push(label); return { x: 0 }; }
+    function val(label) { order.push(label); return 5; }
+    get("A").x = get("B").x = val("C");
+    console.log(order[0] + "," + order[1] + "," + order[2]);
+  ]])
+  assert_eq(output:match("^%S+"), "A,B,C")
+end)
+
+test("= chain eval order: member targets with compound tail (#400)", function()
+  local output = run_js([[
+    let order = [];
+    function get(label) { order.push(label); return { x: 0 }; }
+    get("A").x = get("B").x = get("C").x += 5;
+    console.log(order[0] + "," + order[1] + "," + order[2]);
+  ]])
+  assert_eq(output:match("^%S+"), "A,B,C")
+end)
+
+test("= chain eval order: mixed ident and member (#400)", function()
+  local output = run_js([[
+    let order = [];
+    function get(label) { order.push(label); return { x: 0 }; }
+    function val(label) { order.push(label); return 5; }
+    let a;
+    a = get("B").x = val("C");
+    console.log(order[0] + "," + order[1]);
+  ]])
+  assert_eq(output:match("^%S+"), "B,C")
+end)
+
+test("= chain eval order: three member targets with plain RHS (#400)", function()
+  local output = run_js([[
+    let order = [];
+    function get(label) { order.push(label); return { x: 0 }; }
+    function val(label) { order.push(label); return 5; }
+    get("A").x = get("B").x = get("C").x = val("D");
+    console.log(order[0] + "," + order[1] + "," + order[2] + "," + order[3]);
+  ]])
+  assert_eq(output:match("^%S+"), "A,B,C,D")
+end)
