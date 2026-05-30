@@ -40,36 +40,70 @@ end)
 
 test("if statement", function()
   local code = transpile_ok("if (x) { y; }")
-  assert(code:find("if _ljs_to_boolean(x) then\n  local _ = y\nend\n", 1, true), "expected if x then local _ = y end")
+  assert(
+    code:find("if _ljs_to_boolean(x) then\n  local _ = y\nend\n", 1, true),
+    "expected if x then local _ = y end"
+  )
 end)
 
 test("if/else", function()
   local code = transpile_ok("if (x) { a; } else { b; }")
-  assert(code:find("if _ljs_to_boolean(x) then\n  local _ = a\nelse\n  local _ = b\nend\n", 1, true), "expected if/else")
+  assert(
+    code:find("if _ljs_to_boolean(x) then\n  local _ = a\nelse\n  local _ = b\nend\n", 1, true),
+    "expected if/else"
+  )
 end)
 
 test("else if flattens to elseif", function()
   local code = transpile_ok("if (x) { a; } else if (y) { b; }")
-  assert(code:find("if _ljs_to_boolean(x) then\n  local _ = a\nelseif _ljs_to_boolean(y) then\n  local _ = b\nend\n", 1, true), "expected elseif")
+  assert(
+    code:find(
+      "if _ljs_to_boolean(x) then\n  local _ = a\nelseif _ljs_to_boolean(y) then\n  local _ = b\nend\n",
+      1,
+      true
+    ),
+    "expected elseif"
+  )
 end)
 
 test("nested else-if chain from blocks", function()
   local code = transpile_ok("if (a) { 1; } else { if (b) { 2; } else { 3; } }")
   assert(
-    code:find("if _ljs_to_boolean(a) then\n  local _ = 1\nelseif _ljs_to_boolean(b) then\n  local _ = 2\nelse\n  local _ = 3\nend\n", 1, true),
+    code:find(
+      "if _ljs_to_boolean(a) then\n  local _ = 1\nelseif _ljs_to_boolean(b) then\n  local _ = 2\nelse\n  local _ = 3\nend\n",
+      1,
+      true
+    ),
     "expected nested elseif"
   )
 end)
 
 test("while loop", function()
   local code = transpile_ok("while (x) { y; }")
-  assert(code:find("while _ljs_to_boolean(x) do\n  local _ = y\nend\n", 1, true), "expected while x do local _ = y end")
+  assert(
+    code:find("while _ljs_to_boolean(x) do\n  local _ = y\nend\n", 1, true),
+    "expected while x do local _ = y end"
+  )
 end)
 
 test("for...of", function()
   local code = transpile_ok("for (const x of arr) { console.log(x); }")
   assert(code:find("for _ljs_d"), "expected numeric for loop")
   assert(code:find("%.length"), "expected .length bound")
+end)
+
+test("for...of wraps iterable with _ljs_to_object", function()
+  local code = emit_ok("for (const x of arr) { x; }")
+  assert(code:find("_ljs_to_object"), "expected _ljs_to_object wrapping of iterable")
+end)
+
+test("for...of on string iterates characters", function()
+  local out = run_js([[
+    let r = "";
+    for (let c of "abc") { r += c; }
+    console.log(r);
+  ]])
+  assert_eq(out, "abc\n")
 end)
 
 -- ============================================================================
@@ -126,7 +160,10 @@ end)
 test("full for with let init transpiles correctly", function()
   local code = transpile_ok("for (let i = 0; i < 10; i = i + 1) { console.log(i); }")
   assert(code:find("local i = 0"), "expected 'local i = 0'")
-  assert(code:find("while _ljs_to_boolean%(_ljs_lt%(i, 10%)%) do"), "expected 'while _ljs_to_boolean(_ljs_lt(i, 10)) do'")
+  assert(
+    code:find("while _ljs_to_boolean%(_ljs_lt%(i, 10%)%) do"),
+    "expected 'while _ljs_to_boolean(_ljs_lt(i, 10)) do'"
+  )
   assert(code:find("i = _ljs_add%(i, 1%)"), "expected update 'i = _ljs_add(i, 1)'")
 end)
 
@@ -135,13 +172,19 @@ test("for with expression init transpiles correctly", function()
   assert(code:find("i = 0"), "expected 'i = 0' (no local)")
   local ecode = emit_ok("for (i = 0; i < 5; i = i + 1) { x; }")
   assert(not ecode:find("local i ="), "no local for expression init")
-  assert(code:find("while _ljs_to_boolean%(_ljs_lt%(i, 5%)%) do"), "expected 'while _ljs_to_boolean(_ljs_lt(i, 5)) do'")
+  assert(
+    code:find("while _ljs_to_boolean%(_ljs_lt%(i, 5%)%) do"),
+    "expected 'while _ljs_to_boolean(_ljs_lt(i, 5)) do'"
+  )
 end)
 
 test("for with nil update transpiles correctly", function()
   local code = transpile_ok("for (let x = 1; x < 5; ) { x; }")
   assert(code:find("local x = 1"), "expected 'local x = 1'")
-  assert(code:find("while _ljs_to_boolean%(_ljs_lt%(x, 5%)%) do"), "expected 'while _ljs_to_boolean(_ljs_lt(x, 5)) do'")
+  assert(
+    code:find("while _ljs_to_boolean%(_ljs_lt%(x, 5%)%) do"),
+    "expected 'while _ljs_to_boolean(_ljs_lt(x, 5)) do'"
+  )
   local ecode = emit_ok("for (let x = 1; x < 5; ) { x; }")
   assert(not ecode:find("x = _ljs_add"), "no _ljs_add update in codegen")
   assert(not ecode:find("x = x %- 1"), "no decrement update in codegen")
@@ -162,7 +205,10 @@ end)
 test("for with nil init transpiles correctly", function()
   local code = emit_ok("for (; x < 10; x = x + 1) { y; }")
   assert(not code:find("local x"), "no init")
-  assert(code:find("while _ljs_to_boolean%(_ljs_lt%(x, 10%)%) do"), "expected 'while _ljs_to_boolean(_ljs_lt(x, 10)) do'")
+  assert(
+    code:find("while _ljs_to_boolean%(_ljs_lt%(x, 10%)%) do"),
+    "expected 'while _ljs_to_boolean(_ljs_lt(x, 10)) do'"
+  )
   assert(code:find("_ljs_add%(x, 1%)"), "expected update")
 end)
 
@@ -243,7 +289,10 @@ end)
 
 test("strict equality in body is wrapped", function()
   local code = transpile_ok("if (true) { x === 1; }")
-  assert(code:find("local _ = _ljs_strict_eq(x, 1)", 1, true), "expected local _ = _ljs_strict_eq(x, 1)")
+  assert(
+    code:find("local _ = _ljs_strict_eq(x, 1)", 1, true),
+    "expected local _ = _ljs_strict_eq(x, 1)"
+  )
 end)
 
 test("logical NOT in body is wrapped", function()
