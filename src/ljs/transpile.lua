@@ -2518,13 +2518,82 @@ local COMPOUND_OPS = {
 
 local member_ref
 
+--- Emit a compound assignment (e.g., `b += 5`) as a Lua expression.
+--- Returns an IIFE that evaluates the compound op, assigns to the LHS, and
+--- returns the assigned value. Used when a destructuring pattern LHS of `=`
+--- has a compound assignment as RHS — the normal emit path produces a statement
+--- string which cannot be used as an expression value.
+--- Handles member expression LHS (via member_ref) and simple identifier LHS.
+local function emit_compound_expr(node, indent, ctx)
+  local lhs = node.left
+  if lhs.type == ast.TYPE_IDENTIFIER then
+    check_assign(ctx, lhs.name)
+  end
+  local obj_code, suffix = member_ref(lhs, indent, ctx)
+  local refs = {}
+  if obj_code then
+    local rtmp = fresh_tmp()
+    refs[#refs + 1] = { tmp = rtmp, suffix = suffix, obj_code = obj_code }
+  else
+    refs[#refs + 1] = { name = lhs.name }
+  end
+  local inner_ref = refs[#refs]
+  local inner_val = inner_ref.tmp and (inner_ref.tmp .. inner_ref.suffix) or inner_ref.name
+  local right_val
+  if
+    node.right.type == ast.TYPE_BINARY_EXPRESSION
+    and (COMPOUND_OPS[node.right.operator] or node.right.operator == "%=")
+  then
+    right_val = emit_compound_expr(node.right, indent, ctx)
+  else
+    right_val = emit(node.right, indent, ctx)
+  end
+  local value
+  local helper = COMPOUND_OPS[node.operator]
+  if helper then
+    value = cg.call(helper, { inner_val, right_val })
+  else
+    -- %= case
+    value = cg.call("_ljs_mod", {
+      cg.call("_ljs_to_number", { inner_val }),
+      cg.call("_ljs_to_number", { right_val }),
+    })
+  end
+  local vtmp = fresh_tmp()
+  local stmts = {}
+  for _, r in ipairs(refs) do
+    if r.obj_code then
+      stmts[#stmts + 1] = cg.local_inline(r.tmp, r.obj_code)
+    end
+  end
+  stmts[#stmts + 1] = cg.local_inline(vtmp, value)
+  for i = #refs, 1, -1 do
+    local r = refs[i]
+    if r.obj_code then
+      stmts[#stmts + 1] = cg.binop("=", r.tmp .. r.suffix, vtmp)
+    else
+      stmts[#stmts + 1] = cg.binop("=", r.name, vtmp)
+    end
+  end
+  stmts[#stmts + 1] = cg.return_inline(vtmp)
+  return cg.iife(stmts)
+end
+
 gen.BinaryExpression = function(node, indent, ctx)
   local op = node.operator
   if
     op == "="
     and (node.left.type == ast.TYPE_ARRAY_PATTERN or node.left.type == ast.TYPE_OBJECT_PATTERN)
   then
-    local right = emit(node.right, indent, ctx)
+    local right
+    if
+      node.right.type == ast.TYPE_BINARY_EXPRESSION
+      and (COMPOUND_OPS[node.right.operator] or node.right.operator == "%=")
+    then
+      right = emit_compound_expr(node.right, indent, ctx)
+    else
+      right = emit(node.right, indent, ctx)
+    end
     local tmp = fresh_tmp()
     local out = {}
     out[#out + 1] = cg.local_inline(tmp, right)
@@ -2546,7 +2615,15 @@ gen.BinaryExpression = function(node, indent, ctx)
           check_assign(ctx, lhs.name)
         end
       end
-      local value = emit(current, indent, ctx)
+      local value
+      if
+        current.type == ast.TYPE_BINARY_EXPRESSION
+        and (COMPOUND_OPS[current.operator] or current.operator == "%=")
+      then
+        value = emit_compound_expr(current, indent, ctx)
+      else
+        value = emit(current, indent, ctx)
+      end
       local tmp = fresh_tmp()
       local stmts = {}
       stmts[#stmts + 1] = cg.local_inline(tmp, value)
@@ -3059,7 +3136,15 @@ gen_stmt.BinaryExpression = function(node, indent, ctx)
     op == "="
     and (node.left.type == ast.TYPE_ARRAY_PATTERN or node.left.type == ast.TYPE_OBJECT_PATTERN)
   then
-    local right = emit(node.right, indent, ctx)
+    local right
+    if
+      node.right.type == ast.TYPE_BINARY_EXPRESSION
+      and (COMPOUND_OPS[node.right.operator] or node.right.operator == "%=")
+    then
+      right = emit_compound_expr(node.right, indent, ctx)
+    else
+      right = emit(node.right, indent, ctx)
+    end
     local tmp = fresh_tmp()
     local out = {}
     out[#out + 1] = cg.local_decl(tmp, right, indent)
