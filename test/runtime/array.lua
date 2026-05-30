@@ -2218,36 +2218,48 @@ end)
 -- ============================================================================
 
 test("for-in on array yields 0-based keys (#289)", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var r = "";
     for (var k in [10, 20, 30]) { r += k; }
     return r;
-  ]]), "012")
+  ]]),
+    "012"
+  )
 end)
 
 test("for-in on single-element array (#289)", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var r = "";
     for (var k in [10]) { r += k; }
     return r;
-  ]]), "0")
+  ]]),
+    "0"
+  )
 end)
 
 test("for-in on sparse array yields only existing keys (#289)", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var arr = []; arr[5] = 'x';
     var r = "";
     for (var k in arr) { r += k; }
     return r;
-  ]]), "5")
+  ]]),
+    "5"
+  )
 end)
 
 test("for-in on empty array yields nothing (#289)", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var r = "";
     for (var k in []) { r += k; }
     return r;
-  ]]), "")
+  ]]),
+    ""
+  )
 end)
 
 test("for-in on object still works (#289)", function()
@@ -2258,4 +2270,53 @@ test("for-in on object still works (#289)", function()
     return keys.join(",");
   ]])
   assert_eq(result, "a,b")
+end)
+
+-- ============================================================================
+-- for-in on strings (#350)
+-- ============================================================================
+
+test("for-in on string yields 0-based keys (#350)", function()
+  assert_eq(
+    exec_js([[
+    var r = "";
+    for (var k in "abc") { r += k; }
+    return r;
+  ]]),
+    "012"
+  )
+end)
+
+test("for-in on single-char string (#350)", function()
+  assert_eq(
+    exec_js([[
+    var r = "";
+    for (var k in "x") { r += k; }
+    return r;
+  ]]),
+    "0"
+  )
+end)
+
+test("for-in on empty string yields nothing (#350)", function()
+  assert_eq(
+    exec_js([[
+    var r = "";
+    for (var k in "") { r += k; }
+    return r;
+  ]]),
+    ""
+  )
+end)
+
+test("for-in on string variable (#350)", function()
+  assert_eq(
+    exec_js([[
+    var s = "hello";
+    var r = "";
+    for (var k in s) { r += k; }
+    return r;
+  ]]),
+    "01234"
+  )
 end)

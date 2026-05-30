@@ -372,6 +372,13 @@ end]]
 
 HELPERS._ljs_for_in_keys = [[local function _ljs_for_in_keys(obj)
   local keys = {}
+  if type(obj) == "string" then
+    local len = #obj
+    for i = 1, len do
+      keys[i] = tostring(i - 1)
+    end
+    return keys
+  end
   if type(obj) ~= "table" then
     return keys
   end
