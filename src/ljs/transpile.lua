@@ -2546,6 +2546,9 @@ local COMPOUND_OPS = {
 }
 
 local member_ref
+local build_member_ref
+local ref_lhs
+local emit_ref_inits
 
 --- Emit a compound assignment (e.g., `b += 5`) as a Lua expression.
 --- Returns an IIFE that evaluates the compound op, assigns to the LHS, and
@@ -2558,23 +2561,9 @@ local function emit_compound_expr(node, indent, ctx)
   if lhs.type == ast.TYPE_IDENTIFIER then
     check_assign(ctx, lhs.name)
   end
-  local obj_code, suffix, key_code = member_ref(lhs, indent, ctx)
-  local refs = {}
-  if obj_code then
-    local rtmp = fresh_tmp()
-    local entry = { tmp = rtmp, suffix = suffix, obj_code = obj_code }
-    if key_code then
-      local ktmp = fresh_tmp()
-      entry.key_tmp = ktmp
-      entry.key_code = key_code
-      entry.suffix = "[" .. ktmp .. "]"
-    end
-    refs[#refs + 1] = entry
-  else
-    refs[#refs + 1] = { name = lhs.name }
-  end
+  local refs = { build_member_ref(lhs, indent, ctx) }
   local inner_ref = refs[#refs]
-  local inner_val = inner_ref.tmp and (inner_ref.tmp .. inner_ref.suffix) or inner_ref.name
+  local inner_val = ref_lhs(inner_ref)
   local right_val
   if
     node.right.type == ast.TYPE_BINARY_EXPRESSION
@@ -2597,22 +2586,10 @@ local function emit_compound_expr(node, indent, ctx)
   end
   local vtmp = fresh_tmp()
   local stmts = {}
-  for _, r in ipairs(refs) do
-    if r.obj_code then
-      stmts[#stmts + 1] = cg.local_inline(r.tmp, r.obj_code)
-    end
-    if r.key_tmp then
-      stmts[#stmts + 1] = cg.local_inline(r.key_tmp, r.key_code)
-    end
-  end
+  emit_ref_inits(refs, stmts)
   stmts[#stmts + 1] = cg.local_inline(vtmp, value)
   for i = #refs, 1, -1 do
-    local r = refs[i]
-    if r.obj_code then
-      stmts[#stmts + 1] = cg.binop("=", r.tmp .. r.suffix, vtmp)
-    else
-      stmts[#stmts + 1] = cg.binop("=", r.name, vtmp)
-    end
+    stmts[#stmts + 1] = cg.binop("=", ref_lhs(refs[i]), vtmp)
   end
   stmts[#stmts + 1] = cg.return_inline(vtmp)
   return cg.iife(stmts)
@@ -2656,30 +2633,10 @@ gen.BinaryExpression = function(node, indent, ctx)
       end
       local refs = {}
       for _, lhs in ipairs(targets) do
-        local obj_code, suffix, key_code = member_ref(lhs, indent, ctx)
-        if obj_code then
-          local tmp = fresh_tmp()
-          local entry = { tmp = tmp, suffix = suffix, obj_code = obj_code }
-          if key_code then
-            local ktmp = fresh_tmp()
-            entry.key_tmp = ktmp
-            entry.key_code = key_code
-            entry.suffix = "[" .. ktmp .. "]"
-          end
-          refs[#refs + 1] = entry
-        else
-          refs[#refs + 1] = { name = lhs.name }
-        end
+        refs[#refs + 1] = build_member_ref(lhs, indent, ctx)
       end
       local stmts = {}
-      for _, r in ipairs(refs) do
-        if r.obj_code then
-          stmts[#stmts + 1] = cg.local_inline(r.tmp, r.obj_code)
-        end
-        if r.key_tmp then
-          stmts[#stmts + 1] = cg.local_inline(r.key_tmp, r.key_code)
-        end
-      end
+      emit_ref_inits(refs, stmts)
       local value
       if
         current.type == ast.TYPE_BINARY_EXPRESSION
@@ -2693,11 +2650,7 @@ gen.BinaryExpression = function(node, indent, ctx)
       stmts[#stmts + 1] = cg.local_inline(tmp, value)
       for i = #refs, 1, -1 do
         local r = refs[i]
-        if r.obj_code then
-          stmts[#stmts + 1] = cg.binop("=", r.tmp .. r.suffix, tmp)
-        else
-          stmts[#stmts + 1] = cg.binop("=", r.name, tmp)
-        end
+        stmts[#stmts + 1] = cg.binop("=", ref_lhs(r), tmp)
       end
       stmts[#stmts + 1] = cg.return_inline(tmp)
       return cg.iife(stmts)
@@ -2713,23 +2666,9 @@ gen.BinaryExpression = function(node, indent, ctx)
       end
       local refs = {}
       for _, lhs in ipairs(targets) do
-        local obj_code, suffix, key_code = member_ref(lhs, indent, ctx)
-        if obj_code then
-          local tmp = fresh_tmp()
-          local entry = { tmp = tmp, suffix = suffix, obj_code = obj_code }
-          if key_code then
-            local ktmp = fresh_tmp()
-            entry.key_tmp = ktmp
-            entry.key_code = key_code
-            entry.suffix = "[" .. ktmp .. "]"
-          end
-          refs[#refs + 1] = entry
-        else
-          refs[#refs + 1] = { name = lhs.name }
-        end
+        refs[#refs + 1] = build_member_ref(lhs, indent, ctx)
       end
-      local inner_ref = refs[#refs]
-      local inner_val = inner_ref.tmp and (inner_ref.tmp .. inner_ref.suffix) or inner_ref.name
+      local inner_val = ref_lhs(refs[#refs])
       local right_val = emit(node.right.right, indent, ctx)
       local value
       local helper = COMPOUND_OPS[right_op]
@@ -2743,22 +2682,10 @@ gen.BinaryExpression = function(node, indent, ctx)
       end
       local tmp = fresh_tmp()
       local stmts = {}
-      for _, r in ipairs(refs) do
-        if r.obj_code then
-          stmts[#stmts + 1] = cg.local_inline(r.tmp, r.obj_code)
-        end
-        if r.key_tmp then
-          stmts[#stmts + 1] = cg.local_inline(r.key_tmp, r.key_code)
-        end
-      end
+      emit_ref_inits(refs, stmts)
       stmts[#stmts + 1] = cg.local_inline(tmp, value)
       for i = #refs, 1, -1 do
-        local r = refs[i]
-        if r.obj_code then
-          stmts[#stmts + 1] = cg.binop("=", r.tmp .. r.suffix, tmp)
-        else
-          stmts[#stmts + 1] = cg.binop("=", r.name, tmp)
-        end
+        stmts[#stmts + 1] = cg.binop("=", ref_lhs(refs[i]), tmp)
       end
       stmts[#stmts + 1] = cg.return_inline(tmp)
       return cg.iife(stmts)
@@ -2877,10 +2804,6 @@ local function member_key(node, indent, ctx)
 end
 
 member_ref = function(node, indent, ctx)
-  -- Returns (object_code, access_suffix, key_code) for a MemberExpression LHS.
-  -- object_code: expression that evaluates the base object (wrapped in _ljs_to_object)
-  -- access_suffix: ".prop" or "[key]" for the property access
-  -- key_code: nil for dot access, key expression string for computed access
   if node.type ~= ast.TYPE_MEMBER_EXPRESSION then
     return nil, nil, nil
   end
@@ -2893,10 +2816,45 @@ member_ref = function(node, indent, ctx)
   end
   obj = cg.call("_ljs_to_object", { obj })
   if node.computed then
-    local key = member_key(node, indent, ctx)
-    return obj, "[" .. key .. "]", key
+    return obj, nil, member_key(node, indent, ctx)
   end
-  return obj, "." .. node.property.name, nil
+  return obj, node.property.name, nil
+end
+
+build_member_ref = function(lhs, indent, ctx)
+  local obj_code, prop_name, key_code = member_ref(lhs, indent, ctx)
+  if not obj_code then
+    return { name = lhs.name }
+  end
+  local entry = { tmp = fresh_tmp(), obj_code = obj_code }
+  if key_code then
+    entry.key_tmp = fresh_tmp()
+    entry.key_code = key_code
+  else
+    entry.prop_name = prop_name
+  end
+  return entry
+end
+
+ref_lhs = function(r)
+  if r.name then
+    return r.name
+  end
+  if r.key_tmp then
+    return cg.member_index(r.tmp, r.key_tmp)
+  end
+  return cg.member_dot(r.tmp, r.prop_name)
+end
+
+emit_ref_inits = function(refs, stmts)
+  for _, r in ipairs(refs) do
+    if r.obj_code then
+      stmts[#stmts + 1] = cg.local_inline(r.tmp, r.obj_code)
+    end
+    if r.key_tmp then
+      stmts[#stmts + 1] = cg.local_inline(r.key_tmp, r.key_code)
+    end
+  end
 end
 
 local function delete_key_and_obj(arg, indent, ctx)
