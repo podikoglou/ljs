@@ -133,21 +133,13 @@ end
 
 local function _console_write(handle, ...)
   local n = select("#", ...)
-  local ctx = { refs = {}, path = {}, counter = 0 }
   local parts = {}
   for i = 1, n do
     local x = select(i, ...)
-    local old_ref
-    if type(x) == "table" then
-      old_ref = ctx.refs[x]
-      ctx.refs[x] = nil
-    end
+    local ctx = { refs = {}, path = {}, counter = 0 }
     ctx.has_circular = false
     local s = _ljs_inspect(x, 0, ctx)
     if type(x) == "table" then
-      if old_ref then
-        ctx.refs[x] = old_ref
-      end
       if ctx.has_circular and ctx.refs[x] then
         s = "<ref *" .. ctx.refs[x] .. "> " .. s
       end

@@ -364,5 +364,8 @@ test("console.log numbers multiple circular refs", function()
   local out = capture_stdout(function()
     exec_js("var a = {}; var b = {}; a.ref = b; b.ref = a; console.log(a, b);")
   end)
-  assert_eq(out, "<ref *1> { ref: { ref: [Circular *1] } } <ref *2> { ref: [Circular *1] }\n")
+  assert_eq(
+    out,
+    "<ref *1> { ref: { ref: [Circular *1] } } <ref *1> { ref: { ref: [Circular *1] } }\n"
+  )
 end)
