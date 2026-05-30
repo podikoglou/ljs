@@ -2523,27 +2523,58 @@ gen.BinaryExpression = function(node, indent, ctx)
     out[#out + 1] = cg.return_inline(tmp)
     return cg.iife(out)
   end
-  if op == "=" and node.right.type == ast.TYPE_BINARY_EXPRESSION and node.right.operator == "=" then
-    local targets = { node.left }
-    local current = node.right
-    while current.type == ast.TYPE_BINARY_EXPRESSION and current.operator == "=" do
-      targets[#targets + 1] = current.left
-      current = current.right
-    end
-    for _, lhs in ipairs(targets) do
-      if lhs.type == ast.TYPE_IDENTIFIER then
-        check_assign(ctx, lhs.name)
+  if op == "=" and node.right.type == ast.TYPE_BINARY_EXPRESSION then
+    local right_op = node.right.operator
+    if right_op == "=" then
+      local targets = { node.left }
+      local current = node.right
+      while current.type == ast.TYPE_BINARY_EXPRESSION and current.operator == "=" do
+        targets[#targets + 1] = current.left
+        current = current.right
       end
+      for _, lhs in ipairs(targets) do
+        if lhs.type == ast.TYPE_IDENTIFIER then
+          check_assign(ctx, lhs.name)
+        end
+      end
+      local value = emit(current, indent, ctx)
+      local tmp = fresh_tmp()
+      local stmts = {}
+      stmts[#stmts + 1] = cg.local_inline(tmp, value)
+      for _, lhs in ipairs(targets) do
+        stmts[#stmts + 1] = cg.binop("=", emit(lhs, indent, ctx), tmp)
+      end
+      stmts[#stmts + 1] = cg.return_inline(tmp)
+      return cg.iife(stmts)
+    elseif COMPOUND_OPS[right_op] or right_op == "%=" then
+      -- a = b += 5  or  a = b %= 5
+      local targets = { node.left, node.right.left }
+      for _, lhs in ipairs(targets) do
+        if lhs.type == ast.TYPE_IDENTIFIER then
+          check_assign(ctx, lhs.name)
+        end
+      end
+      local left_val = emit(node.right.left, indent, ctx)
+      local right_val = emit(node.right.right, indent, ctx)
+      local value
+      local helper = COMPOUND_OPS[right_op]
+      if helper then
+        value = cg.call(helper, { left_val, right_val })
+      else
+        value = cg.call("_ljs_mod", {
+          cg.call("_ljs_to_number", { left_val }),
+          cg.call("_ljs_to_number", { right_val }),
+        })
+      end
+      local tmp = fresh_tmp()
+      local stmts = {}
+      stmts[#stmts + 1] = cg.local_inline(tmp, value)
+      for _, lhs in ipairs(targets) do
+        stmts[#stmts + 1] = cg.binop("=", emit(lhs, indent, ctx), tmp)
+      end
+      stmts[#stmts + 1] = cg.return_inline(tmp)
+      return cg.iife(stmts)
     end
-    local value = emit(current, indent, ctx)
-    local tmp = fresh_tmp()
-    local stmts = {}
-    stmts[#stmts + 1] = cg.local_inline(tmp, value)
-    for _, lhs in ipairs(targets) do
-      stmts[#stmts + 1] = cg.binop("=", emit(lhs, indent, ctx), tmp)
-    end
-    stmts[#stmts + 1] = cg.return_inline(tmp)
-    return cg.iife(stmts)
   end
   if node.left.type == ast.TYPE_IDENTIFIER then
     if op == "=" or COMPOUND_OPS[op] or op == "%=" then

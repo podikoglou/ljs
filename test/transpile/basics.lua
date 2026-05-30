@@ -502,3 +502,36 @@ test("chained assignment returns value (#291)", function()
   ]])
   assert_eq(output:match("^%S+"), "42")
 end)
+
+-- ============================================================================
+-- Chained compound assignment (#342)
+-- Per ECMA-262 §13.15: = evaluates RHS then PutValue; RHS compound returns value
+-- ============================================================================
+
+test("chained compound assignment a = b += 5 (#342)", function()
+  local output = run_js([[
+    let a, b;
+    a = b += 5;
+    console.log(a, b);
+  ]])
+  assert_eq(output:match("^%S+"), "NaN")
+end)
+
+test("chained compound assignment returns value (#342)", function()
+  local output = run_js([[
+    let a, b;
+    let c = (a = b += 5);
+    console.log(a, b, c);
+  ]])
+  assert_eq(output:match("^%S+"), "NaN")
+end)
+
+test("chained compound assignment with %=", function()
+  local output = run_js([[
+    let a, b;
+    b = 10;
+    a = b %= 3;
+    console.log(a, b);
+  ]])
+  assert_eq(output:match("^%S+"), "1")
+end)
