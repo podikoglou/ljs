@@ -817,6 +817,49 @@ local function body_references_arguments(node)
   return false
 end
 
+local function extract_binding_names(target, out)
+  out = out or {}
+  if not target then
+    return out
+  end
+  if target.type == ast.TYPE_IDENTIFIER then
+    out[#out + 1] = target.name
+  elseif target.type == ast.TYPE_OBJECT_PATTERN then
+    for _, prop in ipairs(target.properties) do
+      if prop.type == ast.TYPE_REST_ELEMENT then
+        extract_binding_names(prop.argument, out)
+      else
+        extract_binding_names(prop.value, out)
+      end
+    end
+  elseif target.type == ast.TYPE_ARRAY_PATTERN then
+    for _, elem in ipairs(target.elements) do
+      extract_binding_names(elem, out)
+    end
+  elseif target.type == ast.TYPE_ASSIGNMENT_PATTERN then
+    extract_binding_names(target.left, out)
+  elseif target.type == ast.TYPE_REST_ELEMENT then
+    extract_binding_names(target.argument, out)
+  end
+  return out
+end
+
+local function scope_has_lexical_name(stmts, name)
+  for _, s in ipairs(stmts) do
+    if s.type == ast.TYPE_VARIABLE_DECLARATION and (s.kind == "let" or s.kind == "const") then
+      for _, d in ipairs(s.declarations) do
+        local names = extract_binding_names(d.name)
+        for _, n in ipairs(names) do
+          if n == name then
+            return true
+          end
+        end
+      end
+    end
+  end
+  return false
+end
+
 local function references_identifier(node, name)
   if not node or type(node) ~= "table" then
     return false
@@ -843,6 +886,49 @@ local function references_identifier(node, name)
     end
     return references_identifier(node.body, name)
   end
+  if node.type == ast.TYPE_BLOCK_STATEMENT then
+    if scope_has_lexical_name(node.body, name) then
+      return false
+    end
+    for _, v in ipairs(node.body) do
+      if references_identifier(v, name) then
+        return true
+      end
+    end
+    return false
+  end
+  if node.type == ast.TYPE_SWITCH_STATEMENT then
+    for _, c in ipairs(node.cases) do
+      if c.consequent and scope_has_lexical_name(c.consequent, name) then
+        return false
+      end
+      if references_identifier(c, name) then
+        return true
+      end
+    end
+    return references_identifier(node.discriminant, name)
+  end
+  if
+    node.type == ast.TYPE_FOR_STATEMENT
+    or node.type == ast.TYPE_FOR_OF_STATEMENT
+    or node.type == ast.TYPE_FOR_IN_STATEMENT
+  then
+    local init = node.init or node.left
+    if
+      init
+      and init.type == ast.TYPE_VARIABLE_DECLARATION
+      and (init.kind == "let" or init.kind == "const")
+    then
+      local names = extract_binding_names(
+        init.declarations and init.declarations[1] and init.declarations[1].name
+      )
+      for _, n in ipairs(names) do
+        if n == name then
+          return false
+        end
+      end
+    end
+  end
   for _, v in pairs(node) do
     if type(v) == "table" then
       if references_identifier(v, name) then
@@ -851,33 +937,6 @@ local function references_identifier(node, name)
     end
   end
   return false
-end
-
-local function extract_binding_names(target, out)
-  out = out or {}
-  if not target then
-    return out
-  end
-  if target.type == ast.TYPE_IDENTIFIER then
-    out[#out + 1] = target.name
-  elseif target.type == ast.TYPE_OBJECT_PATTERN then
-    for _, prop in ipairs(target.properties) do
-      if prop.type == ast.TYPE_REST_ELEMENT then
-        extract_binding_names(prop.argument, out)
-      else
-        extract_binding_names(prop.value, out)
-      end
-    end
-  elseif target.type == ast.TYPE_ARRAY_PATTERN then
-    for _, elem in ipairs(target.elements) do
-      extract_binding_names(elem, out)
-    end
-  elseif target.type == ast.TYPE_ASSIGNMENT_PATTERN then
-    extract_binding_names(target.left, out)
-  elseif target.type == ast.TYPE_REST_ELEMENT then
-    extract_binding_names(target.argument, out)
-  end
-  return out
 end
 
 local function collect_pattern_defaults(pattern, out)
