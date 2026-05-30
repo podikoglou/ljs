@@ -296,7 +296,13 @@ HELPERS._ljs_index = [[local function _ljs_index(k)
     end
     return k
   end
-  return k + 1
+  if type(k) == "number" then
+    if math.floor(k) == k and k >= 0 then
+      return k + 1
+    end
+    return _ljs_tostring(k)
+  end
+  return k
 end]]
 
 -- typeof per §13.5.3: nil (undefined) → "undefined", _ljs_null → "object".
