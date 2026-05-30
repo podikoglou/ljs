@@ -351,3 +351,69 @@ test("arguments has length and indexed access", function()
   ]])
   assert_eq(out, "2\na\n")
 end)
+
+-- ============================================================================
+-- arguments bugs: arrow inheritance, property false positives, param shadowing
+-- ============================================================================
+
+test("arrow function inherits arguments from enclosing function (#356)", function()
+  local out = run_js([[
+    function f() {
+      const g = () => { return arguments[0]; };
+      return g();
+    }
+    console.log(f(42));
+  ]])
+  assert_eq(out, "42\n")
+end)
+
+test("arrow function body does not emit local arguments preamble (#356)", function()
+  local code = transpile_ok("const f = () => { return arguments[0]; };")
+  assert(not code:find("local arguments"), "arrow should not emit 'local arguments' preamble")
+end)
+
+test("obj.arguments does not trigger arguments binding (#357)", function()
+  local code = transpile_ok([[
+    function f() {
+      return obj.arguments;
+    }
+  ]])
+  assert(not code:find("_ljs_arguments"), "obj.arguments should not trigger arguments binding")
+end)
+
+test("{arguments: x} property key does not trigger arguments binding (#357)", function()
+  local code = transpile_ok([[
+    function f() {
+      const {arguments: a} = obj;
+      return a;
+    }
+  ]])
+  assert(not code:find("_ljs_arguments"), "{arguments: x} should not trigger arguments binding")
+end)
+
+test("obj[arguments] computed does trigger arguments binding (#357)", function()
+  local code = transpile_ok([[
+    function f() {
+      return obj[arguments];
+    }
+  ]])
+  assert(code:find("_ljs_arguments"), "obj[arguments] should trigger arguments binding")
+end)
+
+test("parameter named arguments shadows arguments object (#358)", function()
+  local out = run_js([[
+    function f(arguments) {
+      return arguments;
+    }
+    console.log(f(99));
+  ]])
+  assert_eq(out, "99\n")
+end)
+
+test("parameter named arguments does not emit arguments binding (#358)", function()
+  local code = transpile_ok("function f(arguments) { return arguments; }")
+  assert(
+    not code:find("_ljs_arguments"),
+    "param 'arguments' should not emit _ljs_arguments binding"
+  )
+end)
