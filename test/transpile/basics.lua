@@ -535,3 +535,24 @@ test("chained compound assignment with %=", function()
   ]])
   assert_eq(output:match("^%S+"), "1")
 end)
+
+test("chained compound eval order: outer member before inner member (#389)", function()
+  local output = run_js([[
+    let order = [];
+    function get(label) { order.push(label); return { x: 10 }; }
+    get("first").x = get("second").x += 5;
+    console.log(order[0] + "," + order[1]);
+  ]])
+  assert_eq(output:match("^%S+"), "first,second")
+end)
+
+test("chained compound eval order: ident outer, member inner (#389)", function()
+  local output = run_js([[
+    let order = [];
+    function get(label) { order.push(label); return { x: 10 }; }
+    let a;
+    a = get("only").x += 5;
+    console.log(order[0]);
+  ]])
+  assert_eq(output:match("^%S+"), "only")
+end)

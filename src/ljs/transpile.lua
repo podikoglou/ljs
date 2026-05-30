@@ -2516,6 +2516,8 @@ local COMPOUND_OPS = {
   [">>>="] = "_ljs_usr",
 }
 
+local member_ref
+
 gen.BinaryExpression = function(node, indent, ctx)
   local op = node.operator
   if
@@ -2555,29 +2557,52 @@ gen.BinaryExpression = function(node, indent, ctx)
       return cg.iife(stmts)
     elseif COMPOUND_OPS[right_op] or right_op == "%=" then
       -- a = b += 5  or  a = b %= 5
+      -- Per §13.15.2: evaluate LHS refs outer→inner, compute value,
+      -- then PutValue inner→outer (reverse of evaluation order)
       local targets = { node.left, node.right.left }
       for _, lhs in ipairs(targets) do
         if lhs.type == ast.TYPE_IDENTIFIER then
           check_assign(ctx, lhs.name)
         end
       end
-      local left_val = emit(node.right.left, indent, ctx)
+      local refs = {}
+      for _, lhs in ipairs(targets) do
+        local obj_code, suffix = member_ref(lhs, indent, ctx)
+        if obj_code then
+          local tmp = fresh_tmp()
+          refs[#refs + 1] = { tmp = tmp, suffix = suffix, obj_code = obj_code }
+        else
+          refs[#refs + 1] = { name = lhs.name }
+        end
+      end
+      local inner_ref = refs[#refs]
+      local inner_val = inner_ref.tmp and (inner_ref.tmp .. inner_ref.suffix) or inner_ref.name
       local right_val = emit(node.right.right, indent, ctx)
       local value
       local helper = COMPOUND_OPS[right_op]
       if helper then
-        value = cg.call(helper, { left_val, right_val })
+        value = cg.call(helper, { inner_val, right_val })
       else
         value = cg.call("_ljs_mod", {
-          cg.call("_ljs_to_number", { left_val }),
+          cg.call("_ljs_to_number", { inner_val }),
           cg.call("_ljs_to_number", { right_val }),
         })
       end
       local tmp = fresh_tmp()
       local stmts = {}
+      for _, r in ipairs(refs) do
+        if r.obj_code then
+          stmts[#stmts + 1] = cg.local_inline(r.tmp, r.obj_code)
+        end
+      end
       stmts[#stmts + 1] = cg.local_inline(tmp, value)
-      for _, lhs in ipairs(targets) do
-        stmts[#stmts + 1] = cg.binop("=", emit(lhs, indent, ctx), tmp)
+      for i = #refs, 1, -1 do
+        local r = refs[i]
+        if r.obj_code then
+          stmts[#stmts + 1] = cg.binop("=", r.tmp .. r.suffix, tmp)
+        else
+          stmts[#stmts + 1] = cg.binop("=", r.name, tmp)
+        end
       end
       stmts[#stmts + 1] = cg.return_inline(tmp)
       return cg.iife(stmts)
@@ -2693,6 +2718,27 @@ local function member_key(node, indent, ctx)
     return cg.call("_ljs_index", { emit(node.property, indent, ctx) })
   end
   return cg.string(node.property.name)
+end
+
+member_ref = function(node, indent, ctx)
+  -- Returns (object_code, access_suffix) for a MemberExpression LHS.
+  -- object_code: expression that evaluates the base object (wrapped in _ljs_to_object)
+  -- access_suffix: ".prop" or "[key]" for the property access
+  if node.type ~= ast.TYPE_MEMBER_EXPRESSION then
+    return nil, nil
+  end
+  local obj
+  if node.object.type == ast.TYPE_SUPER_EXPRESSION then
+    local super_parent = ctx.super_stack[#ctx.super_stack]
+    obj = cg.member_dot(super_parent, "prototype")
+  else
+    obj = emit(node.object, indent, ctx)
+  end
+  obj = cg.call("_ljs_to_object", { obj })
+  if node.computed then
+    return obj, "[" .. member_key(node, indent, ctx) .. "]"
+  end
+  return obj, "." .. node.property.name
 end
 
 local function delete_key_and_obj(arg, indent, ctx)
