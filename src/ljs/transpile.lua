@@ -1161,7 +1161,7 @@ local function emit_body(stmts, indent, ctx)
     parts[#parts + 1] = cg.local_decl(table.concat(all_fwd, ", "), nil, indent)
     local scope = ctx.scopes[#ctx.scopes]
     for _, name in ipairs(all_fwd) do
-      scope[name] = "__fwd"
+      scope[name] = func_names[name] and "__fwd_func" or "__fwd_var"
     end
   end
   for _, s in ipairs(func_decls) do
@@ -1719,9 +1719,10 @@ gen.VariableDeclaration = function(node, indent, ctx)
       end
     else
       local scope = ctx.scopes[#ctx.scopes]
-      local is_fwd = scope[decl.name.name] == "__fwd"
+      local existing = scope[decl.name.name]
+      local is_fwd = existing == "__fwd_func" or existing == "__fwd_var"
       if is_fwd then
-        if node.kind == "let" or node.kind == "const" then
+        if existing == "__fwd_func" and (node.kind == "let" or node.kind == "const") then
           error("SyntaxError: Identifier '" .. decl.name.name .. "' has already been declared", 0)
         end
         scope[decl.name.name] = node.kind
