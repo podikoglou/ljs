@@ -1433,6 +1433,32 @@ local function collect_var_names(node, names)
   end
 end
 
+local function needs_semi_before(prev, code, indent)
+  if #prev == 0 or #code == 0 then
+    return false
+  end
+  local p = prev
+  if p:sub(-1) == "\n" then
+    p = p:sub(1, -2)
+  end
+  local prev_last = p:match("(%S)$")
+  if not prev_last then
+    return false
+  end
+  if not (prev_last:match("[%w%)%]']") or prev_last == '"') then
+    return false
+  end
+  local first_sig = code:match("^%s*(%S)")
+  return first_sig == "("
+end
+
+local function maybe_insert_semi(prev, code, indent)
+  if needs_semi_before(prev, code, indent) then
+    return cg.pad(indent) .. ";\n" .. code
+  end
+  return code
+end
+
 local function emit_body(stmts, indent, ctx)
   local func_decls = {}
   for _, s in ipairs(stmts) do
@@ -1458,18 +1484,8 @@ local function emit_body(stmts, indent, ctx)
     local parts = {}
     for _, s in ipairs(stmts) do
       local code = emit(s, indent, ctx)
-      if #parts > 0 and #code > 0 then
-        local prev = parts[#parts]
-        if prev:sub(-1) == "\n" then
-          prev = prev:sub(1, -2)
-        end
-        local prev_last = prev:match("(%S)$")
-        if prev_last and (prev_last:match("[%w%)%]']") or prev_last == '"') then
-          local first_sig = code:match("^%s*(%S)")
-          if first_sig == "(" then
-            code = cg.pad(indent) .. ";\n" .. code
-          end
-        end
+      if #parts > 0 then
+        code = maybe_insert_semi(parts[#parts], code, indent)
       end
       parts[#parts + 1] = code
     end
@@ -1510,18 +1526,8 @@ local function emit_body(stmts, indent, ctx)
   for _, s in ipairs(stmts) do
     if s.type ~= ast.TYPE_FUNCTION_DECLARATION then
       local code = emit(s, indent, ctx)
-      if #parts > 0 and #code > 0 then
-        local prev = parts[#parts]
-        if prev:sub(-1) == "\n" then
-          prev = prev:sub(1, -2)
-        end
-        local prev_last = prev:match("(%S)$")
-        if prev_last and (prev_last:match("[%w%)%]']") or prev_last == '"') then
-          local first_sig = code:match("^%s*(%S)")
-          if first_sig == "(" then
-            code = cg.pad(indent) .. ";\n" .. code
-          end
-        end
+      if #parts > 0 then
+        code = maybe_insert_semi(parts[#parts], code, indent)
       end
       parts[#parts + 1] = code
     end
@@ -1678,7 +1684,17 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
   if not last or last.type ~= ast.TYPE_RETURN_STATEMENT then
     trailing = cg.return_stmt("_ljs_undefined", indent + 1)
   end
-  body = cg.local_decl("_ljs_arrow_this", save_src, indent + 1) .. preamble .. body .. trailing
+  local fn_indent = indent + 1
+  local arrow_decl = cg.local_decl("_ljs_arrow_this", save_src, fn_indent)
+  local parts = { arrow_decl }
+  if #preamble > 0 then
+    parts[#parts + 1] = maybe_insert_semi(parts[#parts], preamble, fn_indent)
+  end
+  if #body > 0 then
+    parts[#parts + 1] = maybe_insert_semi(table.concat(parts), body, fn_indent)
+  end
+  parts[#parts + 1] = trailing
+  body = table.concat(parts)
   scope_pop(ctx)
   return cg.fn_expr(cg.join(params), body, indent)
 end
