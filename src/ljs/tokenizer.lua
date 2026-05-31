@@ -188,6 +188,90 @@ end
 
 M.KEYWORD_TOKEN_TYPES = KEYWORD_TOKEN_TYPES
 
+-- Operator dispatch table keyed by leading character.
+-- Each value is an array of {s, n, tok} sorted longest-first so that
+-- multi-character operators are tried before their single-character prefixes.
+local OP_TABLE = {
+  ["("] = { { s = "(",  n = 1, tok = TOKEN.LPAREN } },
+  [")"] = { { s = ")",  n = 1, tok = TOKEN.RPAREN } },
+  ["{"] = { { s = "{",  n = 1, tok = TOKEN.LBRACE } },
+  ["}"] = { { s = "}",  n = 1, tok = TOKEN.RBRACE } },
+  ["["] = { { s = "[",  n = 1, tok = TOKEN.LBRACKET } },
+  ["]"] = { { s = "]",  n = 1, tok = TOKEN.RBRACKET } },
+  [","] = { { s = ",",  n = 1, tok = TOKEN.COMMA } },
+  [";"] = { { s = ";",  n = 1, tok = TOKEN.SEMICOLON } },
+  [":"] = { { s = ":",  n = 1, tok = TOKEN.COLON } },
+  ["."] = {
+    { s = "...", n = 3, tok = TOKEN.ELLIPSIS },
+    { s = ".",   n = 1, tok = TOKEN.DOT },
+  },
+  ["?"] = { { s = "?",  n = 1, tok = TOKEN.QUESTION } },
+  ["+"] = {
+    { s = "++", n = 2, tok = TOKEN.INCREMENT },
+    { s = "+=", n = 2, tok = TOKEN.PLUS_ASSIGN },
+    { s = "+",  n = 1, tok = TOKEN.PLUS },
+  },
+  ["-"] = {
+    { s = "--", n = 2, tok = TOKEN.DECREMENT },
+    { s = "-=", n = 2, tok = TOKEN.MINUS_ASSIGN },
+    { s = "-",  n = 1, tok = TOKEN.MINUS },
+  },
+  ["*"] = {
+    { s = "**=", n = 3, tok = TOKEN.STARSTAR_ASSIGN },
+    { s = "**",  n = 2, tok = TOKEN.STARSTAR },
+    { s = "*=",  n = 2, tok = TOKEN.STAR_ASSIGN },
+    { s = "*",   n = 1, tok = TOKEN.STAR },
+  },
+  ["/"] = {
+    { s = "/=", n = 2, tok = TOKEN.SLASH_ASSIGN },
+    { s = "/",  n = 1, tok = TOKEN.SLASH },
+  },
+  ["%"] = {
+    { s = "%=", n = 2, tok = TOKEN.PERCENT_ASSIGN },
+    { s = "%",  n = 1, tok = TOKEN.PERCENT },
+  },
+  ["="] = {
+    { s = "===", n = 3, tok = TOKEN.EQ },
+    { s = "=>",  n = 2, tok = TOKEN.ARROW },
+    { s = "==",  n = 2, tok = TOKEN.LOOSE_EQ },
+    { s = "=",   n = 1, tok = TOKEN.ASSIGN },
+  },
+  ["!"] = {
+    { s = "!==", n = 3, tok = TOKEN.NEQ },
+    { s = "!=",  n = 2, tok = TOKEN.LOOSE_NEQ },
+    { s = "!",   n = 1, tok = TOKEN.NOT },
+  },
+  ["~"] = { { s = "~",  n = 1, tok = TOKEN.TILDE } },
+  ["^"] = {
+    { s = "^=", n = 2, tok = TOKEN.BITWISE_XOR_ASSIGN },
+    { s = "^",  n = 1, tok = TOKEN.BITWISE_XOR },
+  },
+  ["<"] = {
+    { s = "<<=", n = 3, tok = TOKEN.LEFT_SHIFT_ASSIGN },
+    { s = "<<",  n = 2, tok = TOKEN.LEFT_SHIFT },
+    { s = "<=",  n = 2, tok = TOKEN.LTE },
+    { s = "<",   n = 1, tok = TOKEN.LT },
+  },
+  [">"] = {
+    { s = ">>>=", n = 4, tok = TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN },
+    { s = ">>>",  n = 3, tok = TOKEN.UNSIGNED_RIGHT_SHIFT },
+    { s = ">>=",  n = 3, tok = TOKEN.RIGHT_SHIFT_ASSIGN },
+    { s = ">>",   n = 2, tok = TOKEN.RIGHT_SHIFT },
+    { s = ">=",   n = 2, tok = TOKEN.GTE },
+    { s = ">",    n = 1, tok = TOKEN.GT },
+  },
+  ["&"] = {
+    { s = "&&", n = 2, tok = TOKEN.AND },
+    { s = "&=", n = 2, tok = TOKEN.BITWISE_AND_ASSIGN },
+    { s = "&",  n = 1, tok = TOKEN.BITWISE_AND },
+  },
+  ["|"] = {
+    { s = "||", n = 2, tok = TOKEN.OR },
+    { s = "|=", n = 2, tok = TOKEN.BITWISE_OR_ASSIGN },
+    { s = "|",  n = 1, tok = TOKEN.BITWISE_OR },
+  },
+}
+
 -- ============================================================================
 -- PARSE ERROR
 -- ============================================================================
@@ -760,200 +844,21 @@ local function tokenize(source)
         )
       )
 
-    -- Punctuation and operators.
-    -- Order matters: multi-char tokens must be checked before single-char
-    -- prefixes (e.g. => before =, === before == before =).
-    elseif c == "(" then
-      table.insert(tokens, make_token(TOKEN.LPAREN))
-      advance()
-    elseif c == ")" then
-      table.insert(tokens, make_token(TOKEN.RPAREN))
-      advance()
-    elseif c == "{" then
-      table.insert(tokens, make_token(TOKEN.LBRACE))
-      advance()
-    elseif c == "}" then
-      table.insert(tokens, make_token(TOKEN.RBRACE))
-      advance()
-    elseif c == "[" then
-      table.insert(tokens, make_token(TOKEN.LBRACKET))
-      advance()
-    elseif c == "]" then
-      table.insert(tokens, make_token(TOKEN.RBRACKET))
-      advance()
-    elseif c == "," then
-      table.insert(tokens, make_token(TOKEN.COMMA))
-      advance()
-    elseif c == ";" then
-      table.insert(tokens, make_token(TOKEN.SEMICOLON))
-      advance()
-    elseif c == ":" then
-      table.insert(tokens, make_token(TOKEN.COLON))
-      advance()
-    elseif c == "." then
-      if source:sub(pos, pos + 2) == "..." then
-        table.insert(tokens, make_token(TOKEN.ELLIPSIS))
-        advance(3)
-      else
-        table.insert(tokens, make_token(TOKEN.DOT))
-        advance()
-      end
-    elseif c == "?" then
-      table.insert(tokens, make_token(TOKEN.QUESTION))
-      advance()
-    elseif c == "+" then
-      if lookahead(2) == "++" then
-        table.insert(tokens, make_token(TOKEN.INCREMENT))
-        advance(2)
-      elseif lookahead(2) == "+=" then
-        table.insert(tokens, make_token(TOKEN.PLUS_ASSIGN))
-        advance(2)
-      else
-        table.insert(tokens, make_token(TOKEN.PLUS))
-        advance()
-      end
-    elseif c == "-" then
-      if lookahead(2) == "--" then
-        table.insert(tokens, make_token(TOKEN.DECREMENT))
-        advance(2)
-      elseif lookahead(2) == "-=" then
-        table.insert(tokens, make_token(TOKEN.MINUS_ASSIGN))
-        advance(2)
-      else
-        table.insert(tokens, make_token(TOKEN.MINUS))
-        advance()
-      end
-    elseif c == "*" then
-      if lookahead(3) == "**=" then
-        table.insert(tokens, make_token(TOKEN.STARSTAR_ASSIGN))
-        advance(3)
-      elseif lookahead(2) == "**" then
-        table.insert(tokens, make_token(TOKEN.STARSTAR))
-        advance(2)
-      elseif lookahead(2) == "*=" then
-        table.insert(tokens, make_token(TOKEN.STAR_ASSIGN))
-        advance(2)
-      else
-        table.insert(tokens, make_token(TOKEN.STAR))
-        advance()
-      end
-    elseif c == "/" then
-      if lookahead(2) == "/=" then
-        table.insert(tokens, make_token(TOKEN.SLASH_ASSIGN))
-        advance(2)
-      else
-        table.insert(tokens, make_token(TOKEN.SLASH))
-        advance()
-      end
-    elseif c == "%" then
-      if lookahead(2) == "%=" then
-        table.insert(tokens, make_token(TOKEN.PERCENT_ASSIGN))
-        advance(2)
-      else
-        table.insert(tokens, make_token(TOKEN.PERCENT))
-        advance()
-      end
-    -- = handler: must check => first (arrow), then ===, then reject ==,
-    -- then fall through to plain assignment =.
-    elseif c == "=" then
-      if lookahead(2) == "=>" then
-        table.insert(tokens, make_token(TOKEN.ARROW))
-        advance(2)
-      elseif lookahead(2) == "==" then
-        if lookahead(3) == "===" then
-          table.insert(tokens, make_token(TOKEN.EQ))
-          advance(3)
-        else
-          table.insert(tokens, make_token(TOKEN.LOOSE_EQ))
-          advance(2)
+    -- Punctuation and operators (table-driven dispatch).
+    else
+      local op_group = OP_TABLE[c]
+      if op_group then
+        for _, entry in ipairs(op_group) do
+          if lookahead(entry.n) == entry.s then
+            table.insert(tokens, make_token(entry.tok))
+            advance(entry.n)
+            break
+          end
         end
       else
-        table.insert(tokens, make_token(TOKEN.ASSIGN))
-        advance()
+        return nil, make_parse_error(
+          string.format("Unexpected character '%s'", c), line, col)
       end
-    -- ! handler: !== is the only multi-char form starting with !.
-    -- Use source:sub instead of lookahead to get exact 3-char match.
-    elseif c == "!" then
-      if source:sub(pos, pos + 2) == "!==" then
-        table.insert(tokens, make_token(TOKEN.NEQ))
-        advance(3)
-      elseif source:sub(pos, pos + 1) == "!=" then
-        table.insert(tokens, make_token(TOKEN.LOOSE_NEQ))
-        advance(2)
-      else
-        table.insert(tokens, make_token(TOKEN.NOT))
-        advance()
-      end
-    elseif c == "~" then
-      table.insert(tokens, make_token(TOKEN.TILDE))
-      advance()
-    elseif c == "^" then
-      if lookahead(2) == "^=" then
-        table.insert(tokens, make_token(TOKEN.BITWISE_XOR_ASSIGN))
-        advance(2)
-      else
-        table.insert(tokens, make_token(TOKEN.BITWISE_XOR))
-        advance()
-      end
-    elseif c == "<" then
-      if source:sub(pos, pos + 2) == "<<=" then
-        table.insert(tokens, make_token(TOKEN.LEFT_SHIFT_ASSIGN))
-        advance(3)
-      elseif lookahead(2) == "<<" then
-        table.insert(tokens, make_token(TOKEN.LEFT_SHIFT))
-        advance(2)
-      elseif lookahead(2) == "<=" then
-        table.insert(tokens, make_token(TOKEN.LTE))
-        advance(2)
-      else
-        table.insert(tokens, make_token(TOKEN.LT))
-        advance()
-      end
-    elseif c == ">" then
-      if source:sub(pos, pos + 3) == ">>>=" then
-        table.insert(tokens, make_token(TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN))
-        advance(4)
-      elseif source:sub(pos, pos + 2) == ">>>" then
-        table.insert(tokens, make_token(TOKEN.UNSIGNED_RIGHT_SHIFT))
-        advance(3)
-      elseif source:sub(pos, pos + 2) == ">>=" then
-        table.insert(tokens, make_token(TOKEN.RIGHT_SHIFT_ASSIGN))
-        advance(3)
-      elseif lookahead(2) == ">>" then
-        table.insert(tokens, make_token(TOKEN.RIGHT_SHIFT))
-        advance(2)
-      elseif lookahead(2) == ">=" then
-        table.insert(tokens, make_token(TOKEN.GTE))
-        advance(2)
-      else
-        table.insert(tokens, make_token(TOKEN.GT))
-        advance()
-      end
-    -- & and | are tokenized as both logical (&&, ||) and bitwise (lone &, |) ops.
-    elseif c == "&" then
-      if lookahead(2) == "&&" then
-        table.insert(tokens, make_token(TOKEN.AND))
-        advance(2)
-      elseif lookahead(2) == "&=" then
-        table.insert(tokens, make_token(TOKEN.BITWISE_AND_ASSIGN))
-        advance(2)
-      else
-        table.insert(tokens, make_token(TOKEN.BITWISE_AND))
-        advance()
-      end
-    elseif c == "|" then
-      if lookahead(2) == "||" then
-        table.insert(tokens, make_token(TOKEN.OR))
-        advance(2)
-      elseif lookahead(2) == "|=" then
-        table.insert(tokens, make_token(TOKEN.BITWISE_OR_ASSIGN))
-        advance(2)
-      else
-        table.insert(tokens, make_token(TOKEN.BITWISE_OR))
-        advance()
-      end
-    else
-      return nil, make_parse_error(string.format("Unexpected character '%s'", c), line, col)
     end
   end
 
