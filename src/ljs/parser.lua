@@ -54,44 +54,10 @@ end
 -- Statements are dispatched by the first token (let/const, if, while, etc).
 -- Expressions use precedence climbing (Pratt parsing) with a precedence table.
 --
--- Forward declarations are required because Lua's local functions must be
--- declared before use, and many parse functions are mutually recursive.
+-- Parse functions are stored in a late-binding dispatch table P, so mutual
+-- recursion works without forward declarations (table fields resolve at call time).
 
-local parse_switch_statement
-local parse_break_statement
-local parse_continue_statement
-local parse_statement
-local parse_block_statement
-local parse_variable_declaration
-local parse_variable_declarator
-local parse_if_statement
-local parse_while_statement
-local parse_for_statement
-local parse_throw_statement
-local parse_try_statement
-local parse_function_declaration
-local parse_return_statement
-local parse_parameters
-local parse_expression
-local parse_binary_expression
-local parse_unary_expression
-local parse_primary_expression
-local parse_arrow_function_body
-local parse_identifier_or_call
-local parse_call_expression
-local parse_array_literal
-local parse_object_literal
-local parse_function_expression
-local parse_postfix
-local parse_maybe_spread
-local parse_do_while_statement
-local parse_c_style_for
-local parse_c_style_for_from_test
-local parse_for_of_from_left
-local parse_for_in_from_left
-local parse_class_body
-local parse_class_declaration
-local parse_class_expression
+local P = {}
 
 --- Parse JavaScript source into an AST.
 -- @param source (string) JavaScript source code
@@ -108,7 +74,7 @@ function M.parse(source)
   local ok, result = pcall(function()
     local stmts = {}
     while not stream.eof() do
-      table.insert(stmts, parse_statement(stream))
+      table.insert(stmts, P.statement(stream))
     end
     return { type = ast.TYPE_PROGRAM, body = stmts, line = 1, col = 1 }
   end)
@@ -135,7 +101,7 @@ function M.parse_tokens(tokens)
   local ok, result = pcall(function()
     local stmts = {}
     while not stream.eof() do
-      table.insert(stmts, parse_statement(stream))
+      table.insert(stmts, P.statement(stream))
     end
     return { type = ast.TYPE_PROGRAM, body = stmts, line = 1, col = 1 }
   end)
@@ -182,35 +148,35 @@ end
 -- @param stream (table) Token stream
 -- @return (table|nil) AST node, or nil on error
 -- @return (string|nil) Error message if parsing failed
-function parse_statement(stream)
+function P.statement(stream)
   if stream.is(TOKEN.LET) or stream.is(TOKEN.VAR) or stream.is(TOKEN.CONST) then
-    return parse_variable_declaration(stream)
+    return P.variable_declaration(stream)
   elseif stream.is(TOKEN.IF) then
-    return parse_if_statement(stream)
+    return P.if_statement(stream)
   elseif stream.is(TOKEN.WHILE) then
-    return parse_while_statement(stream)
+    return P.while_statement(stream)
   elseif stream.is(TOKEN.DO) then
-    return parse_do_while_statement(stream)
+    return P.do_while_statement(stream)
   elseif stream.is(TOKEN.FOR) then
-    return parse_for_statement(stream)
+    return P.for_statement(stream)
   elseif stream.is(TOKEN.THROW) then
-    return parse_throw_statement(stream)
+    return P.throw_statement(stream)
   elseif stream.is(TOKEN.TRY) then
-    return parse_try_statement(stream)
+    return P.try_statement(stream)
   elseif stream.is(TOKEN.FUNCTION) then
-    return parse_function_declaration(stream)
+    return P.function_declaration(stream)
   elseif stream.is(TOKEN.CLASS) then
-    return parse_class_declaration(stream)
+    return P.class_declaration(stream)
   elseif stream.is(TOKEN.RETURN) then
-    return parse_return_statement(stream)
+    return P.return_statement(stream)
   elseif stream.is(TOKEN.SWITCH) then
-    return parse_switch_statement(stream)
+    return P.switch_statement(stream)
   elseif stream.is(TOKEN.BREAK) then
-    return parse_break_statement(stream)
+    return P.break_statement(stream)
   elseif stream.is(TOKEN.CONTINUE) then
-    return parse_continue_statement(stream)
+    return P.continue_statement(stream)
   elseif stream.is(TOKEN.LBRACE) then
-    return parse_block_statement(stream)
+    return P.block_statement(stream)
   elseif stream.is(TOKEN.SEMICOLON) then
     local tok = stream.advance()
     return ast.empty_statement(tok)
@@ -220,7 +186,7 @@ function parse_statement(stream)
       error(banned_err, 0)
     end
     local expr_token = stream.peek()
-    local expr = parse_expression(stream)
+    local expr = P.expression(stream)
     if stream.is(TOKEN.SEMICOLON) then
       stream.advance()
     end
@@ -230,11 +196,11 @@ end
 
 --- Parse a block: { stmt1; stmt2; ... }
 -- Consumes the opening and closing braces.
-function parse_block_statement(stream)
+function P.block_statement(stream)
   local lbrace = stream.consume(TOKEN.LBRACE)
   local body = {}
   while not stream.is(TOKEN.RBRACE) and not stream.eof() do
-    table.insert(body, parse_statement(stream))
+    table.insert(body, P.statement(stream))
   end
   stream.consume(TOKEN.RBRACE)
   return ast.block_statement(body, lbrace)
@@ -245,7 +211,7 @@ end
 -- Semicolon is optional.
 -- @param stream (table) Token stream
 -- @param no_in (boolean|nil) If true, suppress 'in' in initializer expressions
-function parse_variable_declaration(stream, no_in)
+function P.variable_declaration(stream, no_in)
   local kind_token = stream.peek()
   local kind
   if kind_token.type == TOKEN.LET then
@@ -264,7 +230,7 @@ function parse_variable_declaration(stream, no_in)
 
   local declarations = {}
   while true do
-    local decl = parse_variable_declarator(stream, no_in)
+    local decl = P.variable_declarator(stream, no_in)
     table.insert(declarations, decl)
     if not stream.is(TOKEN.COMMA) then
       break
@@ -283,13 +249,13 @@ end
 -- Supports destructuring: let [a, b] = arr; let {x, y} = obj;
 -- @param stream (table) Token stream
 -- @param no_in (boolean|nil) If true, suppress 'in' in initializer expression
-function parse_variable_declarator(stream, no_in)
+function P.variable_declarator(stream, no_in)
   local token = stream.peek()
   local name
   if token.type == TOKEN.LBRACE then
-    name = parse_object_pattern(stream)
+    name = P.object_pattern(stream)
   elseif token.type == TOKEN.LBRACKET then
-    name = parse_array_pattern(stream)
+    name = P.array_pattern(stream)
   else
     stream.consume(TOKEN.IDENTIFIER)
     name = ast.identifier(token.value, token)
@@ -298,7 +264,7 @@ function parse_variable_declarator(stream, no_in)
   local init = nil
   if stream.is(TOKEN.ASSIGN) then
     stream.advance()
-    init = parse_expression(stream, no_in)
+    init = P.expression(stream, no_in)
   end
 
   if not init and (name.type == ast.TYPE_OBJECT_PATTERN or name.type == ast.TYPE_ARRAY_PATTERN) then
@@ -308,7 +274,7 @@ function parse_variable_declarator(stream, no_in)
   return ast.variable_declarator(name, init, token)
 end
 
-function parse_object_pattern(stream)
+function P.object_pattern(stream)
   local lbrace = stream.consume(TOKEN.LBRACE)
   local properties = {}
 
@@ -324,11 +290,11 @@ function parse_object_pattern(stream)
 
       if stream.is(TOKEN.COLON) then
         stream.advance()
-        local value = parse_binding_element(stream)
+        local value = P.binding_element(stream)
         properties[#properties + 1] = ast.property(key, value, false, key_token, false)
       elseif stream.is(TOKEN.ASSIGN) then
         stream.advance()
-        local default_expr = parse_expression(stream)
+        local default_expr = P.expression(stream)
         properties[#properties + 1] = ast.property(
           key,
           ast.assignment_pattern(ast.identifier(key.name, key_token), default_expr, key_token),
@@ -352,7 +318,7 @@ function parse_object_pattern(stream)
   return ast.object_pattern(properties, lbrace)
 end
 
-function parse_array_pattern(stream)
+function P.array_pattern(stream)
   local lbracket = stream.consume(TOKEN.LBRACKET)
   local elements = {}
   local idx = 1
@@ -371,7 +337,7 @@ function parse_array_pattern(stream)
         stream.advance()
       end
     else
-      local elem = parse_binding_element(stream)
+      local elem = P.binding_element(stream)
       elements[idx] = elem
       idx = idx + 1
       if stream.is(TOKEN.COMMA) then
@@ -386,18 +352,18 @@ function parse_array_pattern(stream)
   return result
 end
 
-function parse_binding_element(stream)
+function P.binding_element(stream)
   local token = stream.peek()
   if token.type == TOKEN.LBRACE then
-    return parse_object_pattern(stream)
+    return P.object_pattern(stream)
   elseif token.type == TOKEN.LBRACKET then
-    return parse_array_pattern(stream)
+    return P.array_pattern(stream)
   else
     stream.consume(TOKEN.IDENTIFIER)
     local name = ast.identifier(token.value, token)
     if stream.is(TOKEN.ASSIGN) then
       local assign_tok = stream.advance()
-      local default_expr = parse_expression(stream)
+      local default_expr = P.expression(stream)
       return ast.assignment_pattern(name, default_expr, assign_tok)
     end
     return name
@@ -458,31 +424,31 @@ end
 
 --- Parse if/else: if (test) consequent [else alternate]
 -- The consequent and alternate are single statements (can be blocks).
-function parse_if_statement(stream)
+function P.if_statement(stream)
   local kw = stream.consume(TOKEN.IF)
   stream.consume(TOKEN.LPAREN)
-  local test = parse_expression(stream)
+  local test = P.expression(stream)
   stream.consume(TOKEN.RPAREN)
 
-  local consequent = parse_statement(stream)
+  local consequent = P.statement(stream)
 
   local alternate = nil
   if stream.is(TOKEN.ELSE) then
     stream.advance()
-    alternate = parse_statement(stream)
+    alternate = P.statement(stream)
   end
 
   return ast.if_statement(test, consequent, alternate, kw)
 end
 
 --- Parse while: while (test) body
-function parse_while_statement(stream)
+function P.while_statement(stream)
   local kw = stream.consume(TOKEN.WHILE)
   stream.consume(TOKEN.LPAREN)
-  local test = parse_expression(stream)
+  local test = P.expression(stream)
   stream.consume(TOKEN.RPAREN)
   stream.loop_depth = stream.loop_depth + 1
-  local body = parse_statement(stream)
+  local body = P.statement(stream)
   stream.loop_depth = stream.loop_depth - 1
   return ast.while_statement(test, body, kw)
 end
@@ -492,14 +458,14 @@ end
 -- @param stream (table) Token stream
 -- @return (table|nil) DoWhileStatement AST node, or nil on error
 -- @return (string|nil) Error message if parsing failed
-function parse_do_while_statement(stream)
+function P.do_while_statement(stream)
   local kw = stream.consume(TOKEN.DO)
   stream.loop_depth = stream.loop_depth + 1
-  local body = parse_statement(stream)
+  local body = P.statement(stream)
   stream.loop_depth = stream.loop_depth - 1
   stream.consume(TOKEN.WHILE)
   stream.consume(TOKEN.LPAREN)
-  local test = parse_expression(stream)
+  local test = P.expression(stream)
   stream.consume(TOKEN.RPAREN)
   if stream.is(TOKEN.SEMICOLON) then
     stream.advance()
@@ -508,84 +474,84 @@ function parse_do_while_statement(stream)
 end
 
 --- Parse for statement: dispatches between for...of, for...in, and C-style for(;;).
-function parse_for_statement(stream)
+function P.for_statement(stream)
   local kw = stream.consume(TOKEN.FOR)
   stream.consume(TOKEN.LPAREN)
 
   if stream.is(TOKEN.SEMICOLON) then
-    return parse_c_style_for(stream, nil, kw)
+    return P.c_style_for(stream, nil, kw)
   end
 
   if stream.is(TOKEN.LET) or stream.is(TOKEN.VAR) or stream.is(TOKEN.CONST) then
-    local decl = parse_variable_declaration(stream, true)
+    local decl = P.variable_declaration(stream, true)
 
     if stream.is(TOKEN.OF) then
-      return parse_for_of_from_left(stream, decl, kw)
+      return P.for_of_from_left(stream, decl, kw)
     end
 
     if stream.is(TOKEN.IN) then
-      return parse_for_in_from_left(stream, decl, kw)
+      return P.for_in_from_left(stream, decl, kw)
     end
 
-    return parse_c_style_for_from_test(stream, decl, kw)
+    return P.c_style_for_from_test(stream, decl, kw)
   end
 
   local expr_token = stream.peek()
-  local expr = parse_expression(stream, true)
+  local expr = P.expression(stream, true)
 
   if stream.is(TOKEN.OF) then
     stream.consume(TOKEN.OF)
-    local right = parse_expression(stream)
+    local right = P.expression(stream)
     stream.consume(TOKEN.RPAREN)
     stream.loop_depth = stream.loop_depth + 1
-    local body = parse_statement(stream)
+    local body = P.statement(stream)
     stream.loop_depth = stream.loop_depth - 1
     return ast.for_of_statement(expr, right, body, kw)
   end
 
   if stream.is(TOKEN.IN) then
     stream.consume(TOKEN.IN)
-    local right = parse_expression(stream)
+    local right = P.expression(stream)
     stream.consume(TOKEN.RPAREN)
     stream.loop_depth = stream.loop_depth + 1
-    local body = parse_statement(stream)
+    local body = P.statement(stream)
     stream.loop_depth = stream.loop_depth - 1
     return ast.for_in_statement(expr, right, body, kw)
   end
 
   local init = ast.expression_statement(expr, expr_token)
   stream.consume(TOKEN.SEMICOLON)
-  return parse_c_style_for_from_test(stream, init, kw)
+  return P.c_style_for_from_test(stream, init, kw)
 end
 
 --- Parse C-style for loop starting from the first semicolon (no init clause).
 -- @param stream (table) Token stream
 -- @param init (table|nil) Initialization expression or nil
 -- @return (table|nil) ForStatement AST node, or nil on error
-function parse_c_style_for(stream, init, kw)
+function P.c_style_for(stream, init, kw)
   stream.consume(TOKEN.SEMICOLON)
-  return parse_c_style_for_from_test(stream, init, kw)
+  return P.c_style_for_from_test(stream, init, kw)
 end
 
 --- Parse C-style for loop test and update clauses after init has been consumed.
 -- @param stream (table) Token stream
 -- @param init (table|nil) Initialization expression or VariableDeclaration
 -- @return (table|nil) ForStatement AST node, or nil on error
-function parse_c_style_for_from_test(stream, init, kw)
+function P.c_style_for_from_test(stream, init, kw)
   local test
   if not stream.is(TOKEN.SEMICOLON) then
-    test = parse_expression(stream)
+    test = P.expression(stream)
   end
   stream.consume(TOKEN.SEMICOLON)
 
   local update
   if not stream.is(TOKEN.RPAREN) then
-    update = parse_expression(stream)
+    update = P.expression(stream)
   end
   stream.consume(TOKEN.RPAREN)
 
   stream.loop_depth = stream.loop_depth + 1
-  local body = parse_statement(stream)
+  local body = P.statement(stream)
   stream.loop_depth = stream.loop_depth - 1
   return ast.for_statement(init, test, update, body, kw)
 end
@@ -595,12 +561,12 @@ end
 -- @param left (table) VariableDeclaration for the loop variable
 -- @return (table|nil) ForOfStatement AST node, or nil on error
 -- @return (string|nil) Error message if parsing failed
-function parse_for_of_from_left(stream, left, kw)
+function P.for_of_from_left(stream, left, kw)
   stream.consume(TOKEN.OF)
-  local right = parse_expression(stream)
+  local right = P.expression(stream)
   stream.consume(TOKEN.RPAREN)
   stream.loop_depth = stream.loop_depth + 1
-  local body = parse_statement(stream)
+  local body = P.statement(stream)
   stream.loop_depth = stream.loop_depth - 1
   return ast.for_of_statement(left, right, body, kw)
 end
@@ -611,7 +577,7 @@ end
 -- @param left (table) VariableDeclaration for the loop variable
 -- @return (table|nil) ForInStatement AST node, or nil on error
 -- @return (string|nil) Error message if parsing failed
-function parse_for_in_from_left(stream, left, kw)
+function P.for_in_from_left(stream, left, kw)
   if #left.declarations ~= 1 then
     parse_error("for-in loop requires a single variable", stream.peek().line, stream.peek().col)
   end
@@ -623,18 +589,18 @@ function parse_for_in_from_left(stream, left, kw)
     )
   end
   stream.consume(TOKEN.IN)
-  local right = parse_expression(stream)
+  local right = P.expression(stream)
   stream.consume(TOKEN.RPAREN)
   stream.loop_depth = stream.loop_depth + 1
-  local body = parse_statement(stream)
+  local body = P.statement(stream)
   stream.loop_depth = stream.loop_depth - 1
   return ast.for_in_statement(left, right, body, kw)
 end
 
 --- Parse throw: throw expression;
-function parse_throw_statement(stream)
+function P.throw_statement(stream)
   local kw = stream.consume(TOKEN.THROW)
-  local argument = parse_expression(stream)
+  local argument = P.expression(stream)
   if stream.is(TOKEN.SEMICOLON) then
     stream.advance()
   end
@@ -643,9 +609,9 @@ end
 
 --- Parse try/catch/finally: try { ... } catch (param) { ... } finally { ... }
 -- At least one of catch or finally must be present.
-function parse_try_statement(stream)
+function P.try_statement(stream)
   local kw = stream.consume(TOKEN.TRY)
-  local block = parse_block_statement(stream)
+  local block = P.block_statement(stream)
 
   local handler = nil
   if stream.is(TOKEN.CATCH) then
@@ -654,14 +620,14 @@ function parse_try_statement(stream)
     local param_token = stream.consume(TOKEN.IDENTIFIER)
     local param = ast.identifier(param_token.value, param_token)
     stream.consume(TOKEN.RPAREN)
-    local catch_body = parse_block_statement(stream)
+    local catch_body = P.block_statement(stream)
     handler = ast.catch_clause(param, catch_body, catch_kw)
   end
 
   local finalizer = nil
   if stream.is(TOKEN.FINALLY) then
     stream.advance()
-    finalizer = parse_block_statement(stream)
+    finalizer = P.block_statement(stream)
   end
 
   if not handler and not finalizer then
@@ -673,18 +639,18 @@ end
 
 --- Parse function declaration: function name(params) { body }
 -- Always has a name (unlike function expressions which can be anonymous).
-function parse_function_declaration(stream)
+function P.function_declaration(stream)
   local kw = stream.consume(TOKEN.FUNCTION)
   local name_token = stream.consume(TOKEN.IDENTIFIER)
   local name = name_token.value
 
   stream.consume(TOKEN.LPAREN)
-  local params = parse_parameters(stream)
+  local params = P.parameters(stream)
   stream.consume(TOKEN.RPAREN)
 
   local saved_loop, saved_switch = stream.loop_depth, stream.switch_depth
   stream.loop_depth, stream.switch_depth = 0, 0
-  local body = parse_block_statement(stream)
+  local body = P.block_statement(stream)
   stream.loop_depth, stream.switch_depth = saved_loop, saved_switch
   return ast.function_declaration(name, params, body, kw)
 end
@@ -694,7 +660,7 @@ end
 -- static method, static() is a regular method named "static".
 -- @param stream (table) Token stream
 -- @return (table) Array of MethodDefinition nodes
-function parse_class_body(stream)
+function P.class_body(stream)
   stream.consume(TOKEN.LBRACE)
   local methods = {}
   while not stream.is(TOKEN.RBRACE) and not stream.eof() do
@@ -723,11 +689,11 @@ function parse_class_body(stream)
       parse_error("Expected method name in class body", stream.peek().line, stream.peek().col)
     end
     stream.consume(TOKEN.LPAREN)
-    local params = parse_parameters(stream)
+    local params = P.parameters(stream)
     stream.consume(TOKEN.RPAREN)
     local saved_loop, saved_switch = stream.loop_depth, stream.switch_depth
     stream.loop_depth, stream.switch_depth = 0, 0
-    local body = parse_block_statement(stream)
+    local body = P.block_statement(stream)
     stream.loop_depth, stream.switch_depth = saved_loop, saved_switch
     local fn = ast.function_expression(params, body, key_token)
     fn.is_method = true
@@ -744,16 +710,16 @@ end
 -- Always requires a name (unlike class expressions).
 -- @param stream (table) Token stream
 -- @return table ClassDeclaration AST node
-function parse_class_declaration(stream)
+function P.class_declaration(stream)
   local kw = stream.consume(TOKEN.CLASS)
   local name_token = stream.consume(TOKEN.IDENTIFIER)
   local name = name_token.value
   local superClass = nil
   if stream.is(TOKEN.EXTENDS) then
     stream.advance()
-    superClass = parse_expression(stream)
+    superClass = P.expression(stream)
   end
-  local body = parse_class_body(stream)
+  local body = P.class_body(stream)
   return ast.class_declaration(name, superClass, body, kw)
 end
 
@@ -762,7 +728,7 @@ end
 -- (to disambiguate from a call expression in certain contexts).
 -- @param stream (table) Token stream
 -- @return table ClassExpression AST node
-function parse_class_expression(stream)
+function P.class_expression(stream)
   local kw = stream.consume(TOKEN.CLASS)
   local name = nil
   if stream.is(TOKEN.IDENTIFIER) then
@@ -777,20 +743,20 @@ function parse_class_expression(stream)
   local superClass = nil
   if stream.is(TOKEN.EXTENDS) then
     stream.advance()
-    superClass = parse_expression(stream)
+    superClass = P.expression(stream)
   end
-  local body = parse_class_body(stream)
+  local body = P.class_body(stream)
   return ast.class_expression(name, superClass, body, kw)
 end
 
 --- Parse return: return expression?;
 -- Bare return (no expression) is allowed — argument will be nil.
 -- Heuristic: if next token is ; or }, there's no expression.
-function parse_return_statement(stream)
+function P.return_statement(stream)
   local kw = stream.consume(TOKEN.RETURN)
   local argument = nil
   if not stream.is(TOKEN.SEMICOLON) and not stream.is(TOKEN.RBRACE) then
-    argument = parse_expression(stream)
+    argument = P.expression(stream)
   end
   if stream.is(TOKEN.SEMICOLON) then
     stream.advance()
@@ -799,10 +765,10 @@ function parse_return_statement(stream)
 end
 
 --- Parse switch: switch (expr) { case val: stmts default: stmts }
-function parse_switch_statement(stream)
+function P.switch_statement(stream)
   local kw = stream.consume(TOKEN.SWITCH)
   stream.consume(TOKEN.LPAREN)
-  local discriminant = parse_expression(stream)
+  local discriminant = P.expression(stream)
   stream.consume(TOKEN.RPAREN)
   stream.consume(TOKEN.LBRACE)
 
@@ -816,7 +782,7 @@ function parse_switch_statement(stream)
 
     if stream.is(TOKEN.CASE) then
       case_token = stream.advance()
-      test = parse_expression(stream)
+      test = P.expression(stream)
     elseif stream.is(TOKEN.DEFAULT) then
       if has_default then
         parse_error("Duplicate default clause", stream.peek().line, stream.peek().col)
@@ -840,7 +806,7 @@ function parse_switch_statement(stream)
       and not stream.is(TOKEN.RBRACE)
       and not stream.eof()
     do
-      table.insert(consequent, parse_statement(stream))
+      table.insert(consequent, P.statement(stream))
     end
 
     table.insert(cases, ast.switch_case(test, consequent, case_token))
@@ -852,7 +818,7 @@ function parse_switch_statement(stream)
 end
 
 --- Parse break: break ;
-function parse_break_statement(stream)
+function P.break_statement(stream)
   local kw = stream.consume(TOKEN.BREAK)
   if stream.loop_depth == 0 and stream.switch_depth == 0 then
     parse_error("break not allowed outside of loop or switch", kw.line, kw.col)
@@ -864,7 +830,7 @@ function parse_break_statement(stream)
 end
 
 --- Parse continue: continue ;
-function parse_continue_statement(stream)
+function P.continue_statement(stream)
   local kw = stream.consume(TOKEN.CONTINUE)
   if stream.loop_depth == 0 then
     parse_error("continue not allowed outside of loop", kw.line, kw.col)
@@ -902,7 +868,7 @@ end
 --- Parse a comma-separated list of identifier parameters.
 -- Used by both function declarations and function expressions.
 -- Assumes opening ( has been consumed; does NOT consume closing ).
-function parse_parameters(stream)
+function P.parameters(stream)
   local function parse_param_item(s)
     if s.is(TOKEN.ELLIPSIS) then
       local ellipsis = s.advance()
@@ -911,16 +877,16 @@ function parse_parameters(stream)
     end
     local param
     if s.is(TOKEN.LBRACKET) then
-      param = parse_array_pattern(s)
+      param = P.array_pattern(s)
     elseif s.is(TOKEN.LBRACE) then
-      param = parse_object_pattern(s)
+      param = P.object_pattern(s)
     else
       local id_token = s.consume(TOKEN.IDENTIFIER)
       param = ast.identifier(id_token.value, id_token)
     end
     if s.is(TOKEN.ASSIGN) then
       local assign_tok = s.advance()
-      local default_expr = parse_expression(s)
+      local default_expr = P.expression(s)
       return ast.assignment_pattern(param, default_expr, assign_tok)
     end
     return param
@@ -954,8 +920,8 @@ end
 -- EXPRESSION PARSERS
 -- ============================================================================
 -- Uses Pratt parsing (top-down operator precedence):
---   parse_expression -> parse_binary_expression(min_prec=0)
---     -> parse_unary_expression -> parse_primary_expression
+--   P.expression -> P.binary_expression(min_prec=0)
+--     -> P.unary_expression -> P.primary_expression
 --     -> loops while next operator has sufficient precedence
 --
 -- Precedence levels (higher = binds tighter):
@@ -1021,21 +987,21 @@ local PRECEDENCE = {
 --- Entry point for expression parsing. Starts at minimum precedence 0.
 -- @param stream (table) Token stream
 -- @param no_in (boolean|nil) If true, suppress 'in' as a binary operator (for for-loop init)
-function parse_expression(stream, no_in)
-  return parse_binary_expression(stream, 0, no_in)
+function P.expression(stream, no_in)
+  return P.binary_expression(stream, 0, no_in)
 end
 
 --- Pratt parser core: parse binary expressions with precedence climbing.
 -- 1. Parse a unary expression (the left operand).
 -- 2. Loop: while the next token is an operator with precedence >= min_precedence,
 --    consume it and parse the right operand at a higher precedence level.
--- 3. Assignment is right-associative (right-recursive call to parse_expression
---    instead of parse_binary_expression with +1).
+-- 3. Assignment is right-associative (right-recursive call to P.expression
+--    instead of P.binary_expression with +1).
 -- @param stream (table) Token stream
 -- @param min_precedence (number) Minimum precedence to continue parsing
 -- @param no_in (boolean|nil) If true, suppress 'in' as a binary operator
-function parse_binary_expression(stream, min_precedence, no_in)
-  local left = parse_unary_expression(stream)
+function P.binary_expression(stream, min_precedence, no_in)
+  local left = P.unary_expression(stream)
 
   while true do
     local op_token = stream.peek()
@@ -1071,22 +1037,22 @@ function parse_binary_expression(stream, min_precedence, no_in)
           left = convert_expression_to_pattern(left)
         end
       end
-      local right = parse_expression(stream, no_in)
+      local right = P.expression(stream, no_in)
       left = ast.binary_expression(op, left, right, op_token)
     elseif op == TOKEN.STARSTAR then
       stream.advance()
-      local right = parse_binary_expression(stream, precedence, no_in)
+      local right = P.binary_expression(stream, precedence, no_in)
       left = ast.binary_expression(op, left, right, op_token)
     elseif op == TOKEN.QUESTION then
       stream.advance()
-      local consequent = parse_expression(stream, no_in)
+      local consequent = P.expression(stream, no_in)
       stream.consume(TOKEN.COLON)
-      local alternate = parse_expression(stream, no_in)
+      local alternate = P.expression(stream, no_in)
       left = ast.conditional_expression(left, consequent, alternate, op_token)
     else
       stream.advance()
       local next_min = precedence + 0.01
-      local right = parse_binary_expression(stream, next_min, no_in)
+      local right = P.binary_expression(stream, next_min, no_in)
       left = ast.binary_expression(op, left, right, op_token)
     end
   end
@@ -1097,7 +1063,7 @@ end
 --- Parse unary prefix expressions: !expr, -expr, +expr, ~expr, or delete expr.
 -- Unary operators have the highest precedence and are right-recursive
 -- (so !!x parses as !(!(x))).
-function parse_unary_expression(stream)
+function P.unary_expression(stream)
   if
     stream.is(TOKEN.NOT)
     or stream.is(TOKEN.MINUS)
@@ -1106,7 +1072,7 @@ function parse_unary_expression(stream)
   then
     local op_token = stream.advance()
     local op = op_token.type
-    local argument = parse_unary_expression(stream)
+    local argument = P.unary_expression(stream)
     local op_str = op == TOKEN.NOT and "!"
       or op == TOKEN.TILDE and "~"
       or op == TOKEN.PLUS and "+"
@@ -1114,22 +1080,22 @@ function parse_unary_expression(stream)
     return ast.unary_expression(op_str, argument, op_token)
   elseif stream.is(TOKEN.INCREMENT) or stream.is(TOKEN.DECREMENT) then
     local op_token = stream.advance()
-    local argument = parse_unary_expression(stream)
+    local argument = P.unary_expression(stream)
     check_update_target(argument, op_token)
     return ast.update_expression(op_token.type, argument, true, op_token)
   elseif stream.is(TOKEN.DELETE) then
     local kw = stream.advance()
-    local argument = parse_unary_expression(stream)
+    local argument = P.unary_expression(stream)
     return ast.delete_expression(argument, kw)
   elseif stream.is(TOKEN.TYPEOF) then
     local kw = stream.advance()
-    local argument = parse_unary_expression(stream)
+    local argument = P.unary_expression(stream)
     return ast.typeof_expression(argument, kw)
   elseif stream.is(TOKEN.NEW) then
     local new_kw = stream.advance()
     if stream.is(TOKEN.NEW) then
-      local inner = parse_unary_expression(stream)
-      return parse_postfix(stream, inner, true)
+      local inner = P.unary_expression(stream)
+      return P.postfix(stream, inner, true)
     end
     local banned_err = check_banned(stream)
     if banned_err then
@@ -1145,7 +1111,7 @@ function parse_unary_expression(stream)
           ast.member_expression(callee, ast.identifier(prop_token.value, prop_token), false, dot)
       else
         local lbracket = stream.advance()
-        local prop = parse_expression(stream)
+        local prop = P.expression(stream)
         stream.consume(TOKEN.RBRACKET)
         callee = ast.member_expression(callee, prop, true, lbracket)
       end
@@ -1153,19 +1119,19 @@ function parse_unary_expression(stream)
     local args = {}
     if stream.is(TOKEN.LPAREN) then
       stream.advance()
-      args = parse_comma_list(stream, TOKEN.RPAREN, parse_maybe_spread)
+      args = parse_comma_list(stream, TOKEN.RPAREN, P.maybe_spread)
       stream.consume(TOKEN.RPAREN)
     end
-    return parse_postfix(stream, ast.new_expression(callee, args, new_kw), true)
+    return P.postfix(stream, ast.new_expression(callee, args, new_kw), true)
   end
-  return parse_primary_expression(stream)
+  return P.primary_expression(stream)
 end
 
 --- Parse primary (leaf) expressions — the atomic units that operators combine.
 -- Handles: literals, identifiers, parenthesized exprs, arrow functions,
 -- arrays, objects, function expressions.
 -- Also rejects excluded keywords (this, async, etc.) in expression context.
-function parse_primary_expression(stream)
+function P.primary_expression(stream)
   local banned_err = check_banned(stream)
   if banned_err then
     error(banned_err, 0)
@@ -1177,32 +1143,32 @@ function parse_primary_expression(stream)
     stream.advance()
     if stream.is(TOKEN.DOT) and stream.peek_n(2).type == TOKEN.DOT then
       stream.advance()
-      return parse_postfix(stream, ast.number_literal(token.value, token), true)
+      return P.postfix(stream, ast.number_literal(token.value, token), true)
     end
     if token.value % 1 ~= 0 and stream.is(TOKEN.DOT) then
-      return parse_postfix(stream, ast.number_literal(token.value, token), true)
+      return P.postfix(stream, ast.number_literal(token.value, token), true)
     end
     return ast.number_literal(token.value, token)
   elseif stream.is(TOKEN.STRING) then
     stream.advance()
-    return parse_postfix(stream, ast.string_literal(token.value, token), true)
+    return P.postfix(stream, ast.string_literal(token.value, token), true)
   elseif stream.is(TOKEN.BOOLEAN) then
     stream.advance()
-    return parse_postfix(stream, ast.boolean_literal(token.value, token), true)
+    return P.postfix(stream, ast.boolean_literal(token.value, token), true)
   elseif stream.is(TOKEN.NULL) then
     stream.advance()
-    return parse_postfix(stream, ast.null_literal(token), true)
+    return P.postfix(stream, ast.null_literal(token), true)
   elseif stream.is(TOKEN.UNDEFINED) then
     stream.advance()
-    return parse_postfix(stream, ast.undefined_literal(token), true)
+    return P.postfix(stream, ast.undefined_literal(token), true)
   elseif stream.is(TOKEN.THIS) then
     stream.advance()
-    return parse_postfix(stream, ast.this_expression(token), true)
+    return P.postfix(stream, ast.this_expression(token), true)
   elseif stream.is(TOKEN.SUPER) then
     stream.advance()
-    return parse_postfix(stream, ast.super_expression(token), true)
+    return P.postfix(stream, ast.super_expression(token), true)
   elseif stream.is(TOKEN.IDENTIFIER) then
-    return parse_identifier_or_call(stream)
+    return P.identifier_or_call(stream)
   elseif stream.is(TOKEN.LPAREN) then
     -- Disambiguate (expr) from (params) => body: scan ahead to matching )
     -- and check if => follows. Without this lookahead, (x) => x would be
@@ -1253,19 +1219,19 @@ function parse_primary_expression(stream)
             )
             found_rest = true
           elseif stream.is(TOKEN.LBRACKET) then
-            local param = parse_array_pattern(stream)
+            local param = P.array_pattern(stream)
             if stream.is(TOKEN.ASSIGN) then
               local assign_tok = stream.advance()
-              local default_expr = parse_expression(stream)
+              local default_expr = P.expression(stream)
               table.insert(params, ast.assignment_pattern(param, default_expr, assign_tok))
             else
               table.insert(params, param)
             end
           elseif stream.is(TOKEN.LBRACE) then
-            local param = parse_object_pattern(stream)
+            local param = P.object_pattern(stream)
             if stream.is(TOKEN.ASSIGN) then
               local assign_tok = stream.advance()
-              local default_expr = parse_expression(stream)
+              local default_expr = P.expression(stream)
               table.insert(params, ast.assignment_pattern(param, default_expr, assign_tok))
             else
               table.insert(params, param)
@@ -1275,7 +1241,7 @@ function parse_primary_expression(stream)
             local param = ast.identifier(id_token.value, id_token)
             if stream.is(TOKEN.ASSIGN) then
               local assign_tok = stream.advance()
-              local default_expr = parse_expression(stream)
+              local default_expr = P.expression(stream)
               table.insert(params, ast.assignment_pattern(param, default_expr, assign_tok))
             else
               table.insert(params, param)
@@ -1295,24 +1261,24 @@ function parse_primary_expression(stream)
       end
       stream.consume(TOKEN.RPAREN)
       stream.consume(TOKEN.ARROW)
-      local body = parse_arrow_function_body(stream)
+      local body = P.arrow_function_body(stream)
       return ast.arrow_function_expression(params, body, arrow_token)
     else
       stream.advance()
-      local expr = parse_expression(stream)
+      local expr = P.expression(stream)
       stream.consume(TOKEN.RPAREN)
-      return parse_postfix(stream, expr, not ast.is_valid_update_target(expr))
+      return P.postfix(stream, expr, not ast.is_valid_update_target(expr))
     end
   elseif stream.is(TOKEN.LBRACKET) then
-    return parse_postfix(stream, parse_array_literal(stream), true)
+    return P.postfix(stream, P.array_literal(stream), true)
   elseif stream.is(TOKEN.LBRACE) then
-    return parse_postfix(stream, parse_object_literal(stream), true)
+    return P.postfix(stream, P.object_literal(stream), true)
   elseif stream.is(TOKEN.FUNCTION) then
-    return parse_postfix(stream, parse_function_expression(stream), true)
+    return P.postfix(stream, P.function_expression(stream), true)
   elseif stream.is(TOKEN.ARROW) then
     parse_error("Unexpected arrow token", token.line, token.col)
   elseif stream.is(TOKEN.CLASS) then
-    return parse_postfix(stream, parse_class_expression(stream), true)
+    return P.postfix(stream, P.class_expression(stream), true)
   elseif stream.is(TOKEN.TEMPLATE_LITERAL) then
     local token = stream.advance()
     local quasis = {}
@@ -1327,9 +1293,9 @@ function parse_primary_expression(stream)
         parse_error("Failed to tokenize template expression", token.line, token.col)
       end
       local expr_stream = make_token_stream(expr_tokens)
-      expressions[#expressions + 1] = parse_expression(expr_stream)
+      expressions[#expressions + 1] = P.expression(expr_stream)
     end
-    return parse_postfix(stream, ast.template_literal(quasis, expressions, token), true)
+    return P.postfix(stream, ast.template_literal(quasis, expressions, token), true)
   else
     parse_error(string.format("Unexpected token %s", token.type), token.line, token.col)
   end
@@ -1339,16 +1305,16 @@ end
 -- If body starts with {, it's a block body.
 -- Otherwise it's an expression body, which gets wrapped in a BlockStatement
 -- containing a single ExpressionStatement (desugared form).
-function parse_arrow_function_body(stream)
+function P.arrow_function_body(stream)
   if stream.is(TOKEN.LBRACE) then
     local saved_loop, saved_switch = stream.loop_depth, stream.switch_depth
     stream.loop_depth, stream.switch_depth = 0, 0
-    local body = parse_block_statement(stream)
+    local body = P.block_statement(stream)
     stream.loop_depth, stream.switch_depth = saved_loop, saved_switch
     return body
   else
     local expr_token = stream.peek()
-    local expr = parse_expression(stream)
+    local expr = P.expression(stream)
     local ret = ast.return_statement(expr, expr_token)
     return ast.block_statement({ ret }, expr_token)
   end
@@ -1356,12 +1322,12 @@ end
 
 --- Parse postfix operations on an expression: .prop, [expr], (args).
 -- Loops to handle chaining: obj.method()[0].field
--- This is shared between parse_identifier_or_call and parse_call_expression
+-- This is shared between P.identifier_or_call and P.call_expression
 -- to avoid duplicating the chaining logic.
 -- @param stream (table) Token stream
 -- @param expr (table) The expression to apply postfix ops to
 -- @return (table) The resulting expression after all postfix ops
-function parse_postfix(stream, expr, no_update)
+function P.postfix(stream, expr, no_update)
   while true do
     if stream.is(TOKEN.DOT) then
       local dot = stream.advance()
@@ -1370,13 +1336,13 @@ function parse_postfix(stream, expr, no_update)
       no_update = false
     elseif stream.is(TOKEN.LBRACKET) then
       local lbracket = stream.advance()
-      local prop = parse_expression(stream)
+      local prop = P.expression(stream)
       stream.consume(TOKEN.RBRACKET)
       expr = ast.member_expression(expr, prop, true, lbracket)
       no_update = false
     elseif stream.is(TOKEN.LPAREN) then
       local lparen = stream.advance()
-      local args = parse_comma_list(stream, TOKEN.RPAREN, parse_maybe_spread)
+      local args = parse_comma_list(stream, TOKEN.RPAREN, P.maybe_spread)
       stream.consume(TOKEN.RPAREN)
       expr = ast.call_expression(expr, args, lparen)
       no_update = false
@@ -1403,45 +1369,45 @@ end
 --- Parse an identifier, which might be:
 --   1. A bare identifier (variable reference)
 --   2. The start of an arrow function: x => expr
---   3. Followed by member access/calls via parse_postfix
-function parse_identifier_or_call(stream)
+--   3. Followed by member access/calls via P.postfix
+function P.identifier_or_call(stream)
   local token = stream.consume(TOKEN.IDENTIFIER)
   local expr = ast.identifier(token.value, token)
 
   if stream.is(TOKEN.ARROW) then
     stream.advance()
-    local body = parse_arrow_function_body(stream)
+    local body = P.arrow_function_body(stream)
     return ast.arrow_function_expression({ expr }, body, token)
   end
 
-  return parse_postfix(stream, expr)
+  return P.postfix(stream, expr)
 end
 
 --- Parse call expression after callee has been identified.
 -- Called when the caller has already determined that ( follows an expression.
--- Delegates to parse_postfix for further chaining after the call.
+-- Delegates to P.postfix for further chaining after the call.
 -- @param stream (table) Token stream
 -- @param callee (table) The expression being called
-function parse_call_expression(stream, callee)
+function P.call_expression(stream, callee)
   local lparen = stream.consume(TOKEN.LPAREN)
-  local arguments = parse_comma_list(stream, TOKEN.RPAREN, parse_maybe_spread)
+  local arguments = parse_comma_list(stream, TOKEN.RPAREN, P.maybe_spread)
   stream.consume(TOKEN.RPAREN)
   local expr = ast.call_expression(callee, arguments, lparen)
-  return parse_postfix(stream, expr)
+  return P.postfix(stream, expr)
 end
 
-function parse_maybe_spread(stream)
+function P.maybe_spread(stream)
   if stream.is(TOKEN.ELLIPSIS) then
     local ellipsis = stream.advance()
-    local expr = parse_expression(stream)
+    local expr = P.expression(stream)
     return ast.spread_element(expr, ellipsis)
   end
-  return parse_expression(stream)
+  return P.expression(stream)
 end
 
 --- Parse array literal: [expr, expr, ...]
 -- Empty arrays [] are valid.
-function parse_array_literal(stream)
+function P.array_literal(stream)
   local lbracket = stream.consume(TOKEN.LBRACKET)
   local elements = {}
   local idx = 1
@@ -1453,14 +1419,14 @@ function parse_array_literal(stream)
       stream.advance()
     elseif stream.is(TOKEN.ELLIPSIS) then
       local ellipsis = stream.advance()
-      local expr = parse_expression(stream)
+      local expr = P.expression(stream)
       elements[idx] = ast.spread_element(expr, ellipsis)
       idx = idx + 1
       if stream.is(TOKEN.COMMA) then
         stream.advance()
       end
     else
-      local expr = parse_expression(stream)
+      local expr = P.expression(stream)
       elements[idx] = expr
       idx = idx + 1
       if stream.is(TOKEN.COMMA) then
@@ -1483,7 +1449,7 @@ end
 -- String keys only support the key: value form.
 -- Computed keys (e.g. {[expr]: value}) are not supported.
 -- Empty objects {} are valid.
-function parse_object_literal(stream)
+function P.object_literal(stream)
   local lbrace = stream.consume(TOKEN.LBRACE)
 
   local function parse_property(s)
@@ -1502,13 +1468,13 @@ function parse_object_literal(stream)
 
     if s.is(TOKEN.COLON) then
       s.advance()
-      local value = parse_expression(s)
+      local value = P.expression(s)
       return ast.property(key, value, false, key)
     elseif key_is_identifier and s.is(TOKEN.LPAREN) then
       s.consume(TOKEN.LPAREN)
-      local params = parse_parameters(s)
+      local params = P.parameters(s)
       s.consume(TOKEN.RPAREN)
-      local body = parse_block_statement(s)
+      local body = P.block_statement(s)
       local fn = ast.function_expression(params, body, key)
       fn.name = key.name
       fn.is_method = true
@@ -1528,7 +1494,7 @@ end
 --- Parse function expression: function(params) { body } or function name(params) { body }
 -- Can be anonymous (no name) or named. Named function expressions produce
 -- a FunctionExpression node with a `name` field (not FunctionDeclaration).
-function parse_function_expression(stream)
+function P.function_expression(stream)
   local kw = stream.consume(TOKEN.FUNCTION)
 
   local name = nil
@@ -1543,12 +1509,12 @@ function parse_function_expression(stream)
   end
 
   stream.consume(TOKEN.LPAREN)
-  local params = parse_parameters(stream)
+  local params = P.parameters(stream)
   stream.consume(TOKEN.RPAREN)
 
   local saved_loop, saved_switch = stream.loop_depth, stream.switch_depth
   stream.loop_depth, stream.switch_depth = 0, 0
-  local body = parse_block_statement(stream)
+  local body = P.block_statement(stream)
   stream.loop_depth, stream.switch_depth = saved_loop, saved_switch
 
   if name then
