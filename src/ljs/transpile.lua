@@ -1688,19 +1688,10 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
   local arrow_decl = cg.local_decl("_ljs_arrow_this", save_src, fn_indent)
   local parts = { arrow_decl }
   if #preamble > 0 then
-    if needs_semi_before(parts[#parts], preamble, fn_indent) then
-      parts[#parts + 1] = cg.pad(fn_indent) .. ";\n" .. preamble
-    else
-      parts[#parts + 1] = preamble
-    end
+    parts[#parts + 1] = maybe_insert_semi(parts[#parts], preamble, fn_indent)
   end
   if #body > 0 then
-    local combined = table.concat(parts)
-    if needs_semi_before(combined, body, fn_indent) then
-      parts[#parts + 1] = cg.pad(fn_indent) .. ";\n" .. body
-    else
-      parts[#parts + 1] = body
-    end
+    parts[#parts + 1] = maybe_insert_semi(table.concat(parts), body, fn_indent)
   end
   parts[#parts + 1] = trailing
   body = table.concat(parts)
