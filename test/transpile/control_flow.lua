@@ -92,9 +92,9 @@ test("for...of", function()
   assert(code:find("%.length"), "expected .length bound")
 end)
 
-test("for...of wraps iterable with _ljs_to_object", function()
+test("for...of wraps iterable with _ljs_iter_string", function()
   local code = emit_ok("for (const x of arr) { x; }")
-  assert(code:find("_ljs_to_object"), "expected _ljs_to_object wrapping of iterable")
+  assert(code:find("_ljs_iter_string"), "expected _ljs_iter_string wrapping of iterable")
 end)
 
 test("for...of on string iterates characters", function()
@@ -104,6 +104,30 @@ test("for...of on string iterates characters", function()
     console.log(r);
   ]])
   assert_eq(out, "abc\n")
+end)
+
+test("for...of on multi-byte UTF-8 string iterates code points", function()
+  local out = run_js(
+    'let n = 0; for (let c of "caf' .. string.char(195, 169) .. '") { n++; } console.log(n);'
+  )
+  assert_eq(out, "4\n")
+end)
+
+test("for...of on emoji string iterates code points", function()
+  local out = run_js(
+    'let n = 0; for (let c of "' .. string.char(240, 159, 152, 128) .. '") { n++; } console.log(n);'
+  )
+  assert_eq(out, "1\n")
+end)
+
+test("for...of on mixed ASCII/multi-byte/emoji iterates code points", function()
+  local out = run_js(
+    'let r = ""; for (let c of "a'
+    .. string.char(195, 169) -- é (2-byte)
+    .. string.char(240, 159, 152, 128) -- 😀 (4-byte)
+    .. 'b") { r += c + " "; } console.log(r);'
+  )
+  assert_eq(out, "a " .. string.char(195, 169) .. " " .. string.char(240, 159, 152, 128) .. " b \n")
 end)
 
 -- ============================================================================
