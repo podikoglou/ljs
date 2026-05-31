@@ -48,3 +48,39 @@ test("anonymous arrow without assignment has empty name", function()
   ]])
   assert_eq(out, "true\n")
 end)
+
+test("function.name is non-writable: assignment silently fails", function()
+  local out = run_js([[
+    function foo() {}
+    foo.name = "bar"
+    console.log(foo.name);
+  ]])
+  assert_eq(out, "foo\n")
+end)
+
+test("named function expression .name is non-writable", function()
+  local out = run_js([[
+    var fn = function bar() {};
+    fn.name = "baz";
+    console.log(fn.name);
+  ]])
+  assert_eq(out, "bar\n")
+end)
+
+test("arrow function .name is non-writable", function()
+  local out = run_js([[
+    var arrow = () => {};
+    arrow.name = "other";
+    console.log(arrow.name);
+  ]])
+  assert_eq(out, "arrow\n")
+end)
+
+test("Function.prototype.name is non-writable", function()
+  local out = run_js([[
+    var orig = Function.prototype.name;
+    Function.prototype.name = "hacked";
+    console.log(Function.prototype.name === orig);
+  ]])
+  assert_eq(out, "true\n")
+end)
