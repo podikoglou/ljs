@@ -1038,15 +1038,17 @@ nuds[TOKEN.TYPEOF] = function(stream, tok)
 end
 
 nuds[TOKEN.NEW] = function(stream, tok)
+  local callee
   if stream.is(TOKEN.NEW) then
-    return pratt_expr(stream, 6)
+    callee = nuds[TOKEN.NEW](stream, stream.advance())
+  else
+    local banned_err = check_banned(stream)
+    if banned_err then
+      error(banned_err, 0)
+    end
+    local id_token = stream.consume(TOKEN.IDENTIFIER)
+    callee = ast.identifier(id_token.value, id_token)
   end
-  local banned_err = check_banned(stream)
-  if banned_err then
-    error(banned_err, 0)
-  end
-  local id_token = stream.consume(TOKEN.IDENTIFIER)
-  local callee = ast.identifier(id_token.value, id_token)
   while stream.is(TOKEN.DOT) or stream.is(TOKEN.LBRACKET) do
     if stream.is(TOKEN.DOT) then
       local dot = stream.advance()
@@ -1075,11 +1077,7 @@ nuds[TOKEN.NUMBER] = function(stream, tok)
     return ast.number_literal(tok.value, tok)
   end
   if tok.value % 1 == 0 and stream.is(TOKEN.DOT) then
-    parse_error(
-      "Unexpected token after integer literal",
-      stream.peek().line,
-      stream.peek().col
-    )
+    parse_error("Unexpected token after integer literal", stream.peek().line, stream.peek().col)
   end
   return ast.number_literal(tok.value, tok)
 end
@@ -1160,10 +1158,7 @@ nuds[TOKEN.LPAREN] = function(stream, tok)
         if stream.is(TOKEN.ELLIPSIS) then
           local ellipsis = stream.advance()
           local id_token = stream.consume(TOKEN.IDENTIFIER)
-          table.insert(
-            params,
-            ast.rest_element(ast.identifier(id_token.value, id_token), ellipsis)
-          )
+          table.insert(params, ast.rest_element(ast.identifier(id_token.value, id_token), ellipsis))
           found_rest = true
         elseif stream.is(TOKEN.LBRACKET) then
           local param = P.array_pattern(stream)
@@ -1267,11 +1262,7 @@ pratt_expr = function(stream, min_prec, no_in)
     if banned_err then
       error(banned_err, 0)
     end
-    parse_error(
-      string.format("Unexpected token %s", tok.type),
-      tok.line,
-      tok.col
-    )
+    parse_error(string.format("Unexpected token %s", tok.type), tok.line, tok.col)
   end
 
   local had_postfix = false
@@ -1281,7 +1272,9 @@ pratt_expr = function(stream, min_prec, no_in)
     local op = next_tok.type
 
     if op == TOKEN.INCREMENT or op == TOKEN.DECREMENT then
-      if had_postfix then break end
+      if had_postfix then
+        break
+      end
       stream.advance()
       if not ast.is_valid_update_target(left) and left.type ~= ast.TYPE_CALL_EXPRESSION then
         parse_error(
