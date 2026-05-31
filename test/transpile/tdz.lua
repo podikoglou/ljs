@@ -133,6 +133,45 @@ test("let {x = y} = {x: 1} is fine (default refs unrelated name)", function()
 end)
 
 -- ============================================================================
+-- #378: Sequential TDZ check for destructuring defaults
+-- ============================================================================
+
+test("let {y = 1, x = y} = {} OK (sequential obj defaults)", function()
+  transpile_ok("let {y = 1, x = y} = {};")
+end)
+
+test("let [y = 1, x = y] = [] OK (sequential array defaults)", function()
+  transpile_ok("let [y = 1, x = y] = [];")
+end)
+
+test("let x = 1, {y = x} = {} OK (plain then pattern)", function()
+  transpile_ok("let x = 1, {y = x} = {};")
+end)
+
+test("let {a = 1, b = a, c = b} = {} OK (chain sequential)", function()
+  transpile_ok("let {a = 1, b = a, c = b} = {};")
+end)
+
+test("let {c = 1, a: {b = c}} = {a: {}} OK (nested refs earlier)", function()
+  transpile_ok("let {c = 1, a: {b = c}} = {a: {}};")
+end)
+
+test("let {x = y, y = 1} = {} errors (refs later binding)", function()
+  assert_transpile_error("let {x = y, y = 1} = {};", "Cannot access 'y' before initialization")
+end)
+
+test("let {a: {b = c}, c = 1} = {a: {}} errors (nested refs later)", function()
+  assert_transpile_error(
+    "let {a: {b = c}, c = 1} = {a: {}};",
+    "Cannot access 'c' before initialization"
+  )
+end)
+
+test("let {y = x} = {}, x = 1 errors (multi-decl reverse)", function()
+  assert_transpile_error("let {y = x} = {}, x = 1;", "Cannot access 'x' before initialization")
+end)
+
+-- ============================================================================
 -- #372: Block-level use-before-declaration TDZ
 -- ============================================================================
 
