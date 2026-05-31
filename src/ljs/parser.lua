@@ -500,6 +500,9 @@ function P.for_statement(stream)
   local expr = P.expression(stream, true)
 
   if stream.is(TOKEN.OF) then
+    if expr.type == ast.TYPE_ARRAY_EXPRESSION or expr.type == ast.TYPE_OBJECT_EXPRESSION then
+      expr = convert_expression_to_pattern(expr)
+    end
     stream.consume(TOKEN.OF)
     local right = P.expression(stream)
     stream.consume(TOKEN.RPAREN)
@@ -510,6 +513,9 @@ function P.for_statement(stream)
   end
 
   if stream.is(TOKEN.IN) then
+    if expr.type == ast.TYPE_ARRAY_EXPRESSION or expr.type == ast.TYPE_OBJECT_EXPRESSION then
+      expr = convert_expression_to_pattern(expr)
+    end
     stream.consume(TOKEN.IN)
     local right = P.expression(stream)
     stream.consume(TOKEN.RPAREN)

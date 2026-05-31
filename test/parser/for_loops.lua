@@ -286,6 +286,28 @@ test("for-of with const still works (regression)", function()
   })
 end)
 
+test("for-of with array destructuring left (no declaration)", function()
+  assert_parse_ok("let a, b; for ([a, b] of arr) { a; }", {
+    A.var_decl("let", { A.declarator(A.id("a")), A.declarator(A.id("b")) }),
+    A.for_of(
+      { type = "ArrayPattern", elements = { A.id("a"), A.id("b") } },
+      A.id("arr"),
+      A.block({ A.expr_stmt(A.id("a")) })
+    ),
+  })
+end)
+
+test("for-in with array destructuring left (no declaration)", function()
+  assert_parse_ok("let a; for ([a] in obj) { a; }", {
+    A.var_decl("let", { A.declarator(A.id("a")) }),
+    A.for_in(
+      { type = "ArrayPattern", elements = { A.id("a") } },
+      A.id("obj"),
+      A.block({ A.expr_stmt(A.id("a")) })
+    ),
+  })
+end)
+
 test("error: for missing body", function()
   assert_parse_fail("for (;;) ", "Unexpected token")
 end)
