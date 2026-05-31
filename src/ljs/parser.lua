@@ -1023,10 +1023,6 @@ local function pratt_expr(stream, min_prec, no_in)
     if led_fn then
       stream.advance()
       left = led_fn(stream, next_tok, left, no_in)
-    elseif op == TOKEN.STARSTAR then
-      stream.advance()
-      local right = P.binary_expression(stream, prec, no_in)
-      left = ast.binary_expression(op, left, right, next_tok)
     elseif op == TOKEN.QUESTION then
       stream.advance()
       local consequent = P.expression(stream, no_in)
@@ -1044,6 +1040,10 @@ end
 leds[TOKEN.STAR] = function(stream, tok, left)
   local right = P.binary_expression(stream, PRECEDENCE[TOKEN.STAR] + 0.01)
   return ast.binary_expression(TOKEN.STAR, left, right, tok)
+end
+leds[TOKEN.STARSTAR] = function(stream, tok, left, no_in)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.STARSTAR], no_in)
+  return ast.binary_expression(TOKEN.STARSTAR, left, right, tok)
 end
 leds[TOKEN.SLASH] = function(stream, tok, left)
   local right = P.binary_expression(stream, PRECEDENCE[TOKEN.SLASH] + 0.01)
