@@ -20,7 +20,9 @@ local function _ljs_own_keys(obj)
   local k = nil
   while true do
     k = next(obj, k)
-    if k == nil then break end
+    if k == nil then
+      break
+    end
     if type(k) == "string" and not _ljs_internal_keys[k] then
       keys[#keys + 1] = k
     end
@@ -33,7 +35,9 @@ local function _ljs_own_entries(obj)
   local k = nil
   while true do
     k = next(obj, k)
-    if k == nil then break end
+    if k == nil then
+      break
+    end
     if type(k) == "string" and not _ljs_internal_keys[k] then
       entries[#entries + 1] = { k, rawget(obj, k) }
     end
@@ -118,13 +122,17 @@ end)
 
 Object.is = _ljs_fn(function(_ljs_this, x, y)
   if type(x) == "number" and type(y) == "number" then
-    if x ~= x and y ~= y then return true end
+    if x ~= x and y ~= y then
+      return true
+    end
     if x == 0 and y == 0 then
       return (1 / x == 1 / y)
     end
     return x == y
   end
-  if x == y then return true end
+  if x == y then
+    return true
+  end
   return (x == nil and y == _ljs_undefined) or (x == _ljs_undefined and y == nil)
 end)
 
@@ -201,4 +209,78 @@ Object.getPrototypeOf = _ljs_fn(function(_ljs_this, obj)
     return _ljs_null
   end
   return proto
+end)
+
+Object.setPrototypeOf = _ljs_fn(function(_ljs_this, obj, proto)
+  if _ljs_is_nilish(obj) then
+    _ljs_type_error("Object.setPrototypeOf called on null or undefined")
+  end
+  if proto ~= _ljs_null and type(proto) ~= "table" then
+    _ljs_type_error(
+      "Object.prototype.setPrototypeOf called on "
+        .. _ljs_value_repr(proto)
+        .. ", expected Object or null"
+    )
+  end
+  if type(obj) ~= "table" then
+    return obj
+  end
+  local mt = getmetatable(obj)
+  local current = _ljs_null
+  if mt then
+    current = mt.__index
+    if type(current) ~= "table" then
+      current = mt.__ljs_proto
+    end
+    if type(current) ~= "table" then
+      current = _ljs_null
+    end
+  end
+  if current == proto then
+    return obj
+  end
+  if mt and type(mt.__newindex) == "function" then
+    _ljs_type_error("Cannot set prototype of non-extensible object")
+  end
+  if type(proto) == "table" then
+    local cursor = proto
+    while cursor ~= nil and cursor ~= _ljs_null do
+      if cursor == obj then
+        _ljs_type_error("Cyclic prototype chain detected")
+      end
+      local cmt = getmetatable(cursor)
+      if not cmt then
+        break
+      end
+      local next_proto = cmt.__index
+      if type(next_proto) ~= "table" then
+        next_proto = cmt.__ljs_proto
+      end
+      if type(next_proto) ~= "table" then
+        break
+      end
+      cursor = next_proto
+    end
+  end
+  if mt then
+    rawset(mt, "__ljs_proto", nil)
+    if proto == _ljs_null then
+      rawset(mt, "__index", function(t, k)
+        return _ljs_undefined
+      end)
+    else
+      rawset(mt, "__index", proto)
+    end
+  else
+    if proto == _ljs_null then
+      setmetatable(obj, {
+        __index = function(t, k)
+          return _ljs_undefined
+        end,
+      })
+    else
+      setmetatable(obj, { __index = proto })
+    end
+  end
+  return obj
 end)

@@ -12,8 +12,12 @@ test("Object.keys on plain object", function()
   assert_eq(arr.length, 2)
   local found_a, found_b = false, false
   for i = 1, arr.length do
-    if arr[i] == "a" then found_a = true end
-    if arr[i] == "b" then found_b = true end
+    if arr[i] == "a" then
+      found_a = true
+    end
+    if arr[i] == "b" then
+      found_b = true
+    end
   end
   assert(found_a, "expected key 'a'")
   assert(found_b, "expected key 'b'")
@@ -24,10 +28,13 @@ test("Object.keys returns a JS Array", function()
 end)
 
 test("Object.keys result has Array.prototype methods", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var k = Object.keys({a: 1, b: 2, c: 3});
     return typeof k.map === "function" && typeof k.join === "function";
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 test("Object.keys on empty object", function()
@@ -56,8 +63,12 @@ test("Object.values on plain object", function()
   assert_eq(arr.length, 2)
   local found_1, found_2 = false, false
   for i = 1, arr.length do
-    if arr[i] == 1 then found_1 = true end
-    if arr[i] == 2 then found_2 = true end
+    if arr[i] == 1 then
+      found_1 = true
+    end
+    if arr[i] == 2 then
+      found_2 = true
+    end
   end
   assert(found_1, "expected value 1")
   assert(found_2, "expected value 2")
@@ -73,10 +84,13 @@ test("Object.values returns a JS Array", function()
 end)
 
 test("Object.values result has Array.prototype methods", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var v = Object.values({a: 1, b: 2});
     return typeof v.map === "function" && typeof v.join === "function";
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 test("Object.values throws TypeError on null", function()
@@ -119,24 +133,33 @@ test("Object.entries returns a JS Array", function()
 end)
 
 test("Object.entries result has Array.prototype methods", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var e = Object.entries({a: 1, b: 2});
     return typeof e.map === "function" && typeof e.join === "function";
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 test("Object.entries sub-arrays are JS Arrays", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var e = Object.entries({a: 1});
     return Array.isArray(e[0]);
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 test("Object.entries sub-arrays have Array.prototype methods", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var e = Object.entries({a: 1});
     return typeof e[0].map === "function";
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 test("Object.entries throws TypeError on null", function()
@@ -263,10 +286,13 @@ test("Object.is null not equal to undefined", function()
 end)
 
 test("Object.is with objects checks identity", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var obj = {};
     return Object.is(obj, obj);
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 test("Object.is with different objects returns false", function()
@@ -282,8 +308,12 @@ test("Object.getOwnPropertyNames on plain object", function()
   assert_eq(arr.length, 2)
   local found_a, found_b = false, false
   for i = 1, arr.length do
-    if arr[i] == "a" then found_a = true end
-    if arr[i] == "b" then found_b = true end
+    if arr[i] == "a" then
+      found_a = true
+    end
+    if arr[i] == "b" then
+      found_b = true
+    end
   end
   assert(found_a, "expected key 'a'")
   assert(found_b, "expected key 'b'")
@@ -299,10 +329,13 @@ test("Object.getOwnPropertyNames returns a JS Array", function()
 end)
 
 test("Object.getOwnPropertyNames result has Array.prototype methods", function()
-  assert_eq(exec_js([[
+  assert_eq(
+    exec_js([[
     var n = Object.getOwnPropertyNames({a: 1, b: 2});
     return typeof n.map === "function" && typeof n.join === "function";
-  ]]), true)
+  ]]),
+    true
+  )
 end)
 
 test("Object.getOwnPropertyNames throws TypeError on null", function()
@@ -324,10 +357,13 @@ test("Object.freeze returns the object", function()
 end)
 
 test("Object.freeze prevents adding new properties", function()
-  local ok, err = pcall(exec_js, [[
+  local ok, err = pcall(
+    exec_js,
+    [[
     var obj = Object.freeze({a: 1});
     obj.b = 2;
-  ]])
+  ]]
+  )
   assert(not ok, "expected TypeError on frozen object")
   assert(err.name == "TypeError", "expected TypeError in: " .. tostring(err.name))
 end)
@@ -353,10 +389,13 @@ test("Object.seal returns the object", function()
 end)
 
 test("Object.seal prevents adding new properties", function()
-  local ok, err = pcall(exec_js, [[
+  local ok, err = pcall(
+    exec_js,
+    [[
     var obj = Object.seal({a: 1});
     obj.b = 2;
-  ]])
+  ]]
+  )
   assert(not ok, "expected TypeError on sealed object")
   assert(err.name == "TypeError", "expected TypeError in: " .. tostring(err.name))
 end)
@@ -408,4 +447,101 @@ end)
 
 test("Object.getPrototypeOf on number returns Number.prototype", function()
   assert_eq(exec_js("return Object.getPrototypeOf(42) === Number.prototype;"), true)
+end)
+
+-- ============================================================================
+-- Object.setPrototypeOf
+-- ============================================================================
+
+test("Object.setPrototypeOf sets prototype and returns obj", function()
+  local result = exec_js([[
+    var obj = {};
+    var proto = { greet: "hello" };
+    var returned = Object.setPrototypeOf(obj, proto);
+    return returned === obj && Object.getPrototypeOf(obj) === proto;
+  ]])
+  assert_eq(result, true)
+end)
+
+test("Object.setPrototypeOf with null proto", function()
+  assert_eq(exec_js([[
+    var obj = {};
+    Object.setPrototypeOf(obj, null);
+    return Object.getPrototypeOf(obj) === null;
+  ]]), true)
+end)
+
+test("Object.setPrototypeOf TypeError on null obj", function()
+  local ok, err = pcall(exec_js, "return Object.setPrototypeOf(null, {});")
+  assert(not ok, "expected TypeError")
+  assert(err.name == "TypeError", "expected TypeError in: " .. tostring(err.name))
+end)
+
+test("Object.setPrototypeOf TypeError on undefined obj", function()
+  local ok, err = pcall(exec_js, "return Object.setPrototypeOf(undefined, {});")
+  assert(not ok, "expected TypeError")
+  assert(err.name == "TypeError", "expected TypeError in: " .. tostring(err.name))
+end)
+
+test("Object.setPrototypeOf TypeError on non-object proto (number)", function()
+  local ok, err = pcall(exec_js, "return Object.setPrototypeOf({}, 42);")
+  assert(not ok, "expected TypeError")
+  assert(err.name == "TypeError", "expected TypeError in: " .. tostring(err.name))
+end)
+
+test("Object.setPrototypeOf TypeError on non-object proto (string)", function()
+  local ok, err = pcall(exec_js, [[return Object.setPrototypeOf({}, "hello");]])
+  assert(not ok, "expected TypeError")
+  assert(err.name == "TypeError", "expected TypeError in: " .. tostring(err.name))
+end)
+
+test("Object.setPrototypeOf TypeError on non-object proto (boolean)", function()
+  local ok, err = pcall(exec_js, "return Object.setPrototypeOf({}, true);")
+  assert(not ok, "expected TypeError")
+  assert(err.name == "TypeError", "expected TypeError in: " .. tostring(err.name))
+end)
+
+test("Object.setPrototypeOf TypeError on circular prototype chain", function()
+  local ok, err = pcall(exec_js, [[
+    var a = {};
+    var b = Object.create(a);
+    Object.setPrototypeOf(a, b);
+  ]])
+  assert(not ok, "expected TypeError")
+  assert(err.name == "TypeError", "expected TypeError in: " .. tostring(err.name))
+end)
+
+test("Object.setPrototypeOf same proto is no-op", function()
+  assert_eq(exec_js([[
+    var obj = {};
+    var proto = Object.getPrototypeOf(obj);
+    var returned = Object.setPrototypeOf(obj, proto);
+    return returned === obj && Object.getPrototypeOf(obj) === proto;
+  ]]), true)
+end)
+
+test("Object.setPrototypeOf on non-table returns obj as-is", function()
+  assert_eq(exec_js("return Object.setPrototypeOf(42, {});"), 42)
+end)
+
+test("Object.setPrototypeOf on string primitive returns string", function()
+  assert_eq(exec_js([[return Object.setPrototypeOf("hello", {});]]), "hello")
+end)
+
+test("Object.setPrototypeOf TypeError on frozen object", function()
+  local ok, err = pcall(exec_js, [[
+    var obj = Object.freeze({a: 1});
+    Object.setPrototypeOf(obj, {});
+  ]])
+  assert(not ok, "expected TypeError")
+  assert(err.name == "TypeError", "expected TypeError in: " .. tostring(err.name))
+end)
+
+test("Object.setPrototypeOf TypeError on sealed object", function()
+  local ok, err = pcall(exec_js, [[
+    var obj = Object.seal({a: 1});
+    Object.setPrototypeOf(obj, {});
+  ]])
+  assert(not ok, "expected TypeError")
+  assert(err.name == "TypeError", "expected TypeError in: " .. tostring(err.name))
 end)
