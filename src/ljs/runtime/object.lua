@@ -195,6 +195,9 @@ Object.getPrototypeOf = _ljs_fn(function(_ljs_this, obj)
   end
   local proto = mt.__index
   if type(proto) ~= "table" then
+    proto = mt.__ljs_proto
+  end
+  if type(proto) ~= "table" then
     return _ljs_null
   end
   return proto
