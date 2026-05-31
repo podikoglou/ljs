@@ -952,6 +952,9 @@ end
 -- All binary operators except assignment, compound assignment, and ** are left-associative.
 
 local PRECEDENCE = {
+  [TOKEN.DOT] = 10,
+  [TOKEN.LBRACKET] = 10,
+  [TOKEN.LPAREN] = 10,
   [TOKEN.NOT] = 6,
   [TOKEN.TILDE] = 6,
   [TOKEN.STARSTAR] = 5.5,
@@ -1038,36 +1041,40 @@ end
 nuds[TOKEN.NUMBER] = function(stream, tok)
   if stream.is(TOKEN.DOT) and stream.peek_n(2).type == TOKEN.DOT then
     stream.advance()
-    return P.postfix(stream, ast.number_literal(tok.value, tok), true)
+    return ast.number_literal(tok.value, tok)
   end
-  if tok.value % 1 ~= 0 and stream.is(TOKEN.DOT) then
-    return P.postfix(stream, ast.number_literal(tok.value, tok), true)
+  if tok.value % 1 == 0 and stream.is(TOKEN.DOT) then
+    parse_error(
+      "Unexpected token after integer literal",
+      stream.peek().line,
+      stream.peek().col
+    )
   end
   return ast.number_literal(tok.value, tok)
 end
 
 nuds[TOKEN.STRING] = function(stream, tok)
-  return P.postfix(stream, ast.string_literal(tok.value, tok), true)
+  return ast.string_literal(tok.value, tok)
 end
 
 nuds[TOKEN.BOOLEAN] = function(stream, tok)
-  return P.postfix(stream, ast.boolean_literal(tok.value, tok), true)
+  return ast.boolean_literal(tok.value, tok)
 end
 
 nuds[TOKEN.NULL] = function(stream, tok)
-  return P.postfix(stream, ast.null_literal(tok), true)
+  return ast.null_literal(tok)
 end
 
 nuds[TOKEN.UNDEFINED] = function(stream, tok)
-  return P.postfix(stream, ast.undefined_literal(tok), true)
+  return ast.undefined_literal(tok)
 end
 
 nuds[TOKEN.THIS] = function(stream, tok)
-  return P.postfix(stream, ast.this_expression(tok), true)
+  return ast.this_expression(tok)
 end
 
 nuds[TOKEN.SUPER] = function(stream, tok)
-  return P.postfix(stream, ast.super_expression(tok), true)
+  return ast.super_expression(tok)
 end
 
 nuds[TOKEN.IDENTIFIER] = function(stream, tok)
@@ -1079,7 +1086,7 @@ nuds[TOKEN.IDENTIFIER] = function(stream, tok)
     return ast.arrow_function_expression({ expr }, body, tok)
   end
 
-  return P.postfix(stream, expr)
+  return expr
 end
 
 nuds[TOKEN.LPAREN] = function(stream, tok)
@@ -1175,24 +1182,24 @@ nuds[TOKEN.LPAREN] = function(stream, tok)
   else
     local expr = P.expression(stream)
     stream.consume(TOKEN.RPAREN)
-    return P.postfix(stream, expr, not ast.is_valid_update_target(expr))
+    return expr
   end
 end
 
 nuds[TOKEN.LBRACKET] = function(stream, tok)
-  return P.postfix(stream, P.array_literal(stream, tok), true)
+  return P.array_literal(stream, tok)
 end
 
 nuds[TOKEN.LBRACE] = function(stream, tok)
-  return P.postfix(stream, P.object_literal(stream, tok), true)
+  return P.object_literal(stream, tok)
 end
 
 nuds[TOKEN.FUNCTION] = function(stream, tok)
-  return P.postfix(stream, P.function_expression(stream, tok), true)
+  return P.function_expression(stream, tok)
 end
 
 nuds[TOKEN.CLASS] = function(stream, tok)
-  return P.postfix(stream, P.class_expression(stream, tok), true)
+  return P.class_expression(stream, tok)
 end
 
 nuds[TOKEN.TEMPLATE_LITERAL] = function(stream, tok)
@@ -1210,14 +1217,14 @@ nuds[TOKEN.TEMPLATE_LITERAL] = function(stream, tok)
     local expr_stream = make_token_stream(expr_tokens)
     expressions[#expressions + 1] = P.expression(expr_stream)
   end
-  return P.postfix(stream, ast.template_literal(quasis, expressions, tok), true)
+  return ast.template_literal(quasis, expressions, tok)
 end
 
 nuds[TOKEN.ARROW] = function(stream, tok)
   parse_error("Unexpected arrow token", tok.line, tok.col)
 end
 
-function pratt_expr(stream, min_prec, no_in)
+pratt_expr = function(stream, min_prec, no_in)
   local tok = stream.peek()
   local nud_fn = nuds[tok.type]
   local left
@@ -1228,23 +1235,43 @@ function pratt_expr(stream, min_prec, no_in)
     left = P.unary_expression(stream)
   end
 
+  local had_postfix = false
+
   while true do
     local next_tok = stream.peek()
     local op = next_tok.type
-    local prec = PRECEDENCE[op]
-    if not prec or prec < min_prec then
-      break
-    end
-    if op == TOKEN.IN and no_in then
-      break
-    end
 
-    local led_fn = leds[op]
-    if led_fn then
+    if op == TOKEN.INCREMENT or op == TOKEN.DECREMENT then
+      if had_postfix then break end
       stream.advance()
-      left = led_fn(stream, next_tok, left, no_in)
+      if not ast.is_valid_update_target(left) and left.type ~= ast.TYPE_CALL_EXPRESSION then
+        parse_error(
+          "Invalid update target: cannot use " .. op .. " on this expression",
+          next_tok.line,
+          next_tok.col
+        )
+      end
+      left = ast.update_expression(op, left, false, next_tok)
+      had_postfix = true
     else
-      break
+      local prec = PRECEDENCE[op]
+      if not prec or prec < min_prec then
+        break
+      end
+      if op == TOKEN.IN and no_in then
+        break
+      end
+      if had_postfix and (op == TOKEN.DOT or op == TOKEN.LBRACKET or op == TOKEN.LPAREN) then
+        break
+      end
+
+      local led_fn = leds[op]
+      if led_fn then
+        stream.advance()
+        left = led_fn(stream, next_tok, left, no_in)
+      else
+        break
+      end
     end
   end
 
@@ -1384,6 +1411,23 @@ leds[TOKEN.QUESTION] = function(stream, tok, left, no_in)
   stream.consume(TOKEN.COLON)
   local alternate = P.expression(stream, no_in)
   return ast.conditional_expression(left, consequent, alternate, tok)
+end
+
+leds[TOKEN.DOT] = function(stream, tok, left)
+  local prop_token = stream.consume_property_name()
+  return ast.member_expression(left, ast.identifier(prop_token.value, prop_token), false, tok)
+end
+
+leds[TOKEN.LBRACKET] = function(stream, tok, left)
+  local prop = P.expression(stream)
+  stream.consume(TOKEN.RBRACKET)
+  return ast.member_expression(left, prop, true, tok)
+end
+
+leds[TOKEN.LPAREN] = function(stream, tok, left)
+  local args = parse_comma_list(stream, TOKEN.RPAREN, P.maybe_spread)
+  stream.consume(TOKEN.RPAREN)
+  return ast.call_expression(left, args, tok)
 end
 
 --- Entry point for expression parsing. Starts at minimum precedence 0.
