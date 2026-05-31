@@ -106,6 +106,13 @@ test("for...of on string iterates characters", function()
   assert_eq(out, "abc\n")
 end)
 
+test("for...of on multi-byte UTF-8 string iterates code points", function()
+  local out = run_js(
+    'let n = 0; for (let c of "caf' .. string.char(195, 169) .. '") { n++; } console.log(n);'
+  )
+  assert_eq(out, "4\n")
+end)
+
 -- ============================================================================
 -- for...in transpile tests
 -- ============================================================================
