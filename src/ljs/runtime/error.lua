@@ -8,11 +8,19 @@ end)
 Error.prototype.name = "Error"
 Error.prototype.toString = _ljs_fn(function(_ljs_this)
   local name = _ljs_this.name
-  if name == nil then name = "Error" end
+  if _ljs_is_undef(name) then
+    name = "Error"
+  end
   local msg = _ljs_this.message
-  if msg == nil then msg = "" end
-  if name == "" then return _ljs_tostring(msg) end
-  if msg == "" then return _ljs_tostring(name) end
+  if _ljs_is_undef(msg) then
+    msg = ""
+  end
+  if name == "" then
+    return _ljs_tostring(msg)
+  end
+  if msg == "" then
+    return _ljs_tostring(name)
+  end
   return _ljs_tostring(name) .. ": " .. _ljs_tostring(msg)
 end)
 
@@ -21,15 +29,15 @@ end)
 local function _ljs_error_subclass(name)
   local prototype = setmetatable({}, { __index = Error.prototype })
   prototype.name = name
-  prototype.constructor = nil
   local Ctor = _ljs_ctor(function(_ljs_this, message)
     _ljs_this.message = message
   end)
   Ctor.prototype = prototype
+  prototype.constructor = Ctor
   return Ctor
 end
 
-local TypeError = _ljs_error_subclass("TypeError")
-local RangeError = _ljs_error_subclass("RangeError")
+TypeError = _ljs_error_subclass("TypeError")
+RangeError = _ljs_error_subclass("RangeError")
 local SyntaxError = _ljs_error_subclass("SyntaxError")
 local ReferenceError = _ljs_error_subclass("ReferenceError")

@@ -5,70 +5,114 @@ description: Review PRs, branches, or commits. Checks out the target locally, re
 
 # Code Review
 
-## Determining what to review
+## Setup
 
-Parse the input. If it looks like a PR (number, `#57`, URL) → fetch and checkout the PR. Branch name → diff against main and checkout. Commit hash → show that commit. No input → uncommitted changes.
+Parse the input. PR number/URL → `gh pr checkout`. Branch name → diff against `develop` and checkout. Commit hash → show that commit. No input → uncommitted changes.
 
-**Always check out the target** so you're reading the actual code, not just a diff. For PRs, use `gh pr view` to read the description first — it states intent, which frames whether the code does the right thing.
+**Always check out the target.** For PRs, read `gh pr view` first for intent. If a handoff artifact exists at `/tmp/ljs-handoff-<issue>.md`, read it — the planning subagent already did analysis.
 
-## Review workflow
+Read every changed file **in full** — diffs are insufficient.
 
-### 1. Context first, diff second
+## Checks
 
-Read the PR description or commit message **before** the diff. Then read the full files that were changed — diffs are insufficient. Code that looks wrong in isolation may be correct given surrounding logic, and vice versa. Identify new files via `git status --short` and read them in full.
+Run these in order. **A single blocking finding in any check means the verdict is "needs fixes".** There is no "merge with suggestions". If something should be fixed, it blocks merge.
 
-### 2. Ground truth: the spec
+### 1. Architecture and separation of concerns
 
-This is a JS → Lua transpiler. When a change touches JS semantics (operators, coercion, built-ins, grammar), **confirm against the ECMAScript spec** using the `ecma-query` skill. Don't guess at JS behavior — look it up. If the implementation diverges from the spec, flag it unless it's already documented as a known gap.
+Read `docs/ARCHITECTURE.md`. It defines strict layer boundaries for this codebase. Verify every changed file respects them. The layers are:
 
-### 3. Ground truth: the reference implementation
+- **Parser** — JS source → AST. Knows nothing about Lua.
+- **Codegen** — pure Lua source builder. Takes strings, returns strings. No AST knowledge, no dependencies.
+- **Transpiler** — AST → Lua via codegen calls. Makes semantic decisions but never produces Lua syntax directly.
 
-Test the behavior against Node.js. Write a small JS snippet exercising the changed feature, run it in Node, then run it through ljs and compare. Semantics must match, not just output format.
+The most common serious defect is **cross-layer contamination** — logic that belongs in one layer appearing in another. When the transpiler needs a new Lua construct, the answer is always "add a codegen function", never "inline it". When codegen needs to understand JS semantics, the answer is "the transpiler should handle that", never "add JS knowledge to codegen".
 
-### 4. Audit tests
+Any violation of documented layer boundaries is **blocking**. No exceptions.
 
-Check that the change has tests and that they cover:
-- Empty / zero / nil / null inputs
+Also check `docs/CONTRIBUTING.md` for naming, test structure, doc conventions, and error handling patterns.
+
+### 2. DRY
+
+Read every changed file and look for:
+
+- Logic duplicated within a file that should be a local helper
+- Logic that already exists elsewhere being reimplemented instead of reused
+- Copy-paste with minor variations that should be parameterized
+
+DRY violations are **blocking**. Extract the shared logic.
+
+### 3. Spec correctness
+
+When changes touch JS semantics, **look up the ECMAScript spec** using `ecma-query`. Never rely on memory. If the implementation diverges from the spec and it's not a documented known gap in `docs/ARCHITECTURE.md`, it's **blocking**.
+
+### 4. Node.js verification
+
+Write a small JS snippet exercising the changed behavior, run it in Node, run it through ljs, compare. Behavioral differences are **blocking**.
+
+### 5. Test coverage
+
+**This is the check that most often gets hand-waved. Do not let it slide.** Insufficient test coverage is always **blocking**.
+
+For every changed behavior, verify tests exist for:
+
+- Happy path
+- Empty / zero / nil / null / undefined inputs
 - Boundary values
 - Nesting and interactions with other features
 - Error cases and syntax rejection
-- Every branch of conditionals in the implementation
+- Every conditional branch in the implementation
 
-Run the test suite to confirm everything passes.
+If tests are missing, enumerate exactly what's needed:
 
-### 5. Architecture and conventions
+```
+MISSING TESTS:
+1. test/transpile/foo.lua: empty input case
+2. test/transpile/foo.lua: nesting inside try/catch
+3. test/transpile/foo.lua: error case — for-of on non-iterable
+```
 
-Check the project's `AGENTS.md`, `docs/ARCHITECTURE.md`, and `docs/CONTRIBUTING.md` for layer boundaries, naming rules, and code style. Flag violations of documented conventions, not personal preferences.
+Do not say "we could add more tests but merge it". Write the tests or block.
 
-## What to flag
+### 6. Bugs
 
-**Bugs** — primary focus. Logic errors, missing guards, unreachable paths, broken error handling, edge cases that crash or produce wrong results.
+Logic errors, missing guards, unreachable paths, broken error handling, edge cases that crash or produce wrong results. **Blocking.**
 
-**Spec deviations** — behavior that doesn't match ECMAScript and isn't documented as a known gap.
+## Before flagging
 
-**Missing or weak tests** — happy-path-only coverage, untested edge cases, missing error tests.
-
-**Architecture violations** — breaking documented layer boundaries or conventions.
-
-**Performance** — only if obviously problematic.
+- Only review **changed code**, not pre-existing code
+- Be certain — investigate before calling something a bug
+- Don't invent hypothetical problems — explain the realistic scenario
+- If unsure, say "I'm not sure about X" rather than flagging confidently
 
 ## Incidental findings
 
-If you notice unrelated issues while reading code (pre-existing bugs, missing features, stale docs), don't include them in the review. Instead, create a GitHub issue via `gh issue create` — but first check that an issue for it doesn't already exist (`gh issue list --search ...`). Keep review output focused on the changes under review.
-
-## Before flagging something
-
-- Only review **changed code**, not pre-existing code
-- Be certain. Investigate before calling something a bug
-- Check documented known gaps before flagging a spec deviation
-- Don't invent hypothetical problems — explain the realistic scenario that triggers it
-- Don't flag style unless it violates **documented** conventions
-- If unsure, say "I'm not sure about X" rather than flagging it
+Pre-existing bugs or unrelated issues noticed during review → create a GitHub issue (`gh issue create`), check for duplicates first (`gh issue list --search ...`). Keep review output focused on changes under review.
 
 ## Output
 
-1. Direct and clear about **why** something is wrong
-2. Precise severity — don't overstate
-3. Include the specific scenario/input that triggers the issue
-4. Matter-of-fact tone, no flattery, no filler
-5. Scannable — reader understands the issue at a glance
+### Ready to merge
+
+```
+VERDICT: ready to merge
+```
+
+### Needs fixes
+
+```
+VERDICT: needs fixes
+
+BLOCKING ISSUES:
+1. [architecture] file:line — description of the violation
+2. [dry] file:line — description of the duplication
+3. [tests] missing coverage for X, Y, Z
+4. [spec] description of spec deviation
+```
+
+Every issue gets the tag and the specific location. Fix these and re-request review.
+
+## General output rules
+
+- Direct and clear about why something is wrong
+- Every issue is blocking or non-blocking — never "suggested" or "nice to have"
+- Include file, line, and the realistic scenario that triggers it
+- No flattery, no filler, no hedging

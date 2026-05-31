@@ -250,7 +250,7 @@ end)
 test("non-callable valueOf and toString both skipped → TypeError", function()
   local ok, err = pcall(exec_js, "let o = {valueOf: 42, toString: 99}; return o == 1;")
   assert(not ok, "expected TypeError")
-  assert(string.find(err, "TypeError"), "expected TypeError message, got: " .. tostring(err))
+  assert(err.name == "TypeError", "expected TypeError, got: " .. tostring(err.name))
 end)
 
 test("non-callable toString is skipped, valueOf is used", function()

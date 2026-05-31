@@ -1,0 +1,83 @@
+name: Bug Report
+description: Report incorrect or missing behaviour
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What's wrong and why it matters.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction / Example
+      description: Code snippet that triggers the bug.
+      placeholder: |
+        ```js
+        // your code here
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should happen. Include Node.js output or spec references (e.g. `ECMA-262 §13.15.2`).
+      placeholder: |
+        ```
+        // expected output
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What currently happens (error message, wrong output, etc.).
+      placeholder: |
+        ```
+        // actual output or error
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: root-cause
+    attributes:
+      label: Root cause / Where to change
+      description: File paths, line numbers, and explanation of why the bug occurs.
+      placeholder: "src/ljs/parser:123 — missing check for X"
+    validations:
+      required: false
+
+  - type: textarea
+    id: suggested-fix
+    attributes:
+      label: Suggested fix
+      description: Approach or code sketch for the fix.
+    validations:
+      required: false
+
+  - type: textarea
+    id: tests
+    attributes:
+      label: Test cases
+      description: Examples that should pass or error after the fix.
+      placeholder: |
+        - Should pass: `x`
+        - Should error: `y`
+    validations:
+      required: false
+
+  - type: textarea
+    id: related
+    attributes:
+      label: Dependencies / Related
+      description: Links to blocking or related issues.
+    validations:
+      required: false

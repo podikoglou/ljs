@@ -14,14 +14,23 @@ jobs:
 
       - uses: jdx/mise-action@v2
 
+      - name: Install luafilesystem
+        run: luarocks install luafilesystem
+
       - name: Run tests
         run: set -o pipefail && make test 2>&1 | tee test-output.txt
 
       - name: Extract test results
         if: always()
         run: |
-          PASSED=$(grep -oP '\d+(?= passed)' test-output.txt | tail -1)
-          FAILED=$(grep -oP '\d+(?= failed)' test-output.txt | tail -1)
+          sed 's/\x1b\[[0-9;]*m//g' test-output.txt > test-output-clean.txt
+          if grep -qP 'All \d+ tests passed' test-output-clean.txt; then
+            PASSED=$(grep -oP 'All \K\d+' test-output-clean.txt | tail -1)
+            FAILED=0
+          else
+            PASSED=$(grep -oP '\d+(?= passed)' test-output-clean.txt | tail -1)
+            FAILED=$(grep -oP '\d+(?= failed)' test-output-clean.txt | tail -1)
+          fi
           PASSED=${PASSED:-0}
           FAILED=${FAILED:-0}
           echo "TEST_PASSED=$PASSED" >> $GITHUB_ENV

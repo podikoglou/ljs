@@ -5,7 +5,9 @@ _ljs_string_prototype.valueOf = _ljs_fn(function(_ljs_this)
   return _ljs_this._ljs_data
 end)
 local function _ljs_trunc(n)
-  if n ~= n then return 0 end
+  if n ~= n then
+    return 0
+  end
   return n >= 0 and math.floor(n) or -math.floor(-n)
 end
 
@@ -29,7 +31,7 @@ _ljs_string_box_index = function(t, k)
     if k >= 1 and k <= #s and math.floor(k) == k then
       return s:sub(k, k)
     end
-    return nil
+    return _ljs_undefined
   end
   if type(k) == "string" then
     if k == "0" or k:match("^[1-9]%d*$") then
@@ -38,7 +40,7 @@ _ljs_string_box_index = function(t, k)
       if n <= #s then
         return s:sub(n, n)
       end
-      return nil
+      return _ljs_undefined
     end
   end
   return _ljs_string_prototype[k]
@@ -66,7 +68,9 @@ String.fromCharCode = _ljs_fn(function(_ljs_this, ...)
   local chars = {}
   for i = 1, select("#", ...) do
     local code = select(i, ...)
-    if code ~= code then code = 0 end
+    if code ~= code then
+      code = 0
+    end
     local truncated = _ljs_trunc(code)
     if truncated ~= truncated or truncated == math.huge or truncated == -math.huge then
       truncated = 0

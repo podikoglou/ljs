@@ -48,14 +48,31 @@ end
 -- ============================================================================
 -- Runtime helpers (emitted unconditionally in every preamble).
 -- These are the JS-ABI runtime functions that support operator semantics,
--- prototype chains, and constructor mechanics. All 22 are always emitted
+-- prototype chains, and constructor mechanics. All 46 are always emitted
 -- regardless of whether the source code uses them — no tree-shaking pass.
 -- See docs/ARCHITECTURE.md § "Runtime call ABI" and "Constructors".
 -- ============================================================================
 
 local HELPERS = {}
 
+HELPERS._ljs_is_undef = [[local function _ljs_is_undef(x)
+  return x == nil or x == _ljs_undefined
+end]]
+
+HELPERS._ljs_is_nilish = [[local function _ljs_is_nilish(x)
+  return x == nil or x == _ljs_null or x == _ljs_undefined
+end]]
+
+HELPERS._ljs_require_object_coercible = [[local function _ljs_require_object_coercible(v)
+  if _ljs_is_nilish(v) then
+    local desc = _ljs_is_undef(v) and "undefined" or "null"
+    _ljs_type_error("Cannot destructure property of " .. desc)
+  end
+end]]
+
 HELPERS._ljs_to_int32 = [[local function _ljs_to_int32(x)
+  x = _ljs_to_number(x)
+  if x ~= x then return 0 end
   x = math.floor(x) % 0x100000000
   if x >= 0x80000000 then x = x - 0x100000000 end
   return x
@@ -65,7 +82,7 @@ HELPERS._ljs_to_number = [[local function _ljs_to_number(x)
   if x == _ljs_null then
     return 0
   end
-  if x == nil then
+  if _ljs_is_undef(x) then
     return 0 / 0
   end
   local tx = type(x)
@@ -118,8 +135,22 @@ HELPERS._ljs_to_number = [[local function _ljs_to_number(x)
   return 0 / 0
 end]]
 
+HELPERS._ljs_neg = [[local function _ljs_neg(x)
+  x = _ljs_to_number(x)
+  if x == 0 then
+    if 1/x == math.huge then return -0.0 end
+    return 0.0
+  end
+  return -x
+end]]
+
+HELPERS._ljs_to_float = [[local function _ljs_to_float(x)
+  if math.type(x) == "integer" then return x * 1.0 end
+  return x
+end]]
+
 HELPERS._ljs_to_boolean = [[local function _ljs_to_boolean(x)
-  if x == nil or x == _ljs_null then
+  if _ljs_is_nilish(x) then
     return false
   end
   if type(x) == "boolean" then
@@ -136,30 +167,33 @@ end]]
 
 HELPERS._ljs_tostring = [[local function _ljs_tostring(x)
   if x == _ljs_null then return "null"
-  elseif x == nil then return "undefined"
+  elseif _ljs_is_undef(x) then return "undefined"
   elseif type(x) == "number" then
-    if x ~= x then return "NaN" end
-    if x == math.huge then return "Infinity" end
-    if x == -math.huge then return "-Infinity" end
-    if x == 0 then return "0" end
-    if math.floor(x) == x then return tostring(math.floor(x)) end
-    return tostring(x)
+    return _ljs_number_to_string(x)
+  elseif type(x) == "table" then
+    return _ljs_tostring(_ljs_to_primitive(x))
   else return tostring(x) end
 end]]
 
 HELPERS._ljs_add = [[local function _ljs_add(a, b)
+  if type(a) == "table" and a ~= _ljs_null and not _ljs_is_undef(a) then
+    a = _ljs_to_primitive(a)
+  end
+  if type(b) == "table" and b ~= _ljs_null and not _ljs_is_undef(b) then
+    b = _ljs_to_primitive(b)
+  end
   if type(a) == "string" or type(b) == "string" then
     return _ljs_tostring(a) .. _ljs_tostring(b)
   end
-  return _ljs_to_number(a) + _ljs_to_number(b)
+  return _ljs_to_float(_ljs_to_number(a)) + _ljs_to_float(_ljs_to_number(b))
 end]]
 
 HELPERS._ljs_sub = [[local function _ljs_sub(a, b)
-  return _ljs_to_number(a) - _ljs_to_number(b)
+  return _ljs_to_float(_ljs_to_number(a)) - _ljs_to_float(_ljs_to_number(b))
 end]]
 
 HELPERS._ljs_mul = [[local function _ljs_mul(a, b)
-  return _ljs_to_number(a) * _ljs_to_number(b)
+  return _ljs_to_float(_ljs_to_number(a)) * _ljs_to_float(_ljs_to_number(b))
 end]]
 
 HELPERS._ljs_div = [[local function _ljs_div(a, b)
@@ -179,8 +213,8 @@ HELPERS._ljs_bnot = [[local function _ljs_bnot(x)
 end]]
 
 HELPERS._ljs_band = [[local function _ljs_band(a, b)
-  a = math.floor(a) % 0x100000000
-  b = math.floor(b) % 0x100000000
+  a = math.floor(_ljs_to_number(a)) % 0x100000000
+  b = math.floor(_ljs_to_number(b)) % 0x100000000
   local r, m = 0, 1
   while a > 0 and b > 0 do
     if a % 2 == 1 and b % 2 == 1 then r = r + m end
@@ -190,8 +224,8 @@ HELPERS._ljs_band = [[local function _ljs_band(a, b)
 end]]
 
 HELPERS._ljs_bor = [[local function _ljs_bor(a, b)
-  a = math.floor(a) % 0x100000000
-  b = math.floor(b) % 0x100000000
+  a = math.floor(_ljs_to_number(a)) % 0x100000000
+  b = math.floor(_ljs_to_number(b)) % 0x100000000
   local r, m = 0, 1
   while a > 0 or b > 0 do
     if a % 2 == 1 or b % 2 == 1 then r = r + m end
@@ -201,8 +235,12 @@ HELPERS._ljs_bor = [[local function _ljs_bor(a, b)
 end]]
 
 HELPERS._ljs_bxor = [[local function _ljs_bxor(a, b)
-  a = math.floor(a) % 0x100000000
-  b = math.floor(b) % 0x100000000
+  local an = _ljs_to_number(a)
+  if an ~= an then an = 0 else an = math.floor(an) % 0x100000000 end
+  a = an
+  local bn = _ljs_to_number(b)
+  if bn ~= bn then bn = 0 else bn = math.floor(bn) % 0x100000000 end
+  b = bn
   local r, m = 0, 1
   while a > 0 or b > 0 do
     if a % 2 ~= b % 2 then r = r + m end
@@ -213,21 +251,28 @@ end]]
 
 HELPERS._ljs_shl = [[local function _ljs_shl(a, b)
   a = _ljs_to_int32(a)
-  b = math.floor(b) % 32
+  local bn = _ljs_to_number(b)
+  if bn ~= bn then return a end
+  b = math.floor(bn) % 32
   if b == 0 then return a end
   return _ljs_to_int32(a * 2^b)
 end]]
 
 HELPERS._ljs_shr = [[local function _ljs_shr(a, b)
   a = _ljs_to_int32(a)
-  b = math.floor(b) % 32
+  local bn = _ljs_to_number(b)
+  if bn ~= bn then return a end
+  b = math.floor(bn) % 32
   if b == 0 then return a end
   return math.floor(a / 2^b)
 end]]
 
 HELPERS._ljs_usr = [[local function _ljs_usr(a, b)
-  a = math.floor(a) % 0x100000000
-  b = math.floor(b) % 32
+  local an = _ljs_to_number(a)
+  if an ~= an then an = 0 else an = math.floor(an) % 0x100000000 end
+  a = an
+  local bn = _ljs_to_number(b)
+  if bn ~= bn then b = 0 else b = math.floor(bn) % 32 end
   if b == 0 then return a end
   return math.floor(a / 2^b)
 end]]
@@ -245,9 +290,26 @@ HELPERS._ljs_mod = [[local function _ljs_mod(n, d)
   return r
 end]]
 
+HELPERS._ljs_index = [[local function _ljs_index(k)
+  if type(k) == "string" then
+    local n = tonumber(k)
+    if n and math.floor(n) == n and n >= 0 and tostring(n) == k then
+      return n + 1
+    end
+    return k
+  end
+  if type(k) == "number" then
+    if math.floor(k) == k and k >= 0 then
+      return k + 1
+    end
+    return _ljs_tostring(k)
+  end
+  return k
+end]]
+
 -- typeof per §13.5.3: nil (undefined) → "undefined", _ljs_null → "object".
 HELPERS._ljs_typeof = [[local function _ljs_typeof(x)
-  if x == nil then return "undefined"
+  if _ljs_is_undef(x) then return "undefined"
   elseif x == _ljs_null then return "object"
   elseif type(x) == "table" then
     local mt = getmetatable(x)
@@ -280,7 +342,7 @@ end]]
 -- Get a string representation of a value for error messages (similar to Node.js).
 -- Returns a representation suitable for use in "X is not a function" style errors.
 HELPERS._ljs_value_repr = [[local function _ljs_value_repr(x)
-  if x == nil then return "undefined"
+  if _ljs_is_undef(x) then return "undefined"
   elseif x == _ljs_null then return "null"
   elseif type(x) == "number" then
     if x ~= x then return "NaN" end
@@ -302,9 +364,62 @@ end]]
 
 -- Direct call: f(a,b) → _ljs_call(f,a,b). Passes nil as _ljs_this (no receiver).
 -- Throws TypeError if fn is not callable.
+HELPERS._ljs_type_error = [[local function _ljs_type_error(msg)
+  error(setmetatable({ message = msg }, { __index = TypeError.prototype }), 0)
+end]]
+
+HELPERS._ljs_range_error = [[local function _ljs_range_error(msg)
+  error(setmetatable({ message = msg }, { __index = RangeError.prototype }), 0)
+end]]
+
+HELPERS._ljs_for_in_keys = [[local function _ljs_for_in_keys(obj)
+  local keys = {}
+  if type(obj) == "string" then
+    local len = #obj
+    for i = 1, len do
+      keys[i] = tostring(i - 1)
+    end
+    return keys
+  end
+  if type(obj) ~= "table" then
+    return keys
+  end
+  if _ljs_instanceof(obj, Array) then
+    local len = obj.length or 0
+    for i = 1, len do
+      if rawget(obj, i) ~= nil then
+        keys[#keys + 1] = tostring(i - 1)
+      end
+    end
+  else
+    local data = rawget(obj, "_ljs_data")
+    if type(data) == "string" then
+      local mt = getmetatable(obj)
+      if mt and (mt.__index == _ljs_string_box_index or mt.__index == _ljs_string_prototype) then
+        local len = #data
+        for i = 1, len do
+          keys[#keys + 1] = tostring(i - 1)
+        end
+        for k in pairs(obj) do
+          if type(k) == "string" and k ~= "_ljs_data" then
+            keys[#keys + 1] = k
+          end
+        end
+        return keys
+      end
+    end
+    for k in pairs(obj) do
+      if type(k) == "string" then
+        keys[#keys + 1] = k
+      end
+    end
+  end
+  return keys
+end]]
+
 HELPERS._ljs_call = [[local function _ljs_call(fn, ...)
   if not _ljs_is_function(fn) then
-    error("TypeError: " .. _ljs_value_repr(fn) .. " is not a function")
+    _ljs_type_error(_ljs_value_repr(fn) .. " is not a function")
   end
   if type(fn) == "table" then
     local raw = rawget(fn, "_ljs_raw")
@@ -328,19 +443,35 @@ HELPERS._ljs_to_object = [[local function _ljs_to_object(obj)
   return obj
 end]]
 
+HELPERS._ljs_iter_string = [[local function _ljs_iter_string(obj)
+  if type(obj) ~= "string" then
+    return _ljs_to_object(obj)
+  end
+  local cps = {}
+  local i = 1
+  while i <= #obj do
+    local b = obj:byte(i)
+    local len = b < 128 and 1 or b < 224 and 2 or b < 240 and 3 or 4
+    cps[#cps + 1] = obj:sub(i, i + len - 1)
+    i = i + len
+  end
+  cps.length = #cps
+  return cps
+end]]
+
 -- Method call: obj.m(a,b) → _ljs_call_member(obj,"m",a,b). Passes obj as _ljs_this.
 -- Throws TypeError on null/undefined per RequireObjectCoercible (§7.2.1).
 -- Boxes primitives via _ljs_to_object before property lookup.
 -- Throws TypeError if method is not callable.
 HELPERS._ljs_call_member = [[local function _ljs_call_member(obj, key, ...)
-  if obj == nil or obj == _ljs_null then
-    local desc = obj == nil and "undefined" or "null"
-    error("TypeError: Cannot read properties of " .. desc .. " (reading '" .. tostring(key) .. "')")
+  if _ljs_is_nilish(obj) then
+    local desc = _ljs_is_undef(obj) and "undefined" or "null"
+    _ljs_type_error("Cannot read properties of " .. desc .. " (reading '" .. tostring(key) .. "')")
   end
   local boxed = _ljs_to_object(obj)
   local method = boxed[key]
   if not _ljs_is_function(method) then
-    error("TypeError: " .. _ljs_value_repr(method) .. " is not a function")
+    _ljs_type_error(_ljs_value_repr(method) .. " is not a function")
   end
   if type(method) == "table" then
     local raw = rawget(method, "_ljs_raw")
@@ -349,18 +480,45 @@ HELPERS._ljs_call_member = [[local function _ljs_call_member(obj, key, ...)
   return method(boxed, ...)
 end]]
 
+HELPERS._ljs_get_proto = [[local function _ljs_get_proto(obj)
+  if type(obj) ~= "table" then return _ljs_undefined end
+  local mt = getmetatable(obj)
+  if mt == nil then return _ljs_null end
+  local proto = mt.__index
+  if proto == _ljs_string_box_index then
+    return _ljs_string_prototype
+  end
+  if type(proto) ~= "table" then return _ljs_null end
+  return proto
+end]]
+
+HELPERS._ljs_set_proto = [[local function _ljs_set_proto(obj, value)
+  if type(obj) ~= "table" then return value end
+  local mt = getmetatable(obj)
+  if mt == nil then return value end
+  if value == _ljs_null then
+    rawset(mt, "__index", function(t, k) return _ljs_undefined end)
+  elseif type(value) == "table" and not _ljs_is_undef(value) then
+    rawset(mt, "__index", value)
+  end
+  return value
+end]]
+
 -- Wraps a table with Object.prototype as __index. Used for all object literals.
 HELPERS._ljs_object = [[local function _ljs_object(t)
   return setmetatable(t, { __index = _ljs_object_prototype })
 end]]
 
 HELPERS._ljs_object_create = [[local function _ljs_object_create(_ljs_this, proto)
+  if proto == nil or proto == _ljs_null then
+    return setmetatable({}, { __index = function(t, k) return _ljs_undefined end })
+  end
   return setmetatable({}, {__index = proto})
 end]]
 
 -- Wraps a plain Lua function as a callable table with Function.prototype chain.
 -- Used for arrow functions and method shorthand — no .prototype property.
-HELPERS._ljs_fn = [[local function _ljs_fn(fn)
+HELPERS._ljs_fn = [[local function _ljs_fn(fn, name)
   local t = setmetatable({}, {
     __call = function(_, ...)
       return fn(nil, ...)
@@ -368,14 +526,15 @@ HELPERS._ljs_fn = [[local function _ljs_fn(fn)
     __index = _ljs_function_prototype,
   })
   rawset(t, "_ljs_raw", fn)
+  rawset(t, "name", name or "")
   return t
 end]]
 
 -- Wraps a function as a constructor: callable table + .prototype inheriting
 -- from _ljs_object_prototype. Used for FunctionDeclaration, FunctionExpression,
 -- and class constructors.
-HELPERS._ljs_ctor = [[local function _ljs_ctor(fn)
-  local ctor = _ljs_fn(fn)
+HELPERS._ljs_ctor = [[local function _ljs_ctor(fn, name)
+  local ctor = _ljs_fn(fn, name)
   ctor.prototype = setmetatable({ constructor = ctor }, { __index = _ljs_object_prototype })
   return ctor
 end]]
@@ -386,7 +545,7 @@ end]]
 -- Throws TypeError if ctor is not a constructor.
 HELPERS._ljs_new = [[local function _ljs_new(ctor, ...)
   if not _ljs_is_constructor(ctor) then
-    error("TypeError: " .. _ljs_value_repr(ctor) .. " is not a constructor")
+    _ljs_type_error(_ljs_value_repr(ctor) .. " is not a constructor")
   end
   local proto = ctor.prototype
   local instance = setmetatable({}, {__index = proto})
@@ -397,21 +556,42 @@ HELPERS._ljs_new = [[local function _ljs_new(ctor, ...)
   else
     result = ctor(instance, ...)
   end
-  if type(result) == "table" then
+  if type(result) == "table" and not _ljs_is_undef(result) and result ~= _ljs_null then
     return result
   end
   return instance
 end]]
 
+HELPERS._ljs_arr_lit = [[local function _ljs_arr_lit(...)
+  local _t = _ljs_new(Array)
+  local _n = select("#", ...)
+  for _i = 1, _n do
+    rawset(_t, _i, select(_i, ...))
+  end
+  rawset(_t, "length", _n)
+  return _t
+end]]
+
 HELPERS._ljs_call_this = [[local function _ljs_call_this(fn, this_val, ...)
   if not _ljs_is_function(fn) then
-    error("TypeError: " .. _ljs_value_repr(fn) .. " is not a function")
+    _ljs_type_error(_ljs_value_repr(fn) .. " is not a function")
   end
   if type(fn) == "table" then
     local raw = rawget(fn, "_ljs_raw")
-    if raw then return raw(this_val, ...) end
+    if raw then raw(this_val, ...); return this_val end
   end
-  return fn(this_val, ...)
+  fn(this_val, ...)
+  return this_val
+end]]
+
+HELPERS._ljs_arguments = [[local function _ljs_arguments(...)
+  local args = _ljs_object({})
+  local n = select("#", ...)
+  args.length = n
+  for i = 1, n do
+    args[i] = select(i, ...)
+  end
+  return args
 end]]
 
 HELPERS._ljs_spread_build = [[local function _ljs_spread_build(...)
@@ -521,7 +701,7 @@ HELPERS._ljs_to_primitive = [[local function _ljs_to_primitive(obj)
     local result = _ljs_invoke(to_str, obj)
     if type(result) ~= "table" then return result end
   end
-  error("TypeError: Cannot convert object to primitive value")
+  _ljs_type_error("Cannot convert object to primitive value")
 end]]
 
 -- StringToNumber per §7.1.4.1: converts a JS string to a number.
@@ -558,13 +738,16 @@ end]]
 HELPERS._ljs_eq = [[local function _ljs_eq(a, b)
   local a_is_null = (a == _ljs_null)
   local b_is_null = (b == _ljs_null)
-  local ta = a_is_null and "null" or (a == nil) and "undefined" or type(a)
-  local tb = b_is_null and "null" or (b == nil) and "undefined" or type(b)
+  local a_is_undef = _ljs_is_undef(a)
+  local b_is_undef = _ljs_is_undef(b)
+  local ta = a_is_null and "null" or a_is_undef and "undefined" or type(a)
+  local tb = b_is_null and "null" or b_is_undef and "undefined" or type(b)
   if ta == tb then
     if ta == "number" then
       if a ~= a or b ~= b then return false end
       return a == b
     end
+    if ta == "undefined" then return true end
     return a == b
   end
   if (ta == "null" and tb == "undefined") or (ta == "undefined" and tb == "null") then
@@ -589,6 +772,11 @@ HELPERS._ljs_eq = [[local function _ljs_eq(a, b)
     return _ljs_eq(_ljs_to_primitive(a), b)
   end
   return false
+end]]
+
+HELPERS._ljs_strict_eq = [[local function _ljs_strict_eq(a, b)
+  if a == b then return true end
+  return (a == nil and b == _ljs_undefined) or (a == _ljs_undefined and b == nil)
 end]]
 
 HELPERS._ljs_lt = [[local function _ljs_lt(a, b)
@@ -617,6 +805,21 @@ HELPERS._ljs_ge = [[local function _ljs_ge(a, b)
     return a >= b
   end
   return _ljs_to_number(a) >= _ljs_to_number(b)
+end]]
+
+HELPERS._ljs_has_property = [[local function _ljs_has_property(obj, key)
+  local current = obj
+  while current ~= nil do
+    if rawget(current, key) ~= nil then
+      return true
+    end
+    local mt = getmetatable(current)
+    if mt == nil then break end
+    local idx = mt.__index
+    if type(idx) ~= "table" then break end
+    current = idx
+  end
+  return false
 end]]
 
 -- ============================================================================
@@ -660,7 +863,240 @@ local function has_continue(node)
   return false
 end
 
---- Check whether an AST subtree contains break, continue, or return
+local function body_references_arguments(node)
+  if not node or type(node) ~= "table" then
+    return false
+  end
+  if node.type == ast.TYPE_IDENTIFIER and node.name == "arguments" then
+    return true
+  end
+  if node.type == ast.TYPE_FUNCTION_DECLARATION or node.type == ast.TYPE_FUNCTION_EXPRESSION then
+    return false
+  end
+  if node.type == ast.TYPE_MEMBER_EXPRESSION and not node.computed then
+    return body_references_arguments(node.object)
+  end
+  if node.type == ast.TYPE_PROPERTY and not node.computed then
+    return body_references_arguments(node.value)
+  end
+  for _, v in pairs(node) do
+    if type(v) == "table" then
+      if body_references_arguments(v) then
+        return true
+      end
+    end
+  end
+  return false
+end
+
+local function references_identifier(node, name)
+  if not node or type(node) ~= "table" then
+    return false
+  end
+  if node.type == ast.TYPE_IDENTIFIER and node.name == name then
+    return true
+  end
+  if
+    node.type == ast.TYPE_FUNCTION_DECLARATION
+    or node.type == ast.TYPE_FUNCTION_EXPRESSION
+    or node.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION
+  then
+    return false
+  end
+  if node.type == ast.TYPE_MEMBER_EXPRESSION and not node.computed then
+    return references_identifier(node.object, name)
+  end
+  if node.type == ast.TYPE_PROPERTY and not node.computed then
+    return references_identifier(node.value, name)
+  end
+  if node.type == ast.TYPE_CATCH_CLAUSE then
+    if node.param and node.param.name == name then
+      return false
+    end
+    return references_identifier(node.body, name)
+  end
+  for _, v in pairs(node) do
+    if type(v) == "table" then
+      if references_identifier(v, name) then
+        return true
+      end
+    end
+  end
+  return false
+end
+local function extract_binding_names(target, out)
+  out = out or {}
+  if not target then
+    return out
+  end
+  if target.type == ast.TYPE_IDENTIFIER then
+    out[#out + 1] = target.name
+  elseif target.type == ast.TYPE_OBJECT_PATTERN then
+    for _, prop in ipairs(target.properties) do
+      if prop.type == ast.TYPE_REST_ELEMENT then
+        extract_binding_names(prop.argument, out)
+      else
+        extract_binding_names(prop.value, out)
+      end
+    end
+  elseif target.type == ast.TYPE_ARRAY_PATTERN then
+    for _, elem in ipairs(target.elements) do
+      extract_binding_names(elem, out)
+    end
+  elseif target.type == ast.TYPE_ASSIGNMENT_PATTERN then
+    extract_binding_names(target.left, out)
+  elseif target.type == ast.TYPE_REST_ELEMENT then
+    extract_binding_names(target.argument, out)
+  end
+  return out
+end
+
+local function check_sequential_tdz(pattern, not_initialized)
+  if not pattern or type(pattern) ~= "table" then
+    return
+  end
+  if pattern.type == ast.TYPE_ASSIGNMENT_PATTERN then
+    for name, _ in pairs(not_initialized) do
+      if references_identifier(pattern.right, name) then
+        error("ReferenceError: Cannot access '" .. name .. "' before initialization", 0)
+      end
+    end
+    check_sequential_tdz(pattern.left, not_initialized)
+    for _, n in ipairs(extract_binding_names(pattern.left)) do
+      not_initialized[n] = nil
+    end
+  elseif pattern.type == ast.TYPE_OBJECT_PATTERN then
+    for _, prop in ipairs(pattern.properties) do
+      local target = prop.type == ast.TYPE_REST_ELEMENT and prop.argument or prop.value
+      check_sequential_tdz(target, not_initialized)
+      for _, n in ipairs(extract_binding_names(target)) do
+        not_initialized[n] = nil
+      end
+    end
+  elseif pattern.type == ast.TYPE_ARRAY_PATTERN then
+    for _, elem in ipairs(pattern.elements) do
+      if elem then
+        check_sequential_tdz(elem, not_initialized)
+        for _, n in ipairs(extract_binding_names(elem)) do
+          not_initialized[n] = nil
+        end
+      end
+    end
+  elseif pattern.type == ast.TYPE_REST_ELEMENT then
+    check_sequential_tdz(pattern.argument, not_initialized)
+    for _, n in ipairs(extract_binding_names(pattern.argument)) do
+      not_initialized[n] = nil
+    end
+  end
+end
+
+local function scope_shadows_name(node, name)
+  if node.type == ast.TYPE_BLOCK_STATEMENT then
+    for _, s in ipairs(node.body) do
+      if s.type == ast.TYPE_VARIABLE_DECLARATION and s.kind ~= "var" then
+        for _, d in ipairs(s.declarations) do
+          local names = extract_binding_names(d.name)
+          for _, n in ipairs(names) do
+            if n == name then
+              return true
+            end
+          end
+        end
+      end
+    end
+    return false
+  end
+  if node.type == ast.TYPE_FOR_STATEMENT then
+    if
+      node.init
+      and node.init.type == ast.TYPE_VARIABLE_DECLARATION
+      and node.init.kind ~= "var"
+    then
+      for _, d in ipairs(node.init.declarations) do
+        local names = extract_binding_names(d.name)
+        for _, n in ipairs(names) do
+          if n == name then
+            return true
+          end
+        end
+      end
+    end
+    return false
+  end
+  if node.type == ast.TYPE_FOR_OF_STATEMENT or node.type == ast.TYPE_FOR_IN_STATEMENT then
+    if node.left.type == ast.TYPE_VARIABLE_DECLARATION and node.left.kind ~= "var" then
+      for _, d in ipairs(node.left.declarations) do
+        local names = extract_binding_names(d.name)
+        for _, n in ipairs(names) do
+          if n == name then
+            return true
+          end
+        end
+      end
+    end
+    return false
+  end
+  if node.type == ast.TYPE_SWITCH_STATEMENT then
+    for _, c in ipairs(node.cases) do
+      for _, s in ipairs(c.consequent) do
+        if s.type == ast.TYPE_VARIABLE_DECLARATION and s.kind ~= "var" then
+          for _, d in ipairs(s.declarations) do
+            local names = extract_binding_names(d.name)
+            for _, n in ipairs(names) do
+              if n == name then
+                return true
+              end
+            end
+          end
+        end
+      end
+    end
+    return false
+  end
+  return false
+end
+
+local function references_identifier_scope_aware(node, name)
+  if not node or type(node) ~= "table" then
+    return false
+  end
+  if node.type == ast.TYPE_IDENTIFIER and node.name == name then
+    return true
+  end
+  if
+    node.type == ast.TYPE_FUNCTION_DECLARATION
+    or node.type == ast.TYPE_FUNCTION_EXPRESSION
+    or node.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION
+  then
+    return false
+  end
+  if node.type == ast.TYPE_VARIABLE_DECLARATOR then
+    return node.init and references_identifier_scope_aware(node.init, name) or false
+  end
+  if node.type == ast.TYPE_MEMBER_EXPRESSION and not node.computed then
+    return references_identifier_scope_aware(node.object, name)
+  end
+  if node.type == ast.TYPE_PROPERTY and not node.computed then
+    return references_identifier_scope_aware(node.value, name)
+  end
+  if node.type == ast.TYPE_CATCH_CLAUSE then
+    if node.param and node.param.name == name then
+      return false
+    end
+    return references_identifier_scope_aware(node.body, name)
+  end
+  if scope_shadows_name(node, name) then
+    return false
+  end
+  for _, v in pairs(node) do
+    if type(v) == "table" then
+      if references_identifier_scope_aware(v, name) then
+        return true
+      end
+    end
+  end
+  return false
+end
 -- that would cross a pcall function boundary.
 -- Stops at loop boundaries (for break/continue) and function boundaries.
 -- @param node (table|nil) AST node
@@ -708,9 +1144,15 @@ local function detect_control_flow(node, in_switch)
         if not result then
           result = {}
         end
-        if inner.break_ then result.break_ = true end
-        if inner.continue_ then result.continue_ = true end
-        if inner.return_ then result.return_ = true end
+        if inner.break_ then
+          result.break_ = true
+        end
+        if inner.continue_ then
+          result.continue_ = true
+        end
+        if inner.return_ then
+          result.return_ = true
+        end
       end
     end
   end
@@ -768,12 +1210,8 @@ local function transform_control_flow(node, in_switch)
       ),
     }
     if node.argument then
-      props[#props + 1] = ast.property(
-        ast.identifier("_ljs_v", DUMMY_TOKEN),
-        node.argument,
-        false,
-        DUMMY_TOKEN
-      )
+      props[#props + 1] =
+        ast.property(ast.identifier("_ljs_v", DUMMY_TOKEN), node.argument, false, DUMMY_TOKEN)
     end
     return ast.throw_statement(ast.object_expression(props, DUMMY_TOKEN), DUMMY_TOKEN)
   end
@@ -816,27 +1254,50 @@ local function sentinel_handler(indent, err_var, cf, rethrow)
   err_var = err_var or "err"
   local pad = cg.pad(indent)
   local lines = {
-    pad .. 'if type(' .. err_var .. ') == "table" and ' .. err_var .. '._ljs_cf then',
+    pad .. "if type(" .. err_var .. ') == "table" and ' .. err_var .. "._ljs_cf then",
   }
   if cf.break_ then
     if rethrow then
-      lines[#lines + 1] = pad .. '  if ' .. err_var .. '._ljs_cf == "break" then error(' .. err_var .. ') end'
+      lines[#lines + 1] = pad
+        .. "  if "
+        .. err_var
+        .. '._ljs_cf == "break" then error('
+        .. err_var
+        .. ") end"
     else
-      lines[#lines + 1] = pad .. '  if ' .. err_var .. '._ljs_cf == "break" then break end'
+      lines[#lines + 1] = pad .. "  if " .. err_var .. '._ljs_cf == "break" then break end'
     end
   end
   if cf.continue_ then
     if rethrow then
-      lines[#lines + 1] = pad .. '  if ' .. err_var .. '._ljs_cf == "continue" then error(' .. err_var .. ') end'
+      lines[#lines + 1] = pad
+        .. "  if "
+        .. err_var
+        .. '._ljs_cf == "continue" then error('
+        .. err_var
+        .. ") end"
     else
-      lines[#lines + 1] = pad .. '  if ' .. err_var .. '._ljs_cf == "continue" then goto _continue end'
+      lines[#lines + 1] = pad
+        .. "  if "
+        .. err_var
+        .. '._ljs_cf == "continue" then goto _continue end'
     end
   end
   if cf.return_ then
     if rethrow then
-      lines[#lines + 1] = pad .. '  if ' .. err_var .. '._ljs_cf == "return" then error(' .. err_var .. ') end'
+      lines[#lines + 1] = pad
+        .. "  if "
+        .. err_var
+        .. '._ljs_cf == "return" then error('
+        .. err_var
+        .. ") end"
     else
-      lines[#lines + 1] = pad .. "  if " .. err_var .. '._ljs_cf == "return" then return ' .. err_var .. "._ljs_v end"
+      lines[#lines + 1] = pad
+        .. "  if "
+        .. err_var
+        .. '._ljs_cf == "return" then return '
+        .. err_var
+        .. "._ljs_v end"
     end
   end
   lines[#lines + 1] = pad .. "end\n"
@@ -858,8 +1319,31 @@ local function scope_pop(ctx)
   ctx.scopes[#ctx.scopes] = nil
 end
 
-local function scope_declare(ctx, name)
-  ctx.scopes[#ctx.scopes][name] = true
+local function scope_declare(ctx, name, kind)
+  local scope = ctx.scopes[#ctx.scopes]
+  local existing = scope[name]
+  if existing then
+    if not (existing == "var" and kind == "var") then
+      error("SyntaxError: Identifier '" .. name .. "' has already been declared", 0)
+    end
+  end
+  scope[name] = kind or "let"
+end
+
+local function scope_lookup(ctx, name)
+  for i = #ctx.scopes, 1, -1 do
+    local k = ctx.scopes[i][name]
+    if k then
+      return k
+    end
+  end
+  return nil
+end
+
+local function check_assign(ctx, name)
+  if scope_lookup(ctx, name) == "const" then
+    error("TypeError: Assignment to constant variable '" .. name .. "'", 0)
+  end
 end
 
 -- gen[node_type] handles expression-context emission.
@@ -880,6 +1364,20 @@ local function method_key(m)
   return cg.string(m.key.value)
 end
 
+local function is_proto_member(node)
+  if not node.computed and node.property.name == "__proto__" then
+    return true
+  end
+  if
+    node.computed
+    and node.property.type == ast.TYPE_STRING_LITERAL
+    and node.property.value == "__proto__"
+  then
+    return true
+  end
+  return false
+end
+
 --- Dispatch to the type-specific emitter for the given AST node.
 -- @param node (table) AST node with a `type` field
 -- @param indent (number) Current indentation level
@@ -894,24 +1392,106 @@ end
 -- @param indent (number) Current indentation level
 -- @param ctx (table) Transpilation context
 -- @return (string) Concatenated Lua source
+local function collect_var_names(node, names)
+  if node.type == ast.TYPE_VARIABLE_DECLARATION then
+    for _, decl in ipairs(node.declarations) do
+      extract_binding_names(decl.name, names)
+    end
+  end
+end
+
 local function emit_body(stmts, indent, ctx)
-  local parts = {}
+  local func_decls = {}
   for _, s in ipairs(stmts) do
-    local code = emit(s, indent, ctx)
-    if #parts > 0 and #code > 0 then
-      local prev = parts[#parts]
-      if prev:sub(-1) == "\n" then
-        prev = prev:sub(1, -2)
-      end
-      local prev_last = prev:match("(%S)$")
-      if prev_last == ")" then
-        local first_sig = code:match("^%s*(%S)")
-        if first_sig == "(" then
-          code = cg.pad(indent) .. ";\n" .. code
+    if s.type == ast.TYPE_FUNCTION_DECLARATION then
+      func_decls[#func_decls + 1] = s
+    end
+  end
+  for i, s in ipairs(stmts) do
+    if s.type == ast.TYPE_VARIABLE_DECLARATION and s.kind ~= "var" then
+      for _, decl in ipairs(s.declarations) do
+        local names = extract_binding_names(decl.name)
+        for _, n in ipairs(names) do
+          for j = 1, i - 1 do
+            if references_identifier_scope_aware(stmts[j], n) then
+              error("ReferenceError: Cannot access '" .. n .. "' before initialization", 0)
+            end
+          end
         end
       end
     end
+  end
+  if #func_decls == 0 then
+    local parts = {}
+    for _, s in ipairs(stmts) do
+      local code = emit(s, indent, ctx)
+      if #parts > 0 and #code > 0 then
+        local prev = parts[#parts]
+        if prev:sub(-1) == "\n" then
+          prev = prev:sub(1, -2)
+        end
+        local prev_last = prev:match("(%S)$")
+        if prev_last and (prev_last:match("[%w%)%]']") or prev_last == '"') then
+          local first_sig = code:match("^%s*(%S)")
+          if first_sig == "(" then
+            code = cg.pad(indent) .. ";\n" .. code
+          end
+        end
+      end
+      parts[#parts + 1] = code
+    end
+    return table.concat(parts)
+  end
+  local func_names = {}
+  for _, s in ipairs(func_decls) do
+    func_names[s.name] = true
+  end
+  local var_names = {}
+  for _, s in ipairs(stmts) do
+    if s.type ~= ast.TYPE_FUNCTION_DECLARATION then
+      collect_var_names(s, var_names)
+    end
+  end
+  local parts = {}
+  local all_fwd = {}
+  for name, _ in pairs(func_names) do
+    all_fwd[#all_fwd + 1] = name
+  end
+  for _, name in ipairs(var_names) do
+    if not func_names[name] then
+      all_fwd[#all_fwd + 1] = name
+    end
+  end
+  if #all_fwd > 0 then
+    table.sort(all_fwd)
+    parts[#parts + 1] = cg.local_decl(table.concat(all_fwd, ", "), nil, indent)
+    local scope = ctx.scopes[#ctx.scopes]
+    for _, name in ipairs(all_fwd) do
+      scope[name] = func_names[name] and "__fwd_func" or "__fwd_var"
+    end
+  end
+  for _, s in ipairs(func_decls) do
+    local code = emit(s, indent, ctx)
     parts[#parts + 1] = code
+  end
+  for _, s in ipairs(stmts) do
+    if s.type ~= ast.TYPE_FUNCTION_DECLARATION then
+      local code = emit(s, indent, ctx)
+      if #parts > 0 and #code > 0 then
+        local prev = parts[#parts]
+        if prev:sub(-1) == "\n" then
+          prev = prev:sub(1, -2)
+        end
+        local prev_last = prev:match("(%S)$")
+        if prev_last and (prev_last:match("[%w%)%]']") or prev_last == '"') then
+          local first_sig = code:match("^%s*(%S)")
+          if first_sig == "(" then
+            code = cg.pad(indent) .. ";\n" .. code
+          end
+        end
+      end
+      parts[#parts + 1] = code
+    end
   end
   return table.concat(parts)
 end
@@ -932,6 +1512,8 @@ end
 -- @return (string) Lua function expression string
 local fresh_tmp
 local emit_destructure
+local emit_block_body
+local emit_controlled_body
 
 local function param_name(p)
   if p.type == ast.TYPE_IDENTIFIER then
@@ -969,35 +1551,63 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
   end
   if has_rest then
     params[#params + 1] = "..."
+  elseif body_references_arguments(fn_node.body) then
+    params[#params + 1] = "..."
   end
   scope_push(ctx)
   if extra_scope_names then
     for _, name in ipairs(extra_scope_names) do
-      scope_declare(ctx, name)
+      scope_declare(ctx, name, "let")
     end
   end
   if fn_node.name then
-    scope_declare(ctx, fn_node.name)
+    scope_declare(ctx, fn_node.name, "let")
   end
+  local has_arguments_param = false
   for _, p in ipairs(fn_node.params) do
     local name = param_name(p)
+    if name == "arguments" then
+      has_arguments_param = true
+    end
     if name then
-      scope_declare(ctx, name)
+      scope_declare(ctx, name, "let")
     end
   end
-  local body = emit(fn_node.body, indent, ctx)
+  local body = emit_block_body(fn_node.body, indent, ctx)
   local preamble = ""
   for _, p in ipairs(fn_node.params) do
+    if
+      p.type ~= ast.TYPE_REST_ELEMENT
+      and not is_pattern(p)
+      and p.type ~= ast.TYPE_ASSIGNMENT_PATTERN
+    then
+      local pname = param_name(p)
+      if pname then
+        preamble = preamble
+          .. cg.if_stmt(
+            pname .. " == nil",
+            cg.expr_stmt(cg.binop("=", pname, "_ljs_undefined"), indent + 2),
+            nil,
+            nil,
+            indent + 1
+          )
+      end
+    end
+  end
+  for _, p in ipairs(fn_node.params) do
     if p.type == ast.TYPE_REST_ELEMENT then
-      preamble = preamble .. cg.local_decl(p.argument.name, cg.call("_ljs_new", { "Array", "..." }), indent + 1)
+      preamble = preamble
+        .. cg.local_decl(p.argument.name, cg.call("_ljs_arr_lit", { "..." }), indent + 1)
     elseif p.type == ast.TYPE_ASSIGNMENT_PATTERN and not is_pattern(p.left) then
       local pname = p.left.name
       local default_code = emit(p.right, indent + 1, ctx)
       preamble = preamble
         .. cg.if_stmt(
-          pname .. " == nil",
+          "_ljs_is_undef(" .. pname .. ")",
           cg.expr_stmt(cg.binop("=", pname, default_code), indent + 2),
-          nil, nil, indent + 1
+          nil,
+          nil,
+          indent + 1
         )
     end
   end
@@ -1006,9 +1616,11 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
       local default_code = emit(entry.default, indent + 1, ctx)
       preamble = preamble
         .. cg.if_stmt(
-          entry.tmp .. " == nil",
+          "_ljs_is_undef(" .. entry.tmp .. ")",
           cg.expr_stmt(cg.binop("=", entry.tmp, default_code), indent + 2),
-          nil, nil, indent + 1
+          nil,
+          nil,
+          indent + 1
         )
     end
     local out = {}
@@ -1017,8 +1629,23 @@ local function emit_fn(fn_node, indent, ctx, extra_scope_names)
       preamble = preamble .. line
     end
   end
-  local save_src = fn_node.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION and "_ljs_arrow_this" or "_ljs_this"
-  body = cg.local_decl("_ljs_arrow_this", save_src, indent + 1) .. preamble .. body
+  if
+    body_references_arguments(fn_node.body)
+    and not has_arguments_param
+    and fn_node.type ~= ast.TYPE_ARROW_FUNCTION_EXPRESSION
+  then
+    preamble = preamble
+      .. cg.local_decl("arguments", cg.call("_ljs_arguments", { "..." }), indent + 1)
+  end
+  local save_src = fn_node.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION and "_ljs_arrow_this"
+    or "_ljs_this"
+  local stmts = fn_node.body.body
+  local last = stmts[#stmts]
+  local trailing = ""
+  if not last or last.type ~= ast.TYPE_RETURN_STATEMENT then
+    trailing = cg.return_stmt("_ljs_undefined", indent + 1)
+  end
+  body = cg.local_decl("_ljs_arrow_this", save_src, indent + 1) .. preamble .. body .. trailing
   scope_pop(ctx)
   return cg.fn_expr(cg.join(params), body, indent)
 end
@@ -1027,7 +1654,11 @@ local function is_elseif_chain(node)
   if node.type == ast.TYPE_IF_STATEMENT then
     return true
   end
-  if node.type == ast.TYPE_BLOCK_STATEMENT and #node.body == 1 and node.body[1].type == ast.TYPE_IF_STATEMENT then
+  if
+    node.type == ast.TYPE_BLOCK_STATEMENT
+    and #node.body == 1
+    and node.body[1].type == ast.TYPE_IF_STATEMENT
+  then
     return true
   end
   return false
@@ -1040,7 +1671,7 @@ end
 -- @return (string) test, (string) then_body, (table|nil) elseifs, (string|nil) else_body
 local function collect_if_chain(node, indent, ctx)
   local test = cg.call("_ljs_to_boolean", { emit(node.test, indent, ctx) })
-  local body = emit(node.consequent, indent, ctx)
+  local body = emit_controlled_body(node.consequent, indent, ctx)
   local elseifs = {}
   local else_body = nil
 
@@ -1050,11 +1681,11 @@ local function collect_if_chain(node, indent, ctx)
       local inner = alternate.type == ast.TYPE_IF_STATEMENT and alternate or alternate.body[1]
       elseifs[#elseifs + 1] = {
         test = cg.call("_ljs_to_boolean", { emit(inner.test, indent, ctx) }),
-        body = emit(inner.consequent, indent, ctx),
+        body = emit_controlled_body(inner.consequent, indent, ctx),
       }
       alternate = inner.alternate
     else
-      else_body = emit(alternate, indent, ctx)
+      else_body = emit_controlled_body(alternate, indent, ctx)
       break
     end
   end
@@ -1105,7 +1736,7 @@ gen.NullLiteral = function()
 end
 
 gen.UndefinedLiteral = function()
-  return cg.nil_val()
+  return "_ljs_undefined"
 end
 
 gen.Identifier = function(node)
@@ -1136,21 +1767,39 @@ end
 
 local function expr_produces_valid_stmt(node)
   local t = node.type
-  if t == ast.TYPE_CALL_EXPRESSION then return true end
-  if t == ast.TYPE_NEW_EXPRESSION then return true end
-  if t == ast.TYPE_OBJECT_EXPRESSION then return true end
-  if t == ast.TYPE_ARRAY_EXPRESSION then return true end
-  if t == ast.TYPE_FUNCTION_EXPRESSION then return true end
-  if t == ast.TYPE_ARROW_FUNCTION_EXPRESSION then return true end
-  if t == ast.TYPE_CLASS_EXPRESSION then return true end
+  if t == ast.TYPE_CALL_EXPRESSION then
+    return true
+  end
+  if t == ast.TYPE_NEW_EXPRESSION then
+    return true
+  end
+  if t == ast.TYPE_OBJECT_EXPRESSION then
+    return true
+  end
+  if t == ast.TYPE_ARRAY_EXPRESSION then
+    return true
+  end
+  if t == ast.TYPE_FUNCTION_EXPRESSION then
+    return true
+  end
+  if t == ast.TYPE_ARROW_FUNCTION_EXPRESSION then
+    return true
+  end
+  if t == ast.TYPE_CLASS_EXPRESSION then
+    return true
+  end
   if t == ast.TYPE_BINARY_EXPRESSION then
     local op = node.operator
-    if op == "===" or op == "!==" or op == "!=" or op == "in" then return false end
+    if op == "===" or op == "!==" or op == "!=" or op == "in" then
+      return false
+    end
     return true
   end
   if t == ast.TYPE_UNARY_EXPRESSION then
     local op = node.operator
-    if op == "~" or op == "+" then return true end
+    if op == "~" or op == "+" then
+      return true
+    end
     return false
   end
   return false
@@ -1179,10 +1828,19 @@ fresh_tmp = function()
   return "_ljs_d" .. destructure_counter
 end
 
-
-local function emit_binding(target, access, indent, ctx, out)
+local function emit_binding(target, access, indent, ctx, out, kind)
   if target.type == ast.TYPE_IDENTIFIER then
-    scope_declare(ctx, target.name)
+    local scope = ctx.scopes[#ctx.scopes]
+    local existing = scope[target.name]
+    local is_fwd = existing == "__fwd_func" or existing == "__fwd_var"
+    if is_fwd then
+      if existing == "__fwd_func" and (kind == "let" or kind == "const") then
+        error("SyntaxError: Identifier '" .. target.name .. "' has already been declared", 0)
+      end
+      scope[target.name] = kind
+    else
+      scope_declare(ctx, target.name, kind)
+    end
     out[#out + 1] = cg.local_decl(target.name, access, indent)
   elseif target.type == ast.TYPE_ASSIGNMENT_PATTERN then
     local inner = target.left
@@ -1190,32 +1848,57 @@ local function emit_binding(target, access, indent, ctx, out)
     local var_name
     if inner.type == ast.TYPE_IDENTIFIER then
       var_name = inner.name
-      scope_declare(ctx, var_name)
+      local scope = ctx.scopes[#ctx.scopes]
+      local existing = scope[var_name]
+      local is_fwd = existing == "__fwd_func" or existing == "__fwd_var"
+      if is_fwd then
+        if existing == "__fwd_func" and (kind == "let" or kind == "const") then
+          error("SyntaxError: Identifier '" .. var_name .. "' has already been declared", 0)
+        end
+        scope[var_name] = kind
+      else
+        scope_declare(ctx, var_name, kind)
+      end
     else
       var_name = fresh_tmp()
     end
     out[#out + 1] = cg.local_decl(var_name, access, indent)
     out[#out + 1] = cg.if_stmt(
-      var_name .. " == nil",
+      "_ljs_is_undef(" .. var_name .. ")",
       cg.expr_stmt(cg.binop("=", var_name, default_expr), indent + 1),
-      nil, nil, indent
+      nil,
+      nil,
+      indent
     )
     if inner.type ~= ast.TYPE_IDENTIFIER then
-      emit_destructure(inner, var_name, indent, ctx, out)
+      emit_destructure(inner, var_name, indent, ctx, out, kind)
     end
   elseif target.type == ast.TYPE_OBJECT_PATTERN or target.type == ast.TYPE_ARRAY_PATTERN then
     local tmp = fresh_tmp()
     out[#out + 1] = cg.local_decl(tmp, access, indent)
-    emit_destructure(target, tmp, indent, ctx, out)
+    emit_destructure(target, tmp, indent, ctx, out, kind)
   end
 end
 
-emit_destructure = function(pattern, rhs, indent, ctx, out)
+emit_destructure = function(pattern, rhs, indent, ctx, out, kind)
   if pattern.type == ast.TYPE_OBJECT_PATTERN then
+    out[#out + 1] = cg.expr_stmt(cg.call("_ljs_require_object_coercible", { rhs }), indent)
+    local boxed = fresh_tmp()
+    out[#out + 1] = cg.local_decl(boxed, cg.call("_ljs_to_object", { rhs }), indent)
     for _, prop_node in ipairs(pattern.properties) do
       if prop_node.type == ast.TYPE_REST_ELEMENT then
         local rest_name = prop_node.argument.name
-        scope_declare(ctx, rest_name)
+        local scope = ctx.scopes[#ctx.scopes]
+        local existing = scope[rest_name]
+        local is_fwd = existing == "__fwd_func" or existing == "__fwd_var"
+        if is_fwd then
+          if existing == "__fwd_func" and (kind == "let" or kind == "const") then
+            error("SyntaxError: Identifier '" .. rest_name .. "' has already been declared", 0)
+          end
+          scope[rest_name] = kind
+        else
+          scope_declare(ctx, rest_name, kind)
+        end
         local collected = {}
         for _, p in ipairs(pattern.properties) do
           if p.type == ast.TYPE_PROPERTY then
@@ -1225,11 +1908,7 @@ emit_destructure = function(pattern, rhs, indent, ctx, out)
           end
         end
         local keys_expr = cg.array(collected)
-        out[#out + 1] = cg.local_decl(
-          rest_name,
-          cg.call("_ljs_rest", { rhs, keys_expr }),
-          indent
-        )
+        out[#out + 1] = cg.local_decl(rest_name, cg.call("_ljs_rest", { boxed, keys_expr }), indent)
       else
         local key_str
         if prop_node.key.type == ast.TYPE_IDENTIFIER then
@@ -1237,8 +1916,8 @@ emit_destructure = function(pattern, rhs, indent, ctx, out)
         else
           key_str = emit(prop_node.key, indent, ctx)
         end
-        local access = cg.member_index(rhs, key_str)
-        emit_binding(prop_node.value, access, indent, ctx, out)
+        local access = cg.member_index(boxed, key_str)
+        emit_binding(prop_node.value, access, indent, ctx, out, kind)
       end
     end
   elseif pattern.type == ast.TYPE_ARRAY_PATTERN then
@@ -1249,19 +1928,29 @@ emit_destructure = function(pattern, rhs, indent, ctx, out)
         -- hole: skip
       elseif elem.type == ast.TYPE_REST_ELEMENT then
         local rest_name = elem.argument.name
-        scope_declare(ctx, rest_name)
+        local scope = ctx.scopes[#ctx.scopes]
+        local existing = scope[rest_name]
+        local is_fwd = existing == "__fwd_func" or existing == "__fwd_var"
+        if is_fwd then
+          if existing == "__fwd_func" and (kind == "let" or kind == "const") then
+            error("SyntaxError: Identifier '" .. rest_name .. "' has already been declared", 0)
+          end
+          scope[rest_name] = kind
+        else
+          scope_declare(ctx, rest_name, kind)
+        end
         out[#out + 1] = cg.local_decl(
           rest_name,
           cg.iife({
             cg.local_inline("_r", cg.array({ cg.call("table.unpack", { rhs, tostring(i) }) })),
             "_r.n = #" .. rhs .. " - " .. tostring(i - 1),
-            cg.return_inline(cg.call("_ljs_new", { "Array", cg.call("_ljs_unpack", { "_r" }) })),
+            cg.return_inline(cg.call("_ljs_arr_lit", { cg.call("_ljs_unpack", { "_r" }) })),
           }),
           indent
         )
       else
         local access = cg.member_index(rhs, tostring(i))
-        emit_binding(elem, access, indent, ctx, out)
+        emit_binding(elem, access, indent, ctx, out, kind)
       end
     end
   end
@@ -1271,18 +1960,22 @@ local emit_assign_binding
 
 local function emit_assign_target(target, access, indent, ctx, out)
   if target.type == ast.TYPE_IDENTIFIER then
+    check_assign(ctx, target.name)
     out[#out + 1] = cg.expr_stmt(cg.binop("=", target.name, access), indent)
   elseif target.type == ast.TYPE_MEMBER_EXPRESSION then
     local obj = emit(target.object, indent, ctx)
-    local prop
-    if target.computed then
-      prop = emit(target.property, indent, ctx)
+    local is_proto = is_proto_member(target)
+    if is_proto then
+      out[#out + 1] = cg.expr_stmt(cg.call("_ljs_set_proto", { obj, access }), indent)
     else
-      prop = cg.string(target.property.name)
+      local prop
+      if target.computed then
+        prop = emit(target.property, indent, ctx)
+      else
+        prop = cg.string(target.property.name)
+      end
+      out[#out + 1] = cg.expr_stmt(cg.binop("=", cg.member_index(obj, prop), access), indent)
     end
-    out[#out + 1] = cg.expr_stmt(
-      cg.binop("=", cg.member_index(obj, prop), access), indent
-    )
   elseif target.type == ast.TYPE_ASSIGNMENT_PATTERN then
     local inner = target.left
     local default_expr = emit(target.right, indent, ctx)
@@ -1300,9 +1993,11 @@ local function emit_assign_target(target, access, indent, ctx, out)
       emit_assign_binding(inner, var_name, indent, ctx, out)
     end
     out[#out + 1] = cg.if_stmt(
-      var_name .. " == nil",
+      "_ljs_is_undef(" .. var_name .. ")",
       cg.expr_stmt(cg.binop("=", var_name, default_expr), indent + 1),
-      nil, nil, indent
+      nil,
+      nil,
+      indent
     )
   elseif target.type == ast.TYPE_OBJECT_PATTERN or target.type == ast.TYPE_ARRAY_PATTERN then
     local tmp = fresh_tmp()
@@ -1313,6 +2008,9 @@ end
 
 emit_assign_binding = function(pattern, rhs, indent, ctx, out)
   if pattern.type == ast.TYPE_OBJECT_PATTERN then
+    out[#out + 1] = cg.expr_stmt(cg.call("_ljs_require_object_coercible", { rhs }), indent)
+    local boxed = fresh_tmp()
+    out[#out + 1] = cg.local_decl(boxed, cg.call("_ljs_to_object", { rhs }), indent)
     for _, prop_node in ipairs(pattern.properties) do
       if prop_node.type == ast.TYPE_REST_ELEMENT then
         local rest_name = prop_node.argument.name
@@ -1325,10 +2023,8 @@ emit_assign_binding = function(pattern, rhs, indent, ctx, out)
           end
         end
         local keys_expr = cg.array(collected)
-        out[#out + 1] = cg.expr_stmt(
-          cg.binop("=", rest_name, cg.call("_ljs_rest", { rhs, keys_expr })),
-          indent
-        )
+        out[#out + 1] =
+          cg.expr_stmt(cg.binop("=", rest_name, cg.call("_ljs_rest", { boxed, keys_expr })), indent)
       else
         local key_str
         if prop_node.key.type == ast.TYPE_IDENTIFIER then
@@ -1336,7 +2032,7 @@ emit_assign_binding = function(pattern, rhs, indent, ctx, out)
         else
           key_str = emit(prop_node.key, indent, ctx)
         end
-        local access = cg.member_index(rhs, key_str)
+        local access = cg.member_index(boxed, key_str)
         emit_assign_target(prop_node.value, access, indent, ctx, out)
       end
     end
@@ -1349,11 +2045,13 @@ emit_assign_binding = function(pattern, rhs, indent, ctx, out)
       elseif elem.type == ast.TYPE_REST_ELEMENT then
         local rest_name = elem.argument.name
         out[#out + 1] = cg.expr_stmt(
-          cg.binop("=", rest_name,
+          cg.binop(
+            "=",
+            rest_name,
             cg.iife({
               cg.local_inline("_r", cg.array({ cg.call("table.unpack", { rhs, tostring(i) }) })),
               "_r.n = #" .. rhs .. " - " .. tostring(i - 1),
-              cg.return_inline(cg.call("_ljs_new", { "Array", cg.call("_ljs_unpack", { "_r" }) })),
+              cg.return_inline(cg.call("_ljs_arr_lit", { cg.call("_ljs_unpack", { "_r" }) })),
             })
           ),
           indent
@@ -1367,29 +2065,101 @@ emit_assign_binding = function(pattern, rhs, indent, ctx, out)
 end
 
 gen.VariableDeclaration = function(node, indent, ctx)
+  if node.kind ~= "var" then
+    local names_by_index = {}
+    for i, decl in ipairs(node.declarations) do
+      local names = extract_binding_names(decl.name)
+      for _, n in ipairs(names) do
+        names_by_index[#names_by_index + 1] = { name = n, index = i }
+      end
+    end
+    for i, decl in ipairs(node.declarations) do
+      if decl.init then
+        for _, entry in ipairs(names_by_index) do
+          if entry.index >= i then
+            if references_identifier(decl.init, entry.name) then
+              error("ReferenceError: Cannot access '" .. entry.name .. "' before initialization", 0)
+            end
+          end
+        end
+      end
+    end
+    local not_initialized = {}
+    for _, d in ipairs(node.declarations) do
+      for _, n in ipairs(extract_binding_names(d.name)) do
+        not_initialized[n] = true
+      end
+    end
+    for _, decl in ipairs(node.declarations) do
+      local nt = decl.name.type
+      if nt == ast.TYPE_OBJECT_PATTERN or nt == ast.TYPE_ARRAY_PATTERN then
+        check_sequential_tdz(decl.name, not_initialized)
+      end
+      for _, n in ipairs(extract_binding_names(decl.name)) do
+        not_initialized[n] = nil
+      end
+    end
+  end
   local out = {}
   for _, decl in ipairs(node.declarations) do
+    if node.kind == "const" and not decl.init then
+      error("SyntaxError: Missing initializer in const declaration", 0)
+    end
     local name_type = decl.name.type
     if name_type == ast.TYPE_OBJECT_PATTERN or name_type == ast.TYPE_ARRAY_PATTERN then
       if decl.init then
         local init_expr = emit(decl.init, indent, ctx)
         local tmp = fresh_tmp()
         out[#out + 1] = cg.local_decl(tmp, init_expr, indent)
-        emit_destructure(decl.name, tmp, indent, ctx, out)
+        emit_destructure(decl.name, tmp, indent, ctx, out, node.kind)
       end
     else
-      scope_declare(ctx, decl.name.name)
+      local scope = ctx.scopes[#ctx.scopes]
+      local existing = scope[decl.name.name]
+      local is_fwd = existing == "__fwd_func" or existing == "__fwd_var"
+      if is_fwd then
+        if existing == "__fwd_func" and (node.kind == "let" or node.kind == "const") then
+          error("SyntaxError: Identifier '" .. decl.name.name .. "' has already been declared", 0)
+        end
+        scope[decl.name.name] = node.kind
+      else
+        scope_declare(ctx, decl.name.name, node.kind)
+      end
       local init = decl.init
       if not init then
-        out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
-      elseif init.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION or init.type == ast.TYPE_FUNCTION_EXPRESSION then
+        if is_fwd then
+          out[#out + 1] = cg.expr_stmt(cg.binop("=", decl.name.name, "_ljs_undefined"), indent)
+        else
+          out[#out + 1] = cg.local_decl(decl.name.name, "_ljs_undefined", indent)
+        end
+      elseif
+        init.type == ast.TYPE_ARROW_FUNCTION_EXPRESSION
+        or init.type == ast.TYPE_FUNCTION_EXPRESSION
+      then
         local fn = emit_fn(init, indent, ctx)
-        local wrapper = (init.type == ast.TYPE_FUNCTION_EXPRESSION and not init.is_method) and "_ljs_ctor"
+        local wrapper = (init.type == ast.TYPE_FUNCTION_EXPRESSION and not init.is_method)
+            and "_ljs_ctor"
           or "_ljs_fn"
-        out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
-        out[#out + 1] = cg.expr_stmt(cg.binop("=", decl.name.name, cg.call(wrapper, { fn })), indent)
+        local inferred_name
+        if init.type == ast.TYPE_FUNCTION_EXPRESSION and init.name then
+          inferred_name = cg.string(init.name)
+        else
+          inferred_name = cg.string(decl.name.name)
+        end
+        if not is_fwd then
+          out[#out + 1] = cg.local_decl(decl.name.name, nil, indent)
+        end
+        out[#out + 1] = cg.expr_stmt(
+          cg.binop("=", decl.name.name, cg.call(wrapper, { fn, inferred_name })),
+          indent
+        )
       else
-        out[#out + 1] = cg.local_decl(decl.name.name, emit(init, indent, ctx), indent)
+        if is_fwd then
+          out[#out + 1] =
+            cg.expr_stmt(cg.binop("=", decl.name.name, emit(init, indent, ctx)), indent)
+        else
+          out[#out + 1] = cg.local_decl(decl.name.name, emit(init, indent, ctx), indent)
+        end
       end
     end
   end
@@ -1397,7 +2167,7 @@ gen.VariableDeclaration = function(node, indent, ctx)
 end
 
 gen.ReturnStatement = function(node, indent, ctx)
-  local expr = node.argument and emit(node.argument, indent, ctx) or nil
+  local expr = node.argument and emit(node.argument, indent, ctx) or "_ljs_undefined"
   return cg.return_stmt(expr, indent)
 end
 
@@ -1410,10 +2180,11 @@ end
 -- Declarations use the same split pattern as VariableDeclaration for the
 -- Lua 5.5 closure upvalue workaround.
 gen.FunctionDeclaration = function(node, indent, ctx)
-  scope_declare(ctx, node.name)
   local fn = emit_fn(node, indent, ctx)
-  return cg.local_decl(node.name, nil, indent)
-    .. cg.expr_stmt(cg.binop("=", node.name, cg.call("_ljs_ctor", { fn })), indent)
+  return cg.expr_stmt(
+    cg.binop("=", node.name, cg.call("_ljs_ctor", { fn, cg.string(node.name) })),
+    indent
+  )
 end
 
 --- Shared lowering logic for ClassDeclaration and ClassExpression.
@@ -1453,7 +2224,8 @@ local function lower_class(node, indent, ctx, opts)
     ctor_fn = emit_fn(constructor_method.value, indent, ctx, extra_scope)
   elseif has_super then
     local params = { "_ljs_this", "..." }
-    local body_code = cg.expr_stmt(cg.call("_ljs_call_this", { super_code, "_ljs_arrow_this", "..." }), indent + 1)
+    local body_code =
+      cg.expr_stmt(cg.call("_ljs_call_this", { super_code, "_ljs_arrow_this", "..." }), indent + 1)
     body_code = cg.local_decl("_ljs_arrow_this", "_ljs_this", indent + 1) .. body_code
     ctor_fn = cg.fn_expr(cg.join(params), body_code, indent)
   else
@@ -1477,17 +2249,19 @@ local function lower_class(node, indent, ctx, opts)
 
   for _, m in ipairs(methods) do
     local m_fn = emit_fn(m.value, indent, ctx, extra_scope)
+    local m_name = method_key(m)
     stmts[#stmts + 1] = cg.binop(
       "=",
-      cg.member_index(cg.member_dot(class_name, "prototype"), method_key(m)),
-      cg.call("_ljs_fn", { m_fn })
+      cg.member_index(cg.member_dot(class_name, "prototype"), m_name),
+      cg.call("_ljs_fn", { m_fn, m_name })
     )
   end
 
   for _, m in ipairs(statics) do
     local m_fn = emit_fn(m.value, indent, ctx, extra_scope)
+    local m_name = method_key(m)
     stmts[#stmts + 1] =
-      cg.binop("=", cg.member_index(class_name, method_key(m)), cg.call("_ljs_fn", { m_fn }))
+      cg.binop("=", cg.member_index(class_name, m_name), cg.call("_ljs_fn", { m_fn, m_name }))
   end
 
   if has_super then
@@ -1496,13 +2270,13 @@ local function lower_class(node, indent, ctx, opts)
 
   return {
     class_name = class_name,
-    ctor_init_expr = cg.call("_ljs_ctor", { ctor_fn }),
+    ctor_init_expr = cg.call("_ljs_ctor", { ctor_fn, cg.string(class_name) }),
     stmts = stmts,
   }
 end
 
 gen.ClassDeclaration = function(node, indent, ctx)
-  scope_declare(ctx, node.name)
+  scope_declare(ctx, node.name, "let")
   local result = lower_class(node, indent, ctx, {
     class_name = node.name,
     extra_scope = nil,
@@ -1532,9 +2306,13 @@ end
 gen.FunctionExpression = function(node, indent, ctx)
   local fn = emit_fn(node, indent, ctx)
   if node.is_method then
-    return cg.call("_ljs_fn", { fn })
+    return cg.call("_ljs_fn", { fn, cg.string(node.name) })
   end
-  return cg.call("_ljs_ctor", { fn })
+  local args = { fn }
+  if node.name then
+    args[#args + 1] = cg.string(node.name)
+  end
+  return cg.call("_ljs_ctor", args)
 end
 
 gen.ArrowFunctionExpression = function(node, indent, ctx)
@@ -1548,7 +2326,21 @@ gen.BlockStatement = function(node, indent, ctx)
   scope_push(ctx)
   local code = emit_body(node.body, indent + 1, ctx)
   scope_pop(ctx)
+  return cg.do_block(code, indent)
+end
+
+emit_block_body = function(block_node, indent, ctx)
+  scope_push(ctx)
+  local code = emit_body(block_node.body, indent + 1, ctx)
+  scope_pop(ctx)
   return code
+end
+
+emit_controlled_body = function(node, indent, ctx)
+  if node.type == ast.TYPE_BLOCK_STATEMENT then
+    return emit_block_body(node, indent, ctx)
+  end
+  return emit(node, indent, ctx)
 end
 
 gen.IfStatement = function(node, indent, ctx)
@@ -1558,7 +2350,7 @@ end
 
 gen.WhileStatement = function(node, indent, ctx)
   local test_code = cg.call("_ljs_to_boolean", { emit(node.test, indent, ctx) })
-  local body = emit(node.body, indent, ctx)
+  local body = emit_controlled_body(node.body, indent, ctx)
   if has_continue(node.body) then
     body = cg.do_block(body, indent + 1) .. cg.label("_continue", indent + 1)
   end
@@ -1569,7 +2361,7 @@ end
 -- test is negated: JS `do {} while(cond)` → Lua `repeat until not cond`.
 gen.DoWhileStatement = function(node, indent, ctx)
   local test_code = emit(node.test, indent, ctx)
-  local body = emit(node.body, indent, ctx)
+  local body = emit_controlled_body(node.body, indent, ctx)
   if has_continue(node.body) then
     body = cg.do_block(body, indent + 1) .. cg.label("_continue", indent + 1)
   end
@@ -1581,38 +2373,62 @@ gen.ForOfStatement = function(node, indent, ctx)
   local var_name
   if node.left.type == ast.TYPE_VARIABLE_DECLARATION then
     var_name = node.left.declarations[1].name.name
+    if references_identifier(node.right, var_name) then
+      error("ReferenceError: Cannot access '" .. var_name .. "' before initialization", 0)
+    end
   else
     var_name = node.left.name
   end
+  local iterable = emit(node.right, indent, ctx)
+  local iter_tmp = fresh_tmp()
+  local idx_tmp = fresh_tmp()
   scope_push(ctx)
-  scope_declare(ctx, var_name)
-  local body = emit(node.body, indent, ctx)
+  scope_declare(
+    ctx,
+    var_name,
+    node.left.type == ast.TYPE_VARIABLE_DECLARATION and node.left.kind or "let"
+  )
+  local body = emit_controlled_body(node.body, indent, ctx)
+  local var_init = cg.local_decl(var_name, cg.member_index(iter_tmp, idx_tmp), indent + 1)
+  body = var_init .. body
   if has_continue(node.body) then
     body = cg.do_block(body, indent + 1) .. cg.label("_continue", indent + 1)
   end
   scope_pop(ctx)
-  local iter = cg.call("ipairs", { emit(node.right, indent, ctx) })
-  return cg.for_in_stmt(cg.join({ "_", var_name }), iter, body, indent)
+  return cg.local_decl(iter_tmp, cg.call("_ljs_iter_string", { iterable }), indent)
+    .. cg.numeric_for(idx_tmp, "1", cg.member_dot(iter_tmp, "length"), body, indent)
 end
 
--- JS for..in → Lua pairs(). The dummy `_` catches the value since JS for..in
--- only yields keys. Note: does not walk prototype chain (Lua pairs() limitation).
+-- JS for..in → _ljs_for_in_keys(). Iterates own + enumerable keys via
+-- _ljs_for_in_keys. Does not walk prototype chain.
 gen.ForInStatement = function(node, indent, ctx)
   local var_name
   if node.left.type == ast.TYPE_VARIABLE_DECLARATION then
     var_name = node.left.declarations[1].name.name
+    if references_identifier(node.right, var_name) then
+      error("ReferenceError: Cannot access '" .. var_name .. "' before initialization", 0)
+    end
   else
     var_name = node.left.name
   end
   scope_push(ctx)
-  scope_declare(ctx, var_name)
-  local body = emit(node.body, indent, ctx)
+  scope_declare(
+    ctx,
+    var_name,
+    node.left.type == ast.TYPE_VARIABLE_DECLARATION and node.left.kind or "let"
+  )
+  local iter_tmp = fresh_tmp()
+  local idx_tmp = fresh_tmp()
+  local body = emit_controlled_body(node.body, indent, ctx)
+  local var_init = cg.local_decl(var_name, cg.member_index(iter_tmp, idx_tmp), indent + 1)
+  body = var_init .. body
   if has_continue(node.body) then
     body = cg.do_block(body, indent + 1) .. cg.label("_continue", indent + 1)
   end
   scope_pop(ctx)
-  local iter = cg.call("pairs", { emit(node.right, indent, ctx) })
-  return cg.for_in_stmt(cg.join({ var_name, "_" }), iter, body, indent)
+  local keys_expr = cg.call("_ljs_for_in_keys", { emit(node.right, indent, ctx) })
+  return cg.local_decl(iter_tmp, keys_expr, indent)
+    .. cg.numeric_for(idx_tmp, "1", "#" .. iter_tmp, body, indent)
 end
 
 -- C-style for → init statement + while loop. The init is emitted as a separate
@@ -1620,18 +2436,13 @@ end
 -- each loop iteration body (before the continue label, if present).
 gen.ForStatement = function(node, indent, ctx)
   local parts = {}
+  scope_push(ctx)
   if node.init then
     parts[#parts + 1] = emit(node.init, indent, ctx)
   end
   local test_code = node.test and cg.call("_ljs_to_boolean", { emit(node.test, indent, ctx) })
     or "true"
-  scope_push(ctx)
-  if node.init and node.init.type == ast.TYPE_VARIABLE_DECLARATION then
-    for _, decl in ipairs(node.init.declarations) do
-      scope_declare(ctx, decl.name.name)
-    end
-  end
-  local body = emit(node.body, indent, ctx)
+  local body = emit_controlled_body(node.body, indent, ctx)
   if has_continue(node.body) then
     body = cg.do_block(body, indent + 1) .. cg.label("_continue", indent + 1)
   end
@@ -1657,6 +2468,7 @@ gen.SwitchStatement = function(node, indent, ctx)
   local parts = {}
   parts[#parts + 1] = cg.local_decl("_ljs_sw", disc, indent)
   parts[#parts + 1] = cg.local_decl("_ljs_matched", "false", indent)
+  scope_push(ctx)
   local cases_body = {}
   for _, case in ipairs(node.cases) do
     local case_body = cg.expr_stmt("_ljs_matched = true", indent + 2)
@@ -1671,6 +2483,7 @@ gen.SwitchStatement = function(node, indent, ctx)
       cases_body[#cases_body + 1] = cg.if_stmt("true", case_body, nil, nil, indent + 1)
     end
   end
+  scope_pop(ctx)
   parts[#parts + 1] = cg.numeric_for("_", "1", "1", table.concat(cases_body), indent)
   return table.concat(parts)
 end
@@ -1705,9 +2518,9 @@ gen.TryStatement = function(node, indent, ctx)
   if node.handler then
     scope_push(ctx)
     if param then
-      scope_declare(ctx, param)
+      scope_declare(ctx, param, "let")
     end
-    catch_body = emit(node.handler.body, indent + 1, ctx)
+    catch_body = emit_block_body(node.handler.body, indent + 1, ctx)
     scope_pop(ctx)
   end
 
@@ -1733,7 +2546,8 @@ gen.TryStatement = function(node, indent, ctx)
     end
     local rethrow_block = cg.if_stmt(
       "not _ljs_ok",
-      rethrow_inner ~= "" and rethrow_inner or cg.expr_stmt(cg.call("error", { "_ljs_err", "0" }), indent + 2),
+      rethrow_inner ~= "" and rethrow_inner
+        or cg.expr_stmt(cg.call("error", { "_ljs_err", "0" }), indent + 2),
       nil,
       nil,
       indent
@@ -1804,16 +2618,165 @@ local COMPOUND_OPS = {
   [">>>="] = "_ljs_usr",
 }
 
+local member_ref
+local build_member_ref
+local ref_lhs
+local emit_ref_inits
+
+--- Emit a compound assignment (e.g., `b += 5`) as a Lua expression.
+--- Returns an IIFE that evaluates the compound op, assigns to the LHS, and
+--- returns the assigned value. Used when a destructuring pattern LHS of `=`
+--- has a compound assignment as RHS — the normal emit path produces a statement
+--- string which cannot be used as an expression value.
+--- Handles member expression LHS (via member_ref) and simple identifier LHS.
+local function emit_compound_expr(node, indent, ctx)
+  local lhs = node.left
+  if lhs.type == ast.TYPE_IDENTIFIER then
+    check_assign(ctx, lhs.name)
+  end
+  local refs = { build_member_ref(lhs, indent, ctx) }
+  local inner_ref = refs[#refs]
+  local inner_val = ref_lhs(inner_ref)
+  local right_val
+  if
+    node.right.type == ast.TYPE_BINARY_EXPRESSION
+    and (COMPOUND_OPS[node.right.operator] or node.right.operator == "%=")
+  then
+    right_val = emit_compound_expr(node.right, indent, ctx)
+  else
+    right_val = emit(node.right, indent, ctx)
+  end
+  local value
+  local helper = COMPOUND_OPS[node.operator]
+  if helper then
+    value = cg.call(helper, { inner_val, right_val })
+  else
+    -- %= case
+    value = cg.call("_ljs_mod", {
+      cg.call("_ljs_to_number", { inner_val }),
+      cg.call("_ljs_to_number", { right_val }),
+    })
+  end
+  local vtmp = fresh_tmp()
+  local stmts = {}
+  emit_ref_inits(refs, stmts)
+  stmts[#stmts + 1] = cg.local_inline(vtmp, value)
+  for i = #refs, 1, -1 do
+    stmts[#stmts + 1] = cg.binop("=", ref_lhs(refs[i]), vtmp)
+  end
+  stmts[#stmts + 1] = cg.return_inline(vtmp)
+  return cg.iife(stmts)
+end
+
 gen.BinaryExpression = function(node, indent, ctx)
   local op = node.operator
-  if op == "=" and (node.left.type == ast.TYPE_ARRAY_PATTERN or node.left.type == ast.TYPE_OBJECT_PATTERN) then
-    local right = emit(node.right, indent, ctx)
+  if
+    op == "="
+    and (node.left.type == ast.TYPE_ARRAY_PATTERN or node.left.type == ast.TYPE_OBJECT_PATTERN)
+  then
+    local right
+    if
+      node.right.type == ast.TYPE_BINARY_EXPRESSION
+      and (COMPOUND_OPS[node.right.operator] or node.right.operator == "%=")
+    then
+      right = emit_compound_expr(node.right, indent, ctx)
+    else
+      right = emit(node.right, indent, ctx)
+    end
     local tmp = fresh_tmp()
     local out = {}
     out[#out + 1] = cg.local_inline(tmp, right)
     emit_assign_binding(node.left, tmp, indent, ctx, out)
     out[#out + 1] = cg.return_inline(tmp)
     return cg.iife(out)
+  end
+  if op == "=" and node.right.type == ast.TYPE_BINARY_EXPRESSION then
+    local right_op = node.right.operator
+    if right_op == "=" then
+      local targets = { node.left }
+      local current = node.right
+      while current.type == ast.TYPE_BINARY_EXPRESSION and current.operator == "=" do
+        targets[#targets + 1] = current.left
+        current = current.right
+      end
+      for _, lhs in ipairs(targets) do
+        if lhs.type == ast.TYPE_IDENTIFIER then
+          check_assign(ctx, lhs.name)
+        end
+      end
+      local refs = {}
+      for _, lhs in ipairs(targets) do
+        refs[#refs + 1] = build_member_ref(lhs, indent, ctx)
+      end
+      local stmts = {}
+      emit_ref_inits(refs, stmts)
+      local value
+      if
+        current.type == ast.TYPE_BINARY_EXPRESSION
+        and (COMPOUND_OPS[current.operator] or current.operator == "%=")
+      then
+        value = emit_compound_expr(current, indent, ctx)
+      else
+        value = emit(current, indent, ctx)
+      end
+      local tmp = fresh_tmp()
+      stmts[#stmts + 1] = cg.local_inline(tmp, value)
+      for i = #refs, 1, -1 do
+        local r = refs[i]
+        stmts[#stmts + 1] = cg.binop("=", ref_lhs(r), tmp)
+      end
+      stmts[#stmts + 1] = cg.return_inline(tmp)
+      return cg.iife(stmts)
+    elseif COMPOUND_OPS[right_op] or right_op == "%=" then
+      -- a = b += 5  or  a = b %= 5
+      -- Per §13.15.2: evaluate LHS refs outer→inner, compute value,
+      -- then PutValue inner→outer (reverse of evaluation order)
+      local targets = { node.left, node.right.left }
+      for _, lhs in ipairs(targets) do
+        if lhs.type == ast.TYPE_IDENTIFIER then
+          check_assign(ctx, lhs.name)
+        end
+      end
+      local refs = {}
+      for _, lhs in ipairs(targets) do
+        refs[#refs + 1] = build_member_ref(lhs, indent, ctx)
+      end
+      local inner_val = ref_lhs(refs[#refs])
+      local right_val = emit(node.right.right, indent, ctx)
+      local value
+      local helper = COMPOUND_OPS[right_op]
+      if helper then
+        value = cg.call(helper, { inner_val, right_val })
+      else
+        value = cg.call("_ljs_mod", {
+          cg.call("_ljs_to_number", { inner_val }),
+          cg.call("_ljs_to_number", { right_val }),
+        })
+      end
+      local tmp = fresh_tmp()
+      local stmts = {}
+      emit_ref_inits(refs, stmts)
+      stmts[#stmts + 1] = cg.local_inline(tmp, value)
+      for i = #refs, 1, -1 do
+        stmts[#stmts + 1] = cg.binop("=", ref_lhs(refs[i]), tmp)
+      end
+      stmts[#stmts + 1] = cg.return_inline(tmp)
+      return cg.iife(stmts)
+    end
+  end
+  if node.left.type == ast.TYPE_IDENTIFIER then
+    if op == "=" or COMPOUND_OPS[op] or op == "%=" then
+      check_assign(ctx, node.left.name)
+    end
+  end
+  if op == "=" and node.left.type == ast.TYPE_MEMBER_EXPRESSION then
+    local lhs = node.left
+    local is_proto = is_proto_member(lhs)
+    if is_proto then
+      local obj = emit(lhs.object, indent, ctx)
+      local value = emit(node.right, indent, ctx)
+      return cg.call("_ljs_set_proto", { obj, value })
+    end
   end
   local left = emit(node.left, indent, ctx)
   local right = emit(node.right, indent, ctx)
@@ -1827,15 +2790,22 @@ gen.BinaryExpression = function(node, indent, ctx)
   end
   -- Compound special: modulo
   if op == "%=" then
-    return cg.binop("=", left, cg.call("_ljs_mod", { cg.call("_ljs_to_number", { left }), cg.call("_ljs_to_number", { right }) }))
+    return cg.binop(
+      "=",
+      left,
+      cg.call(
+        "_ljs_mod",
+        { cg.call("_ljs_to_number", { left }), cg.call("_ljs_to_number", { right }) }
+      )
+    )
   end
   -- Direct mappings
   if op == "=" then
     return cg.binop("=", left, right)
   elseif op == "===" then
-    return cg.binop("==", left, right)
+    return cg.call("_ljs_strict_eq", { left, right })
   elseif op == "!==" then
-    return cg.binop("~=", left, right)
+    return cg.unop("not", cg.call("_ljs_strict_eq", { left, right }))
   -- Equality with helper
   elseif op == "==" then
     return cg.call("_ljs_eq", { left, right })
@@ -1857,14 +2827,19 @@ gen.BinaryExpression = function(node, indent, ctx)
     local key_code
     if node.left.type == ast.TYPE_STRING_LITERAL then
       key_code = left
-    else
+    elseif node.left.type == ast.TYPE_NUMBER_LITERAL then
       key_code = cg.binop("+", cg.paren(left), "1")
+    else
+      key_code = cg.call("_ljs_index", { left })
     end
     local right_expr = right:sub(1, 1) == "{" and cg.paren(right) or right
-    return cg.paren(cg.binop("~=", cg.member_index(right_expr, key_code), cg.nil_val()))
+    return cg.call("_ljs_has_property", { right_expr, key_code })
   -- Arithmetic special: modulo
   elseif op == "%" then
-    return cg.call("_ljs_mod", { cg.call("_ljs_to_number", { left }), cg.call("_ljs_to_number", { right }) })
+    return cg.call(
+      "_ljs_mod",
+      { cg.call("_ljs_to_number", { left }), cg.call("_ljs_to_number", { right }) }
+    )
   else
     return cg.binop(op, left, right)
   end
@@ -1886,7 +2861,7 @@ gen.UnaryExpression = function(node, indent, ctx)
   elseif node.operator == "+" then
     return cg.call("_ljs_to_number", { expr })
   end
-  return cg.unop("-", cg.call("_ljs_to_number", { expr }))
+  return cg.call("_ljs_neg", { expr })
 end
 
 --- Compute the Lua key for a MemberExpression.
@@ -1902,9 +2877,66 @@ local function member_key(node, indent, ctx)
     if node.property.type == ast.TYPE_STRING_LITERAL then
       return emit(node.property, indent, ctx)
     end
-    return cg.binop("+", cg.paren(emit(node.property, indent, ctx)), "1")
+    if node.property.type == ast.TYPE_NUMBER_LITERAL then
+      return cg.binop("+", cg.paren(emit(node.property, indent, ctx)), "1")
+    end
+    return cg.call("_ljs_index", { emit(node.property, indent, ctx) })
   end
   return cg.string(node.property.name)
+end
+
+member_ref = function(node, indent, ctx)
+  if node.type ~= ast.TYPE_MEMBER_EXPRESSION then
+    return nil, nil, nil
+  end
+  local obj
+  if node.object.type == ast.TYPE_SUPER_EXPRESSION then
+    local super_parent = ctx.super_stack[#ctx.super_stack]
+    obj = cg.member_dot(super_parent, "prototype")
+  else
+    obj = emit(node.object, indent, ctx)
+  end
+  obj = cg.call("_ljs_to_object", { obj })
+  if node.computed then
+    return obj, nil, member_key(node, indent, ctx)
+  end
+  return obj, node.property.name, nil
+end
+
+build_member_ref = function(lhs, indent, ctx)
+  local obj_code, prop_name, key_code = member_ref(lhs, indent, ctx)
+  if not obj_code then
+    return { name = lhs.name }
+  end
+  local entry = { tmp = fresh_tmp(), obj_code = obj_code }
+  if key_code then
+    entry.key_tmp = fresh_tmp()
+    entry.key_code = key_code
+  else
+    entry.prop_name = prop_name
+  end
+  return entry
+end
+
+ref_lhs = function(r)
+  if r.name then
+    return r.name
+  end
+  if r.key_tmp then
+    return cg.member_index(r.tmp, r.key_tmp)
+  end
+  return cg.member_dot(r.tmp, r.prop_name)
+end
+
+emit_ref_inits = function(refs, stmts)
+  for _, r in ipairs(refs) do
+    if r.obj_code then
+      stmts[#stmts + 1] = cg.local_inline(r.tmp, r.obj_code)
+    end
+    if r.key_tmp then
+      stmts[#stmts + 1] = cg.local_inline(r.key_tmp, r.key_code)
+    end
+  end
 end
 
 local function delete_key_and_obj(arg, indent, ctx)
@@ -1921,6 +2953,18 @@ gen.DeleteExpression = function(node, indent, ctx)
   if obj then
     return cg.paren(cg.binop("and", cg.call("rawset", { obj, key, cg.nil_val() }), "true"))
   end
+  local arg = node.argument
+  if arg.type == ast.TYPE_UNDEFINED_LITERAL then
+    return "false"
+  end
+  if arg.type == ast.TYPE_IDENTIFIER then
+    if arg.name == "NaN" or arg.name == "Infinity" then
+      return "false"
+    end
+    if scope_lookup(ctx, arg.name) then
+      return "false"
+    end
+  end
   return "true"
 end
 
@@ -1931,6 +2975,9 @@ end
 -- Expression-context ++/--: wrapped in IIFE to return the value.
 -- Prefix returns the new value; postfix saves old value, increments, returns old.
 gen.UpdateExpression = function(node, indent, ctx)
+  if node.argument.type == ast.TYPE_IDENTIFIER then
+    check_assign(ctx, node.argument.name)
+  end
   local arg = emit(node.argument, indent, ctx)
   local val
   if node.operator == "++" then
@@ -1941,7 +2988,11 @@ gen.UpdateExpression = function(node, indent, ctx)
   if node.prefix then
     return cg.iife({ cg.binop("=", arg, val), cg.return_inline(arg) })
   end
-  return cg.iife({ cg.local_inline("_t", cg.call("_ljs_to_number", { arg })), cg.binop("=", arg, val), cg.return_inline("_t") })
+  return cg.iife({
+    cg.local_inline("_t", cg.call("_ljs_to_number", { arg })),
+    cg.binop("=", arg, val),
+    cg.return_inline("_t"),
+  })
 end
 
 gen.ConditionalExpression = function(node, indent, ctx)
@@ -1991,17 +3042,24 @@ gen.CallExpression = function(node, indent, ctx)
       local super_parent = ctx.super_stack[#ctx.super_stack]
       return cg.iife({
         cg.local_inline("_s", build_call),
-        cg.return_inline(cg.call(super_parent, { "_ljs_arrow_this", unpack_call })),
+        cg.return_inline(
+          cg.call("_ljs_call_this", { super_parent, "_ljs_arrow_this", unpack_call })
+        ),
       })
     end
 
-    if node.callee.type == ast.TYPE_MEMBER_EXPRESSION and node.callee.object.type == ast.TYPE_SUPER_EXPRESSION then
+    if
+      node.callee.type == ast.TYPE_MEMBER_EXPRESSION
+      and node.callee.object.type == ast.TYPE_SUPER_EXPRESSION
+    then
       local super_parent = ctx.super_stack[#ctx.super_stack]
       local proto = cg.member_dot(super_parent, "prototype")
       local key_expr = member_key(node.callee, indent, ctx)
       return cg.iife({
         cg.local_inline("_s", build_call),
-        cg.return_inline(cg.call("_ljs_super_call", { proto, key_expr, "_ljs_arrow_this", unpack_call })),
+        cg.return_inline(
+          cg.call("_ljs_super_call", { proto, key_expr, "_ljs_arrow_this", unpack_call })
+        ),
       })
     end
 
@@ -2027,14 +3085,17 @@ gen.CallExpression = function(node, indent, ctx)
 
   if node.callee.type == ast.TYPE_SUPER_EXPRESSION then
     local super_parent = ctx.super_stack[#ctx.super_stack]
-    local call_args = { "_ljs_arrow_this" }
+    local call_args = { super_parent, "_ljs_arrow_this" }
     for _, a in ipairs(args) do
       call_args[#call_args + 1] = a
     end
-    return cg.call(super_parent, call_args)
+    return cg.call("_ljs_call_this", call_args)
   end
 
-  if node.callee.type == ast.TYPE_MEMBER_EXPRESSION and node.callee.object.type == ast.TYPE_SUPER_EXPRESSION then
+  if
+    node.callee.type == ast.TYPE_MEMBER_EXPRESSION
+    and node.callee.object.type == ast.TYPE_SUPER_EXPRESSION
+  then
     local super_parent = ctx.super_stack[#ctx.super_stack]
     local proto = cg.member_dot(super_parent, "prototype")
     local key_expr = member_key(node.callee, indent, ctx)
@@ -2067,7 +3128,9 @@ gen.NewExpression = function(node, indent, ctx)
     local spread_args = emit_spread_args(node.arguments, indent, ctx)
     return cg.iife({
       cg.local_inline("_s", cg.call("_ljs_spread_build", spread_args)),
-      cg.return_inline(cg.call("_ljs_new", { emit(node.callee, indent, ctx), cg.call("_ljs_unpack", { "_s" }) })),
+      cg.return_inline(
+        cg.call("_ljs_new", { emit(node.callee, indent, ctx), cg.call("_ljs_unpack", { "_s" }) })
+      ),
     })
   end
   local args = { emit(node.callee, indent, ctx) }
@@ -2086,6 +3149,10 @@ gen.MemberExpression = function(node, indent, ctx)
     obj = emit(node.object, indent, ctx)
   end
   obj = cg.call("_ljs_to_object", { obj })
+  local is_proto = is_proto_member(node)
+  if is_proto then
+    return cg.call("_ljs_get_proto", { obj })
+  end
   if node.computed then
     return cg.member_index(obj, member_key(node, indent, ctx))
   end
@@ -2119,7 +3186,7 @@ gen.ArrayExpression = function(node, indent, ctx)
     end
   end
   if not has_spread then
-    local args = { "Array" }
+    local args = {}
     for i = 1, count do
       local e = node.elements[i]
       if e ~= nil then
@@ -2128,7 +3195,7 @@ gen.ArrayExpression = function(node, indent, ctx)
         args[#args + 1] = "nil"
       end
     end
-    return cg.call("_ljs_new", args)
+    return cg.call("_ljs_arr_lit", args)
   end
   local spread_args = {}
   for i = 1, count do
@@ -2146,7 +3213,7 @@ gen.ArrayExpression = function(node, indent, ctx)
   end
   return cg.iife({
     cg.local_inline("_s", cg.call("_ljs_spread_build", spread_args)),
-    cg.return_inline(cg.call("_ljs_new", { "Array", cg.call("_ljs_unpack", { "_s" }) })),
+    cg.return_inline(cg.call("_ljs_arr_lit", { cg.call("_ljs_unpack", { "_s" }) })),
   })
 end
 
@@ -2157,9 +3224,15 @@ end
 
 -- Statement-context ++/--: direct assignment, no IIFE needed.
 gen_stmt.UpdateExpression = function(node, indent, ctx)
+  if node.argument.type == ast.TYPE_IDENTIFIER then
+    check_assign(ctx, node.argument.name)
+  end
   local arg = emit(node.argument, indent, ctx)
   if node.operator == "++" then
-    return cg.expr_stmt(cg.binop("=", arg, cg.binop("+", cg.call("_ljs_to_number", { arg }), "1")), indent)
+    return cg.expr_stmt(
+      cg.binop("=", arg, cg.binop("+", cg.call("_ljs_to_number", { arg }), "1")),
+      indent
+    )
   end
   return cg.expr_stmt(cg.binop("=", arg, cg.call("_ljs_sub", { arg, "1" })), indent)
 end
@@ -2184,8 +3257,19 @@ end
 
 gen_stmt.BinaryExpression = function(node, indent, ctx)
   local op = node.operator
-  if op == "=" and (node.left.type == ast.TYPE_ARRAY_PATTERN or node.left.type == ast.TYPE_OBJECT_PATTERN) then
-    local right = emit(node.right, indent, ctx)
+  if
+    op == "="
+    and (node.left.type == ast.TYPE_ARRAY_PATTERN or node.left.type == ast.TYPE_OBJECT_PATTERN)
+  then
+    local right
+    if
+      node.right.type == ast.TYPE_BINARY_EXPRESSION
+      and (COMPOUND_OPS[node.right.operator] or node.right.operator == "%=")
+    then
+      right = emit_compound_expr(node.right, indent, ctx)
+    else
+      right = emit(node.right, indent, ctx)
+    end
     local tmp = fresh_tmp()
     local out = {}
     out[#out + 1] = cg.local_decl(tmp, right, indent)
@@ -2201,18 +3285,26 @@ end
 
 -- === Top-level preamble and emit ===
 
--- Emission order: _ljs_to_int32 first (other helpers depend on it),
+-- Emission order: _ljs_to_number before _ljs_to_int32 (which depends on it),
 -- _ljs_to_number/_ljs_to_boolean before arithmetic and coercion helpers,
 -- _ljs_fn before _ljs_ctor (which depends on it), _ljs_to_object before
 -- _ljs_call_member (which calls it), _ljs_tostring, rest alphabetical.
--- All 27 helpers are always emitted unconditionally.
+-- All 45 helpers are always emitted unconditionally.
 local HELPER_ORDER = {
-  "_ljs_to_int32",
+  "_ljs_is_undef",
+  "_ljs_is_nilish",
+  "_ljs_type_error",
+  "_ljs_range_error",
+  "_ljs_require_object_coercible",
   "_ljs_to_primitive",
   "_ljs_to_number",
+  "_ljs_to_int32",
+  "_ljs_to_float",
+  "_ljs_neg",
   "_ljs_to_boolean",
   "_ljs_fn",
   "_ljs_to_object",
+  "_ljs_iter_string",
   "_ljs_tostring",
   "_ljs_add",
   "_ljs_sub",
@@ -2233,28 +3325,36 @@ local HELPER_ORDER = {
   "_ljs_value_repr",
   "_ljs_call",
   "_ljs_call_member",
+  "_ljs_get_proto",
+  "_ljs_set_proto",
   "_ljs_object",
   "_ljs_object_create",
   "_ljs_ctor",
   "_ljs_new",
+  "_ljs_arr_lit",
+  "_ljs_arguments",
   "_ljs_call_this",
   "_ljs_instanceof",
+  "_ljs_for_in_keys",
   "_ljs_str_to_num",
   "_ljs_super_call",
   "_ljs_spread_build",
   "_ljs_unpack",
   "_ljs_rest",
   "_ljs_eq",
+  "_ljs_strict_eq",
   "_ljs_lt",
   "_ljs_gt",
   "_ljs_le",
   "_ljs_ge",
+  "_ljs_has_property",
+  "_ljs_index",
 }
 
 local _preamble_cache = nil
 
 --- Build the runtime preamble (helpers + stdlib). Result is cached after first call.
--- Structure: proto declarations → _ljs_arrow_this → 24 helpers → runtime stdlib files.
+-- Structure: proto declarations → _ljs_arrow_this → _ljs_undefined → _ljs_null → setmetatable → _ljs_is_undef → _ljs_is_nilish → _ljs_to_primitive → _ljs_to_number → _ljs_to_int32 → remaining helpers → runtime stdlib files.
 -- Idempotent; safe to call for multi-file output (emit preamble once, then per-file emit).
 -- @return (string) Complete Lua preamble source
 function M.preamble()
@@ -2268,7 +3368,11 @@ function M.preamble()
   local helpers_str = table.concat(helper_parts, "\n\n")
   _preamble_cache = read_runtime("proto")
     .. "local _ljs_arrow_this = nil\n"
-    .. "local _ljs_null = {}\n\n"
+    .. "local _ljs_undefined = {}\n"
+    .. "local _ljs_null = {}\n"
+    .. "local TypeError, RangeError\n"
+    .. "setmetatable(_ljs_object_prototype, { __index = function(t, k) return _ljs_undefined end })\n\n"
+    .. read_runtime("number_tostring")
     .. helpers_str
     .. "\n\n"
     .. read_runtime("object")

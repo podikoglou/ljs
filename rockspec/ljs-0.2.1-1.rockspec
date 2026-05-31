@@ -44,6 +44,8 @@ build = {
     ["ljs.runtime.json_lib"] = "src/ljs/runtime/json_lib.lua",
     ["ljs.runtime.math"] = "src/ljs/runtime/math.lua",
     ["ljs.runtime.number"] = "src/ljs/runtime/number.lua",
+    ["ljs.runtime.number_tostring"] = "src/ljs/runtime/number_tostring.lua",
+    ["ljs.runtime.object_tostring"] = "src/ljs/runtime/object_tostring.lua",
     ["ljs.runtime.string"] = "src/ljs/runtime/string.lua",
   },
   install = {

@@ -24,12 +24,12 @@ end)
 
 test("empty array", function()
   local code = expr_code("[]")
-  assert_eq(code, "_ljs_new(Array)")
+  assert_eq(code, "_ljs_arr_lit()")
 end)
 
 test("array with elements", function()
   local code = expr_code("[1, 2, 3]")
-  assert_eq(code, "_ljs_new(Array, 1, 2, 3)")
+  assert_eq(code, "_ljs_arr_lit(1, 2, 3)")
 end)
 
 test("dot access", function()
@@ -42,9 +42,40 @@ test("computed string key no offset", function()
   assert_eq(code, 'local _ = _ljs_to_object(obj)["key"]')
 end)
 
-test("computed expression key adds offset", function()
+test("computed expression key uses _ljs_index", function()
   local code = expr_code("arr[i]")
-  assert_eq(code, "local _ = _ljs_to_object(arr)[(i) + 1]")
+  assert_eq(code, "local _ = _ljs_to_object(arr)[_ljs_index(i)]")
+end)
+
+-- ============================================================================
+-- Runtime fix: string variable keys must not get +1 (#292)
+-- ============================================================================
+
+test("string variable as computed key works (#292)", function()
+  local output = run_js([[
+    let k = "a";
+    let o = {a: 1};
+    console.log(o[k]);
+  ]])
+  assert_eq(output:match("%S+"), "1")
+end)
+
+test("numeric string variable as computed key works (#292)", function()
+  local output = run_js([[
+    let k = "0";
+    let arr = [42, 99];
+    console.log(arr[k]);
+  ]])
+  assert_eq(output:match("%S+"), "42")
+end)
+
+test("number variable as array index works (#292)", function()
+  local output = run_js([[
+    let i = 0;
+    let arr = [10, 20];
+    console.log(arr[i]);
+  ]])
+  assert_eq(output:match("%S+"), "10")
 end)
 
 -- ============================================================================
@@ -78,7 +109,16 @@ end)
 test("method shorthand transpiles to function value", function()
   local code = transpile_ok("let o = { foo() { return 1; } };")
   assert(code:find("foo = _ljs_fn(function", 1, true), "expected foo = _ljs_fn(function")
+  assert(code:find(', "foo")', 1, true), "expected name arg 'foo' in _ljs_fn call (#346)")
   assert(code:find("return 1"), "expected return 1")
+end)
+
+test("method shorthand .name is correct at runtime (#346)", function()
+  local output = run_js([[
+    let o = { greet() { return "hi"; } };
+    console.log(o.greet.name);
+  ]])
+  assert_eq(output:match("%S+"), "greet")
 end)
 
 test("method shorthand with params transpiles correctly", function()
@@ -127,22 +167,22 @@ end)
 
 test("sparse array with hole emits nil (#191)", function()
   local code = expr_code("[1,,3]")
-  assert_eq(code, "_ljs_new(Array, 1, nil, 3)")
+  assert_eq(code, "_ljs_arr_lit(1, nil, 3)")
 end)
 
 test("leading hole in array (#191)", function()
   local code = expr_code("[,1,2]")
-  assert_eq(code, "_ljs_new(Array, nil, 1, 2)")
+  assert_eq(code, "_ljs_arr_lit(nil, 1, 2)")
 end)
 
 test("multiple consecutive holes in array (#191)", function()
   local code = expr_code("[1,,,4]")
-  assert_eq(code, "_ljs_new(Array, 1, nil, nil, 4)")
+  assert_eq(code, "_ljs_arr_lit(1, nil, nil, 4)")
 end)
 
 test("trailing comma does not add slot (#191)", function()
   local code = expr_code("[1,2,]")
-  assert_eq(code, "_ljs_new(Array, 1, 2)")
+  assert_eq(code, "_ljs_arr_lit(1, 2)")
 end)
 
 test("method shorthand mixed with shorthand property", function()

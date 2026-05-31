@@ -18,9 +18,8 @@ test("new Error sets name", function()
 end)
 
 test("new Error without message", function()
-  local err = eval_js("new Error()")
-  assert_eq(err.message, nil)
-  assert_eq(err.name, "Error")
+  assert_eq(exec_js("return new Error().message === undefined;"), true)
+  assert_eq(exec_js("return new Error().name;"), "Error")
 end)
 
 -- ============================================================================
@@ -105,6 +104,38 @@ end)
 
 test("ReferenceError toString", function()
   assert_js('new ReferenceError("not defined").toString()', "ReferenceError: not defined")
+end)
+
+-- ============================================================================
+-- constructor
+-- ============================================================================
+
+test("Error.prototype.constructor is Error", function()
+  assert_js("Error.prototype.constructor === Error", true)
+end)
+
+test("TypeError.prototype.constructor is TypeError", function()
+  assert_js("TypeError.prototype.constructor === TypeError", true)
+end)
+
+test("RangeError.prototype.constructor is RangeError", function()
+  assert_js("RangeError.prototype.constructor === RangeError", true)
+end)
+
+test("new TypeError().constructor is TypeError", function()
+  assert_js("new TypeError().constructor === TypeError", true)
+end)
+
+test("new RangeError().constructor is RangeError", function()
+  assert_js("new RangeError().constructor === RangeError", true)
+end)
+
+test("new SyntaxError().constructor is SyntaxError", function()
+  assert_js("new SyntaxError().constructor === SyntaxError", true)
+end)
+
+test("new ReferenceError().constructor is ReferenceError", function()
+  assert_js("new ReferenceError().constructor === ReferenceError", true)
 end)
 
 -- ============================================================================

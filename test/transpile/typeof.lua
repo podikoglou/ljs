@@ -64,7 +64,7 @@ end)
 
 test("let r = typeof obj[key]", function()
   local code = expr_code("let r = typeof obj[key]")
-  assert_eq(code, "local r = _ljs_typeof(_ljs_to_object(obj)[(key) + 1])")
+  assert_eq(code, "local r = _ljs_typeof(_ljs_to_object(obj)[_ljs_index(key)])")
 end)
 
 test("let r = typeof arr[0]", function()
@@ -102,22 +102,22 @@ end)
 
 test('typeof x === "number" (bare expression)', function()
   local code = expr_code('typeof x === "number"')
-  assert_eq(code, 'local _ = _ljs_typeof(x) == "number"')
+  assert_eq(code, 'local _ = _ljs_strict_eq(_ljs_typeof(x), "number")')
 end)
 
 test('typeof x !== "undefined" (bare expression)', function()
   local code = expr_code('typeof x !== "undefined"')
-  assert_eq(code, 'local _ = _ljs_typeof(x) ~= "undefined"')
+  assert_eq(code, 'local _ = not _ljs_strict_eq(_ljs_typeof(x), "undefined")')
 end)
 
 test('typeof x === "function" (bare expression)', function()
   local code = expr_code('typeof x === "function"')
-  assert_eq(code, 'local _ = _ljs_typeof(x) == "function"')
+  assert_eq(code, 'local _ = _ljs_strict_eq(_ljs_typeof(x), "function")')
 end)
 
 test('let ok = typeof x === "number"', function()
   local code = expr_code('let ok = typeof x === "number"')
-  assert_eq(code, 'local ok = _ljs_typeof(x) == "number"')
+  assert_eq(code, 'local ok = _ljs_strict_eq(_ljs_typeof(x), "number")')
 end)
 
 -- ============================================================================
@@ -153,7 +153,7 @@ test('let r = typeof x === "number" ? 1 : 0', function()
   local code = expr_code('let r = typeof x === "number" ? 1 : 0')
   assert_eq(
     code,
-    'local r = (function() if _ljs_to_boolean(_ljs_typeof(x) == "number") then return 1 else return 0 end end)()'
+    'local r = (function() if _ljs_to_boolean(_ljs_strict_eq(_ljs_typeof(x), "number")) then return 1 else return 0 end end)()'
   )
 end)
 
@@ -161,7 +161,7 @@ test('let r = typeof f === "function" ? f() : null', function()
   local code = expr_code('let r = typeof f === "function" ? f() : null')
   assert_eq(
     code,
-    'local r = (function() if _ljs_to_boolean(_ljs_typeof(f) == "function") then return _ljs_call(f) else return _ljs_null end end)()'
+    'local r = (function() if _ljs_to_boolean(_ljs_strict_eq(_ljs_typeof(f), "function")) then return _ljs_call(f) else return _ljs_null end end)()'
   )
 end)
 
@@ -195,12 +195,12 @@ end)
 
 test("let r = typeof -x", function()
   local code = expr_code("let r = typeof -x")
-  assert_eq(code, "local r = _ljs_typeof(-_ljs_to_number(x))")
+  assert_eq(code, "local r = _ljs_typeof(_ljs_neg(x))")
 end)
 
 test("-typeof x", function()
   local code = expr_code("-typeof x")
-  assert_eq(code, "local _ = -_ljs_to_number(_ljs_typeof(x))")
+  assert_eq(code, "local _ = _ljs_neg(_ljs_typeof(x))")
 end)
 
 test("let r = typeof +x", function()
@@ -255,7 +255,7 @@ end)
 
 test("typeof in array element", function()
   local code = expr_code("[typeof x]")
-  assert_eq(code, "_ljs_new(Array, _ljs_typeof(x))")
+  assert_eq(code, "_ljs_arr_lit(_ljs_typeof(x))")
 end)
 
 test("typeof in object value", function()

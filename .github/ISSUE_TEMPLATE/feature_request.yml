@@ -1,0 +1,66 @@
+name: Feature Request
+description: Propose new functionality or a non-breaking enhancement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What the feature is and why it's needed.
+    validations:
+      required: true
+
+  - type: textarea
+    id: example
+    attributes:
+      label: Example / Use case
+      description: Code showing how the feature would be used.
+      placeholder: |
+        ```js
+        // example usage
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should happen. Include spec references if applicable (e.g. `ECMA-262 §14.3`).
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope / Impact
+      description: How broad is this change? Which areas are affected (parser, codegen, scoping, runtime, etc.)?
+    validations:
+      required: false
+
+  - type: textarea
+    id: suggested-impl
+    attributes:
+      label: Suggested implementation
+      description: Approach, files to change, or code sketch.
+    validations:
+      required: false
+
+  - type: textarea
+    id: tests
+    attributes:
+      label: Test cases
+      description: Examples that should pass or error.
+      placeholder: |
+        - Should pass: `x`
+        - Should error: `y`
+    validations:
+      required: false
+
+  - type: textarea
+    id: related
+    attributes:
+      label: Dependencies / Related
+      description: Links to blocking or related issues. Suggested implementation order if multiple issues are involved.
+    validations:
+      required: false

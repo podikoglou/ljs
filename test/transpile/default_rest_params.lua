@@ -9,7 +9,7 @@ local transpile_ok, run_js = H.transpile_ok, H.run_js
 
 test("function with default parameter transpiles nil check", function()
   local code = transpile_ok("function f(x = 10) { return x; }")
-  assert(code:find("if x == nil then", 1, true), "expected nil check for default param")
+  assert(code:find("_ljs_is_undef(x)", 1, true), "expected _ljs_is_undef check for default param")
 end)
 
 test("function with default parameter — default value used", function()
@@ -43,7 +43,10 @@ end)
 
 test("function with rest parameter transpiles to array pack", function()
   local code = transpile_ok("function f(...args) { return args; }")
-  assert(code:find("local args = _ljs_new(Array, ...)", 1, true), "expected local args = _ljs_new(Array, ...)")
+  assert(
+    code:find("local args = _ljs_arr_lit(...)", 1, true),
+    "expected local args = _ljs_arr_lit(...)"
+  )
 end)
 
 test("function with rest parameter collects arguments", function()
@@ -57,7 +60,8 @@ test("function with rest parameter — access individual elements", function()
 end)
 
 test("function with regular and rest parameters", function()
-  local out = run_js("function f(a, b, ...rest) { return rest.length; }\nconsole.log(f(1, 2, 3, 4));")
+  local out =
+    run_js("function f(a, b, ...rest) { return rest.length; }\nconsole.log(f(1, 2, 3, 4));")
   assert_eq(out, "2\n")
 end)
 

@@ -364,3 +364,151 @@ end)
 test('(1+2).toString() → "3" (integer-valued float from addition)', function()
   assert_eq(eval_js("(1+2).toString()"), "3")
 end)
+
+-- ============================================================================
+-- _ljs_tostring with table operands (arrays/objects) — issue #284
+-- ============================================================================
+
+test('String([]) → "" (empty array)', function()
+  assert_eq(eval_js("String([])"), "")
+end)
+
+test('String([1,2,3]) → "1,2,3" (array with elements)', function()
+  assert_eq(eval_js("String([1,2,3])"), "1,2,3")
+end)
+
+test('String({}) → "[object Object]" (plain object)', function()
+  assert_eq(eval_js("String({})"), "[object Object]")
+end)
+
+test('tostring: "" + [] → "" (concat with empty array)', function()
+  assert_eq(eval_js('"" + []'), "")
+end)
+
+test('tostring: "" + [1,2,3] → "1,2,3" (concat with array)', function()
+  assert_eq(eval_js('"" + [1,2,3]'), "1,2,3")
+end)
+
+test('tostring: "" + {} → "[object Object]" (concat with object)', function()
+  assert_eq(eval_js('"" + {}'), "[object Object]")
+end)
+
+-- ============================================================================
+-- _ljs_add with table operands — issue #281
+-- ============================================================================
+
+test('add: [] + [] → ""', function()
+  assert_eq(eval_js("[] + []"), "")
+end)
+
+test('add: {} + [] → "[object Object]"', function()
+  assert_eq(eval_js("{} + []"), "[object Object]")
+end)
+
+test('add: [] + {} → "[object Object]"', function()
+  assert_eq(eval_js("[] + {}"), "[object Object]")
+end)
+
+test('add: {} + {} → "[object Object][object Object]"', function()
+  assert_eq(eval_js("{} + {}"), "[object Object][object Object]")
+end)
+
+test('add: [1] + [2] → "12"', function()
+  assert_eq(eval_js("[1] + [2]"), "12")
+end)
+
+test('add: [1,2] + [3,4] → "1,23,4"', function()
+  assert_eq(eval_js("[1,2] + [3,4]"), "1,23,4")
+end)
+
+test('add: true + [] → "true"', function()
+  assert_eq(eval_js("true + []"), "true")
+end)
+
+test('add: [] + true → "true"', function()
+  assert_eq(eval_js("[] + true"), "true")
+end)
+
+test('add: true + [] → "true"', function()
+  assert_eq(eval_js("true + []"), "true")
+end)
+
+-- ============================================================================
+-- Spec-compliant Number-to-String (ECMA-262 §6.1.6.1.20) — issue #334
+-- ============================================================================
+
+test('tostring: String(1e20) → "100000000000000000000" (large int, fixed-point)', function()
+  assert_eq(eval_js("String(1e20)"), "100000000000000000000")
+end)
+
+test('tostring: String(1e21) → "1e+21" (exponential, n=22 out of range)', function()
+  assert_eq(eval_js("String(1e21)"), "1e+21")
+end)
+
+test('tostring: String(1e-7) → "1e-7" (exponential, n=-6 out of range)', function()
+  assert_eq(eval_js("String(1e-7)"), "1e-7")
+end)
+
+test('tostring: String(5e-324) → "5e-324" (min subnormal)', function()
+  assert_eq(eval_js("String(5e-324)"), "5e-324")
+end)
+
+test('tostring: String(123456789012345678901) → "123456789012345680000"', function()
+  assert_eq(eval_js("String(123456789012345678901)"), "123456789012345680000")
+end)
+
+test('tostring: String(-1e20) → "-100000000000000000000"', function()
+  assert_eq(eval_js("String(-1e20)"), "-100000000000000000000")
+end)
+
+test('tostring: String(-1e21) → "-1e+21"', function()
+  assert_eq(eval_js("String(-1e21)"), "-1e+21")
+end)
+
+test('tostring: String(-1e-7) → "-1e-7"', function()
+  assert_eq(eval_js("String(-1e-7)"), "-1e-7")
+end)
+
+test('tostring: String(1e-6) → "0.000001" (n=-5, in fixed range)', function()
+  assert_eq(eval_js("String(1e-6)"), "0.000001")
+end)
+
+test('tostring: String(1e-5) → "0.00001" (n=-4, in fixed range)', function()
+  assert_eq(eval_js("String(1e-5)"), "0.00001")
+end)
+
+test('tostring: String(0.1+0.2) → "0.30000000000000004"', function()
+  assert_eq(eval_js("String(0.1+0.2)"), "0.30000000000000004")
+end)
+
+test('tostring: String(1e-323) → "1e-323"', function()
+  assert_eq(eval_js("String(1e-323)"), "1e-323")
+end)
+
+test('tostring: String(2.5e-324) → "5e-324" (subnormal rounding)', function()
+  assert_eq(eval_js("String(2.5e-324)"), "5e-324")
+end)
+
+test('tostring: String(1e308) → "1e+308"', function()
+  assert_eq(eval_js("String(1e308)"), "1e+308")
+end)
+
+test('tostring: String(1.7976931348623157e+308) → "1.7976931348623157e+308" (max value)', function()
+  assert_eq(eval_js("String(1.7976931348623157e+308)"), "1.7976931348623157e+308")
+end)
+
+test('tostring: String(2.2250738585072014e-308) → "2.2250738585072014e-308" (min normal)', function()
+  assert_eq(eval_js("String(2.2250738585072014e-308)"), "2.2250738585072014e-308")
+end)
+
+test('tostring: String(1.2345e-10) → "1.2345e-10"', function()
+  assert_eq(eval_js("String(1.2345e-10)"), "1.2345e-10")
+end)
+
+test('tostring: "" + 1e20 → "100000000000000000000" (via concatenation)', function()
+  assert_eq(eval_js('"" + 1e20'), "100000000000000000000")
+end)
+
+test('tostring: (1e20).toString() → "100000000000000000000" (via Number.prototype.toString)', function()
+  assert_eq(eval_js("(1e20).toString()"), "100000000000000000000")
+end)

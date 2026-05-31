@@ -15,6 +15,11 @@ Tests: `make test`
 - When starting work: `git checkout develop && git pull && git checkout -b <branch>`
 - Tests are skipped by lefthook on `develop` — CI catches failures
 
+## Issues
+- Follow the templates in `.github/ISSUE_TEMPLATE/` when creating issues via `gh issue create`
+- Bug reports: description, reproduction, expected/actual behavior, root cause, fix sketch, test cases
+- Feature requests: description, example, expected behavior, scope, implementation notes, test cases
+
 For architecture and layer boundaries, see docs/ARCHITECTURE.md
 For AST node reference, see docs/AST.md
 For feature checklist and LuaDoc conventions, see docs/CONTRIBUTING.md

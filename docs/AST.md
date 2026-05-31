@@ -146,12 +146,10 @@ Represents the `this` keyword. Binds to the calling context at runtime: the rece
 | Field | Type | Description |
 |-------|------|-------------|
 | `type` | `"VariableDeclaration"` | |
-| `kind` | `string` | `"let"` or `"const"` |
+| `kind` | `string` | `"var"`, `"let"`, or `"const"` |
 | `declarations` | `VariableDeclarator[]` | One or more declarators |
 
-`var` is normalized to `"let"`.
-
-**Source:** `let x = 1;`, `const y = 2, z = 3;`, `var v = 4;`
+**Source:** `var v = 4;`, `let x = 1;`, `const y = 2, z = 3;`
 
 ### VariableDeclarator
 
@@ -337,7 +335,7 @@ The `~` (bitwise NOT) operator coerces its operand to a 32-bit integer via `ToIn
 
 **Source:** `typeof x`, `typeof 42`, `typeof obj.prop`, `typeof f()`
 
-**Transpilation note:** `typeof null` returns `"undefined"` (not `"object"` as in JS). The transpiler maps JS `null` → Lua `nil`, which `_ljs_typeof` maps to `"undefined"`. All other `typeof` results match JS semantics.
+**Transpilation note:** `_ljs_typeof` returns `"object"` for `_ljs_null` and `"undefined"` for `nil`/`_ljs_undefined`, matching JS semantics exactly.
 
 ### UpdateExpression
 

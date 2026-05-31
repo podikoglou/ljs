@@ -47,6 +47,10 @@ test("NullLiteral", function()
   assert_eq(expr_code("null;"), "local _ = _ljs_null")
 end)
 
+test("UndefinedLiteral", function()
+  assert_eq(expr_code("undefined;"), "local _ = _ljs_undefined")
+end)
+
 -- ============================================================================
 -- Unit tests — identifiers and declarations
 -- ============================================================================
@@ -60,7 +64,7 @@ test("let with init", function()
 end)
 
 test("let without init", function()
-  assert_eq(expr_code("let x;"), "local x")
+  assert_eq(expr_code("let x;"), "local x = _ljs_undefined")
 end)
 
 test("const maps to local", function()
@@ -153,12 +157,12 @@ end)
 
 test("strict equality", function()
   local code = expr_code("x === 1")
-  assert_eq(code, "local _ = x == 1")
+  assert_eq(code, "local _ = _ljs_strict_eq(x, 1)")
 end)
 
 test("strict inequality", function()
   local code = expr_code("x !== 1")
-  assert_eq(code, "local _ = x ~= 1")
+  assert_eq(code, "local _ = not _ljs_strict_eq(x, 1)")
 end)
 
 test("logical AND", function()
@@ -184,7 +188,7 @@ end)
 
 test("unary minus", function()
   local code = expr_code("-x")
-  assert_eq(code, "local _ = -_ljs_to_number(x)")
+  assert_eq(code, "local _ = _ljs_neg(x)")
 end)
 
 test("unary minus -0 emits negative zero", function()
@@ -425,4 +429,217 @@ end)
 test("true > null coerces to 1 > 0 → true", function()
   local output = run_js("console.log(true > null);")
   assert_eq(output:match("%S+"), "true")
+end)
+
+test("function without return yields undefined", function()
+  local output = run_js("console.log((function() {})());")
+  assert_eq(output:match("%S+"), "undefined")
+end)
+
+test("arrow function without return yields undefined", function()
+  local output = run_js([[
+    var f = () => {};
+    console.log(f());
+  ]])
+  assert_eq(output:match("%S+"), "undefined")
+end)
+
+test("function with explicit return still works after implicit undefined fix", function()
+  local output = run_js("console.log((function() { return 42; })());")
+  assert_eq(output:match("%S+"), "42")
+end)
+
+test("bare return still yields undefined", function()
+  local output = run_js("console.log((function() { return; })());")
+  assert_eq(output:match("%S+"), "undefined")
+end)
+
+-- ============================================================================
+-- Block-scoped let (#283)
+-- ============================================================================
+
+test("block-scoped let does not leak to outer scope (#283)", function()
+  local output = run_js([[
+    let x = 1;
+    {
+      let x = 2;
+    }
+    console.log(x);
+  ]])
+  assert_eq(output:match("%S+"), "1")
+end)
+
+test("block-scoped let unit: standalone block wraps in do...end (#283)", function()
+  local code = transpile_ok([[
+    let x = 1;
+    {
+      let x = 2;
+    }
+  ]])
+  assert(code:find("do\n", 1, true), "expected do block in output")
+  assert(code:find("end\n", 1, true), "expected end block in output")
+end)
+
+-- ============================================================================
+-- Chained assignment (#291)
+-- Per ECMA-262 §13.15: assignment is right-associative and returns the value
+-- ============================================================================
+
+test("chained assignment a = b = 5 (#291)", function()
+  local output = run_js([[
+    let a, b;
+    a = b = 5;
+    console.log(a, b);
+  ]])
+  assert_eq(output:match("%S+"), "5")
+end)
+
+test("chained assignment returns value (#291)", function()
+  local output = run_js([[
+    let a, b;
+    let c = (a = b = 42);
+    console.log(a, b, c);
+  ]])
+  assert_eq(output:match("^%S+"), "42")
+end)
+
+-- ============================================================================
+-- Chained compound assignment (#342)
+-- Per ECMA-262 §13.15: = evaluates RHS then PutValue; RHS compound returns value
+-- ============================================================================
+
+test("chained compound assignment a = b += 5 (#342)", function()
+  local output = run_js([[
+    let a, b;
+    a = b += 5;
+    console.log(a, b);
+  ]])
+  assert_eq(output:match("^%S+"), "NaN")
+end)
+
+test("chained compound assignment returns value (#342)", function()
+  local output = run_js([[
+    let a, b;
+    let c = (a = b += 5);
+    console.log(a, b, c);
+  ]])
+  assert_eq(output:match("^%S+"), "NaN")
+end)
+
+test("chained compound assignment with %=", function()
+  local output = run_js([[
+    let a, b;
+    b = 10;
+    a = b %= 3;
+    console.log(a, b);
+  ]])
+  assert_eq(output:match("^%S+"), "1")
+end)
+
+test("chained compound eval order: outer member before inner member (#389)", function()
+  local output = run_js([[
+    let order = [];
+    function get(label) { order.push(label); return { x: 10 }; }
+    get("first").x = get("second").x += 5;
+    console.log(order[0] + "," + order[1]);
+  ]])
+  assert_eq(output:match("^%S+"), "first,second")
+end)
+
+test("chained compound eval order: ident outer, member inner (#389)", function()
+  local output = run_js([[
+    let order = [];
+    function get(label) { order.push(label); return { x: 10 }; }
+    let a;
+    a = get("only").x += 5;
+    console.log(order[0]);
+  ]])
+  assert_eq(output:match("^%S+"), "only")
+end)
+
+-- ============================================================================
+-- = chain eval order (#400)
+-- Per ECMA-262 §13.15.2: evaluate LHS refs left-to-right before RHS value
+-- ============================================================================
+
+test("= chain eval order: member targets before RHS value (#400)", function()
+  local output = run_js([[
+    let order = [];
+    function get(label) { order.push(label); return { x: 0 }; }
+    function val(label) { order.push(label); return 5; }
+    get("A").x = get("B").x = val("C");
+    console.log(order[0] + "," + order[1] + "," + order[2]);
+  ]])
+  assert_eq(output:match("^%S+"), "A,B,C")
+end)
+
+test("= chain eval order: member targets with compound tail (#400)", function()
+  local output = run_js([[
+    let order = [];
+    function get(label) { order.push(label); return { x: 0 }; }
+    get("A").x = get("B").x = get("C").x += 5;
+    console.log(order[0] + "," + order[1] + "," + order[2]);
+  ]])
+  assert_eq(output:match("^%S+"), "A,B,C")
+end)
+
+test("= chain eval order: mixed ident and member (#400)", function()
+  local output = run_js([[
+    let order = [];
+    function get(label) { order.push(label); return { x: 0 }; }
+    function val(label) { order.push(label); return 5; }
+    let a;
+    a = get("B").x = val("C");
+    console.log(order[0] + "," + order[1]);
+  ]])
+  assert_eq(output:match("^%S+"), "B,C")
+end)
+
+test("= chain eval order: three member targets with plain RHS (#400)", function()
+  local output = run_js([[
+    let order = [];
+    function get(label) { order.push(label); return { x: 0 }; }
+    function val(label) { order.push(label); return 5; }
+    get("A").x = get("B").x = get("C").x = val("D");
+    console.log(order[0] + "," + order[1] + "," + order[2] + "," + order[3]);
+  ]])
+  assert_eq(output:match("^%S+"), "A,B,C,D")
+end)
+
+-- ============================================================================
+-- Computed member key eval order (#403)
+-- Per ECMA-262 §13.15.2: key expression evaluated during LHS eval, not PutValue
+-- ============================================================================
+
+test("computed key eval order: key before RHS in = chain (#403)", function()
+  local output = run_js([[
+    let order = [];
+    function getObj(label) { order.push(label); return {}; }
+    function getKey(label) { order.push(label); return "x"; }
+    getObj("A")[getKey("K")] = getObj("B").y = 5;
+    console.log(order[0] + "," + order[1] + "," + order[2]);
+  ]])
+  assert_eq(output:match("^%S+"), "A,K,B")
+end)
+
+test("computed key eval order: both sides computed in = chain (#403)", function()
+  local output = run_js([[
+    let order = [];
+    function getObj(label) { order.push(label); return {}; }
+    function getKey(label) { order.push(label); return "x"; }
+    getObj("A")[getKey("K1")] = getObj("B")[getKey("K2")] = 5;
+    console.log(order[0] + "," + order[1] + "," + order[2] + "," + order[3]);
+  ]])
+  assert_eq(output:match("^%S+"), "A,K1,B,K2")
+end)
+
+test("computed key eval order: compound chain with computed keys (#403)", function()
+  local output = run_js([[
+    let order = [];
+    function getObj(label) { order.push(label); return { x: 10 }; }
+    function getKey(label) { order.push(label); return "x"; }
+    getObj("A")[getKey("K1")] = getObj("B")[getKey("K2")] += 5;
+    console.log(order[0] + "," + order[1] + "," + order[2] + "," + order[3]);
+  ]])
+  assert_eq(output:match("^%S+"), "A,K1,B,K2")
 end)

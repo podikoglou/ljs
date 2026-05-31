@@ -48,39 +48,61 @@ local function emit_expr_code(src)
   return code:match("([^\n]*)$")
 end
 
-local function expr_code(src)
-  local ast, err = parser.parse(src)
-  if not ast then
-    error("parse failed: " .. tostring(err))
-  end
-  local code, err2 = transpile.transpile(ast)
-  if not code then
-    error("transpile failed: " .. tostring(err2))
-  end
-  code = code:gsub("\n$", "")
-  local last_line = code:match("([^\n]*)$")
-  return last_line
-end
+local expr_code = emit_expr_code
 
 -- Integration test helpers
 
 local function run_lua_source(code)
-  local tmp = os.tmpname()
-  local f = io.open(tmp, "w")
-  if not f then
-    error("cannot open temp file: " .. tmp)
+  local chunks = {}
+  local function emit(s)
+    chunks[#chunks + 1] = s
   end
-  f:write(code)
-  f:close()
-  local pipe = io.popen("lua " .. tmp .. " 2>&1", "r")
-  if not pipe then
-    os.remove(tmp)
-    error("cannot popen lua")
+  local capture = {
+    write = function(_, ...)
+      for i = 1, select("#", ...) do
+        emit(tostring(select(i, ...)))
+      end
+    end,
+    close = function() end,
+    flush = function() end,
+  }
+
+  local old_stdout = io.stdout
+  local old_stderr = io.stderr
+  local old_print = print
+  io.stdout = capture
+  io.stderr = capture
+  print = function(...)
+    local n = select("#", ...)
+    for i = 1, n do
+      if i > 1 then
+        emit("\t")
+      end
+      emit(tostring(select(i, ...)))
+    end
+    emit("\n")
   end
-  local output = pipe:read("*a")
-  pipe:close()
-  os.remove(tmp)
-  return output
+
+  local ok, result = pcall(function()
+    local fn, load_err = load(code)
+    if not fn then
+      return tostring(load_err) .. "\n"
+    end
+    local pok, err = pcall(fn)
+    if not pok then
+      emit(tostring(err) .. "\n")
+    end
+    return table.concat(chunks)
+  end)
+
+  io.stdout = old_stdout
+  io.stderr = old_stderr
+  print = old_print
+
+  if not ok then
+    error(result)
+  end
+  return result
 end
 
 local function run_js(js)

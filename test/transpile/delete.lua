@@ -14,7 +14,7 @@ end)
 
 test("delete obj[key] (statement)", function()
   local code = transpile_ok("delete obj[key];")
-  assert(code:find("rawset(obj, (key) + 1, nil)", 1, true), "expected rawset call")
+  assert(code:find("rawset(obj, _ljs_index(key), nil)", 1, true), "expected rawset call")
 end)
 
 test("delete obj['str'] (statement, string computed)", function()
@@ -70,7 +70,7 @@ end)
 
 test("let r = delete obj[key] (expression, computed)", function()
   local code = expr_code("let r = delete obj[key]")
-  assert_eq(code, "local r = (rawset(obj, (key) + 1, nil) and true)")
+  assert_eq(code, "local r = (rawset(obj, _ljs_index(key), nil) and true)")
 end)
 
 test("let r = delete arr[0] (expression, numeric)", function()
@@ -110,7 +110,7 @@ end)
 
 test("delete in binary: delete obj.prop === true", function()
   local code = expr_code("delete obj.prop === true")
-  assert_eq(code, 'local _ = (rawset(obj, "prop", nil) and true) == true')
+  assert_eq(code, 'local _ = _ljs_strict_eq((rawset(obj, "prop", nil) and true), true)')
 end)
 
 test("delete in logical: delete x && delete y", function()
@@ -177,7 +177,7 @@ end)
 
 test("delete in array element", function()
   local code = expr_code("[delete obj.prop]")
-  assert_eq(code, '_ljs_new(Array, (rawset(obj, "prop", nil) and true))')
+  assert_eq(code, '_ljs_arr_lit((rawset(obj, "prop", nil) and true))')
 end)
 
 test("delete in object value", function()
@@ -232,4 +232,28 @@ test("delete member in switch case", function()
   local code = transpile_ok("switch (x) { case 1: delete obj.prop; }")
   assert(code:find('rawset(obj, "prop", nil)', 1, true), "expected rawset in case")
   assert(code:find("_ljs_sw == 1", 1, true), "expected case comparison")
+end)
+
+test("let r = delete undefined (non-configurable global)", function()
+  assert_eq(expr_code("let r = delete undefined"), "local r = false")
+end)
+
+test("let r = delete NaN (non-configurable global)", function()
+  assert_eq(expr_code("let r = delete NaN"), "local r = false")
+end)
+
+test("let r = delete Infinity (non-configurable global)", function()
+  assert_eq(expr_code("let r = delete Infinity"), "local r = false")
+end)
+
+test("let r = delete declared_var (declared identifier)", function()
+  assert_eq(expr_code("let x; let r = delete x"), "local r = false")
+end)
+
+test("delete delete undefined (double delete — inner false, outer true)", function()
+  assert_eq(expr_code("let r = delete delete undefined"), "local r = true")
+end)
+
+test("let r = delete undeclaredVar (undeclared identifier — true)", function()
+  assert_eq(expr_code("let r = delete undeclaredVar"), "local r = true")
 end)

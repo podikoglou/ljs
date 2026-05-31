@@ -9,7 +9,7 @@ local run_js, expr_code = H.run_js, H.expr_code
 
 test("Array constructor emitted in runtime init", function()
   local code = H.transpile_ok("let x = 1;")
-  assert(code:find("local Array = _ljs_ctor", 1, true), "expected Array constructor")
+  assert(code:find("Array = _ljs_ctor", 1, true), "expected Array constructor")
 end)
 
 test("Array.prototype.push emitted", function()
@@ -22,14 +22,14 @@ test("Array.prototype.pop emitted", function()
   assert(code:find("Array.prototype.pop", 1, true), "expected Array.prototype.pop")
 end)
 
-test("array literal emits _ljs_new(Array, ...)", function()
+test("array literal emits _ljs_arr_lit(...)", function()
   local code = expr_code("[1, 2, 3]")
-  assert_eq(code, "_ljs_new(Array, 1, 2, 3)")
+  assert_eq(code, "_ljs_arr_lit(1, 2, 3)")
 end)
 
-test("empty array literal emits _ljs_new(Array)", function()
+test("empty array literal emits _ljs_arr_lit()", function()
   local code = expr_code("[]")
-  assert_eq(code, "_ljs_new(Array)")
+  assert_eq(code, "_ljs_arr_lit()")
 end)
 
 -- ============================================================================
