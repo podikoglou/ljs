@@ -114,6 +114,46 @@ test("new Foo() instanceof Bar", function()
 end)
 
 -- ============================================================================
+-- nested new expressions
+-- ============================================================================
+
+test("new new Foo() — basic nested new", function()
+  assert_parse_ok("new new Foo();", {
+    A.expr_stmt(A.new_expr(A.new_expr(A.id("Foo"), {}), {})),
+  })
+end)
+
+test("new new Foo()() — outer new claims args", function()
+  assert_parse_ok("new new Foo()();", {
+    A.expr_stmt(A.new_expr(A.new_expr(A.id("Foo"), {}), {})),
+  })
+end)
+
+test("new new Foo().bar() — member access on inner result", function()
+  assert_parse_ok("new new Foo().bar();", {
+    A.expr_stmt(A.new_expr(A.member(A.new_expr(A.id("Foo"), {}), A.id("bar")), {})),
+  })
+end)
+
+test("new new Foo[0]() — computed member on inner result", function()
+  assert_parse_ok("new new Foo[0]();", {
+    A.expr_stmt(A.new_expr(A.new_expr(A.member_c(A.id("Foo"), A.num(0)), {}), {})),
+  })
+end)
+
+test("new new new Foo() — triple nested new", function()
+  assert_parse_ok("new new new Foo();", {
+    A.expr_stmt(A.new_expr(A.new_expr(A.new_expr(A.id("Foo"), {}), {}), {})),
+  })
+end)
+
+test("new new Foo().bar — member access without outer args", function()
+  assert_parse_ok("new new Foo().bar;", {
+    A.expr_stmt(A.new_expr(A.member(A.new_expr(A.id("Foo"), {}), A.id("bar")), {})),
+  })
+end)
+
+-- ============================================================================
 -- parse errors
 -- ============================================================================
 
