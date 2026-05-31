@@ -1259,7 +1259,6 @@ pratt_expr = function(stream, min_prec, no_in)
   local tok = stream.peek()
   local nud_fn = nuds[tok.type]
   local left
-  local left
   if nud_fn then
     stream.advance()
     left = nud_fn(stream, tok)
