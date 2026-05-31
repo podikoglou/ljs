@@ -167,7 +167,7 @@ end)
 -- ============================================================================
 
 test("nested do-while loops", function()
-  local code = transpile_ok("do do { x; } while (a); while (b);")
+  local code = emit_ok("do do { x; } while (a); while (b);")
   local _, count = code:gsub("repeat", "")
   assert_eq(count, 2, "expected 2 repeat")
 end)
@@ -205,7 +205,7 @@ test("do-while inside function", function()
 end)
 
 test("multiple do-while in sequence", function()
-  local code = transpile_ok("do { a; } while (x); do { b; } while (y);")
+  local code = emit_ok("do { a; } while (x); do { b; } while (y);")
   local _, count = code:gsub("repeat", "")
   assert_eq(count, 2, "expected 2 repeat")
   assert(code:find("until not _ljs_to_boolean%(x%)"), "expected until not _ljs_to_boolean(x)")
