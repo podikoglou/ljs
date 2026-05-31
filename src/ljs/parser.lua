@@ -1023,12 +1023,6 @@ local function pratt_expr(stream, min_prec, no_in)
     if led_fn then
       stream.advance()
       left = led_fn(stream, next_tok, left, no_in)
-    elseif op == TOKEN.QUESTION then
-      stream.advance()
-      local consequent = P.expression(stream, no_in)
-      stream.consume(TOKEN.COLON)
-      local alternate = P.expression(stream, no_in)
-      left = ast.conditional_expression(left, consequent, alternate, next_tok)
     else
       break
     end
@@ -1163,6 +1157,13 @@ end
 
 for op_type, _ in pairs(ASSIGN_OPS) do
   leds[op_type] = led_assign
+end
+
+leds[TOKEN.QUESTION] = function(stream, tok, left, no_in)
+  local consequent = P.expression(stream, no_in)
+  stream.consume(TOKEN.COLON)
+  local alternate = P.expression(stream, no_in)
+  return ast.conditional_expression(left, consequent, alternate, tok)
 end
 
 --- Entry point for expression parsing. Starts at minimum precedence 0.
