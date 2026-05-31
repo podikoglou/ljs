@@ -1038,6 +1038,38 @@ nuds[TOKEN.TYPEOF] = function(stream, tok)
   return ast.typeof_expression(argument, tok)
 end
 
+nuds[TOKEN.NEW] = function(stream, tok)
+  if stream.is(TOKEN.NEW) then
+    return pratt_expr(stream, 6)
+  end
+  local banned_err = check_banned(stream)
+  if banned_err then
+    error(banned_err, 0)
+  end
+  local id_token = stream.consume(TOKEN.IDENTIFIER)
+  local callee = ast.identifier(id_token.value, id_token)
+  while stream.is(TOKEN.DOT) or stream.is(TOKEN.LBRACKET) do
+    if stream.is(TOKEN.DOT) then
+      local dot = stream.advance()
+      local prop_token = stream.consume_property_name()
+      callee =
+        ast.member_expression(callee, ast.identifier(prop_token.value, prop_token), false, dot)
+    else
+      local lbracket = stream.advance()
+      local prop = P.expression(stream)
+      stream.consume(TOKEN.RBRACKET)
+      callee = ast.member_expression(callee, prop, true, lbracket)
+    end
+  end
+  local args = {}
+  if stream.is(TOKEN.LPAREN) then
+    stream.advance()
+    args = parse_comma_list(stream, TOKEN.RPAREN, P.maybe_spread)
+    stream.consume(TOKEN.RPAREN)
+  end
+  return ast.new_expression(callee, args, tok)
+end
+
 nuds[TOKEN.NUMBER] = function(stream, tok)
   if stream.is(TOKEN.DOT) and stream.peek_n(2).type == TOKEN.DOT then
     stream.advance()
@@ -1537,38 +1569,6 @@ function P.unary_expression(stream)
     local kw = stream.advance()
     local argument = P.unary_expression(stream)
     return ast.typeof_expression(argument, kw)
-  elseif stream.is(TOKEN.NEW) then
-    local new_kw = stream.advance()
-    if stream.is(TOKEN.NEW) then
-      local inner = P.unary_expression(stream)
-      return P.postfix(stream, inner, true)
-    end
-    local banned_err = check_banned(stream)
-    if banned_err then
-      error(banned_err, 0)
-    end
-    local token = stream.consume(TOKEN.IDENTIFIER)
-    local callee = ast.identifier(token.value, token)
-    while stream.is(TOKEN.DOT) or stream.is(TOKEN.LBRACKET) do
-      if stream.is(TOKEN.DOT) then
-        local dot = stream.advance()
-        local prop_token = stream.consume_property_name()
-        callee =
-          ast.member_expression(callee, ast.identifier(prop_token.value, prop_token), false, dot)
-      else
-        local lbracket = stream.advance()
-        local prop = P.expression(stream)
-        stream.consume(TOKEN.RBRACKET)
-        callee = ast.member_expression(callee, prop, true, lbracket)
-      end
-    end
-    local args = {}
-    if stream.is(TOKEN.LPAREN) then
-      stream.advance()
-      args = parse_comma_list(stream, TOKEN.RPAREN, P.maybe_spread)
-      stream.consume(TOKEN.RPAREN)
-    end
-    return P.postfix(stream, ast.new_expression(callee, args, new_kw), true)
   end
   return P.primary_expression(stream)
 end
