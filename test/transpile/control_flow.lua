@@ -92,9 +92,9 @@ test("for...of", function()
   assert(code:find("%.length"), "expected .length bound")
 end)
 
-test("for...of wraps iterable with _ljs_to_object", function()
+test("for...of wraps iterable with _ljs_iter_string", function()
   local code = emit_ok("for (const x of arr) { x; }")
-  assert(code:find("_ljs_to_object"), "expected _ljs_to_object wrapping of iterable")
+  assert(code:find("_ljs_iter_string"), "expected _ljs_iter_string wrapping of iterable")
 end)
 
 test("for...of on string iterates characters", function()

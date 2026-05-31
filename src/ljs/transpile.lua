@@ -443,6 +443,22 @@ HELPERS._ljs_to_object = [[local function _ljs_to_object(obj)
   return obj
 end]]
 
+HELPERS._ljs_iter_string = [[local function _ljs_iter_string(obj)
+  if type(obj) ~= "string" then
+    return _ljs_to_object(obj)
+  end
+  local cps = {}
+  local i = 1
+  while i <= #obj do
+    local b = obj:byte(i)
+    local len = b < 128 and 1 or b < 224 and 2 or b < 240 and 3 or 4
+    cps[#cps + 1] = obj:sub(i, i + len - 1)
+    i = i + len
+  end
+  cps.length = #cps
+  return cps
+end]]
+
 -- Method call: obj.m(a,b) → _ljs_call_member(obj,"m",a,b). Passes obj as _ljs_this.
 -- Throws TypeError on null/undefined per RequireObjectCoercible (§7.2.1).
 -- Boxes primitives via _ljs_to_object before property lookup.
@@ -2363,7 +2379,7 @@ gen.ForOfStatement = function(node, indent, ctx)
     body = cg.do_block(body, indent + 1) .. cg.label("_continue", indent + 1)
   end
   scope_pop(ctx)
-  return cg.local_decl(iter_tmp, cg.call("_ljs_to_object", { iterable }), indent)
+  return cg.local_decl(iter_tmp, cg.call("_ljs_iter_string", { iterable }), indent)
     .. cg.numeric_for(idx_tmp, "1", cg.member_dot(iter_tmp, "length"), body, indent)
 end
 
@@ -3272,6 +3288,7 @@ local HELPER_ORDER = {
   "_ljs_to_boolean",
   "_ljs_fn",
   "_ljs_to_object",
+  "_ljs_iter_string",
   "_ljs_tostring",
   "_ljs_add",
   "_ljs_sub",
