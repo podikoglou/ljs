@@ -27,6 +27,7 @@ build = {
     ["ljs"] = "src/ljs.lua",
     ["ljs.ast"] = "src/ljs/ast.lua",
     ["ljs.codegen"] = "src/ljs/codegen.lua",
+    ["ljs.tokenizer"] = "src/ljs/tokenizer.lua",
     ["ljs.parser"] = "src/ljs/parser.lua",
     ["ljs.transpile"] = "src/ljs/transpile.lua",
     ["ljs.utf8"] = "src/ljs/utf8.lua",
