@@ -994,11 +994,93 @@ local PRECEDENCE = {
   [TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN] = 0.5,
 }
 
+local nuds = {}
+local leds = {}
+
+local function pratt_expr(stream, min_prec, no_in)
+  local tok = stream.peek()
+  local nud_fn = nuds[tok.type]
+  local left
+  if nud_fn then
+    stream.advance()
+    left = nud_fn(stream, tok)
+  else
+    left = P.unary_expression(stream)
+  end
+
+  while true do
+    local next_tok = stream.peek()
+    local led_fn = leds[next_tok.type]
+    local prec = PRECEDENCE[next_tok.type]
+    if not led_fn then
+      local op = next_tok.type
+      prec = PRECEDENCE[op]
+      if not prec or prec < min_prec then
+        break
+      end
+      if op == TOKEN.IN and no_in then
+        break
+      end
+
+      if
+        op == TOKEN.ASSIGN
+        or op == TOKEN.PLUS_ASSIGN
+        or op == TOKEN.MINUS_ASSIGN
+        or op == TOKEN.STAR_ASSIGN
+        or op == TOKEN.STARSTAR_ASSIGN
+        or op == TOKEN.SLASH_ASSIGN
+        or op == TOKEN.PERCENT_ASSIGN
+        or op == TOKEN.BITWISE_AND_ASSIGN
+        or op == TOKEN.BITWISE_OR_ASSIGN
+        or op == TOKEN.BITWISE_XOR_ASSIGN
+        or op == TOKEN.LEFT_SHIFT_ASSIGN
+        or op == TOKEN.RIGHT_SHIFT_ASSIGN
+        or op == TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN
+      then
+        stream.advance()
+        if op == TOKEN.ASSIGN then
+          if left.type == ast.TYPE_ARRAY_EXPRESSION or left.type == ast.TYPE_OBJECT_EXPRESSION then
+            left = coerce_to_pattern(left)
+          end
+        end
+        local right = P.expression(stream, no_in)
+        left = ast.binary_expression(op, left, right, next_tok)
+      elseif op == TOKEN.STARSTAR then
+        stream.advance()
+        local right = P.binary_expression(stream, prec, no_in)
+        left = ast.binary_expression(op, left, right, next_tok)
+      elseif op == TOKEN.QUESTION then
+        stream.advance()
+        local consequent = P.expression(stream, no_in)
+        stream.consume(TOKEN.COLON)
+        local alternate = P.expression(stream, no_in)
+        left = ast.conditional_expression(left, consequent, alternate, next_tok)
+      else
+        stream.advance()
+        local next_min = prec + 0.01
+        local right = P.binary_expression(stream, next_min, no_in)
+        left = ast.binary_expression(op, left, right, next_tok)
+      end
+    else
+      if not prec or prec < min_prec then
+        break
+      end
+      if next_tok.type == TOKEN.IN and no_in then
+        break
+      end
+      stream.advance()
+      left = led_fn(stream, next_tok, left)
+    end
+  end
+
+  return left
+end
+
 --- Entry point for expression parsing. Starts at minimum precedence 0.
 -- @param stream (table) Token stream
 -- @param no_in (boolean|nil) If true, suppress 'in' as a binary operator (for for-loop init)
 function P.expression(stream, no_in)
-  return P.binary_expression(stream, 0, no_in)
+  return pratt_expr(stream, 0, no_in)
 end
 
 --- Pratt parser core: parse binary expressions with precedence climbing.
