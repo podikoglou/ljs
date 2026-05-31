@@ -370,58 +370,6 @@ function P.binding_element(stream)
   end
 end
 
-local convert_expression_to_pattern
-
-convert_expression_to_pattern = function(node)
-  if node.type == ast.TYPE_ARRAY_EXPRESSION then
-    local elements = {}
-    local count = node.count or #node.elements
-    for i = 1, count do
-      local elem = node.elements[i]
-      if elem == nil then
-        elements[i] = nil
-      elseif elem.type == ast.TYPE_SPREAD_ELEMENT then
-        elements[i] = ast.rest_element(elem.argument, elem)
-      elseif elem.type == ast.TYPE_IDENTIFIER then
-        elements[i] = elem
-      elseif elem.type == ast.TYPE_ASSIGNMENT_PATTERN then
-        elements[i] = elem
-      elseif elem.type == ast.TYPE_BINARY_EXPRESSION and elem.operator == "=" then
-        local left = convert_expression_to_pattern(elem.left)
-        elements[i] = ast.assignment_pattern(left, elem.right, elem)
-      else
-        elements[i] = convert_expression_to_pattern(elem)
-      end
-    end
-    local result = ast.array_pattern(elements, node)
-    result.count = count
-    return result
-  elseif node.type == ast.TYPE_OBJECT_EXPRESSION then
-    local properties = {}
-    for _, prop_node in ipairs(node.properties) do
-      if prop_node.type == ast.TYPE_SPREAD_ELEMENT then
-        properties[#properties + 1] = ast.rest_element(prop_node.argument, prop_node)
-      else
-        local new_value = prop_node.value
-        if new_value.type == ast.TYPE_IDENTIFIER then
-          -- keep as-is
-        elseif new_value.type == ast.TYPE_ASSIGNMENT_PATTERN then
-          -- keep as-is
-        elseif new_value.type == ast.TYPE_BINARY_EXPRESSION and new_value.operator == "=" then
-          local left = convert_expression_to_pattern(new_value.left)
-          new_value = ast.assignment_pattern(left, new_value.right, new_value)
-        else
-          new_value = convert_expression_to_pattern(new_value)
-        end
-        properties[#properties + 1] =
-          ast.property(prop_node.key, new_value, prop_node.computed, prop_node, prop_node.shorthand)
-      end
-    end
-    return ast.object_pattern(properties, node)
-  end
-  return node
-end
-
 --- Parse if/else: if (test) consequent [else alternate]
 -- The consequent and alternate are single statements (can be blocks).
 function P.if_statement(stream)
@@ -473,6 +421,62 @@ function P.do_while_statement(stream)
   return ast.do_while_statement(body, test, kw)
 end
 
+--- Coerce an already-parsed expression node into a pattern node.
+-- Used when the parser discovers after the fact that an expression is in
+-- a pattern position (assignment LHS, for-of/in left without declaration).
+-- Handles: ArrayExpression→ArrayPattern, ObjectExpression→ObjectPattern,
+-- SpreadElement→RestElement, BinaryExpression(=)→AssignmentPattern.
+local coerce_to_pattern
+coerce_to_pattern = function(node)
+  if node.type == ast.TYPE_ARRAY_EXPRESSION then
+    local elements = {}
+    local count = node.count or #node.elements
+    for i = 1, count do
+      local elem = node.elements[i]
+      if elem == nil then
+        elements[i] = nil
+      elseif elem.type == ast.TYPE_SPREAD_ELEMENT then
+        elements[i] = ast.rest_element(elem.argument, elem)
+      elseif elem.type == ast.TYPE_IDENTIFIER then
+        elements[i] = elem
+      elseif elem.type == ast.TYPE_ASSIGNMENT_PATTERN then
+        elements[i] = elem
+      elseif elem.type == ast.TYPE_BINARY_EXPRESSION and elem.operator == "=" then
+        local left = coerce_to_pattern(elem.left)
+        elements[i] = ast.assignment_pattern(left, elem.right, elem)
+      else
+        elements[i] = coerce_to_pattern(elem)
+      end
+    end
+    local result = ast.array_pattern(elements, node)
+    result.count = count
+    return result
+  elseif node.type == ast.TYPE_OBJECT_EXPRESSION then
+    local properties = {}
+    for _, prop_node in ipairs(node.properties) do
+      if prop_node.type == ast.TYPE_SPREAD_ELEMENT then
+        properties[#properties + 1] = ast.rest_element(prop_node.argument, prop_node)
+      else
+        local new_value = prop_node.value
+        if new_value.type == ast.TYPE_IDENTIFIER then
+          -- keep as-is
+        elseif new_value.type == ast.TYPE_ASSIGNMENT_PATTERN then
+          -- keep as-is
+        elseif new_value.type == ast.TYPE_BINARY_EXPRESSION and new_value.operator == "=" then
+          local left = coerce_to_pattern(new_value.left)
+          new_value = ast.assignment_pattern(left, new_value.right, new_value)
+        else
+          new_value = coerce_to_pattern(new_value)
+        end
+        properties[#properties + 1] =
+          ast.property(prop_node.key, new_value, prop_node.computed, prop_node, prop_node.shorthand)
+      end
+    end
+    return ast.object_pattern(properties, node)
+  end
+  return node
+end
+
 --- Parse for statement: dispatches between for...of, for...in, and C-style for(;;).
 function P.for_statement(stream)
   local kw = stream.consume(TOKEN.FOR)
@@ -500,6 +504,9 @@ function P.for_statement(stream)
   local expr = P.expression(stream, true)
 
   if stream.is(TOKEN.OF) then
+    if expr.type == ast.TYPE_ARRAY_EXPRESSION or expr.type == ast.TYPE_OBJECT_EXPRESSION then
+      expr = coerce_to_pattern(expr)
+    end
     stream.consume(TOKEN.OF)
     local right = P.expression(stream)
     stream.consume(TOKEN.RPAREN)
@@ -510,6 +517,9 @@ function P.for_statement(stream)
   end
 
   if stream.is(TOKEN.IN) then
+    if expr.type == ast.TYPE_ARRAY_EXPRESSION or expr.type == ast.TYPE_OBJECT_EXPRESSION then
+      expr = coerce_to_pattern(expr)
+    end
     stream.consume(TOKEN.IN)
     local right = P.expression(stream)
     stream.consume(TOKEN.RPAREN)
@@ -1034,7 +1044,7 @@ function P.binary_expression(stream, min_precedence, no_in)
       stream.advance()
       if op == TOKEN.ASSIGN then
         if left.type == ast.TYPE_ARRAY_EXPRESSION or left.type == ast.TYPE_OBJECT_EXPRESSION then
-          left = convert_expression_to_pattern(left)
+          left = coerce_to_pattern(left)
         end
       end
       local right = P.expression(stream, no_in)
