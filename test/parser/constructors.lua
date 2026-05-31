@@ -141,6 +141,18 @@ test("new new Foo[0]() — computed member on inner result", function()
   })
 end)
 
+test("new new new Foo() — triple nested new", function()
+  assert_parse_ok("new new new Foo();", {
+    A.expr_stmt(A.new_expr(A.new_expr(A.new_expr(A.id("Foo"), {}), {}), {})),
+  })
+end)
+
+test("new new Foo().bar — member access without outer args", function()
+  assert_parse_ok("new new Foo().bar;", {
+    A.expr_stmt(A.new_expr(A.member(A.new_expr(A.id("Foo"), {}), A.id("bar")), {})),
+  })
+end)
+
 -- ============================================================================
 -- parse errors
 -- ============================================================================
