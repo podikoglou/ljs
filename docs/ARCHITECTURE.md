@@ -39,6 +39,7 @@ Variables (`let`/`const`; `var` normalized to `let`), functions, arrow functions
 
 - **`f instanceof Object`**: Returns `false` for instances of user-defined constructors. `_ljs_ctor`-created prototypes inherit from `_ljs_object_prototype`, but `Object.prototype` identity checks (e.g., `Foo.prototype === Object.prototype`) return `false`.
 - **`console.log.prototype`**: Returns `nil` — `console.log` is wrapped in `_ljs_fn` (a callable table with `Function.prototype` chain), not `_ljs_ctor`. It has `.call` and `.apply` but no `.prototype`.
+- **`String.prototype.length`**: Returns the UTF-8 code point count (Lua `utf8.len`), not the UTF-16 code unit count required by the ECMAScript spec. Supplementary plane characters (e.g. emoji, CJK ideographs) report length 1 instead of 2.
 
 ### Runtime call ABI
 
