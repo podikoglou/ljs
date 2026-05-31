@@ -997,7 +997,45 @@ local PRECEDENCE = {
 local nuds = {}
 local leds = {}
 
-local function pratt_expr(stream, min_prec, no_in)
+local pratt_expr
+
+local UNARY_PREFIX_OPS = {
+  [TOKEN.NOT] = "!",
+  [TOKEN.TILDE] = "~",
+  [TOKEN.PLUS] = "+",
+  [TOKEN.MINUS] = "-",
+}
+
+for tok_type, op_str in pairs(UNARY_PREFIX_OPS) do
+  nuds[tok_type] = function(stream, tok)
+    local argument = pratt_expr(stream, 6)
+    return ast.unary_expression(op_str, argument, tok)
+  end
+end
+
+nuds[TOKEN.INCREMENT] = function(stream, tok)
+  local argument = pratt_expr(stream, 6)
+  check_update_target(argument, tok)
+  return ast.update_expression(tok.type, argument, true, tok)
+end
+
+nuds[TOKEN.DECREMENT] = function(stream, tok)
+  local argument = pratt_expr(stream, 6)
+  check_update_target(argument, tok)
+  return ast.update_expression(tok.type, argument, true, tok)
+end
+
+nuds[TOKEN.DELETE] = function(stream, tok)
+  local argument = pratt_expr(stream, 6)
+  return ast.delete_expression(argument, tok)
+end
+
+nuds[TOKEN.TYPEOF] = function(stream, tok)
+  local argument = pratt_expr(stream, 6)
+  return ast.typeof_expression(argument, tok)
+end
+
+function pratt_expr(stream, min_prec, no_in)
   local tok = stream.peek()
   local nud_fn = nuds[tok.type]
   local left
