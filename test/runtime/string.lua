@@ -86,15 +86,15 @@ test("string charCodeAt negative index returns NaN", function()
 end)
 
 test("String.fromCharCode single char", function()
-  assert_js('String.fromCharCode(65)', "A")
+  assert_js("String.fromCharCode(65)", "A")
 end)
 
 test("String.fromCharCode multiple chars", function()
-  assert_js('String.fromCharCode(72, 101, 108, 108, 111)', "Hello")
+  assert_js("String.fromCharCode(72, 101, 108, 108, 111)", "Hello")
 end)
 
 test("String.fromCharCode no args returns empty string", function()
-  assert_js('String.fromCharCode()', "")
+  assert_js("String.fromCharCode()", "")
 end)
 
 test("string charCodeAt NaN returns first char", function()
@@ -110,43 +110,43 @@ test("string charCodeAt positive fraction truncates toward zero", function()
 end)
 
 test("String.fromCharCode NaN returns null char", function()
-  assert_js('String.fromCharCode(NaN)', "\0")
+  assert_js("String.fromCharCode(NaN)", "\0")
 end)
 
 test("String.fromCharCode negative fraction truncates toward zero", function()
-  assert_js('String.fromCharCode(-0.5)', "\0")
+  assert_js("String.fromCharCode(-0.5)", "\0")
 end)
 
 test("String.fromCharCode(128) produces UTF-8 two-byte encoding", function()
-  assert_js('String.fromCharCode(128)', "\xc2\x80")
+  assert_js("String.fromCharCode(128)", "\xc2\x80")
 end)
 
 test("String.fromCharCode(256) produces correct UTF-8", function()
-  assert_js('String.fromCharCode(256)', "\xc4\x80")
+  assert_js("String.fromCharCode(256)", "\xc4\x80")
 end)
 
 test("String.fromCharCode(0x4E16) produces three-byte UTF-8", function()
-  assert_js('String.fromCharCode(0x4E16)', "\xe4\xb8\x96")
+  assert_js("String.fromCharCode(0x4E16)", "\xe4\xb8\x96")
 end)
 
 test("String.fromCharCode(65535) produces correct UTF-8", function()
-  assert_js('String.fromCharCode(65535)', "\xef\xbf\xbf")
+  assert_js("String.fromCharCode(65535)", "\xef\xbf\xbf")
 end)
 
 test("String.fromCharCode(-1) wraps via modulo 65536", function()
-  assert_js('String.fromCharCode(-1)', "\xef\xbf\xbf")
+  assert_js("String.fromCharCode(-1)", "\xef\xbf\xbf")
 end)
 
 test("String.fromCharCode(65536) wraps to 0", function()
-  assert_js('String.fromCharCode(65536)', "\0")
+  assert_js("String.fromCharCode(65536)", "\0")
 end)
 
 test("String.fromCharCode(Infinity) returns null char", function()
-  assert_js('String.fromCharCode(Infinity)', "\0")
+  assert_js("String.fromCharCode(Infinity)", "\0")
 end)
 
 test("String.fromCharCode(-Infinity) returns null char", function()
-  assert_js('String.fromCharCode(-Infinity)', "\0")
+  assert_js("String.fromCharCode(-Infinity)", "\0")
 end)
 
 test("string bracket rejects whitespace-padded index", function()
@@ -175,4 +175,20 @@ end)
 
 test("string bracket rejects decimal integer index", function()
   assert_js('"hello"["1.0"] === undefined', true)
+end)
+
+test("string .length counts UTF-8 code points for 2-byte chars", function()
+  assert_js('"caf\\u00e9".length', 4)
+end)
+
+test("string .length counts UTF-8 code points for 3-byte chars", function()
+  assert_js('"\\u65e5\\u672c\\u8a9e".length', 3)
+end)
+
+test("string .length counts mixed ASCII and multibyte", function()
+  assert_js('"h\\u00e9llo".length', 5)
+end)
+
+test("string .length for empty string is still 0", function()
+  assert_js('"".length', 0)
 end)

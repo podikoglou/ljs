@@ -22,9 +22,13 @@ end)
 
 setmetatable(_ljs_string_prototype, { __index = _ljs_object_prototype })
 
+local utf8 = require("ljs.utf8")
+local _ljs_codepoint_to_utf8 = utf8.codepoint_to_utf8
+local _ljs_utf8_len = utf8.len
+
 _ljs_string_box_index = function(t, k)
   if k == "length" then
-    return #(rawget(t, "_ljs_data") or "")
+    return _ljs_utf8_len(rawget(t, "_ljs_data") or "")
   end
   if type(k) == "number" then
     local s = rawget(t, "_ljs_data") or ""
@@ -61,8 +65,6 @@ local String = _ljs_fn(function(_ljs_this, ...)
 end)
 String.prototype = _ljs_string_prototype
 _ljs_string_prototype.constructor = String
-local utf8 = require("ljs.utf8")
-local _ljs_codepoint_to_utf8 = utf8.codepoint_to_utf8
 
 String.fromCharCode = _ljs_fn(function(_ljs_this, ...)
   local chars = {}

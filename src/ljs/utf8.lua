@@ -19,4 +19,8 @@ function M.codepoint_to_utf8(n)
   return nil
 end
 
+function M.len(s)
+  return select(2, s:gsub("[^\128-\191]", ""))
+end
+
 return M
