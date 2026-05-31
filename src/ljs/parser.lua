@@ -1010,70 +1010,151 @@ local function pratt_expr(stream, min_prec, no_in)
 
   while true do
     local next_tok = stream.peek()
-    local led_fn = leds[next_tok.type]
-    local prec = PRECEDENCE[next_tok.type]
-    if not led_fn then
-      local op = next_tok.type
-      prec = PRECEDENCE[op]
-      if not prec or prec < min_prec then
-        break
-      end
-      if op == TOKEN.IN and no_in then
-        break
-      end
+    local op = next_tok.type
+    local prec = PRECEDENCE[op]
+    if not prec or prec < min_prec then
+      break
+    end
+    if op == TOKEN.IN and no_in then
+      break
+    end
 
-      if
-        op == TOKEN.ASSIGN
-        or op == TOKEN.PLUS_ASSIGN
-        or op == TOKEN.MINUS_ASSIGN
-        or op == TOKEN.STAR_ASSIGN
-        or op == TOKEN.STARSTAR_ASSIGN
-        or op == TOKEN.SLASH_ASSIGN
-        or op == TOKEN.PERCENT_ASSIGN
-        or op == TOKEN.BITWISE_AND_ASSIGN
-        or op == TOKEN.BITWISE_OR_ASSIGN
-        or op == TOKEN.BITWISE_XOR_ASSIGN
-        or op == TOKEN.LEFT_SHIFT_ASSIGN
-        or op == TOKEN.RIGHT_SHIFT_ASSIGN
-        or op == TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN
-      then
-        stream.advance()
-        if op == TOKEN.ASSIGN then
-          if left.type == ast.TYPE_ARRAY_EXPRESSION or left.type == ast.TYPE_OBJECT_EXPRESSION then
-            left = coerce_to_pattern(left)
-          end
-        end
-        local right = P.expression(stream, no_in)
-        left = ast.binary_expression(op, left, right, next_tok)
-      elseif op == TOKEN.STARSTAR then
-        stream.advance()
-        local right = P.binary_expression(stream, prec, no_in)
-        left = ast.binary_expression(op, left, right, next_tok)
-      elseif op == TOKEN.QUESTION then
-        stream.advance()
-        local consequent = P.expression(stream, no_in)
-        stream.consume(TOKEN.COLON)
-        local alternate = P.expression(stream, no_in)
-        left = ast.conditional_expression(left, consequent, alternate, next_tok)
-      else
-        stream.advance()
-        local next_min = prec + 0.01
-        local right = P.binary_expression(stream, next_min, no_in)
-        left = ast.binary_expression(op, left, right, next_tok)
-      end
-    else
-      if not prec or prec < min_prec then
-        break
-      end
-      if next_tok.type == TOKEN.IN and no_in then
-        break
-      end
+    local led_fn = leds[op]
+    if led_fn then
       stream.advance()
       left = led_fn(stream, next_tok, left)
+    elseif
+      op == TOKEN.ASSIGN
+      or op == TOKEN.PLUS_ASSIGN
+      or op == TOKEN.MINUS_ASSIGN
+      or op == TOKEN.STAR_ASSIGN
+      or op == TOKEN.STARSTAR_ASSIGN
+      or op == TOKEN.SLASH_ASSIGN
+      or op == TOKEN.PERCENT_ASSIGN
+      or op == TOKEN.BITWISE_AND_ASSIGN
+      or op == TOKEN.BITWISE_OR_ASSIGN
+      or op == TOKEN.BITWISE_XOR_ASSIGN
+      or op == TOKEN.LEFT_SHIFT_ASSIGN
+      or op == TOKEN.RIGHT_SHIFT_ASSIGN
+      or op == TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN
+    then
+      stream.advance()
+      if op == TOKEN.ASSIGN then
+        if left.type == ast.TYPE_ARRAY_EXPRESSION or left.type == ast.TYPE_OBJECT_EXPRESSION then
+          left = coerce_to_pattern(left)
+        end
+      end
+      local right = P.expression(stream, no_in)
+      left = ast.binary_expression(op, left, right, next_tok)
+    elseif op == TOKEN.STARSTAR then
+      stream.advance()
+      local right = P.binary_expression(stream, prec, no_in)
+      left = ast.binary_expression(op, left, right, next_tok)
+    elseif op == TOKEN.QUESTION then
+      stream.advance()
+      local consequent = P.expression(stream, no_in)
+      stream.consume(TOKEN.COLON)
+      local alternate = P.expression(stream, no_in)
+      left = ast.conditional_expression(left, consequent, alternate, next_tok)
+    else
+      break
     end
   end
 
   return left
+end
+
+leds[TOKEN.STAR] = function(stream, tok, left)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.STAR] + 0.01)
+  return ast.binary_expression(TOKEN.STAR, left, right, tok)
+end
+leds[TOKEN.SLASH] = function(stream, tok, left)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.SLASH] + 0.01)
+  return ast.binary_expression(TOKEN.SLASH, left, right, tok)
+end
+leds[TOKEN.PERCENT] = function(stream, tok, left)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.PERCENT] + 0.01)
+  return ast.binary_expression(TOKEN.PERCENT, left, right, tok)
+end
+leds[TOKEN.PLUS] = function(stream, tok, left)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.PLUS] + 0.01)
+  return ast.binary_expression(TOKEN.PLUS, left, right, tok)
+end
+leds[TOKEN.MINUS] = function(stream, tok, left)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.MINUS] + 0.01)
+  return ast.binary_expression(TOKEN.MINUS, left, right, tok)
+end
+leds[TOKEN.LEFT_SHIFT] = function(stream, tok, left)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.LEFT_SHIFT] + 0.01)
+  return ast.binary_expression(TOKEN.LEFT_SHIFT, left, right, tok)
+end
+leds[TOKEN.RIGHT_SHIFT] = function(stream, tok, left)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.RIGHT_SHIFT] + 0.01)
+  return ast.binary_expression(TOKEN.RIGHT_SHIFT, left, right, tok)
+end
+leds[TOKEN.UNSIGNED_RIGHT_SHIFT] = function(stream, tok, left)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.UNSIGNED_RIGHT_SHIFT] + 0.01)
+  return ast.binary_expression(TOKEN.UNSIGNED_RIGHT_SHIFT, left, right, tok)
+end
+leds[TOKEN.LT] = function(stream, tok, left)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.LT] + 0.01)
+  return ast.binary_expression(TOKEN.LT, left, right, tok)
+end
+leds[TOKEN.GT] = function(stream, tok, left)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.GT] + 0.01)
+  return ast.binary_expression(TOKEN.GT, left, right, tok)
+end
+leds[TOKEN.LTE] = function(stream, tok, left)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.LTE] + 0.01)
+  return ast.binary_expression(TOKEN.LTE, left, right, tok)
+end
+leds[TOKEN.GTE] = function(stream, tok, left)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.GTE] + 0.01)
+  return ast.binary_expression(TOKEN.GTE, left, right, tok)
+end
+leds[TOKEN.INSTANCEOF] = function(stream, tok, left)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.INSTANCEOF] + 0.01)
+  return ast.binary_expression(TOKEN.INSTANCEOF, left, right, tok)
+end
+leds[TOKEN.IN] = function(stream, tok, left)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.IN] + 0.01)
+  return ast.binary_expression(TOKEN.IN, left, right, tok)
+end
+leds[TOKEN.EQ] = function(stream, tok, left)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.EQ] + 0.01)
+  return ast.binary_expression(TOKEN.EQ, left, right, tok)
+end
+leds[TOKEN.NEQ] = function(stream, tok, left)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.NEQ] + 0.01)
+  return ast.binary_expression(TOKEN.NEQ, left, right, tok)
+end
+leds[TOKEN.LOOSE_EQ] = function(stream, tok, left)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.LOOSE_EQ] + 0.01)
+  return ast.binary_expression(TOKEN.LOOSE_EQ, left, right, tok)
+end
+leds[TOKEN.LOOSE_NEQ] = function(stream, tok, left)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.LOOSE_NEQ] + 0.01)
+  return ast.binary_expression(TOKEN.LOOSE_NEQ, left, right, tok)
+end
+leds[TOKEN.BITWISE_AND] = function(stream, tok, left)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.BITWISE_AND] + 0.01)
+  return ast.binary_expression(TOKEN.BITWISE_AND, left, right, tok)
+end
+leds[TOKEN.BITWISE_XOR] = function(stream, tok, left)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.BITWISE_XOR] + 0.01)
+  return ast.binary_expression(TOKEN.BITWISE_XOR, left, right, tok)
+end
+leds[TOKEN.BITWISE_OR] = function(stream, tok, left)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.BITWISE_OR] + 0.01)
+  return ast.binary_expression(TOKEN.BITWISE_OR, left, right, tok)
+end
+leds[TOKEN.AND] = function(stream, tok, left)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.AND] + 0.01)
+  return ast.binary_expression(TOKEN.AND, left, right, tok)
+end
+leds[TOKEN.OR] = function(stream, tok, left)
+  local right = P.binary_expression(stream, PRECEDENCE[TOKEN.OR] + 0.01)
+  return ast.binary_expression(TOKEN.OR, left, right, tok)
 end
 
 --- Entry point for expression parsing. Starts at minimum precedence 0.
