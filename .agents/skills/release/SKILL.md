@@ -17,11 +17,11 @@ Before any release work, determine whether a release is warranted and what versi
 
 ## Pre-flight checks
 
-Run these **before** starting any release work. Stop and report if anything fails.
+Run these **before** starting any release work. **If any check fails, immediately refuse to proceed with the release. Do not attempt to fix tests or issues — simply stop and report the failure.**
 
 1. **Working tree clean**: `git status --short` must be empty
 2. **On develop**: `git branch --show-current` must be `develop`
-3. **Tests pass**: `make test`
+3. **Tests pass**: `make test` — **If tests fail, refuse the release entirely.**
 4. **Wasmoon adapter up to date**: compare `ls src/ljs/runtime/` against runtime imports in `web/src/lib/wasmoon-adapter.ts`. Every `.lua` file in `src/ljs/runtime/` must be imported and mounted. Also check `rockspec/ljs-*.rockspec` has the same modules.
 
 ## Draft release notes
