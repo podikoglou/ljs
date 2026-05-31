@@ -32,13 +32,18 @@ _ljs_function_prototype.toString = _ljs_fn(function(_ljs_this)
 end)
 setmetatable(_ljs_function_prototype, {
   __index = function(self, k)
-    if k == "name" then return "" end
+    if k == "name" then
+      return ""
+    end
     return _ljs_object_prototype[k]
   end,
   __newindex = function(self, k, v)
-    if k == "name" then return end
+    if k == "name" then
+      return
+    end
     rawset(self, k, v)
   end,
+  __ljs_proto = _ljs_object_prototype,
 })
 
 local Function = _ljs_ctor(nil)

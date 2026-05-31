@@ -84,3 +84,55 @@ test("Function.prototype.name is non-writable", function()
   ]])
   assert_eq(out, "true\n")
 end)
+
+-- Regression tests: function-based __index must not break instanceof/prototype chain
+
+test("function Foo() {}; Foo instanceof Function", function()
+  local out = run_js([[
+    function Foo() {}
+    console.log(Foo instanceof Function);
+  ]])
+  assert_eq(out, "true\n")
+end)
+
+test("Object.getPrototypeOf(Function.prototype) === Object.prototype", function()
+  local out = run_js([[
+    console.log(Object.getPrototypeOf(Function.prototype) === Object.prototype);
+  ]])
+  assert_eq(out, "true\n")
+end)
+
+test("Object.getPrototypeOf(fn) on user functions", function()
+  local out = run_js([[
+    function foo() {}
+    console.log(Object.getPrototypeOf(foo) === Function.prototype);
+    var arrow = () => {};
+    console.log(Object.getPrototypeOf(arrow) === Function.prototype);
+  ]])
+  assert_eq(out, "true\ntrue\n")
+end)
+
+test("fn.__proto__ access", function()
+  local out = run_js([[
+    function foo() {}
+    console.log(foo.__proto__ === Function.prototype);
+  ]])
+  assert_eq(out, "true\n")
+end)
+
+test("custom properties still work on functions", function()
+  local out = run_js([[
+    function fn() {}
+    fn.x = 1;
+    console.log(fn.x);
+  ]])
+  assert_eq(out, "1\n")
+end)
+
+test('"name" in fn (in operator on function properties)', function()
+  local out = run_js([[
+    function foo() {}
+    console.log("name" in foo);
+  ]])
+  assert_eq(out, "true\n")
+end)

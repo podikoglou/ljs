@@ -662,13 +662,25 @@ HELPERS._ljs_instanceof = [[local function _ljs_instanceof(value, ctor)
     return false
   end
   local proto = getmetatable(value)
-  if proto then proto = proto.__index end
+  if proto then
+    proto = proto.__index
+    if type(proto) ~= "table" then
+      proto = getmetatable(value).__ljs_proto
+    end
+  end
   while proto ~= nil do
     if proto == target then
       return true
     end
     local mt = getmetatable(proto)
-    proto = mt and mt.__index
+    if mt then
+      proto = mt.__index
+      if type(proto) ~= "table" then
+        proto = mt.__ljs_proto
+      end
+    else
+      proto = nil
+    end
   end
   return false
 end]]
@@ -828,8 +840,17 @@ HELPERS._ljs_has_property = [[local function _ljs_has_property(obj, key)
     local mt = getmetatable(current)
     if mt == nil then break end
     local idx = mt.__index
-    if type(idx) ~= "table" then break end
-    current = idx
+    if type(idx) == "table" then
+      current = idx
+    else
+      if type(idx) == "function" then
+        local val = idx(current, key)
+        if val ~= nil and val ~= _ljs_undefined then return true end
+      end
+      local proto = mt.__ljs_proto
+      if type(proto) ~= "table" then break end
+      current = proto
+    end
   end
   return false
 end]]
