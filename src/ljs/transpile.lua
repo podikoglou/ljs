@@ -951,31 +951,42 @@ local function extract_binding_names(target, out)
   return out
 end
 
-local function check_pattern_defaults_tdz(pattern, binding_names)
+local function check_sequential_tdz(pattern, not_initialized)
   if not pattern or type(pattern) ~= "table" then
     return
   end
   if pattern.type == ast.TYPE_ASSIGNMENT_PATTERN then
-    for _, name in ipairs(binding_names) do
+    for name, _ in pairs(not_initialized) do
       if references_identifier(pattern.right, name) then
         error("ReferenceError: Cannot access '" .. name .. "' before initialization", 0)
       end
     end
-    check_pattern_defaults_tdz(pattern.left, binding_names)
+    check_sequential_tdz(pattern.left, not_initialized)
+    for _, n in ipairs(extract_binding_names(pattern.left)) do
+      not_initialized[n] = nil
+    end
   elseif pattern.type == ast.TYPE_OBJECT_PATTERN then
     for _, prop in ipairs(pattern.properties) do
-      if prop.type == ast.TYPE_REST_ELEMENT then
-        check_pattern_defaults_tdz(prop.argument, binding_names)
-      else
-        check_pattern_defaults_tdz(prop.value, binding_names)
+      local target = prop.type == ast.TYPE_REST_ELEMENT and prop.argument or prop.value
+      check_sequential_tdz(target, not_initialized)
+      for _, n in ipairs(extract_binding_names(target)) do
+        not_initialized[n] = nil
       end
     end
   elseif pattern.type == ast.TYPE_ARRAY_PATTERN then
     for _, elem in ipairs(pattern.elements) do
-      check_pattern_defaults_tdz(elem, binding_names)
+      if elem then
+        check_sequential_tdz(elem, not_initialized)
+        for _, n in ipairs(extract_binding_names(elem)) do
+          not_initialized[n] = nil
+        end
+      end
     end
   elseif pattern.type == ast.TYPE_REST_ELEMENT then
-    check_pattern_defaults_tdz(pattern.argument, binding_names)
+    check_sequential_tdz(pattern.argument, not_initialized)
+    for _, n in ipairs(extract_binding_names(pattern.argument)) do
+      not_initialized[n] = nil
+    end
   end
 end
 
@@ -2073,14 +2084,19 @@ gen.VariableDeclaration = function(node, indent, ctx)
         end
       end
     end
+    local not_initialized = {}
+    for _, d in ipairs(node.declarations) do
+      for _, n in ipairs(extract_binding_names(d.name)) do
+        not_initialized[n] = true
+      end
+    end
     for _, decl in ipairs(node.declarations) do
       local nt = decl.name.type
       if nt == ast.TYPE_OBJECT_PATTERN or nt == ast.TYPE_ARRAY_PATTERN then
-        local all_names = {}
-        for _, d in ipairs(node.declarations) do
-          extract_binding_names(d.name, all_names)
-        end
-        check_pattern_defaults_tdz(decl.name, all_names)
+        check_sequential_tdz(decl.name, not_initialized)
+      end
+      for _, n in ipairs(extract_binding_names(decl.name)) do
+        not_initialized[n] = nil
       end
     end
   end
