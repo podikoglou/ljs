@@ -2,6 +2,18 @@
 -- Array constructor stores elements at 1-based indices and sets .length.
 -- All methods follow the JS-ABI convention: first param is _ljs_this.
 
+local function _ljs_iter_codepoints(s)
+  local cps = {}
+  local i = 1
+  while i <= #s do
+    local b = s:byte(i)
+    local len = b < 128 and 1 or b < 224 and 2 or b < 240 and 3 or 4
+    cps[#cps + 1] = s:sub(i, i + len - 1)
+    i = i + len
+  end
+  return cps
+end
+
 local function _ljs_arr_newindex(t, k, v)
   rawset(t, k, v)
   if type(k) == "number" and k == math.floor(k) and k > 0 then
@@ -1043,14 +1055,15 @@ Array.from = _ljs_fn(function(_ljs_this, source, mapFn, thisArg)
     return arr
   end
   if type(source) == "string" then
-    for i = 1, #source do
-      local val = source:sub(i, i)
+    local cps = _ljs_iter_codepoints(source)
+    for i = 1, #cps do
+      local val = cps[i]
       if mapFn ~= nil then
         val = _ljs_call_member(mapFn, "call", thisArg, val, i - 1)
       end
       rawset(arr, i, val)
     end
-    rawset(arr, "length", #source)
+    rawset(arr, "length", #cps)
     return arr
   end
   if type(source) == "table" then
