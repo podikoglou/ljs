@@ -488,6 +488,9 @@ HELPERS._ljs_get_proto = [[local function _ljs_get_proto(obj)
   if proto == _ljs_string_box_index then
     return _ljs_string_prototype
   end
+  if type(proto) ~= "table" then
+    proto = mt.__ljs_proto
+  end
   if type(proto) ~= "table" then return _ljs_null end
   return proto
 end]]
@@ -496,6 +499,7 @@ HELPERS._ljs_set_proto = [[local function _ljs_set_proto(obj, value)
   if type(obj) ~= "table" then return value end
   local mt = getmetatable(obj)
   if mt == nil then return value end
+  rawset(mt, "__ljs_proto", nil)
   if value == _ljs_null then
     rawset(mt, "__index", function(t, k) return _ljs_undefined end)
   elseif type(value) == "table" and not _ljs_is_undef(value) then
@@ -519,14 +523,22 @@ end]]
 -- Wraps a plain Lua function as a callable table with Function.prototype chain.
 -- Used for arrow functions and method shorthand — no .prototype property.
 HELPERS._ljs_fn = [[local function _ljs_fn(fn, name)
+  local _name = name or ""
   local t = setmetatable({}, {
     __call = function(_, ...)
       return fn(nil, ...)
     end,
-    __index = _ljs_function_prototype,
+    __index = function(self, k)
+      if k == "name" then return _name end
+      return _ljs_function_prototype[k]
+    end,
+    __newindex = function(self, k, v)
+      if k == "name" then return end
+      rawset(self, k, v)
+    end,
+    __ljs_proto = _ljs_function_prototype,
   })
   rawset(t, "_ljs_raw", fn)
-  rawset(t, "name", name or "")
   return t
 end]]
 
@@ -650,13 +662,25 @@ HELPERS._ljs_instanceof = [[local function _ljs_instanceof(value, ctor)
     return false
   end
   local proto = getmetatable(value)
-  if proto then proto = proto.__index end
+  if proto then
+    proto = proto.__index
+    if type(proto) ~= "table" then
+      proto = getmetatable(value).__ljs_proto
+    end
+  end
   while proto ~= nil do
     if proto == target then
       return true
     end
     local mt = getmetatable(proto)
-    proto = mt and mt.__index
+    if mt then
+      proto = mt.__index
+      if type(proto) ~= "table" then
+        proto = mt.__ljs_proto
+      end
+    else
+      proto = nil
+    end
   end
   return false
 end]]
@@ -816,8 +840,17 @@ HELPERS._ljs_has_property = [[local function _ljs_has_property(obj, key)
     local mt = getmetatable(current)
     if mt == nil then break end
     local idx = mt.__index
-    if type(idx) ~= "table" then break end
-    current = idx
+    if type(idx) == "table" then
+      current = idx
+    else
+      if type(idx) == "function" then
+        local val = idx(current, key)
+        if val ~= nil and val ~= _ljs_undefined then return true end
+      end
+      local proto = mt.__ljs_proto
+      if type(proto) ~= "table" then break end
+      current = proto
+    end
   end
   return false
 end]]

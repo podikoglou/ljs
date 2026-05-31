@@ -72,7 +72,7 @@ local function _ljs_inspect(x, depth, ctx)
   end
 
   if rawget(x, "_ljs_raw") then
-    local name = rawget(x, "name")
+    local name = x.name
     if name and name ~= "" then
       return "[Function: " .. name .. "]"
     end
