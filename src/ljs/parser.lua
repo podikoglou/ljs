@@ -1022,30 +1022,7 @@ local function pratt_expr(stream, min_prec, no_in)
     local led_fn = leds[op]
     if led_fn then
       stream.advance()
-      left = led_fn(stream, next_tok, left)
-    elseif
-      op == TOKEN.ASSIGN
-      or op == TOKEN.PLUS_ASSIGN
-      or op == TOKEN.MINUS_ASSIGN
-      or op == TOKEN.STAR_ASSIGN
-      or op == TOKEN.STARSTAR_ASSIGN
-      or op == TOKEN.SLASH_ASSIGN
-      or op == TOKEN.PERCENT_ASSIGN
-      or op == TOKEN.BITWISE_AND_ASSIGN
-      or op == TOKEN.BITWISE_OR_ASSIGN
-      or op == TOKEN.BITWISE_XOR_ASSIGN
-      or op == TOKEN.LEFT_SHIFT_ASSIGN
-      or op == TOKEN.RIGHT_SHIFT_ASSIGN
-      or op == TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN
-    then
-      stream.advance()
-      if op == TOKEN.ASSIGN then
-        if left.type == ast.TYPE_ARRAY_EXPRESSION or left.type == ast.TYPE_OBJECT_EXPRESSION then
-          left = coerce_to_pattern(left)
-        end
-      end
-      local right = P.expression(stream, no_in)
-      left = ast.binary_expression(op, left, right, next_tok)
+      left = led_fn(stream, next_tok, left, no_in)
     elseif op == TOKEN.STARSTAR then
       stream.advance()
       local right = P.binary_expression(stream, prec, no_in)
@@ -1155,6 +1132,37 @@ end
 leds[TOKEN.OR] = function(stream, tok, left)
   local right = P.binary_expression(stream, PRECEDENCE[TOKEN.OR] + 0.01)
   return ast.binary_expression(TOKEN.OR, left, right, tok)
+end
+
+local ASSIGN_OPS = {
+  [TOKEN.ASSIGN] = true,
+  [TOKEN.PLUS_ASSIGN] = true,
+  [TOKEN.MINUS_ASSIGN] = true,
+  [TOKEN.STAR_ASSIGN] = true,
+  [TOKEN.STARSTAR_ASSIGN] = true,
+  [TOKEN.SLASH_ASSIGN] = true,
+  [TOKEN.PERCENT_ASSIGN] = true,
+  [TOKEN.BITWISE_AND_ASSIGN] = true,
+  [TOKEN.BITWISE_OR_ASSIGN] = true,
+  [TOKEN.BITWISE_XOR_ASSIGN] = true,
+  [TOKEN.LEFT_SHIFT_ASSIGN] = true,
+  [TOKEN.RIGHT_SHIFT_ASSIGN] = true,
+  [TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN] = true,
+}
+
+local function led_assign(stream, tok, left, no_in)
+  local op = tok.type
+  if op == TOKEN.ASSIGN then
+    if left.type == ast.TYPE_ARRAY_EXPRESSION or left.type == ast.TYPE_OBJECT_EXPRESSION then
+      left = coerce_to_pattern(left)
+    end
+  end
+  local right = P.expression(stream, no_in)
+  return ast.binary_expression(op, left, right, tok)
+end
+
+for op_type, _ in pairs(ASSIGN_OPS) do
+  leds[op_type] = led_assign
 end
 
 --- Entry point for expression parsing. Starts at minimum precedence 0.
