@@ -98,9 +98,23 @@ local function _ljs_inspect(x, depth, ctx)
   if _ljs_instanceof(x, Array) then
     local len = x.length or 0
     local items = {}
-    for i = 1, len do
-      local v = rawget(x, i)
-      items[i] = _ljs_inspect(v, depth + 1, ctx)
+    local i = 1
+    while i <= len do
+      if rawget(x, i) == nil then
+        local hole_start = i
+        repeat
+          i = i + 1
+        until i > len or rawget(x, i) ~= nil
+        local count = i - hole_start
+        if count == 1 then
+          items[#items + 1] = "<1 empty item>"
+        else
+          items[#items + 1] = "<" .. count .. " empty items>"
+        end
+      else
+        items[#items + 1] = _ljs_inspect(rawget(x, i), depth + 1, ctx)
+        i = i + 1
+      end
     end
     ctx.path[x] = nil
     if #items == 0 then
@@ -123,7 +137,9 @@ local function _ljs_inspect(x, depth, ctx)
       num_keys[#num_keys + 1] = k
     end
   end
-  table.sort(num_keys, function(a, b) return a < b end)
+  table.sort(num_keys, function(a, b)
+    return a < b
+  end)
   table.sort(string_keys)
   local parts = {}
   for _, k in ipairs(num_keys) do
