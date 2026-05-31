@@ -279,3 +279,39 @@ test("super() as expression returns this", function()
   ]])
   assert_eq(out, "true\n")
 end)
+
+test("super() with spread args in constructor", function()
+  local code = H.transpile_ok("class B extends A { constructor() { super(...args); } }")
+  assert(code:find("_ljs_call_this"), "expected _ljs_call_this for super call")
+  assert(code:find("_ljs_spread_build"), "expected _ljs_spread_build for spread args")
+end)
+
+test("super() with spread args forwards correctly", function()
+  local out = run_js([[
+    class A { constructor(x, y) { this.sum = x + y; } }
+    class B extends A { constructor() { super(...[3, 7]); } }
+    let b = new B();
+    console.log(b.sum);
+  ]])
+  assert_eq(out, "10\n")
+end)
+
+test("super() with mixed literal and spread args", function()
+  local out = run_js([[
+    class A { constructor(x, y, z) { this.total = x + y + z; } }
+    class B extends A { constructor(a) { super(1, ...a); } }
+    let b = new B([2, 3]);
+    console.log(b.total);
+  ]])
+  assert_eq(out, "6\n")
+end)
+
+test("super() with spread and instanceof check", function()
+  local out = run_js([[
+    class A { constructor(x, y) { this.x = x; this.y = y; } }
+    class B extends A { constructor(...args) { super(...args); } }
+    let b = new B(10, 20);
+    console.log(b.x, b.y, b instanceof A, b instanceof B);
+  ]])
+  assert_eq(out, "10 20 true true\n")
+end)
