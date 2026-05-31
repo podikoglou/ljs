@@ -738,8 +738,8 @@ end
 -- (to disambiguate from a call expression in certain contexts).
 -- @param stream (table) Token stream
 -- @return table ClassExpression AST node
-function P.class_expression(stream)
-  local kw = stream.consume(TOKEN.CLASS)
+function P.class_expression(stream, tok)
+  local kw = tok or stream.consume(TOKEN.CLASS)
   local name = nil
   if stream.is(TOKEN.IDENTIFIER) then
     local next_tok = stream.peek_n(2)
@@ -929,10 +929,9 @@ end
 -- ============================================================================
 -- EXPRESSION PARSERS
 -- ============================================================================
--- Uses Pratt parsing (top-down operator precedence):
---   P.expression -> P.binary_expression(min_prec=0)
---     -> P.unary_expression -> P.primary_expression
---     -> loops while next operator has sufficient precedence
+-- Uses Pratt parsing (top-down operator precedence) with nud/led tables:
+--   pratt_expr(min_prec=0) -> nud handler for first token
+--     -> loops while next token has a led handler with sufficient precedence
 --
 -- Precedence levels (higher = binds tighter):
 --   6   unary ! -
@@ -952,6 +951,9 @@ end
 -- All binary operators except assignment, compound assignment, and ** are left-associative.
 
 local PRECEDENCE = {
+  [TOKEN.DOT] = 10,
+  [TOKEN.LBRACKET] = 10,
+  [TOKEN.LPAREN] = 10,
   [TOKEN.NOT] = 6,
   [TOKEN.TILDE] = 6,
   [TOKEN.STARSTAR] = 5.5,
@@ -994,327 +996,327 @@ local PRECEDENCE = {
   [TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN] = 0.5,
 }
 
---- Entry point for expression parsing. Starts at minimum precedence 0.
--- @param stream (table) Token stream
--- @param no_in (boolean|nil) If true, suppress 'in' as a binary operator (for for-loop init)
-function P.expression(stream, no_in)
-  return P.binary_expression(stream, 0, no_in)
+local nuds = {}
+local leds = {}
+
+local pratt_expr
+
+local UNARY_PREFIX_OPS = {
+  [TOKEN.NOT] = "!",
+  [TOKEN.TILDE] = "~",
+  [TOKEN.PLUS] = "+",
+  [TOKEN.MINUS] = "-",
+}
+
+for tok_type, op_str in pairs(UNARY_PREFIX_OPS) do
+  nuds[tok_type] = function(stream, tok)
+    local argument = pratt_expr(stream, 6)
+    return ast.unary_expression(op_str, argument, tok)
+  end
 end
 
---- Pratt parser core: parse binary expressions with precedence climbing.
--- 1. Parse a unary expression (the left operand).
--- 2. Loop: while the next token is an operator with precedence >= min_precedence,
---    consume it and parse the right operand at a higher precedence level.
--- 3. Assignment is right-associative (right-recursive call to P.expression
---    instead of P.binary_expression with +1).
--- @param stream (table) Token stream
--- @param min_precedence (number) Minimum precedence to continue parsing
--- @param no_in (boolean|nil) If true, suppress 'in' as a binary operator
-function P.binary_expression(stream, min_precedence, no_in)
-  local left = P.unary_expression(stream)
+nuds[TOKEN.INCREMENT] = function(stream, tok)
+  local argument = pratt_expr(stream, 6)
+  check_update_target(argument, tok)
+  return ast.update_expression(tok.type, argument, true, tok)
+end
+
+nuds[TOKEN.DECREMENT] = function(stream, tok)
+  local argument = pratt_expr(stream, 6)
+  check_update_target(argument, tok)
+  return ast.update_expression(tok.type, argument, true, tok)
+end
+
+nuds[TOKEN.DELETE] = function(stream, tok)
+  local argument = pratt_expr(stream, 6)
+  return ast.delete_expression(argument, tok)
+end
+
+nuds[TOKEN.TYPEOF] = function(stream, tok)
+  local argument = pratt_expr(stream, 6)
+  return ast.typeof_expression(argument, tok)
+end
+
+nuds[TOKEN.NEW] = function(stream, tok)
+  if stream.is(TOKEN.NEW) then
+    return pratt_expr(stream, 6)
+  end
+  local banned_err = check_banned(stream)
+  if banned_err then
+    error(banned_err, 0)
+  end
+  local id_token = stream.consume(TOKEN.IDENTIFIER)
+  local callee = ast.identifier(id_token.value, id_token)
+  while stream.is(TOKEN.DOT) or stream.is(TOKEN.LBRACKET) do
+    if stream.is(TOKEN.DOT) then
+      local dot = stream.advance()
+      local prop_token = stream.consume_property_name()
+      callee =
+        ast.member_expression(callee, ast.identifier(prop_token.value, prop_token), false, dot)
+    else
+      local lbracket = stream.advance()
+      local prop = P.expression(stream)
+      stream.consume(TOKEN.RBRACKET)
+      callee = ast.member_expression(callee, prop, true, lbracket)
+    end
+  end
+  local args = {}
+  if stream.is(TOKEN.LPAREN) then
+    stream.advance()
+    args = parse_comma_list(stream, TOKEN.RPAREN, P.maybe_spread)
+    stream.consume(TOKEN.RPAREN)
+  end
+  return ast.new_expression(callee, args, tok)
+end
+
+nuds[TOKEN.NUMBER] = function(stream, tok)
+  if stream.is(TOKEN.DOT) and stream.peek_n(2).type == TOKEN.DOT then
+    stream.advance()
+    return ast.number_literal(tok.value, tok)
+  end
+  if tok.value % 1 == 0 and stream.is(TOKEN.DOT) then
+    parse_error(
+      "Unexpected token after integer literal",
+      stream.peek().line,
+      stream.peek().col
+    )
+  end
+  return ast.number_literal(tok.value, tok)
+end
+
+nuds[TOKEN.STRING] = function(stream, tok)
+  return ast.string_literal(tok.value, tok)
+end
+
+nuds[TOKEN.BOOLEAN] = function(stream, tok)
+  return ast.boolean_literal(tok.value, tok)
+end
+
+nuds[TOKEN.NULL] = function(stream, tok)
+  return ast.null_literal(tok)
+end
+
+nuds[TOKEN.UNDEFINED] = function(stream, tok)
+  return ast.undefined_literal(tok)
+end
+
+nuds[TOKEN.THIS] = function(stream, tok)
+  return ast.this_expression(tok)
+end
+
+nuds[TOKEN.SUPER] = function(stream, tok)
+  return ast.super_expression(tok)
+end
+
+nuds[TOKEN.IDENTIFIER] = function(stream, tok)
+  local expr = ast.identifier(tok.value, tok)
+
+  if stream.is(TOKEN.ARROW) then
+    stream.advance()
+    local body = P.arrow_function_body(stream)
+    return ast.arrow_function_expression({ expr }, body, tok)
+  end
+
+  return expr
+end
+
+nuds[TOKEN.LPAREN] = function(stream, tok)
+  local depth = 0
+  local n = 0
+  local found_arrow = false
 
   while true do
-    local op_token = stream.peek()
-    local op = op_token.type
-    local precedence = PRECEDENCE[op]
-
-    if not precedence or precedence < min_precedence then
+    local t = stream.peek_n(n)
+    if t.type == TOKEN.EOF then
       break
     end
-
-    if op == TOKEN.IN and no_in then
-      break
+    if t.type == TOKEN.LPAREN then
+      depth = depth + 1
+    elseif t.type == TOKEN.RPAREN then
+      depth = depth - 1
     end
-
-    if
-      op == TOKEN.ASSIGN
-      or op == TOKEN.PLUS_ASSIGN
-      or op == TOKEN.MINUS_ASSIGN
-      or op == TOKEN.STAR_ASSIGN
-      or op == TOKEN.STARSTAR_ASSIGN
-      or op == TOKEN.SLASH_ASSIGN
-      or op == TOKEN.PERCENT_ASSIGN
-      or op == TOKEN.BITWISE_AND_ASSIGN
-      or op == TOKEN.BITWISE_OR_ASSIGN
-      or op == TOKEN.BITWISE_XOR_ASSIGN
-      or op == TOKEN.LEFT_SHIFT_ASSIGN
-      or op == TOKEN.RIGHT_SHIFT_ASSIGN
-      or op == TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN
-    then
-      stream.advance()
-      if op == TOKEN.ASSIGN then
-        if left.type == ast.TYPE_ARRAY_EXPRESSION or left.type == ast.TYPE_OBJECT_EXPRESSION then
-          left = coerce_to_pattern(left)
-        end
+    if depth == 0 then
+      if stream.peek_n(n + 1) and stream.peek_n(n + 1).type == TOKEN.ARROW then
+        found_arrow = true
       end
-      local right = P.expression(stream, no_in)
-      left = ast.binary_expression(op, left, right, op_token)
-    elseif op == TOKEN.STARSTAR then
+      break
+    end
+    n = n + 1
+  end
+
+  if found_arrow then
+    local arrow_token = tok
+    local params = {}
+    local found_rest = false
+    if not stream.is(TOKEN.RPAREN) then
+      while true do
+        if found_rest then
+          parse_error(
+            "Rest parameter must be the last parameter",
+            stream.peek().line,
+            stream.peek().col
+          )
+        end
+        if stream.is(TOKEN.ELLIPSIS) then
+          local ellipsis = stream.advance()
+          local id_token = stream.consume(TOKEN.IDENTIFIER)
+          table.insert(
+            params,
+            ast.rest_element(ast.identifier(id_token.value, id_token), ellipsis)
+          )
+          found_rest = true
+        elseif stream.is(TOKEN.LBRACKET) then
+          local param = P.array_pattern(stream)
+          if stream.is(TOKEN.ASSIGN) then
+            local assign_tok = stream.advance()
+            local default_expr = P.expression(stream)
+            table.insert(params, ast.assignment_pattern(param, default_expr, assign_tok))
+          else
+            table.insert(params, param)
+          end
+        elseif stream.is(TOKEN.LBRACE) then
+          local param = P.object_pattern(stream)
+          if stream.is(TOKEN.ASSIGN) then
+            local assign_tok = stream.advance()
+            local default_expr = P.expression(stream)
+            table.insert(params, ast.assignment_pattern(param, default_expr, assign_tok))
+          else
+            table.insert(params, param)
+          end
+        elseif stream.is(TOKEN.IDENTIFIER) then
+          local id_token = stream.advance()
+          local param = ast.identifier(id_token.value, id_token)
+          if stream.is(TOKEN.ASSIGN) then
+            local assign_tok = stream.advance()
+            local default_expr = P.expression(stream)
+            table.insert(params, ast.assignment_pattern(param, default_expr, assign_tok))
+          else
+            table.insert(params, param)
+          end
+        else
+          parse_error(
+            "Arrow function parameters must be identifiers",
+            stream.peek().line,
+            stream.peek().col
+          )
+        end
+        if not stream.is(TOKEN.COMMA) then
+          break
+        end
+        stream.advance()
+      end
+    end
+    stream.consume(TOKEN.RPAREN)
+    stream.consume(TOKEN.ARROW)
+    local body = P.arrow_function_body(stream)
+    return ast.arrow_function_expression(params, body, arrow_token)
+  else
+    local expr = P.expression(stream)
+    stream.consume(TOKEN.RPAREN)
+    return expr
+  end
+end
+
+nuds[TOKEN.LBRACKET] = function(stream, tok)
+  return P.array_literal(stream, tok)
+end
+
+nuds[TOKEN.LBRACE] = function(stream, tok)
+  return P.object_literal(stream, tok)
+end
+
+nuds[TOKEN.FUNCTION] = function(stream, tok)
+  return P.function_expression(stream, tok)
+end
+
+nuds[TOKEN.CLASS] = function(stream, tok)
+  return P.class_expression(stream, tok)
+end
+
+nuds[TOKEN.TEMPLATE_LITERAL] = function(stream, tok)
+  local quasis = {}
+  local expressions = {}
+  for i, q in ipairs(tok.value.quasis) do
+    local is_tail = (i == #tok.value.quasis)
+    quasis[#quasis + 1] = ast.template_element(q, is_tail, tok)
+  end
+  for _, expr_src in ipairs(tok.value.expression_sources) do
+    local expr_tokens = tokenize(expr_src)
+    if not expr_tokens then
+      parse_error("Failed to tokenize template expression", tok.line, tok.col)
+    end
+    local expr_stream = make_token_stream(expr_tokens)
+    expressions[#expressions + 1] = P.expression(expr_stream)
+  end
+  return ast.template_literal(quasis, expressions, tok)
+end
+
+nuds[TOKEN.ARROW] = function(stream, tok)
+  parse_error("Unexpected arrow token", tok.line, tok.col)
+end
+
+pratt_expr = function(stream, min_prec, no_in)
+  local tok = stream.peek()
+  local nud_fn = nuds[tok.type]
+  local left
+  if nud_fn then
+    stream.advance()
+    left = nud_fn(stream, tok)
+  else
+    local banned_err = check_banned(stream)
+    if banned_err then
+      error(banned_err, 0)
+    end
+    parse_error(
+      string.format("Unexpected token %s", tok.type),
+      tok.line,
+      tok.col
+    )
+  end
+
+  local had_postfix = false
+
+  while true do
+    local next_tok = stream.peek()
+    local op = next_tok.type
+
+    if op == TOKEN.INCREMENT or op == TOKEN.DECREMENT then
+      if had_postfix then break end
       stream.advance()
-      local right = P.binary_expression(stream, precedence, no_in)
-      left = ast.binary_expression(op, left, right, op_token)
-    elseif op == TOKEN.QUESTION then
-      stream.advance()
-      local consequent = P.expression(stream, no_in)
-      stream.consume(TOKEN.COLON)
-      local alternate = P.expression(stream, no_in)
-      left = ast.conditional_expression(left, consequent, alternate, op_token)
+      if not ast.is_valid_update_target(left) and left.type ~= ast.TYPE_CALL_EXPRESSION then
+        parse_error(
+          "Invalid update target: cannot use " .. op .. " on this expression",
+          next_tok.line,
+          next_tok.col
+        )
+      end
+      left = ast.update_expression(op, left, false, next_tok)
+      had_postfix = true
     else
-      stream.advance()
-      local next_min = precedence + 0.01
-      local right = P.binary_expression(stream, next_min, no_in)
-      left = ast.binary_expression(op, left, right, op_token)
+      local prec = PRECEDENCE[op]
+      if not prec or prec < min_prec then
+        break
+      end
+      if op == TOKEN.IN and no_in then
+        break
+      end
+      if had_postfix and (op == TOKEN.DOT or op == TOKEN.LBRACKET or op == TOKEN.LPAREN) then
+        break
+      end
+
+      local led_fn = leds[op]
+      if led_fn then
+        stream.advance()
+        left = led_fn(stream, next_tok, left, no_in)
+      else
+        break
+      end
     end
   end
 
   return left
 end
 
---- Parse unary prefix expressions: !expr, -expr, +expr, ~expr, or delete expr.
--- Unary operators have the highest precedence and are right-recursive
--- (so !!x parses as !(!(x))).
-function P.unary_expression(stream)
-  if
-    stream.is(TOKEN.NOT)
-    or stream.is(TOKEN.MINUS)
-    or stream.is(TOKEN.PLUS)
-    or stream.is(TOKEN.TILDE)
-  then
-    local op_token = stream.advance()
-    local op = op_token.type
-    local argument = P.unary_expression(stream)
-    local op_str = op == TOKEN.NOT and "!"
-      or op == TOKEN.TILDE and "~"
-      or op == TOKEN.PLUS and "+"
-      or "-"
-    return ast.unary_expression(op_str, argument, op_token)
-  elseif stream.is(TOKEN.INCREMENT) or stream.is(TOKEN.DECREMENT) then
-    local op_token = stream.advance()
-    local argument = P.unary_expression(stream)
-    check_update_target(argument, op_token)
-    return ast.update_expression(op_token.type, argument, true, op_token)
-  elseif stream.is(TOKEN.DELETE) then
-    local kw = stream.advance()
-    local argument = P.unary_expression(stream)
-    return ast.delete_expression(argument, kw)
-  elseif stream.is(TOKEN.TYPEOF) then
-    local kw = stream.advance()
-    local argument = P.unary_expression(stream)
-    return ast.typeof_expression(argument, kw)
-  elseif stream.is(TOKEN.NEW) then
-    local new_kw = stream.advance()
-    if stream.is(TOKEN.NEW) then
-      local inner = P.unary_expression(stream)
-      return P.postfix(stream, inner, true)
-    end
-    local banned_err = check_banned(stream)
-    if banned_err then
-      error(banned_err, 0)
-    end
-    local token = stream.consume(TOKEN.IDENTIFIER)
-    local callee = ast.identifier(token.value, token)
-    while stream.is(TOKEN.DOT) or stream.is(TOKEN.LBRACKET) do
-      if stream.is(TOKEN.DOT) then
-        local dot = stream.advance()
-        local prop_token = stream.consume_property_name()
-        callee =
-          ast.member_expression(callee, ast.identifier(prop_token.value, prop_token), false, dot)
-      else
-        local lbracket = stream.advance()
-        local prop = P.expression(stream)
-        stream.consume(TOKEN.RBRACKET)
-        callee = ast.member_expression(callee, prop, true, lbracket)
-      end
-    end
-    local args = {}
-    if stream.is(TOKEN.LPAREN) then
-      stream.advance()
-      args = parse_comma_list(stream, TOKEN.RPAREN, P.maybe_spread)
-      stream.consume(TOKEN.RPAREN)
-    end
-    return P.postfix(stream, ast.new_expression(callee, args, new_kw), true)
-  end
-  return P.primary_expression(stream)
-end
-
---- Parse primary (leaf) expressions — the atomic units that operators combine.
--- Handles: literals, identifiers, parenthesized exprs, arrow functions,
--- arrays, objects, function expressions.
--- Also rejects excluded keywords (this, async, etc.) in expression context.
-function P.primary_expression(stream)
-  local banned_err = check_banned(stream)
-  if banned_err then
-    error(banned_err, 0)
-  end
-
-  local token = stream.peek()
-
-  if stream.is(TOKEN.NUMBER) then
-    stream.advance()
-    if stream.is(TOKEN.DOT) and stream.peek_n(2).type == TOKEN.DOT then
-      stream.advance()
-      return P.postfix(stream, ast.number_literal(token.value, token), true)
-    end
-    if token.value % 1 ~= 0 and stream.is(TOKEN.DOT) then
-      return P.postfix(stream, ast.number_literal(token.value, token), true)
-    end
-    return ast.number_literal(token.value, token)
-  elseif stream.is(TOKEN.STRING) then
-    stream.advance()
-    return P.postfix(stream, ast.string_literal(token.value, token), true)
-  elseif stream.is(TOKEN.BOOLEAN) then
-    stream.advance()
-    return P.postfix(stream, ast.boolean_literal(token.value, token), true)
-  elseif stream.is(TOKEN.NULL) then
-    stream.advance()
-    return P.postfix(stream, ast.null_literal(token), true)
-  elseif stream.is(TOKEN.UNDEFINED) then
-    stream.advance()
-    return P.postfix(stream, ast.undefined_literal(token), true)
-  elseif stream.is(TOKEN.THIS) then
-    stream.advance()
-    return P.postfix(stream, ast.this_expression(token), true)
-  elseif stream.is(TOKEN.SUPER) then
-    stream.advance()
-    return P.postfix(stream, ast.super_expression(token), true)
-  elseif stream.is(TOKEN.IDENTIFIER) then
-    return P.identifier_or_call(stream)
-  elseif stream.is(TOKEN.LPAREN) then
-    -- Disambiguate (expr) from (params) => body: scan ahead to matching )
-    -- and check if => follows. Without this lookahead, (x) => x would be
-    -- misparsed as a parenthesized identifier.
-    local depth = 0
-    local n = 0
-    local found_arrow = false
-
-    while true do
-      local t = stream.peek_n(n + 1)
-      if t.type == TOKEN.EOF then
-        break
-      end
-      if t.type == TOKEN.LPAREN then
-        depth = depth + 1
-      elseif t.type == TOKEN.RPAREN then
-        depth = depth - 1
-      end
-      if depth == 0 then
-        if stream.peek_n(n + 2) and stream.peek_n(n + 2).type == TOKEN.ARROW then
-          found_arrow = true
-        end
-        break
-      end
-      n = n + 1
-    end
-
-    if found_arrow then
-      local arrow_token = token
-      stream.advance()
-      local params = {}
-      local found_rest = false
-      if not stream.is(TOKEN.RPAREN) then
-        while true do
-          if found_rest then
-            parse_error(
-              "Rest parameter must be the last parameter",
-              stream.peek().line,
-              stream.peek().col
-            )
-          end
-          if stream.is(TOKEN.ELLIPSIS) then
-            local ellipsis = stream.advance()
-            local id_token = stream.consume(TOKEN.IDENTIFIER)
-            table.insert(
-              params,
-              ast.rest_element(ast.identifier(id_token.value, id_token), ellipsis)
-            )
-            found_rest = true
-          elseif stream.is(TOKEN.LBRACKET) then
-            local param = P.array_pattern(stream)
-            if stream.is(TOKEN.ASSIGN) then
-              local assign_tok = stream.advance()
-              local default_expr = P.expression(stream)
-              table.insert(params, ast.assignment_pattern(param, default_expr, assign_tok))
-            else
-              table.insert(params, param)
-            end
-          elseif stream.is(TOKEN.LBRACE) then
-            local param = P.object_pattern(stream)
-            if stream.is(TOKEN.ASSIGN) then
-              local assign_tok = stream.advance()
-              local default_expr = P.expression(stream)
-              table.insert(params, ast.assignment_pattern(param, default_expr, assign_tok))
-            else
-              table.insert(params, param)
-            end
-          elseif stream.is(TOKEN.IDENTIFIER) then
-            local id_token = stream.advance()
-            local param = ast.identifier(id_token.value, id_token)
-            if stream.is(TOKEN.ASSIGN) then
-              local assign_tok = stream.advance()
-              local default_expr = P.expression(stream)
-              table.insert(params, ast.assignment_pattern(param, default_expr, assign_tok))
-            else
-              table.insert(params, param)
-            end
-          else
-            parse_error(
-              "Arrow function parameters must be identifiers",
-              stream.peek().line,
-              stream.peek().col
-            )
-          end
-          if not stream.is(TOKEN.COMMA) then
-            break
-          end
-          stream.advance()
-        end
-      end
-      stream.consume(TOKEN.RPAREN)
-      stream.consume(TOKEN.ARROW)
-      local body = P.arrow_function_body(stream)
-      return ast.arrow_function_expression(params, body, arrow_token)
-    else
-      stream.advance()
-      local expr = P.expression(stream)
-      stream.consume(TOKEN.RPAREN)
-      return P.postfix(stream, expr, not ast.is_valid_update_target(expr))
-    end
-  elseif stream.is(TOKEN.LBRACKET) then
-    return P.postfix(stream, P.array_literal(stream), true)
-  elseif stream.is(TOKEN.LBRACE) then
-    return P.postfix(stream, P.object_literal(stream), true)
-  elseif stream.is(TOKEN.FUNCTION) then
-    return P.postfix(stream, P.function_expression(stream), true)
-  elseif stream.is(TOKEN.ARROW) then
-    parse_error("Unexpected arrow token", token.line, token.col)
-  elseif stream.is(TOKEN.CLASS) then
-    return P.postfix(stream, P.class_expression(stream), true)
-  elseif stream.is(TOKEN.TEMPLATE_LITERAL) then
-    local token = stream.advance()
-    local quasis = {}
-    local expressions = {}
-    for i, q in ipairs(token.value.quasis) do
-      local is_tail = (i == #token.value.quasis)
-      quasis[#quasis + 1] = ast.template_element(q, is_tail, token)
-    end
-    for _, expr_src in ipairs(token.value.expression_sources) do
-      local expr_tokens = tokenize(expr_src)
-      if not expr_tokens then
-        parse_error("Failed to tokenize template expression", token.line, token.col)
-      end
-      local expr_stream = make_token_stream(expr_tokens)
-      expressions[#expressions + 1] = P.expression(expr_stream)
-    end
-    return P.postfix(stream, ast.template_literal(quasis, expressions, token), true)
-  else
-    parse_error(string.format("Unexpected token %s", token.type), token.line, token.col)
-  end
-end
-
---- Parse the body of an arrow function.
--- If body starts with {, it's a block body.
--- Otherwise it's an expression body, which gets wrapped in a BlockStatement
--- containing a single ExpressionStatement (desugared form).
 function P.arrow_function_body(stream)
   if stream.is(TOKEN.LBRACE) then
     local saved_loop, saved_switch = stream.loop_depth, stream.switch_depth
@@ -1330,80 +1332,101 @@ function P.arrow_function_body(stream)
   end
 end
 
---- Parse postfix operations on an expression: .prop, [expr], (args).
--- Loops to handle chaining: obj.method()[0].field
--- This is shared between P.identifier_or_call and P.call_expression
--- to avoid duplicating the chaining logic.
--- @param stream (table) Token stream
--- @param expr (table) The expression to apply postfix ops to
--- @return (table) The resulting expression after all postfix ops
-function P.postfix(stream, expr, no_update)
-  while true do
-    if stream.is(TOKEN.DOT) then
-      local dot = stream.advance()
-      local prop_token = stream.consume_property_name()
-      expr = ast.member_expression(expr, ast.identifier(prop_token.value, prop_token), false, dot)
-      no_update = false
-    elseif stream.is(TOKEN.LBRACKET) then
-      local lbracket = stream.advance()
-      local prop = P.expression(stream)
-      stream.consume(TOKEN.RBRACKET)
-      expr = ast.member_expression(expr, prop, true, lbracket)
-      no_update = false
-    elseif stream.is(TOKEN.LPAREN) then
-      local lparen = stream.advance()
-      local args = parse_comma_list(stream, TOKEN.RPAREN, P.maybe_spread)
-      stream.consume(TOKEN.RPAREN)
-      expr = ast.call_expression(expr, args, lparen)
-      no_update = false
-    else
-      break
-    end
+local function led_binary_left(tok_type)
+  return function(stream, tok, left, no_in)
+    local right = pratt_expr(stream, PRECEDENCE[tok_type] + 0.01, no_in)
+    return ast.binary_expression(tok_type, left, right, tok)
   end
-  -- Postfix ++/-- is checked once after the chain, not inside the loop,
-  -- because it's not chainable: x++++ is not valid JS.
-  if stream.is(TOKEN.INCREMENT) or stream.is(TOKEN.DECREMENT) then
-    local op_token = stream.advance()
-    if no_update then
-      parse_error(
-        "Invalid update target: cannot use " .. op_token.type .. " on this expression",
-        op_token.line,
-        op_token.col
-      )
-    end
-    return ast.update_expression(op_token.type, expr, false, op_token)
-  end
-  return expr
 end
 
---- Parse an identifier, which might be:
---   1. A bare identifier (variable reference)
---   2. The start of an arrow function: x => expr
---   3. Followed by member access/calls via P.postfix
-function P.identifier_or_call(stream)
-  local token = stream.consume(TOKEN.IDENTIFIER)
-  local expr = ast.identifier(token.value, token)
+leds[TOKEN.STAR] = led_binary_left(TOKEN.STAR)
+leds[TOKEN.STARSTAR] = function(stream, tok, left, no_in)
+  local right = pratt_expr(stream, PRECEDENCE[TOKEN.STARSTAR], no_in)
+  return ast.binary_expression(TOKEN.STARSTAR, left, right, tok)
+end
+leds[TOKEN.SLASH] = led_binary_left(TOKEN.SLASH)
+leds[TOKEN.PERCENT] = led_binary_left(TOKEN.PERCENT)
+leds[TOKEN.PLUS] = led_binary_left(TOKEN.PLUS)
+leds[TOKEN.MINUS] = led_binary_left(TOKEN.MINUS)
+leds[TOKEN.LEFT_SHIFT] = led_binary_left(TOKEN.LEFT_SHIFT)
+leds[TOKEN.RIGHT_SHIFT] = led_binary_left(TOKEN.RIGHT_SHIFT)
+leds[TOKEN.UNSIGNED_RIGHT_SHIFT] = led_binary_left(TOKEN.UNSIGNED_RIGHT_SHIFT)
+leds[TOKEN.LT] = led_binary_left(TOKEN.LT)
+leds[TOKEN.GT] = led_binary_left(TOKEN.GT)
+leds[TOKEN.LTE] = led_binary_left(TOKEN.LTE)
+leds[TOKEN.GTE] = led_binary_left(TOKEN.GTE)
+leds[TOKEN.INSTANCEOF] = led_binary_left(TOKEN.INSTANCEOF)
+leds[TOKEN.IN] = led_binary_left(TOKEN.IN)
+leds[TOKEN.EQ] = led_binary_left(TOKEN.EQ)
+leds[TOKEN.NEQ] = led_binary_left(TOKEN.NEQ)
+leds[TOKEN.LOOSE_EQ] = led_binary_left(TOKEN.LOOSE_EQ)
+leds[TOKEN.LOOSE_NEQ] = led_binary_left(TOKEN.LOOSE_NEQ)
+leds[TOKEN.BITWISE_AND] = led_binary_left(TOKEN.BITWISE_AND)
+leds[TOKEN.BITWISE_XOR] = led_binary_left(TOKEN.BITWISE_XOR)
+leds[TOKEN.BITWISE_OR] = led_binary_left(TOKEN.BITWISE_OR)
+leds[TOKEN.AND] = led_binary_left(TOKEN.AND)
+leds[TOKEN.OR] = led_binary_left(TOKEN.OR)
 
-  if stream.is(TOKEN.ARROW) then
-    stream.advance()
-    local body = P.arrow_function_body(stream)
-    return ast.arrow_function_expression({ expr }, body, token)
+local ASSIGN_OPS = {
+  [TOKEN.ASSIGN] = true,
+  [TOKEN.PLUS_ASSIGN] = true,
+  [TOKEN.MINUS_ASSIGN] = true,
+  [TOKEN.STAR_ASSIGN] = true,
+  [TOKEN.STARSTAR_ASSIGN] = true,
+  [TOKEN.SLASH_ASSIGN] = true,
+  [TOKEN.PERCENT_ASSIGN] = true,
+  [TOKEN.BITWISE_AND_ASSIGN] = true,
+  [TOKEN.BITWISE_OR_ASSIGN] = true,
+  [TOKEN.BITWISE_XOR_ASSIGN] = true,
+  [TOKEN.LEFT_SHIFT_ASSIGN] = true,
+  [TOKEN.RIGHT_SHIFT_ASSIGN] = true,
+  [TOKEN.UNSIGNED_RIGHT_SHIFT_ASSIGN] = true,
+}
+
+local function led_assign(stream, tok, left, no_in)
+  local op = tok.type
+  if op == TOKEN.ASSIGN then
+    if left.type == ast.TYPE_ARRAY_EXPRESSION or left.type == ast.TYPE_OBJECT_EXPRESSION then
+      left = coerce_to_pattern(left)
+    end
   end
-
-  return P.postfix(stream, expr)
+  local right = P.expression(stream, no_in)
+  return ast.binary_expression(op, left, right, tok)
 end
 
---- Parse call expression after callee has been identified.
--- Called when the caller has already determined that ( follows an expression.
--- Delegates to P.postfix for further chaining after the call.
--- @param stream (table) Token stream
--- @param callee (table) The expression being called
-function P.call_expression(stream, callee)
-  local lparen = stream.consume(TOKEN.LPAREN)
-  local arguments = parse_comma_list(stream, TOKEN.RPAREN, P.maybe_spread)
+for op_type, _ in pairs(ASSIGN_OPS) do
+  leds[op_type] = led_assign
+end
+
+leds[TOKEN.QUESTION] = function(stream, tok, left, no_in)
+  local consequent = P.expression(stream, no_in)
+  stream.consume(TOKEN.COLON)
+  local alternate = P.expression(stream, no_in)
+  return ast.conditional_expression(left, consequent, alternate, tok)
+end
+
+leds[TOKEN.DOT] = function(stream, tok, left)
+  local prop_token = stream.consume_property_name()
+  return ast.member_expression(left, ast.identifier(prop_token.value, prop_token), false, tok)
+end
+
+leds[TOKEN.LBRACKET] = function(stream, tok, left)
+  local prop = P.expression(stream)
+  stream.consume(TOKEN.RBRACKET)
+  return ast.member_expression(left, prop, true, tok)
+end
+
+leds[TOKEN.LPAREN] = function(stream, tok, left)
+  local args = parse_comma_list(stream, TOKEN.RPAREN, P.maybe_spread)
   stream.consume(TOKEN.RPAREN)
-  local expr = ast.call_expression(callee, arguments, lparen)
-  return P.postfix(stream, expr)
+  return ast.call_expression(left, args, tok)
+end
+
+--- Entry point for expression parsing. Starts at minimum precedence 0.
+-- @param stream (table) Token stream
+-- @param no_in (boolean|nil) If true, suppress 'in' as a binary operator (for for-loop init)
+function P.expression(stream, no_in)
+  return pratt_expr(stream, 0, no_in)
 end
 
 function P.maybe_spread(stream)
@@ -1417,8 +1440,8 @@ end
 
 --- Parse array literal: [expr, expr, ...]
 -- Empty arrays [] are valid.
-function P.array_literal(stream)
-  local lbracket = stream.consume(TOKEN.LBRACKET)
+function P.array_literal(stream, tok)
+  local lbracket = tok or stream.consume(TOKEN.LBRACKET)
   local elements = {}
   local idx = 1
 
@@ -1459,8 +1482,8 @@ end
 -- String keys only support the key: value form.
 -- Computed keys (e.g. {[expr]: value}) are not supported.
 -- Empty objects {} are valid.
-function P.object_literal(stream)
-  local lbrace = stream.consume(TOKEN.LBRACE)
+function P.object_literal(stream, tok)
+  local lbrace = tok or stream.consume(TOKEN.LBRACE)
 
   local function parse_property(s)
     local key
@@ -1504,8 +1527,8 @@ end
 --- Parse function expression: function(params) { body } or function name(params) { body }
 -- Can be anonymous (no name) or named. Named function expressions produce
 -- a FunctionExpression node with a `name` field (not FunctionDeclaration).
-function P.function_expression(stream)
-  local kw = stream.consume(TOKEN.FUNCTION)
+function P.function_expression(stream, tok)
+  local kw = tok or stream.consume(TOKEN.FUNCTION)
 
   local name = nil
   -- Disambiguate: function foo( is a named expression, function( is anonymous.
